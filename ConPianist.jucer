@@ -277,7 +277,8 @@
     <VS2026 targetFolder="Builds/VisualStudio2026"
             extraCompilerFlags="/bigobj /I&quot;C:\vcpkg\installed\x64-windows\include&quot;"
             extraLinkerFlags="/LIBPATH:&quot;C:\vcpkg\installed\x64-windows\lib&quot; freetype.lib"
-            userNotes="- requires FreeType installed via vcpkg: vcpkg install freetype:x64-windows&#10;- after building, copy the DLLs from C:\vcpkg\installed\x64-windows\bin into the build output folder (next to ConPianist.exe)">
+            postbuildCommand="xcopy /E /I /Y /Q &quot;$(ProjectDir)..\..\Resources&quot; &quot;$(OutDir)Resources\&quot;&#10;xcopy /Y /Q &quot;C:\vcpkg\installed\x64-windows\bin\*.dll&quot; &quot;$(OutDir)&quot;"
+            userNotes="- requires FreeType installed via vcpkg: vcpkg install freetype:x64-windows&#10;- post-build step copies Resources and the vcpkg FreeType DLLs next to the exe automatically">
       <CONFIGURATIONS>
         <CONFIGURATION isDebug="1" name="Debug"/>
         <CONFIGURATION isDebug="0" name="Release"/>
