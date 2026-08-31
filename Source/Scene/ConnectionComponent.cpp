@@ -167,7 +167,9 @@ void ConnectionComponent::load()
 
 	midiPortComboBox->addItem("Connect via Network", 1);
 
-	StringArray ports = MidiInput::getDevices();
+	StringArray ports;
+	for (auto& device : MidiInput::getAvailableDevices())
+		ports.add(device.name);
 	midiPortComboBox->addItemList(ports, 2);
 
 	if (settings.midiPort == "")

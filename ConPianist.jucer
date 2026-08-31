@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<JUCERPROJECT name="ConPianist" projectType="guiapp" jucerVersion="5.4.7" bundleIdentifier="prygunkov.ConPianist"
+<JUCERPROJECT name="ConPianist" projectType="guiapp" bundleIdentifier="prygunkov.ConPianist"
               companyName="Andrey Prygunkov" companyCopyright="(C) 2018-2020 Andrey Prygunkov"
               companyEmail="a.prygunkov@gmail.com" version="4.0" companyWebsite="https://github.com/hugbug/conpianist"
               headerPath="../../Source/Connector&#10;../../Source/Main&#10;../../Source/Piano&#10;../../Source/Scene&#10;../../Source/Mixer&#10;../../Source/Room&#10;../../Library/AppleMIDI&#10;../../Library/Lomse/include&#10;../../Library/Lomse/src/agg/include&#10;../../Library/Lomse/packages&#10;../../Library/Lomse/packages/utfcpp&#10;../../Library/Lomse/build"
-              id="MqsAFh">
+              id="MqsAFh" jucerFormatVersion="1">
   <MAINGROUP id="LcKf1o" name="ConPianist">
     <GROUP id="{641E908D-AEEA-B312-241C-5A4A49DC19AB}" name="Graphics">
       <FILE id="RrB2f9" name="app-icon-ios.svg" compile="0" resource="0"
@@ -210,34 +210,9 @@
         <MODULEPATH id="juce_audio_formats" path="../JUCE/modules"/>
         <MODULEPATH id="juce_audio_processors" path="../JUCE/modules"/>
         <MODULEPATH id="juce_audio_utils" path="../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_processors_headless" path="../../JUCE/modules"/>
       </MODULEPATHS>
     </XCODE_MAC>
-    <VS2015 targetFolder="Builds/VisualStudio2015" bigIcon="dJQtiu" smallIcon=""
-            externalLibraries="freetype.lib" extraCompilerFlags="/bigobj"
-            userNotes="- precomiled FreeType library must be located in directory &quot;&lt;conpianist-root&gt;/../ExternalLibraries/lib&quot;.&#10;- include files of FreeType library must be located in directory &quot;&lt;conpianist-root&gt;/../ExternalLibraries/include/&quot;.">
-      <CONFIGURATIONS>
-        <CONFIGURATION isDebug="1" name="Debug" headerPath="..\..\..\ExternalLibraries\include"
-                       libraryPath="..\..\..\ExternalLibraries\lib" winArchitecture="Win32"/>
-        <CONFIGURATION isDebug="0" name="Release" headerPath="..\..\..\ExternalLibraries\include"
-                       libraryPath="..\..\..\ExternalLibraries\lib" winArchitecture="Win32"/>
-      </CONFIGURATIONS>
-      <MODULEPATHS>
-        <MODULEPATH id="juce_video" path="../../juce"/>
-        <MODULEPATH id="juce_opengl" path="../../juce"/>
-        <MODULEPATH id="juce_gui_extra" path="../../juce"/>
-        <MODULEPATH id="juce_gui_basics" path="../../juce"/>
-        <MODULEPATH id="juce_graphics" path="../../juce"/>
-        <MODULEPATH id="juce_events" path="../../juce"/>
-        <MODULEPATH id="juce_data_structures" path="../../juce"/>
-        <MODULEPATH id="juce_cryptography" path="../../juce"/>
-        <MODULEPATH id="juce_core" path="../../juce"/>
-        <MODULEPATH id="juce_audio_utils" path="../../juce"/>
-        <MODULEPATH id="juce_audio_processors" path="../../juce"/>
-        <MODULEPATH id="juce_audio_formats" path="../../juce"/>
-        <MODULEPATH id="juce_audio_devices" path="../../juce"/>
-        <MODULEPATH id="juce_audio_basics" path="../../juce"/>
-      </MODULEPATHS>
-    </VS2015>
     <XCODE_IPHONE targetFolder="Builds/iOS" externalLibraries="freetype" extraCompilerFlags="-I../../../ExternalLibraries/include"
                   extraLinkerFlags="-L../../../ExternalLibraries/lib-ios" bigIcon="RrB2f9"
                   smallIcon="RrB2f9" customXcodeResourceFolders="Resources/fonts"
@@ -262,17 +237,21 @@
         <MODULEPATH id="juce_audio_formats"/>
         <MODULEPATH id="juce_audio_devices"/>
         <MODULEPATH id="juce_audio_basics"/>
+        <MODULEPATH id="juce_audio_processors_headless" path="../../JUCE/modules"/>
       </MODULEPATHS>
     </XCODE_IPHONE>
     <ANDROIDSTUDIO targetFolder="Builds/Android" androidTheme="@android:style/Theme.NoTitleBar"
                    extraCompilerFlags="-I../../../../../../../../ExternalLibraries/include"
                    extraLinkerFlags="-L../../../../../../../../ExternalLibraries/lib-android"
                    externalLibraries="freetype-${ANDROID_ABI}" smallIcon="RrB2f9"
-                   bigIcon="RrB2f9" androidInternetNeeded="1" androidBluetoothNeeded="0"
-                   microphonePermissionNeeded="0" cameraPermissionNeeded="0" androidExternalReadNeeded="1"
-                   androidExternalWriteNeeded="1" androidInAppBilling="0" androidVibratePermissionNeeded="0"
-                   androidEnableContentSharing="1" androidPushNotifications="0"
-                   androidExtraAssetsFolder="Resources" userNotes="- precomiled FreeType libraries must be located in directory &quot;&lt;conpianist-root&gt;/../ExternalLibraries/lib-android&quot;; file names should include achitecture: libfreetype-arm64-v8a.a, libfreetype-armeabi-v7a.a, libfreetype-x86_64.a, libfreetype-x86.a.&#10;- include files of FreeType library must be located in directory &quot;&lt;conpianist-root&gt;/../ExternalLibraries/include/&quot;.&#10;- after saving the project open generated file &quot;CMakeLists.txt&quot; in a text ditor and at the very end of the file replace &quot;${freetype}&quot; with &quot;-lfreetype-${ANDROID_ABI}&quot; (without quotes).">
+                   bigIcon="RrB2f9" androidInternetNeeded="1" microphonePermissionNeeded="0"
+                   cameraPermissionNeeded="0" androidExternalWriteNeeded="1" androidInAppBilling="0"
+                   androidVibratePermissionNeeded="0" androidEnableContentSharing="1"
+                   androidPushNotifications="0" androidExtraAssetsFolder="Resources"
+                   userNotes="- precomiled FreeType libraries must be located in directory &quot;&lt;conpianist-root&gt;/../ExternalLibraries/lib-android&quot;; file names should include achitecture: libfreetype-arm64-v8a.a, libfreetype-armeabi-v7a.a, libfreetype-x86_64.a, libfreetype-x86.a.&#10;- include files of FreeType library must be located in directory &quot;&lt;conpianist-root&gt;/../ExternalLibraries/include/&quot;.&#10;- after saving the project open generated file &quot;CMakeLists.txt&quot; in a text ditor and at the very end of the file replace &quot;${freetype}&quot; with &quot;-lfreetype-${ANDROID_ABI}&quot; (without quotes)."
+                   androidReadMediaAudioPermission="1" androidReadMediaImagesPermission="1"
+                   androidReadMediaVideoPermission="1" androidBluetoothScanNeeded="0"
+                   androidBluetoothAdvertiseNeeded="0" androidBluetoothConnectNeeded="0">
       <CONFIGURATIONS>
         <CONFIGURATION isDebug="1" name="Debug"/>
         <CONFIGURATION isDebug="0" name="Release"/>
@@ -292,14 +271,40 @@
         <MODULEPATH id="juce_audio_formats"/>
         <MODULEPATH id="juce_audio_devices"/>
         <MODULEPATH id="juce_audio_basics"/>
+        <MODULEPATH id="juce_audio_processors_headless" path="../../JUCE/modules"/>
       </MODULEPATHS>
     </ANDROIDSTUDIO>
+    <VS2026 targetFolder="Builds/VisualStudio2026">
+      <CONFIGURATIONS>
+        <CONFIGURATION isDebug="1" name="Debug"/>
+        <CONFIGURATION isDebug="0" name="Release"/>
+      </CONFIGURATIONS>
+      <MODULEPATHS>
+        <MODULEPATH id="juce_audio_basics" path="../../juce"/>
+        <MODULEPATH id="juce_audio_devices" path="../../juce"/>
+        <MODULEPATH id="juce_audio_formats" path="../../juce"/>
+        <MODULEPATH id="juce_audio_processors" path="../../juce"/>
+        <MODULEPATH id="juce_audio_processors_headless" path="../../juce"/>
+        <MODULEPATH id="juce_audio_utils" path="../../juce"/>
+        <MODULEPATH id="juce_core" path="../../juce"/>
+        <MODULEPATH id="juce_cryptography" path="../../juce"/>
+        <MODULEPATH id="juce_data_structures" path="../../juce"/>
+        <MODULEPATH id="juce_events" path="../../juce"/>
+        <MODULEPATH id="juce_graphics" path="../../juce"/>
+        <MODULEPATH id="juce_gui_basics" path="../../juce"/>
+        <MODULEPATH id="juce_gui_extra" path="../../juce"/>
+        <MODULEPATH id="juce_opengl" path="../../juce"/>
+        <MODULEPATH id="juce_video" path="../../juce"/>
+      </MODULEPATHS>
+    </VS2026>
   </EXPORTFORMATS>
   <MODULES>
     <MODULE id="juce_audio_basics" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
     <MODULE id="juce_audio_devices" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
     <MODULE id="juce_audio_formats" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
     <MODULE id="juce_audio_processors" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_audio_processors_headless" showAllCode="1" useLocalCopy="0"
+            useGlobalPath="1"/>
     <MODULE id="juce_audio_utils" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
     <MODULE id="juce_core" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
     <MODULE id="juce_cryptography" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>

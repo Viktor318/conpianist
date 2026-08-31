@@ -177,9 +177,9 @@ bool decompose_ft_outline(const FT_Outline& outline, bool flip_y, const trans_af
     FT_Vector   v_start;
     double x1, y1, x2, y2, x3, y3;
 
-    FT_Vector*  point;
-    FT_Vector*  limit;
-    char*       tags;
+    FT_Vector*    point;
+    FT_Vector*    limit;
+    unsigned char* tags;
 
     int   n;         // index of contour in outline
     int   first;     // index of first point in contour

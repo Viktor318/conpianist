@@ -1,5 +1,7 @@
 #pragma once
 
+#include <chrono>
+
 #include "AppleMIDI_Namespace.h"
 
 BEGIN_APPLEMIDI_NAMESPACE
