@@ -1134,11 +1134,19 @@ void SystemLayouter::add_lyrics_shapes_to_model(const string& tag, int layer, bo
     for (int i=0; i < numShapes; ++i)
     {
         ShapeBoxInfo* pInfo = pEngrv->get_shape_box_info(i);
+        if (pInfo == nullptr)
+            continue;   //defensive: should not happen now, see
+                        //LyricEngraver::get_shape_box_info
         GmoShape* pAuxShape = pInfo->pShape;
         if (pAuxShape)
             add_aux_shape_to_model(pAuxShape, layer, pInfo->iCol, pInfo->iInstr,
                                    iStaff, idxStaff);
     }
+
+    //shapes have now been read out of the engraver; safe to reset its
+    //per-system accumulators (irrelevant if the engraver is about to be
+    //deleted below, but harmless to call either way)
+    pEngrv->prepare_for_next_system();
 
     if (fLast)
     {

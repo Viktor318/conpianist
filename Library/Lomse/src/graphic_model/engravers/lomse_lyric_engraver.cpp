@@ -180,12 +180,21 @@ int LyricEngraver::create_shapes(Color color)
     int ret = int(m_lyrics.size());
     m_numShapes += ret;
 
-    //prepare for next system
-    m_lyrics.clear();
-    m_shapesInfo.clear();
+    //NOTE: do NOT clear m_lyrics/m_shapesInfo here. The caller (SystemLayouter)
+    //still needs to read the just-created shapes back out via get_shape_box_info()
+    //after create_shapes() returns; clearing here left it reading an already-empty
+    //vector (crash: "vector subscript out of range"). The reset now happens in
+    //prepare_for_next_system(), called by the caller once it is done reading.
 
     return ret;
 };
+
+//---------------------------------------------------------------------------------------
+void LyricEngraver::prepare_for_next_system()
+{
+    m_lyrics.clear();
+    m_shapesInfo.clear();
+}
 
 //---------------------------------------------------------------------------------------
 void LyricEngraver::create_shape(int iNote, GmoShapeNote* pNoteShape, ImoLyric* pLyric,

@@ -182,6 +182,13 @@ public:
     virtual ShapeBoxInfo* get_shape_box_info(int i) = 0;
     virtual void set_prolog_width(LUnits UNUSED(width)) {}
 
+    //called by the layouter once it has consumed (via get_shape_box_info) all the
+    //shapes created by the last create_shapes() call, so the engraver can safely
+    //reset its per-system accumulators. Must NOT be done inside create_shapes()
+    //itself, as the layouter still needs to read the just-created shape info back
+    //out after create_shapes() returns.
+    virtual void prepare_for_next_system() {}
+
     virtual GmoShape* get_shape() { return m_pShape; }
 };
 

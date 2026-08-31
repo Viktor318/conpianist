@@ -97,7 +97,16 @@ public:
 
     int create_shapes(Color color=Color(0,0,0)) override;
     int get_num_shapes() override { return m_numShapes; }
-    ShapeBoxInfo* get_shape_box_info(int i) override { return m_shapesInfo[i]; }
+    ShapeBoxInfo* get_shape_box_info(int i) override
+    {
+        //defensive bounds check, kept as a last-resort safety net even though
+        //prepare_for_next_system() (not create_shapes()) is now what clears
+        //m_shapesInfo, so a correctly-behaving caller should never hit this.
+        if (i < 0 || i >= int(m_shapesInfo.size()))
+            return nullptr;
+        return m_shapesInfo[i];
+    }
+    void prepare_for_next_system() override;
 
 
 protected:
