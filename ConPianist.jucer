@@ -274,10 +274,9 @@
         <MODULEPATH id="juce_audio_processors_headless" path="../../JUCE/modules"/>
       </MODULEPATHS>
     </ANDROIDSTUDIO>
-    <VS2026 targetFolder="Builds/VisualStudio2026" extraCompilerFlags="/bigobj"
-            headerPath="C:\vcpkg\installed\x64-windows\include"
-            libraryPath="C:\vcpkg\installed\x64-windows\lib"
-            externalLibraries="freetype"
+    <VS2026 targetFolder="Builds/VisualStudio2026"
+            extraCompilerFlags="/bigobj /I&quot;C:\vcpkg\installed\x64-windows\include&quot;"
+            extraLinkerFlags="/LIBPATH:&quot;C:\vcpkg\installed\x64-windows\lib&quot; freetype.lib"
             userNotes="- requires FreeType installed via vcpkg: vcpkg install freetype:x64-windows&#10;- after building, copy the DLLs from C:\vcpkg\installed\x64-windows\bin into the build output folder (next to ConPianist.exe)">
       <CONFIGURATIONS>
         <CONFIGURATION isDebug="1" name="Debug"/>
