@@ -21,7 +21,17 @@ Saját célú továbbfejlesztés Yamaha CSP-170 zongorához, Visual Studio 2026 
 
 ---
 
-## 3.0 – 2026. május 15.
+## 4.0 – soha hivatalosan ki nem adva (fejlesztés: 2020. május–november)
+
+Az eredeti fejlesztő a `v3.0` után a `.jucer`-ben átírta a verziószámot "4.0"-ra, és tovább dolgozott a `develop` branchen — de ez a munka soha nem lett formális GitHub release-ként kiadva vagy dokumentálva (2020. november 7-i utolsó commit után a fejlesztés láthatóan leállt). Emiatt az alkalmazás jelenleg is "4.0"-t mutat, hivatalos changelog nélkül. Az alábbi lista a `v3.0` tag és a `develop` branch közti 35 commit alapján készült.
+
+- **"Piano Room" panel** (új funkció): a zongora teremszimulációs beállításai egy önálló felületen — fényesség (brightness), Virtual Resonance Modeling (VRM), húr- és csillapítórezonancia, mesterhangolás (master tune), billentésgörbe (touch curve), fedélpozíció (lid position), key-off sampling —, ezekhez saját regisztrációs memóriával; a megnyitó gomb a hangválasztó panelbe került.
+- **Alap Android-támogatás**: aszinkron dialógusok és menük, új `GuiHelper` modul, kotta-komponens és betűtípus-kezelés Android-on, build-jegyzetek minden platformra.
+- Simább (smooth) csúszka-viselkedés.
+- Forráskód-átszervezés (belső refaktorálás, funkcionális változás nélkül).
+- FreeType statikus linkelése macOS-en (build-only változtatás).
+
+## 3.0 – 2020. május 15.
 
 - Gyorsabb hálózati csatlakozási idő és üzenet-visszaigazolási protokoll a kapcsolatkezelésben.
 - Regisztrációs memória (beállítások) mentése és betöltése `.conmem` fájlokba.
@@ -31,7 +41,7 @@ Saját célú továbbfejlesztés Yamaha CSP-170 zongorához, Visual Studio 2026 
 - Jobban megkülönböztethető dialógusablakok.
 - Opcionális naplózás (logging) lehetősége.
 
-## 2.0 – 2026. április 15.
+## 2.0 – 2020. április 15.
 
 - Teljes értékű keverő bevezetése csatorna-vezérléssel és effekt-kezeléssel.
 - Rész-kiválasztás és hangszínválasztás közvetlenül a keverő csatornáiból.
@@ -43,7 +53,7 @@ Saját célú továbbfejlesztés Yamaha CSP-170 zongorához, Visual Studio 2026 
 - Zongoraállapot szinkronizálása újracsatlakozáskor.
 - Alapszintű iOS/iPad támogatás.
 
-## 1.0 – 2026. március 14.
+## 1.0 – 2020. március 14.
 
 - Első kiadás. Alapfunkciók:
   - hálózati zongoracsatlakozás (USB-n keresztül még nem támogatott);
