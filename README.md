@@ -1,37 +1,43 @@
 # ConPianist
 
-**ConPianist** or **Connected Pianist** is an app to control Yamaha digital pianos of CSP (Clavinova Smart Piano) series. This is an alternative to Yamaha's own app "Smart Pianist". Unlike Smart Pianist, which works on iOS and Android, Connected Pianist is designed for desktop systems - macOS, Windows and Linux. It works on iPad too though.
+> Ez ennek a projektnek **[Viktor318](https://github.com/Viktor318/conpianist) általi saját fork-ja**, saját célú, magánhasználatú továbbfejlesztésre. Az eredeti projekt: [hugbug/conpianist](https://github.com/hugbug/conpianist). Az angol nyelvű eredeti README a [README.en.md](README.en.md) fájlban található.
 
-## Features
+**ConPianist**, vagyis **Connected Pianist**, egy alkalmazás a Yamaha CSP (Clavinova Smart Piano) sorozatú digitális zongorák vezérlésére. Alternatívája a Yamaha saját "Smart Pianist" alkalmazásának. A Smart Pianist-tel ellentétben, ami iOS-en és Androidon fut, a Connected Pianist asztali rendszerekre készült — macOS, Windows és Linux alá. iPad-en is működik.
 
-The program is not an adequate replacement for the official app yet. Nonetheless the program already can:
-- connect to piano via network or cable;
-- connect/reconnect without losing piano state: the program reads whole piano state on start and indicates it in the UI;
-- upload midi-files to piano via network (but can't upload via USB cable);
-- playback control of uploaded midi-files: start, pause, position;
-- stream lights control: on, off, slow, fast;
-- guide mode control: on, off, guide mode;
-- select parts: backing, right hand, left hand;
-- playback selected fragment in a loop;
-- volume, tempo, transpose;
-- select voices (all seven hundreds) for main, left and layer;
-- octave shift and split point (main/left) setting;
-- mixer with all classic functions: midi-channels on/off, volume, pan, reverb, reverb effect;
-- extra functions in mixer: part selection for midi-channels, voice selection directly from midi-channels;
-- balance for main/left/layer/song/mic/auxin: volume, pan, reverb, reverb effect;
-- show scores with correct playback position: scores must be provided in a separate muscixml-file (can't show scores directly from midi-file);
-- registration memory (settings) associated with midi-songs.
+## Funkciók
 
-## Screenshots
+A program egyelőre nem teljes értékű helyettesítője a hivatalos alkalmazásnak. Ennek ellenére már most is tud:
+- csatlakozni a zongorához hálózaton vagy kábelen keresztül;
+- állapotvesztés nélkül csatlakozni/újracsatlakozni: a program indításkor beolvassa a zongora teljes állapotát, és megjeleníti a felületen;
+- MIDI-fájlokat feltölteni a zongorára hálózaton keresztül (USB-kábelen keresztül egyelőre nem);
+- a feltöltött MIDI-fájlok lejátszását vezérelni: indítás, szünet, pozíció;
+- a "stream lights" (billentyű-kivilágítás) vezérlése: ki, be, lassú, gyors;
+- a guide (vezetett gyakorlás) mód vezérlése: ki, be, mód kiválasztása;
+- részek kiválasztása: kíséret, jobb kéz, bal kéz;
+- kiválasztott szakasz lejátszása ismétlődő (loop) módban;
+- hangerő, tempó, transzponálás beállítása;
+- hangszínek kiválasztása (mind a hétszáznál is több) a fő, bal kezes és réteg (layer) hangokhoz;
+- oktáveltolás és osztáspont (fő/bal) beállítása;
+- keverő az összes klasszikus funkcióval: MIDI-csatornák ki/be kapcsolása, hangerő, pan, visszhang, visszhang-effekt;
+- extra funkciók a keverőben: rész-kiválasztás MIDI-csatornánként, hangszín kiválasztása közvetlenül a MIDI-csatornákból;
+- balansz beállítás a fő/bal/réteg/dal/mikrofon/auxin csatornákra: hangerő, pan, visszhang, visszhang-effekt;
+- kották megjelenítése a lejátszási pozícióval szinkronban: a kottákat külön MusicXML-fájlban kell megadni (közvetlenül a MIDI-fájlból nem jeleníthető meg kotta);
+- a regisztrációs memória (beállítások) MIDI-dalokhoz rendelése.
 
-![Playback with scores](https://user-images.githubusercontent.com/3368402/79354560-d8c86b00-7f3c-11ea-8710-9c948982de3a.png)
+## Képernyőképek
 
-![Voice selection](https://user-images.githubusercontent.com/3368402/79360975-f699ce00-7f44-11ea-8aa1-803be03533d7.png)
+![Lejátszás kottával](https://user-images.githubusercontent.com/3368402/79354560-d8c86b00-7f3c-11ea-8710-9c948982de3a.png)
 
-![Mixer](https://user-images.githubusercontent.com/3368402/79354913-4ffdff00-7f3d-11ea-8bf9-0ecda2180204.png)
+![Hangszínválasztás](https://user-images.githubusercontent.com/3368402/79360975-f699ce00-7f44-11ea-8aa1-803be03533d7.png)
 
-## Acknowledgements
+![Keverő](https://user-images.githubusercontent.com/3368402/79354913-4ffdff00-7f3d-11ea-8bf9-0ecda2180204.png)
 
-The source code of ConPianist includes following libraries:
-- [Lomse](https://github.com/lenmus/lomse) to display scores;
-- [Arduino AppleMIDI Library](https://github.com/lathoub/Arduino-AppleMIDI-Library) to communicate with piano via network.
+## Köszönetnyilvánítás
+
+A ConPianist forráskódja a következő könyvtárakat tartalmazza:
+- [Lomse](https://github.com/lenmus/lomse) a kották megjelenítéséhez;
+- [Arduino AppleMIDI Library](https://github.com/lathoub/Arduino-AppleMIDI-Library) a zongorával való hálózati kommunikációhoz.
+
+## Erről a fork-ról
+
+Ez a változat saját, magáncélú felhasználásra készül egy Yamaha CSP-170 zongorához, modern fejlesztői eszközökkel (Visual Studio, friss JUCE, vcpkg) újra buildelve és néhány hibajavítással kiegészítve. A részletekért lásd a [CHANGELOG.md](CHANGELOG.md) fájlt.
