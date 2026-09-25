@@ -140,7 +140,10 @@ void SeqPianoConnector::ProcessQueue()
 		}
 
 		PrintLog(m_attempt == 1 ? "SEND   " : "REPEAT" + String(m_attempt - 1), message);
-		m_midiConnector->SendMessage(message);
+		if (m_midiConnector)
+		{
+			m_midiConnector->SendMessage(message);
+		}
 	}
 }
 

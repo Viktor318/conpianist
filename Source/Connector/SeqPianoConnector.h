@@ -33,7 +33,7 @@ public:
 	void SetMidiConnector(MidiConnector* midiConnector);
 	void SendMidiMessage(const MidiMessage& message) override;
 	void SendPianoMessage(const PianoMessage& message) override;
-	bool IsConnected() override { return m_midiConnector->IsConnected(); }
+	bool IsConnected() override { return m_midiConnector && m_midiConnector->IsConnected(); }
 	void IncomingMidiMessage(const MidiMessage& message) override;
 	int GetAttempt() { return m_attempt; }
 	Time GetStallTime() { return m_stallTime; }
@@ -42,7 +42,7 @@ public:
 	void ClearQueue();
 
 private:
-	MidiConnector* m_midiConnector;
+	MidiConnector* m_midiConnector = nullptr;
 	std::deque<MidiMessage> m_queue;
 	std::mutex m_mutex;
 	MidiMessage m_lastMessage;

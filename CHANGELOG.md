@@ -2,7 +2,19 @@
 
 Ez a fájl a ConPianist változásait dokumentálja. Az 1.0–3.0 verziók az eredeti [hugbug/conpianist](https://github.com/hugbug/conpianist) projekt kiadásai (lásd az [eredeti release-eket](https://github.com/hugbug/conpianist/releases)); az ez utáni bejegyzések ennek a fork-nak ([Viktor318/conpianist](https://github.com/Viktor318/conpianist)) a saját, magáncélú fejlesztései.
 
-## 4.1 (fork) – fejlesztés alatt, 2026
+## Következő verzió – fejlesztés alatt
+
+### Javítva
+- **Lefagyás MIDI-fájl feltöltésekor:** ha a zongora nem válaszolt, a program ablaka végleg lefagyott, mert a válaszra időkorlát nélkül várt. Most legfeljebb 3 másodpercig próbál csatlakozni, és legfeljebb 10 másodpercig vár válaszra, utána hibaüzenetet ír ki.
+- **Hibás feltöltés sikeresnek jelezve:** a hálózati írás és olvasás hibakódját (`-1`) a program sikernek vette, ilyenkor a felirat örökre „Betöltés...” maradt.
+- **Összeomlás olvashatatlan MIDI-fájlnál:** ha a kiválasztott fájlt nem lehetett megnyitni (pl. közben törölték), a program összeomlott; most hibaüzenetet ír ki.
+- **Összeomlás hálózati csatlakozáskor:** a hálózati MIDI szabad portot kereső függvénye egy részleges siker után minden további próbálkozásnál hibázott, és a program üres objektumra hivatkozva összeomlott. A portkeresés javítva, sikertelenség esetén a program másodpercenként újrapróbálkozik.
+- **Mesterhangolás elcsúszása:** a regisztrációs memóriából (`.conmem`) visszatöltött hangolás az értékek kb. 40%-ánál 0,1 Hz-cel eltért (pl. 442,3 Hz helyett 442,2 Hz), mert az érték kerekítés helyett csonkolódott.
+- **Memóriahibák váratlan zongoraüzeneteknél:** a zongorától érkező csatorna- és szólamindexek ellenőrzése, mielőtt a program tömböket címez velük.
+- Hosszú, ékezetes fájlnevek feltöltése: a név hossza most bájtban (UTF-8) számolva fér bele a 255 bájtos korlátba.
+- Kisebb robusztussági javítások (nem inicializált mutató, hibás `MaxPan` konstans).
+
+## 4.1 (fork) – 2026. szeptember
 
 Saját célú továbbfejlesztés Yamaha CSP-170 zongorához, Visual Studio 2026 / JUCE 9.0.1 / vcpkg alapú modern build-környezettel.
 

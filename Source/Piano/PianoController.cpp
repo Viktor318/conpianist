@@ -250,14 +250,21 @@ bool PianoController::UploadSong(const File& file)
 	MemoryBlock message;
 	message.loadFromHexString(headerHex);
 
+	// The name is sent with a one-byte length prefix, so it must fit into 255 bytes
+	// including the terminating zero. The limit is in UTF-8 bytes, not characters:
+	// accented letters (e.g. in Hungarian file names) take two bytes each.
+	const size_t MaxNameBytes = 255;
 	String filename = "EXTERNAL:" + file.getFullPathName();
-	size_t namelen = filename.getNumBytesAsUTF8() + 1;
-	if (namelen > 255)
+	if (filename.getNumBytesAsUTF8() + 1 > MaxNameBytes)
 	{
-		filename = "EXTERNAL:" + file.getFileName().substring(0, 255-10);
+		filename = "EXTERNAL:" + file.getFileName();
+		while (filename.getNumBytesAsUTF8() + 1 > MaxNameBytes)
+		{
+			filename = filename.dropLastCharacters(1);
+		}
 	}
 	const char* namebuf = filename.toRawUTF8();
-	namelen = strlen(namebuf) + 1;
+	size_t namelen = strlen(namebuf) + 1;
 	uint8_t namelenbuf = (uint8_t)namelen;
 	message.append(&namelenbuf, 1);
 	message.append(namebuf, namelen);
@@ -276,18 +283,31 @@ bool PianoController::UploadSong(const File& file)
 		(uint8_t)((fileSize >> 8*0) & 0xFF)};
 	message.append(sizeBuf, 4);
 
-	file.loadFileAsData(message);
+	if (!file.loadFileAsData(message))
+	{
+		return false;
+	}
 
 	Pause();
 
 	Thread::sleep(100);
 
+	// The upload runs on the UI thread, so every step must have a time limit;
+	// otherwise the whole window freezes if the piano does not answer.
+	// Note: write() and read() return -1 on error, which would count as "true"
+	// in a boolean expression, so their results are compared explicitly.
+	const int UploadPort = 10504;
+	const int ConnectTimeoutMs = 3000;
+	const int ResponseTimeoutMs = 10000;
+	const int messageSize = (int)message.getSize();
+
 	m_songLoading = true;
 	char response[16];
 	StreamingSocket socket;
-	bool ok = socket.connect(m_remoteIp, 10504) &&
-		socket.write(message.getData(), (int)message.getSize()) &&
-		socket.read(response, 16, true);
+	bool ok = socket.connect(m_remoteIp, UploadPort, ConnectTimeoutMs) &&
+		socket.write(message.getData(), messageSize) == messageSize &&
+		socket.waitUntilReady(true, ResponseTimeoutMs) == 1 &&
+		socket.read(response, (int)sizeof(response), false) > 0;
 
 	m_songLoading &= ok;
 	return ok;
@@ -608,12 +628,12 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 		m_streamFast = boolValue;
 		NotifyChanged(apStreamLights);
 	}
-	else if (property == Property::Part)
+	else if (property == Property::Part && index < numElementsInArray(m_parts))
 	{
 		m_parts[(Part)index] = boolValue;
 		NotifyChanged(apPart);
 	}
-	else if (property == Property::PartChannel)
+	else if (property == Property::PartChannel && index < numElementsInArray(m_partChannels))
 	{
 		Channel newCh = (Channel)(chMidi0 + intValue);
 		Channel oldCh = m_partChannels[index];
@@ -716,7 +736,7 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 		m_touchCurve = (TouchCurve)intValue;
 		NotifyChanged(apTouchCurve);
 	}
-	else if (property == Property::FixedCurve)
+	else if (property == Property::FixedCurve && index < numElementsInArray(m_fixedCurve))
 	{
 		m_fixedCurve[index] = boolValue;
 		NotifyChanged(apFixedCurve);

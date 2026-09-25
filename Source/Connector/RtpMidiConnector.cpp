@@ -244,7 +244,7 @@ void RtpMidi::OnMidiSystemExclusive(byte* data, unsigned size)
 
 void RtpMidi::OnSysEx(const byte* data, uint16_t size)
 {
-	if (!m_listener)
+	if (!m_listener || size == 0)
 	{
 		return;
 	}
@@ -287,6 +287,22 @@ void RtpMidiConnector::run()
 
 	while (!threadShouldExit())
 	{
+		bool sessionReady;
+		{
+			std::lock_guard<std::mutex> guard(m_mutex);
+			sessionReady = g_rtpMidi && g_midi;
+			if (!sessionReady)
+			{
+				// the session could not be started (no free port); try again
+				ResetMidi();
+			}
+		}
+		if (!sessionReady)
+		{
+			Thread::sleep(1000);
+			continue;
+		}
+
 		bool processed = false;
 		{
 			std::lock_guard<std::mutex> guard(m_mutex);
@@ -323,7 +339,10 @@ void RtpMidiConnector::run()
 		}
 	}
 
-	g_rtpMidi->sendEndSession();
+	if (g_rtpMidi)
+	{
+		g_rtpMidi->sendEndSession();
+	}
 	g_midi.reset();
 	g_rtpMidi.reset();
 }
@@ -347,22 +366,32 @@ void RtpMidiConnector::ResetMidi()
 	g_midi->begin(MIDI_CHANNEL_OMNI);
 }
 
+// RTP-MIDI needs two consecutive free UDP ports (control and data).
+// New sockets are created for every attempt: a socket that was bound once
+// cannot be bound to another port, so reusing them made every further
+// attempt fail after the first partial success.
 int RtpMidiConnector::FindFreePort()
 {
-	DatagramSocket socket1;
-	DatagramSocket socket2;
-	int port = 5004;
-	while ((!socket1.bindToPort(port) || !socket2.bindToPort(port+1)) && port < 65534)
+	for (int port = 5004; port < 65534; port += 2)
 	{
-		port += 2;
+		DatagramSocket controlSocket;
+		DatagramSocket dataSocket;
+		if (controlSocket.bindToPort(port) && dataSocket.bindToPort(port + 1))
+		{
+			return port;
+		}
 	}
 
-	return port >= 65534 ? 0 : port;
+	return 0;
 }
 
 void RtpMidiConnector::SendMessage(const MidiMessage& message)
 {
 	std::lock_guard<std::mutex> guard(m_mutex);
+	if (!g_midi)
+	{
+		return; // session not running (yet)
+	}
 	if (message.isController())
 	{
 		g_midi->sendControlChange(message.getControllerNumber(), message.getControllerValue(), message.getChannel());

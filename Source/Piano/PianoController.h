@@ -151,7 +151,7 @@ public:
 	static const int DefaultTranspose = 0;
 	static const int TransposeBase = 0x40;
 	static const int MinPan = -64;
-	static const int MaxPan = -63;
+	static const int MaxPan = +63;
 	static const int DefaultPan = 0;
 	static const int PanBase = 0x40;
 	static const int MinReverb = 0;
@@ -303,7 +303,7 @@ private:
 	int m_transpose = DefaultTranspose;
 	Position m_loopStart{0,0};
 	Loop m_loop{{0,0},{0,0}};
-	ChannelInfo m_channels[127];
+	ChannelInfo m_channels[128]; // indexed by the channel number sent by the piano (a 7-bit value: 0..127)
 	int m_reverbEffect = 0;
 	String m_songName;
 	bool m_songLoaded = false;

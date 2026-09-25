@@ -333,7 +333,8 @@ void RegistrationMemory::LoadPianoRoom()
 	}
 	if ((el = listElement->getChildByName("MasterTune")))
 	{
-		int value = (int)((el->getAllSubText().getFloatValue() - 440.0) * 10.0);
+		// round, do not truncate: e.g. 442.3 Hz must give 23, not 22
+		int value = roundToInt((el->getAllSubText().getDoubleValue() - 440.0) * 10.0);
 		pianoController.SetMasterTune(value);
 	}
 	if ((el = listElement->getChildByName("Vrm")))
