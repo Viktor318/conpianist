@@ -83,3 +83,4 @@ Builds/
 
 # ConPianist regisztrációs memória fájlok (személyes zongorabeállítások dalonként)
 *.conmem
+/CHANGELOG.pdf
