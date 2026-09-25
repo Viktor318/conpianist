@@ -18,6 +18,9 @@ Ez a fájl a ConPianist változásait dokumentálja. Az 1.0–3.0 verziók az er
 - **Memóriahibák váratlan zongoraüzeneteknél:** a zongorától érkező csatorna- és szólamindexek ellenőrzése, mielőtt a program tömböket címez velük.
 - Hosszú, ékezetes fájlnevek feltöltése: a név hossza most bájtban (UTF-8) számolva fér bele a 255 bájtos korlátba.
 - Kisebb robusztussági javítások (nem inicializált mutató, hibás `MaxPan` konstans).
+- A Keverőben a zengetéstípus legördülő listája nem lóg bele az elválasztó vonalba (a magyar „Zengetés” felirat hosszabb, mint az angol).
+- A „Zongoraállapot mentése” rákérdez, mielőtt egy már létező fájlt felülírna.
+- A regisztrációs memória betöltésekor a program már nem próbálja be-/kikapcsolni a zenedarab Master csatornáját, amit a zongora visszautasít.
 
 ## 4.1 (fork) – 2026. szeptember
 

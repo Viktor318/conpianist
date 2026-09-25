@@ -170,7 +170,9 @@ void RegistrationMemory::LoadChannel(PianoController::Channel channel, String na
 	if (!chElem) return;
 
 	XmlElement* el;
-	if ((el = chElem->getChildByName("Active")) && channel != PianoController::chAuxIn)
+	// Aux In and the song master channel cannot be switched on/off (the piano rejects it)
+	if ((el = chElem->getChildByName("Active")) &&
+		channel != PianoController::chAuxIn && channel != PianoController::chMidiMaster)
 	{
 		String value = el->getAllSubText();
 		pianoController.SetActive(channel, value.equalsIgnoreCase("yes"));

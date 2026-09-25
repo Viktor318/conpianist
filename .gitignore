@@ -77,7 +77,9 @@ ipch/
 .DS_Store
 xcuserdata/
 Builds/
-/csp170_en.pdf
-/csp170_hu.pdf
-/README.pdf
+
+# PDF fájlok
+*.pdf
+
+# ConPianist regisztrációs memória fájlok (személyes zongorabeállítások dalonként)
 *.conmem

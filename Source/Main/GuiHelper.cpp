@@ -103,7 +103,9 @@ void GuiHelper::ShowFileSaveDialogAsync(const String& title, const String& initi
 	File location(initialLocation);
 	m_fileChooser = std::make_unique<FileChooser>(title, location, patterns);
 
-	m_fileChooser->launchAsync(FileBrowserComponent::saveMode | FileBrowserComponent::canSelectFiles,
+	// warnAboutOverwriting: the dialog asks for confirmation before replacing an existing file
+	m_fileChooser->launchAsync(FileBrowserComponent::saveMode | FileBrowserComponent::canSelectFiles |
+		FileBrowserComponent::warnAboutOverwriting,
 		[callback](const FileChooser& ch)
 		{
 			const URL url = ch.getURLResult();
