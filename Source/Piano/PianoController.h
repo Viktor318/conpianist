@@ -246,6 +246,7 @@ public:
 	void SetPartAuto(bool enable);
 	const String& GetVoice(Channel ch) { return m_channels[ch].voice; }
 	void SetVoice(Channel ch, const String& voice);
+	void SetSongChannelVoice(Channel ch, int voiceNum);
 	bool GetActive(Channel ch) { return m_channels[ch].active; }
 	void SetActive(Channel ch, bool active);
 	bool GetEnabled(Channel ch) { return m_channels[ch].enabled; }

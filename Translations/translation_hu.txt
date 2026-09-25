@@ -119,6 +119,7 @@ countries: hu
 "Select Only This Channel" = "Csak ez a csatorna szóljon"
 "Play on Virtual Keyboard" = "Lejátszás a virtuális billentyűzeten"
 "VOICE" = "HANGSZÍN"
+"Change Voice" = "Hangszín módosítása"
 "Select VOICENAME for Main" = "VOICENAME kiválasztása fő hangszínnek"
 "Select VOICENAME for Layer" = "VOICENAME kiválasztása réteghangszínnek"
 "Select VOICENAME for Left" = "VOICENAME kiválasztása bal kezes hangszínnek"

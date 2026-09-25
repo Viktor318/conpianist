@@ -525,6 +525,19 @@ const int PianoMessage::GetIntValue() const
 	return 0;
 }
 
+// A Response message carries a two-byte status before the value length:
+// 00 00 means the piano accepted the request, anything else means it was rejected
+// (e.g. 02 02 when a preset voice path is sent for a song channel).
+const int PianoMessage::GetResponseStatus() const
+{
+	const int offset = CSP_COMMAND_PREFIX_LENGTH + 2 + 4 + 1 + 2;
+	if (GetAction() == Action::Response && (int)m_data.getSize() >= offset + 2)
+	{
+		return (m_data[offset] << 8) + m_data[offset + 1];
+	}
+	return 0;
+}
+
 const String PianoMessage::GetStrValue() const
 {
 	int ind = LengthOffset();

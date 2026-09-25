@@ -50,6 +50,8 @@ private:
 	File file;
 	XmlElement* root = nullptr;
 
+	static bool IsSongChannel(PianoController::Channel channel)
+		{ return PianoController::chMidi1 <= channel && channel <= PianoController::chMidi16; }
 	void SaveChannel(PianoController::Channel channel, String name);
 	void LoadChannel(PianoController::Channel channel, String name);
 	void SaveVoice(PianoController::Channel channel, String name);

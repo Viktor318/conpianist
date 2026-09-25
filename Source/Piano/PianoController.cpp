@@ -495,6 +495,24 @@ void PianoController::SetVoice(Channel ch, const String& voice)
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::VoicePreset, ch, voice));
 }
 
+// Sets the voice of a song channel (Midi1..Midi16) the same way a MIDI file does it:
+// with standard Bank Select (CC0 MSB, CC32 LSB) and Program Change messages on that
+// MIDI channel. The piano rejects both the VoicePreset (status 02 02) and the
+// VoiceMidi (status 02 05) properties for song channels.
+// voiceNum has the format 0x00MMLLPP (MSB, LSB, program), as in Presets::Voices().
+void PianoController::SetSongChannelVoice(Channel ch, int voiceNum)
+{
+	const int midiChannel = ch - chMidi0; // 1..16
+	if (midiChannel < 1 || midiChannel > 16)
+	{
+		return;
+	}
+
+	m_pianoConnector->SendMidiMessage(MidiMessage::controllerEvent(midiChannel, 0, (voiceNum >> 16) & 0x7f));
+	m_pianoConnector->SendMidiMessage(MidiMessage::controllerEvent(midiChannel, 32, (voiceNum >> 8) & 0x7f));
+	m_pianoConnector->SendMidiMessage(MidiMessage::programChange(midiChannel, voiceNum & 0x7f));
+}
+
 void PianoController::SetActive(Channel ch, bool active)
 {
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::Active, ch, active ? 1 : 0));
@@ -578,6 +596,13 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 	if ((action != Action::Info && action != Action::Response) ||
 		(lastMessage && pm->DataEqualsTo(*lastMessage)))
 	{
+		return;
+	}
+
+	if (action == Action::Response && pm->GetResponseStatus() != 0)
+	{
+		// the piano rejected the request; the message contains no valid value
+		Logger::writeToLog("Piano rejected request, status " + String::toHexString(pm->GetResponseStatus()));
 		return;
 	}
 

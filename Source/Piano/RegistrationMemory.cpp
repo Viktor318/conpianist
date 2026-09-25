@@ -140,6 +140,25 @@ void RegistrationMemory::SaveChannel(PianoController::Channel channel, String na
 	chElem->createNewChildElement("Volume")->addTextElement(String(pianoController.GetVolume(channel)));
 	chElem->createNewChildElement("Pan")->addTextElement(String(pianoController.GetPan(channel)));
 	chElem->createNewChildElement("Reverb")->addTextElement(String(pianoController.GetReverb(channel)));
+
+	// Song channels: also store the voice, which can be changed in the Mixer.
+	// It is stored as the MIDI voice number (0x00MMLLPP) so that exactly the same
+	// voice is restored; the title attribute is only for human readers.
+	if (IsSongChannel(channel) && pianoController.GetEnabled(channel))
+	{
+		String voice = pianoController.GetVoice(channel);
+		if (voice.startsWith("PRESET:"))
+		{
+			Voice* vc = Presets::FindVoice(voice);
+			voice = vc ? String(vc->num) : String();
+		}
+		if (voice.isNotEmpty())
+		{
+			XmlElement* voiceElem = chElem->createNewChildElement("Voice");
+			voiceElem->setAttribute("title", Presets::VoiceTitle(voice));
+			voiceElem->addTextElement(voice);
+		}
+	}
 }
 
 void RegistrationMemory::LoadChannel(PianoController::Channel channel, String name)
@@ -170,6 +189,14 @@ void RegistrationMemory::LoadChannel(PianoController::Channel channel, String na
 	{
 		int value = el->getAllSubText().getIntValue();
 		pianoController.SetReverb(channel, value);
+	}
+	if (IsSongChannel(channel) && (el = chElem->getChildByName("Voice")))
+	{
+		String value = el->getAllSubText().trim();
+		if (value.isNotEmpty())
+		{
+			pianoController.SetSongChannelVoice(channel, value.getIntValue());
+		}
 	}
 }
 

@@ -4,7 +4,12 @@ Ez a fájl a ConPianist változásait dokumentálja. Az 1.0–3.0 verziók az er
 
 ## Következő verzió – fejlesztés alatt
 
+### Új
+- **A zenedarab csatornáinak hangszíne módosítható a Keverőből.** A csatorna menüjében a „Hangszín módosítása” almenüben kategóriák szerint választható ki az új hangszín. A billentyűzet hangszíneit nem érinti; a módosítás a lejátszás végéig és a program újraindítása után is megmarad, a MIDI-fájl újbóli betöltése visszaállítja az eredetit. A program ugyanúgy állítja be a hangszínt, mint egy MIDI-fájl: szabványos bankváltó (CC0, CC32) és programváltó üzenettel az adott csatornán. A zongora saját vezérlőüzeneteit (VoicePreset, VoiceMidi) a zenedarab csatornáinál visszautasítja.
+- **A zenedarab csatornáinak hangszíne a regisztrációs memóriába (`.conmem`) is mentődik.** A Főmenü „Zongoraállapot mentése” pontjával a módosított hangszínek dalonként elmenthetők; mivel a program a dal betöltésekor automatikusan betölti a mellette lévő `.conmem` fájlt, a saját hangszínek a MIDI-fájl újratöltése után is visszaállnak. A régebbi `.conmem` fájlok változatlanul használhatók.
+
 ### Javítva
+- **Visszautasított kérések kezelése:** ha a zongora hibakóddal utasít vissza egy kérést, a program eddig a hibaválaszt érvényes értéknek vette (pl. üresre állította a csatorna hangszínének nevét). Most figyelmen kívül hagyja, és a naplóba írja.
 - **Lefagyás MIDI-fájl feltöltésekor:** ha a zongora nem válaszolt, a program ablaka végleg lefagyott, mert a válaszra időkorlát nélkül várt. Most legfeljebb 3 másodpercig próbál csatlakozni, és legfeljebb 10 másodpercig vár válaszra, utána hibaüzenetet ír ki.
 - **Hibás feltöltés sikeresnek jelezve:** a hálózati írás és olvasás hibakódját (`-1`) a program sikernek vette, ilyenkor a felirat örökre „Betöltés...” maradt.
 - **Összeomlás olvashatatlan MIDI-fájlnál:** ha a kiválasztott fájlt nem lehetett megnyitni (pl. közben törölték), a program összeomlott; most hibaüzenetet ír ki.

@@ -426,6 +426,59 @@ void ChannelComponent::mouseUp(const MouseEvent& event)
 	}
 }
 
+// Menu item ids of the "Change Voice" submenu: VoiceMenuBase + index in Presets::Voices()
+static const int VoiceMenuBase = 1000;
+
+// Builds a submenu with all voices, grouped by category like the voice tree.
+static PopupMenu buildVoicesMenu(Voice* currentVoice)
+{
+	PopupMenu voicesMenu;
+	PopupMenu category1Menu;
+	PopupMenu category2Menu;
+	String category1;
+	String category2;
+
+	auto flushCategory2 = [&]()
+	{
+		if (category2Menu.getNumItems() > 0)
+		{
+			category1Menu.addSubMenu(category2, category2Menu);
+		}
+		category2Menu.clear();
+	};
+
+	auto flushCategory1 = [&]()
+	{
+		flushCategory2();
+		if (category1Menu.getNumItems() > 0)
+		{
+			voicesMenu.addSubMenu(category1, category1Menu);
+		}
+		category1Menu.clear();
+	};
+
+	VoiceList& voices = Presets::Voices();
+	for (int i = 0; i < (int)voices.size(); i++)
+	{
+		Voice& vc = voices[i];
+		if (vc.category1 != category1)
+		{
+			flushCategory1();
+			category1 = vc.category1;
+			category2 = vc.category2;
+		}
+		else if (vc.category2 != category2)
+		{
+			flushCategory2();
+			category2 = vc.category2;
+		}
+		category2Menu.addItem(VoiceMenuBase + i, vc.title, true, &vc == currentVoice);
+	}
+	flushCategory1();
+
+	return voicesMenu;
+}
+
 void ChannelComponent::showMenu(Button* button)
 {
 	PopupMenu menu;
@@ -437,6 +490,8 @@ void ChannelComponent::showMenu(Button* button)
 
 	menu.addSectionHeader(TRANS("VOICE"));
 	String voice = Presets::VoiceTitle(pianoController.GetVoice(channel));
+	// Experimental: change the voice of this song channel on the piano
+	menu.addSubMenu(TRANS("Change Voice"), buildVoicesMenu(Presets::FindVoice(pianoController.GetVoice(channel))));
 	menu.addItem(100 + PianoController::chMain, TRANS("Select VOICENAME for Main").replace("VOICENAME", voice));
 	menu.addItem(100 + PianoController::chLayer, TRANS("Select VOICENAME for Layer").replace("VOICENAME", voice));
 	menu.addItem(100 + PianoController::chLeft, TRANS("Select VOICENAME for Left").replace("VOICENAME", voice));
@@ -452,6 +507,17 @@ void ChannelComponent::showMenu(Button* button)
 	GuiHelper::ShowMenuAsync(menu, button,
 		[this](int result)
 		{
+			if (result >= VoiceMenuBase)
+			{
+				VoiceList& voices = Presets::Voices();
+				int index = result - VoiceMenuBase;
+				if (index < (int)voices.size())
+				{
+					pianoController.SetSongChannelVoice(channel, voices[index].num);
+				}
+				return;
+			}
+
 			int group = result / 100;
 
 			if (result == 1)

@@ -216,6 +216,7 @@ public:
 	const Property GetProperty(bool full = false) const;
 	const int GetIndex() const;
 	const int GetIntValue() const;
+	const int GetResponseStatus() const;
 	const String GetStrValue() const;
 	const int GetSize() const;
 	const uint8_t* GetRawValue() const;

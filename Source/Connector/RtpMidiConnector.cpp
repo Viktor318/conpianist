@@ -396,6 +396,10 @@ void RtpMidiConnector::SendMessage(const MidiMessage& message)
 	{
 		g_midi->sendControlChange(message.getControllerNumber(), message.getControllerValue(), message.getChannel());
 	}
+	else if (message.isProgramChange())
+	{
+		g_midi->sendProgramChange(message.getProgramChangeNumber(), message.getChannel());
+	}
 	else if (message.isSysEx()) 
 	{
 		g_midi->sendSysEx(message.getSysExDataSize() + 2, message.getSysExData() - 1, true);
