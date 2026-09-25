@@ -1,5 +1,14 @@
 # ConPianist
 
+> **This is a personal fork** by [Viktor318](https://github.com/Viktor318/conpianist) of the original project [hugbug/conpianist](https://github.com/hugbug/conpianist), maintained for a Yamaha CSP-170. The main documentation of this fork is in Hungarian ([README.md](README.md)); the text below is the original English README.
+>
+> **New in this fork** (see [CHANGELOG.md](CHANGELOG.md), in Hungarian):
+> - bilingual user interface (English/Hungarian), switchable in the main menu (LANGUAGE);
+> - the voices of the song's MIDI channels can be changed in the mixer, and they are saved in the registration memory (`.conmem`);
+> - builds with current tools (Visual Studio 2026, recent JUCE, vcpkg); several crash and freeze fixes.
+>
+> A ready-to-run Windows (64-bit) build is available on the [Releases](https://github.com/Viktor318/conpianist/releases) page.
+
 **ConPianist** or **Connected Pianist** is an app to control Yamaha digital pianos of CSP (Clavinova Smart Piano) series. This is an alternative to Yamaha's own app "Smart Pianist". Unlike Smart Pianist, which works on iOS and Android, Connected Pianist is designed for desktop systems - macOS, Windows and Linux. It works on iPad too though.
 
 ## Features

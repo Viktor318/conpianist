@@ -4,6 +4,10 @@
 
 **ConPianist**, vagyis **Connected Pianist**, egy alkalmazás a Yamaha CSP (Clavinova Smart Piano) sorozatú digitális zongorák vezérlésére. Alternatívája a Yamaha saját "Smart Pianist" alkalmazásának. A Smart Pianist-tel ellentétben, ami iOS-en és Androidon fut, a Connected Pianist asztali rendszerekre készült — macOS, Windows és Linux alá. iPad-en is működik.
 
+## Letöltés
+
+A lefordított, Windowson (64 bit) futtatható változat a [Releases](https://github.com/Viktor318/conpianist/releases) oldalon található. A ZIP-fájlt egy tetszőleges mappába kell kicsomagolni, és a `ConPianist.exe`-t elindítani. A `Resources` mappának és a `.dll` fájloknak az `.exe` mellett kell maradniuk.
+
 ## Funkciók
 
 A program egyelőre nem teljes értékű helyettesítője a hivatalos alkalmazásnak. Ennek ellenére már most is tud:
@@ -12,17 +16,20 @@ A program egyelőre nem teljes értékű helyettesítője a hivatalos alkalmazá
 - MIDI-fájlokat feltölteni a zongorára hálózaton keresztül (USB-kábelen keresztül egyelőre nem);
 - a feltöltött MIDI-fájlok lejátszását vezérelni: indítás, szünet, pozíció;
 - a "stream lights" (billentyű-kivilágítás) vezérlése: ki, be, lassú, gyors;
-- a guide (vezetett gyakorlás) mód vezérlése: ki, be, mód kiválasztása;
+- a segéd (vezetett gyakorlás) mód vezérlése: ki, be, mód kiválasztása;
 - részek kiválasztása: kíséret, jobb kéz, bal kéz;
 - kiválasztott szakasz lejátszása ismétlődő (loop) módban;
 - hangerő, tempó, transzponálás beállítása;
 - hangszínek kiválasztása (mind a hétszáznál is több) a fő, bal kezes és réteg (layer) hangokhoz;
 - oktáveltolás és osztáspont (fő/bal) beállítása;
-- keverő az összes klasszikus funkcióval: MIDI-csatornák ki/be kapcsolása, hangerő, pan, visszhang, visszhang-effekt;
+- keverő az összes klasszikus funkcióval: MIDI-csatornák ki/be kapcsolása, hangerő, pan, zengetés, zengetéstípus;
 - extra funkciók a keverőben: rész-kiválasztás MIDI-csatornánként, hangszín kiválasztása közvetlenül a MIDI-csatornákból;
-- balansz beállítás a fő/bal/réteg/dal/mikrofon/auxin csatornákra: hangerő, pan, visszhang, visszhang-effekt;
+- **a zenedarab csatornáinak hangszínét módosítani a keverőben** (pl. a jobb és bal kéz szólamát más hangszínen hallgatni);
+- hangerőegyensúly (balansz) beállítása a fő/bal/réteg/dal/mikrofon/aux in csatornákra: hangerő, pan, zengetés, zengetéstípus;
+- **Piano Room**: a zongora hangzásának finomhangolása — fedél helyzete, fényesség, környezet (zengetés), billentés érzékenysége, hangolás, virtuális rezonanciamodellezés (VRM), tompító- és húrrezonancia, billentyűfelengedési hang;
 - kották megjelenítése a lejátszási pozícióval szinkronban: a kottákat külön MusicXML-fájlban kell megadni (közvetlenül a MIDI-fájlból nem jeleníthető meg kotta);
-- a regisztrációs memória (beállítások) MIDI-dalokhoz rendelése.
+- a regisztrációs memória (beállítások) MIDI-dalokhoz rendelése, **a zenedarab csatornáinak saját hangszíneivel együtt**;
+- **kétnyelvű (magyar/angol) kezelőfelület** — a nyelv a Főmenü → NYELV / LANGUAGE pontban váltható.
 
 ## Képernyőképek
 
@@ -32,6 +39,8 @@ A program egyelőre nem teljes értékű helyettesítője a hivatalos alkalmazá
 
 ![Keverő](https://user-images.githubusercontent.com/3368402/79354913-4ffdff00-7f3d-11ea-8bf9-0ecda2180204.png)
 
+*(A képernyőképek az eredeti, angol nyelvű változatot mutatják.)*
+
 ## Köszönetnyilvánítás
 
 A ConPianist forráskódja a következő könyvtárakat tartalmazza:
@@ -40,4 +49,12 @@ A ConPianist forráskódja a következő könyvtárakat tartalmazza:
 
 ## Erről a fork-ról
 
-Ez a változat saját, magáncélú felhasználásra készül egy Yamaha CSP-170 zongorához, modern fejlesztői eszközökkel (Visual Studio, friss JUCE, vcpkg) újra buildelve és néhány hibajavítással kiegészítve. A részletekért lásd a [CHANGELOG.md](CHANGELOG.md) fájlt.
+Ez a változat saját, magáncélú felhasználásra készül egy Yamaha CSP-170 zongorához, modern fejlesztői eszközökkel (Visual Studio 2026, friss JUCE, vcpkg) újra buildelve. Az eredeti programhoz képest a legfontosabb változások:
+- kétnyelvű (magyar/angol) kezelőfelület, a szakkifejezések a CSP-170 magyar használati útmutatóját követik;
+- a zenedarab csatornáinak hangszíne módosítható a keverőben, és a regisztrációs memóriába is mentődik;
+- több összeomlás és lefagyás javítása (dalszöveget tartalmazó kották, MIDI-feltöltés, hálózati csatlakozás);
+- apróbb kényelmi javítások, pl. rákérdezés létező fájl felülírása előtt.
+
+A részletes változáslista a [CHANGELOG.md](CHANGELOG.md) fájlban található.
+
+**Tervezett fejlesztés:** zenedarab lejátszása USB-kapcsolaton keresztül is, Wi-Fi nélkül.
