@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <JUCERPROJECT name="ConPianist" projectType="guiapp" bundleIdentifier="prygunkov.ConPianist"
-              companyName="Andrey Prygunkov" companyCopyright="(C) 2018-2020 Andrey Prygunkov"
-              companyEmail="a.prygunkov@gmail.com" version="4.0" companyWebsite="https://github.com/hugbug/conpianist"
+              companyName="Viktor Oszkó" companyCopyright="(C) 2018-2020 Andrey Prygunkov, (C) 2026 Viktor Oszkó"
+              companyEmail="" version="4.1" companyWebsite="https://github.com/Viktor318/conpianist"
               headerPath="../../Source/Connector&#10;../../Source/Main&#10;../../Source/Piano&#10;../../Source/Scene&#10;../../Source/Mixer&#10;../../Source/Room&#10;../../Library/AppleMIDI&#10;../../Library/Lomse/include&#10;../../Library/Lomse/src/agg/include&#10;../../Library/Lomse/packages&#10;../../Library/Lomse/packages/utfcpp&#10;../../Library/Lomse/build"
               id="MqsAFh" jucerFormatVersion="1">
   <MAINGROUP id="LcKf1o" name="ConPianist">
@@ -47,6 +47,10 @@
             file="Graphics/button-zoomin.png"/>
       <FILE id="gOuJpc" name="button-zoomout.png" compile="0" resource="1"
             file="Graphics/button-zoomout.png"/>
+    </GROUP>
+    <GROUP id="{3B7E1C52-9A4D-4F0E-8C2A-5D6E7F809A1B}" name="Translations">
+      <FILE id="TrHu01" name="translation_hu.txt" compile="0" resource="1"
+            file="Translations/translation_hu.txt"/>
     </GROUP>
     <GROUP id="{55F16F24-1229-2B19-7C82-4DE9AF5D9B4B}" name="Library">
       <FILE id="oUYthh" name="lomse.cpp" compile="1" resource="0" file="Library/Lomse/build/lomse.cpp"/>
@@ -274,7 +278,7 @@
         <MODULEPATH id="juce_audio_processors_headless" path="../../JUCE/modules"/>
       </MODULEPATHS>
     </ANDROIDSTUDIO>
-    <VS2026 targetFolder="Builds/VisualStudio2026"
+    <VS2026 targetFolder="Builds/VisualStudio2026" bigIcon="dJQtiu"
             extraCompilerFlags="/bigobj /I&quot;C:\vcpkg\installed\x64-windows\include&quot;"
             extraLinkerFlags="/LIBPATH:&quot;C:\vcpkg\installed\x64-windows\lib&quot; freetype.lib"
             postbuildCommand="xcopy /E /I /Y /Q &quot;$(ProjectDir)..\..\Resources&quot; &quot;$(OutDir)Resources\&quot;&#10;xcopy /Y /Q &quot;C:\vcpkg\installed\x64-windows\bin\*.dll&quot; &quot;$(OutDir)&quot;"

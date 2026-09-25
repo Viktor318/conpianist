@@ -618,7 +618,7 @@ void VoiceComponent::updateEnabledControls()
 void VoiceComponent::showMenu(Button* button, PianoController::Channel channel)
 {
 	PopupMenu menu;
-	menu.addSectionHeader("OCTAVE");
+	menu.addSectionHeader(TRANS("OCTAVE"));
 	menu.addItem(100-2, "-2", true, pianoController.GetOctave(channel) == -2);
 	menu.addItem(100-1, "-1", true, pianoController.GetOctave(channel) == -1);
 	menu.addItem(100-0, " 0", true, pianoController.GetOctave(channel) == 0);

@@ -70,6 +70,7 @@ public:
 	void saveState();
 	void loadState();
 	void loadSongState();
+	void changeLanguage(const String& language);
 	void resetMidiConnector();
     //[/UserMethods]
 

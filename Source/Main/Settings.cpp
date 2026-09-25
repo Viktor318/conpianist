@@ -59,6 +59,7 @@ void Settings::Save()
 	prop.setValue("WorkingDirectory", workingDirectory);
 	prop.setValue("Logging", logging);
 	prop.setValue("RtpLogging", rtpLogging);
+	prop.setValue("Language", language);
 
 	prop.save();
 	sendChangeMessage();
@@ -83,6 +84,31 @@ void Settings::Load()
 	workingDirectory = prop.getValue("WorkingDirectory", workingDirectory);
 	logging = prop.getIntValue("Logging", logging);
 	rtpLogging = prop.getIntValue("RtpLogging", rtpLogging);
+	language = prop.getValue("Language", language);
+}
+
+// Returns the UI language actually in use: "hu" or "en".
+// If no language was chosen yet, the system language decides.
+String Settings::GetEffectiveLanguage() const
+{
+	String lang = language.isNotEmpty() ? language : SystemStats::getUserLanguage();
+	return lang.startsWithIgnoreCase("hu") ? "hu" : "en";
+}
+
+// Installs the translation for the effective language. Must be called before
+// the UI components are created, because TRANS() is evaluated in their constructors.
+// English is the original language of the source code, so it needs no translation file.
+void Settings::ApplyLanguage() const
+{
+	if (GetEffectiveLanguage() == "hu")
+	{
+		LocalisedStrings::setCurrentMappings(new LocalisedStrings(
+			String::fromUTF8(BinaryData::translation_hu_txt, BinaryData::translation_hu_txtSize), false));
+	}
+	else
+	{
+		LocalisedStrings::setCurrentMappings(nullptr);
+	}
 }
 
 // For Android:

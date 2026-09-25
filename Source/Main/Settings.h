@@ -27,6 +27,8 @@ public:
 	Settings();
 	void Save();
 	void Load();
+	String GetEffectiveLanguage() const;
+	void ApplyLanguage() const;
 
 	enum ScoreInstrumentNames
 	{
@@ -57,6 +59,7 @@ public:
 	String workingDirectory;
 	bool logging = false;
 	bool rtpLogging = false;
+	String language; // UI language: "en", "hu" or empty (use the system language)
 
 private:
 	PropertiesFile::Options opt;

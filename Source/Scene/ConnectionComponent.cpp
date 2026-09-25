@@ -165,7 +165,7 @@ void ConnectionComponent::load()
 {
 	pianoIpEdit->setText(settings.pianoIp);
 
-	midiPortComboBox->addItem("Connect via Network", 1);
+	midiPortComboBox->addItem(TRANS("Connect via Network"), 1);
 
 	StringArray ports;
 	for (auto& device : MidiInput::getAvailableDevices())
@@ -188,7 +188,7 @@ void ConnectionComponent::load()
 
 void ConnectionComponent::showDialog(Settings& settings)
 {
-	GuiHelper::ShowDialogAsync(new ConnectionComponent(settings), "Connection Settings");
+	GuiHelper::ShowDialogAsync(new ConnectionComponent(settings), TRANS("Connection Settings"));
 }
 //[/MiscUserCode]
 

@@ -2,9 +2,18 @@
 
 Ez a fájl a ConPianist változásait dokumentálja. Az 1.0–3.0 verziók az eredeti [hugbug/conpianist](https://github.com/hugbug/conpianist) projekt kiadásai (lásd az [eredeti release-eket](https://github.com/hugbug/conpianist/releases)); az ez utáni bejegyzések ennek a fork-nak ([Viktor318/conpianist](https://github.com/Viktor318/conpianist)) a saját, magáncélú fejlesztései.
 
-## [Fork – folyamatban] – 2026
+## 4.1 (fork) – fejlesztés alatt, 2026
 
 Saját célú továbbfejlesztés Yamaha CSP-170 zongorához, Visual Studio 2026 / JUCE 9.0.1 / vcpkg alapú modern build-környezettel.
+
+### Új
+- **Kétnyelvű (magyar/angol) kezelőfelület.** A nyelv a Főmenü → NYELV / LANGUAGE pontban váltható, a program újraindítása után lép életbe; első indításkor a Windows nyelvét követi. A fordítás a `Translations/translation_hu.txt` fájlban van, és a programba épül be. A szakkifejezések a CSP-170 magyar használati útmutatóját követik; a hangszínek és zengetéstípusok neve, a Stream Lights és a Piano Room angolul maradt.
+- A korábban nem fordítható menü- és állapotszövegek fordíthatóvá tétele.
+
+### Módosítva
+- Verziószám: 4.1. A projektadatokban (`.exe` tulajdonságai) a készítő Viktor Oszkó; a szerzői jogi megjegyzés az eredeti szerzőt is megtartja.
+- A Főmenü „Honlap” pontja a fork oldalára mutat (github.com/Viktor318/conpianist).
+- A Windows-verzió saját alkalmazásikont kapott (`app-icon.svg`).
 
 ### Javítva
 - **Build-hibák javítása modern eszközlánccal**: a projekt eredetileg egy ~2020-as JUCE 5.4.7-es környezetre volt beállítva; frissítve, hogy Visual Studio 2026-tal és egy friss JUCE-verzióval is lefordítható legyen.
@@ -23,7 +32,7 @@ Saját célú továbbfejlesztés Yamaha CSP-170 zongorához, Visual Studio 2026 
 
 ## 4.0 – soha hivatalosan ki nem adva (fejlesztés: 2020. május–november)
 
-Az eredeti fejlesztő a `v3.0` után a `.jucer`-ben átírta a verziószámot "4.0"-ra, és tovább dolgozott a `develop` branchen — de ez a munka soha nem lett formális GitHub release-ként kiadva vagy dokumentálva (2020. november 7-i utolsó commit után a fejlesztés láthatóan leállt). Emiatt az alkalmazás jelenleg is "4.0"-t mutat, hivatalos changelog nélkül. Az alábbi lista a `v3.0` tag és a `develop` branch közti 35 commit alapján készült.
+Az eredeti fejlesztő a `v3.0` után a `.jucer`-ben átírta a verziószámot "4.0"-ra, és tovább dolgozott a `develop` branchen — de ez a munka soha nem lett formális GitHub release-ként kiadva vagy dokumentálva (2020. november 7-i utolsó commit után a fejlesztés láthatóan leállt). Emiatt mutatta az alkalmazás a 4.0-s verziószámot hivatalos changelog nélkül, egészen a fork 4.1-es verziójáig. Az alábbi lista a `v3.0` tag és a `develop` branch közti 35 commit alapján készült.
 
 - **"Piano Room" panel** (új funkció): a zongora teremszimulációs beállításai egy önálló felületen — fényesség (brightness), Virtual Resonance Modeling (VRM), húr- és csillapítórezonancia, mesterhangolás (master tune), billentésgörbe (touch curve), fedélpozíció (lid position), key-off sampling —, ezekhez saját regisztrációs memóriával; a megnyitó gomb a hangválasztó panelbe került.
 - **Alap Android-támogatás**: aszinkron dialógusok és menük, új `GuiHelper` modul, kotta-komponens és betűtípus-kezelés Android-on, build-jegyzetek minden platformra.

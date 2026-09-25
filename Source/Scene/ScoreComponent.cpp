@@ -168,12 +168,12 @@ void LomseScoreComponent::BuildControls()
 {
     loadButton.reset(new TextButton("Load Button"));
     addAndMakeVisible(loadButton.get());
-    loadButton->setButtonText("Load Score");
+    loadButton->setButtonText(TRANS("Load Score"));
     loadButton->addListener(this);
 
 	menuButton.reset(new ImageButton("Menu Button"));
 	addAndMakeVisible(menuButton.get());
-	menuButton->setTooltip("Context Menu");
+	menuButton->setTooltip(TRANS("Context Menu"));
 	menuButton->setButtonText("Menu");
 	menuButton->addListener(this);
 	menuButton->setImages(false, true, true,
@@ -315,7 +315,7 @@ void LomseScoreComponent::paint(Graphics& g)
 	}
 	else if (m_presenter && !m_image)
 	{
-		String text = "An error occured when drawing the score:\n" + m_error;
+		String text = TRANS("An error occured when drawing the score:") + "\n" + m_error;
 		g.setColour(Colours::white);
 		g.fillRect(0, 0, getWidth(), getHeight());
 		g.setColour(Colours::red);
@@ -325,9 +325,9 @@ void LomseScoreComponent::paint(Graphics& g)
 	}
 	else
 	{
-		String text =
+		String text = TRANS(
 			"To automatically load score for a song put the score-file in MusicXML format near MIDI-file. "
-			"The score-file should have the same name as MIDI-file and extension .musicxml or .xml.";
+			"The score-file should have the same name as MIDI-file and extension .musicxml or .xml.");
 		g.setColour(Colour(167,172,176));
 		g.setFont(16);
 		juce::Rectangle<int> rec(20, 80, getWidth() - 40, getHeight() - 100);
@@ -350,7 +350,8 @@ void LomseScoreComponent::buttonClicked(Button* buttonThatWasClicked)
 void LomseScoreComponent::ChooseScoreFile()
 {
 	String songName = File(m_pianoController.GetSongName()).getFileNameWithoutExtension();
-	String title = "Please select the score" + (songName == "" ? "" : String(" for ") + songName);
+	String title = songName == "" ? TRANS("Please select the score") :
+		TRANS("Please select the score for SONGNAME").replace("SONGNAME", songName);
 
 	GuiHelper::ShowFileOpenDialogAsync(title, m_settings.workingDirectory, "*.xml;*.musicxml",
 		[this](const URL& url)
@@ -553,20 +554,20 @@ void LomseScoreComponent::LoadScore(const File& file)
 void LomseScoreComponent::ShowMenu()
 {
 	PopupMenu menu;
-	menu.addSectionHeader("SCORE");
-	menu.addItem(1, "Load Score");
-	menu.addSectionHeader("PARTS");
-	menu.addItem(300 + Settings::spRight, "Right", true, m_settings.scorePart == Settings::spRight);
-	menu.addItem(300 + Settings::spLeft, "Left", true, m_settings.scorePart == Settings::spLeft);
-	menu.addItem(300 + Settings::spRightAndLeft, "Right and Left", true, m_settings.scorePart == Settings::spRightAndLeft);
-	menu.addItem(300 + Settings::spAll, "All", true, m_settings.scorePart == Settings::spAll);
-	menu.addSectionHeader("INSTRUMENT NAMES");
-	menu.addItem(100 + Settings::siHidden, "Hidden", true, m_settings.scoreInstrumentNames == Settings::siHidden);
-	menu.addItem(100 + Settings::siShort, "Short", true, m_settings.scoreInstrumentNames == Settings::siShort);
-	menu.addItem(100 + Settings::siMixed, "Mixed", true, m_settings.scoreInstrumentNames == Settings::siMixed);
-	menu.addItem(100 + Settings::siFull, "Full", true, m_settings.scoreInstrumentNames == Settings::siFull);
+	menu.addSectionHeader(TRANS("SCORE"));
+	menu.addItem(1, TRANS("Load Score"));
+	menu.addSectionHeader(TRANS("PARTS"));
+	menu.addItem(300 + Settings::spRight, TRANS("Right"), true, m_settings.scorePart == Settings::spRight);
+	menu.addItem(300 + Settings::spLeft, TRANS("Left"), true, m_settings.scorePart == Settings::spLeft);
+	menu.addItem(300 + Settings::spRightAndLeft, TRANS("Right and Left"), true, m_settings.scorePart == Settings::spRightAndLeft);
+	menu.addItem(300 + Settings::spAll, TRANS("All"), true, m_settings.scorePart == Settings::spAll);
+	menu.addSectionHeader(TRANS("INSTRUMENT NAMES"));
+	menu.addItem(100 + Settings::siHidden, TRANS("Hidden"), true, m_settings.scoreInstrumentNames == Settings::siHidden);
+	menu.addItem(100 + Settings::siShort, TRANS("Short"), true, m_settings.scoreInstrumentNames == Settings::siShort);
+	menu.addItem(100 + Settings::siMixed, TRANS("Mixed"), true, m_settings.scoreInstrumentNames == Settings::siMixed);
+	menu.addItem(100 + Settings::siFull, TRANS("Full"), true, m_settings.scoreInstrumentNames == Settings::siFull);
 	menu.addSeparator();
-	menu.addItem(201, "Show MIDI-Channel", true, m_settings.scoreShowMidiChannel);
+	menu.addItem(201, TRANS("Show MIDI-Channel"), true, m_settings.scoreShowMidiChannel);
 
 	GuiHelper::ShowMenuAsync(menu, menuButton.get(),
 		[this](int result)

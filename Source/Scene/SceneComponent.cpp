@@ -380,21 +380,25 @@ void SceneComponent::updateSettingsState()
 void SceneComponent::showMenu()
 {
 	PopupMenu menu;
-	menu.addSectionHeader("INSTRUMENT");
+	menu.addSectionHeader(TRANS("INSTRUMENT"));
 	if (pianoController.IsConnected())
 	{
-		menu.addItem(10, pianoController.GetModel() + " • Firmware " + pianoController.GetVersion(), false, false);
+		menu.addItem(10, pianoController.GetModel() + " " + String(CharPointer_UTF8("\xe2\x80\xa2")) + " " + TRANS("Firmware") + " " + pianoController.GetVersion(), false, false);
 	}
-	menu.addItem(1, "Connection Settings");
-	menu.addItem(4, "Reset Connection");
-	menu.addItem(2, "Resync State from Piano");
-	menu.addItem(3, "Reset Piano to Default State");
-	menu.addSectionHeader("REGISTRATION MEMORY");
-	menu.addItem(101, "Load Piano State");
-	menu.addItem(102, "Save Piano State");
-	menu.addSectionHeader("ABOUT");
-	menu.addItem(998, "Version: \t" + JUCEApplication::getInstance()->getApplicationVersion(), false, false);
-	menu.addItem(999, "Homepage");
+	menu.addItem(1, TRANS("Connection Settings"));
+	menu.addItem(4, TRANS("Reset Connection"));
+	menu.addItem(2, TRANS("Resync State from Piano"));
+	menu.addItem(3, TRANS("Reset Piano to Default State"));
+	menu.addSectionHeader(TRANS("REGISTRATION MEMORY"));
+	menu.addItem(101, TRANS("Load Piano State"));
+	menu.addItem(102, TRANS("Save Piano State"));
+	menu.addSectionHeader(TRANS("LANGUAGE"));
+	// language names are intentionally not translated: each is shown in its own language
+	menu.addItem(201, "English", true, settings.GetEffectiveLanguage() == "en");
+	menu.addItem(202, "Magyar", true, settings.GetEffectiveLanguage() == "hu");
+	menu.addSectionHeader(TRANS("ABOUT"));
+	menu.addItem(998, TRANS("Version:") + " \t" + JUCEApplication::getInstance()->getApplicationVersion(), false, false);
+	menu.addItem(999, TRANS("Homepage"));
 
 	GuiHelper::ShowMenuAsync(menu, menuButton.get(),
 		[this](int result)
@@ -419,8 +423,12 @@ void SceneComponent::showMenu()
 				case 102:
 					saveState();
 					break;
+				case 201:
+				case 202:
+					changeLanguage(result == 202 ? "hu" : "en");
+					break;
 				case 999:
-					URL("https://github.com/hugbug/conpianist").launchInDefaultBrowser();
+					URL("https://github.com/Viktor318/conpianist").launchInDefaultBrowser();
 					break;
 			}
 		});
@@ -442,7 +450,7 @@ void SceneComponent::checkConnection()
 
 	if (!pianoController.IsConnected())
 	{
-		String prefix = midiConnector->IsConnected() ? "Connecting to the instrument" : "Looking for the instrument";
+		String prefix = midiConnector->IsConnected() ? TRANS("Connecting to the instrument") : TRANS("Looking for the instrument");
 		String status = statusLabel->getText();
 		if (status.startsWith(prefix) && status.length() < prefix.length() + 10)
 		{
@@ -479,12 +487,12 @@ void SceneComponent::checkConnection()
 			int pos = status.indexOf(".");
 			int numDots = pos == -1 ? 0 : status.length() - pos;
 			numDots = numDots < 10 ? numDots + 1 : 0;
-			status = "Exchanging " + String(queueSize) + " messages" + String::repeatedString(".", numDots);
+			status = TRANS("Exchanging NUMBER messages").replace("NUMBER", String(queueSize)) + String::repeatedString(".", numDots);
 			statusLabel->setText(status, NotificationType::dontSendNotification);
 		}
 		else
 		{
-			statusLabel->setText("Connected and ready", NotificationType::dontSendNotification);
+			statusLabel->setText(TRANS("Connected and ready"), NotificationType::dontSendNotification);
 		}
 		bool stalled = queueSize > 0 && pianoConnector.GetAttempt() > 1 &&
 			(curTime - pianoConnector.GetStallTime()).inSeconds() > IndicateStalledInterval;
@@ -625,7 +633,7 @@ void SceneComponent::saveState()
 		initialLocation = File(songname).withFileExtension(".conmem").getFullPathName();
 	}
 
-	GuiHelper::ShowFileSaveDialogAsync("Please select the name for registration memory file...",
+	GuiHelper::ShowFileSaveDialogAsync(TRANS("Please select the name for registration memory file..."),
 		initialLocation, "*.conmem",
 		[this](const URL& url)
 		{
@@ -645,7 +653,7 @@ void SceneComponent::saveState()
 
 void SceneComponent::loadState()
 {
-	GuiHelper::ShowFileOpenDialogAsync("Please select the registration memory file to load...",
+	GuiHelper::ShowFileOpenDialogAsync(TRANS("Please select the registration memory file to load..."),
 		settings.workingDirectory, "*.conmem",
 		[this](const URL& url)
 		{
@@ -659,6 +667,23 @@ void SceneComponent::loadState()
 				regmem.Load();
 			});
     	});
+}
+
+void SceneComponent::changeLanguage(const String& language)
+{
+	if (language == settings.GetEffectiveLanguage())
+	{
+		return;
+	}
+
+	settings.language = language;
+	settings.Save();
+
+	// The UI texts are translated when the components are created, so the new
+	// language takes effect on the next start. The message is shown in both
+	// languages, because the user may not understand the current one.
+	AlertWindow::showMessageBoxAsync(MessageBoxIconType::InfoIcon, "ConPianist",
+		String(CharPointer_UTF8("The new language will be applied after restarting ConPianist.\n\nAz \xc3\xba" "j nyelv a ConPianist \xc3\xba" "jraind\xc3\xad" "t\xc3\xa1" "sa ut\xc3\xa1" "n l\xc3\xa9" "p \xc3\xa9" "letbe.")));
 }
 
 void SceneComponent::loadSongState()

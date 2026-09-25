@@ -178,7 +178,8 @@ ChannelComponent::ChannelComponent (Settings& settings, PianoController& pianoCo
 
     //[UserPreSize]
     titleButton->getProperties().set("toggle", "yes");
-    titleLabel->setText(title, NotificationType::dontSendNotification);
+    titleLabel->setText(title.startsWith("Ch. ") ? TRANS("Ch.") + title.substring(3) : TRANS(title),
+        NotificationType::dontSendNotification);
 	panLabel->setVisible(showLabels);
 	reverbLabel->setVisible(showLabels);
 	volumeLabel->setVisible(showLabels);
@@ -386,7 +387,7 @@ void ChannelComponent::updateChannelState(PianoController::Aspect aspect)
 	menuButton2->setEnabled(enabled);
 	keyboardButton->setEnabled(enabled);
 
-	partLabel->setText(pianoController.GetPartChannel(PianoController::paRight) == channel ? "R" : "L",
+	partLabel->setText(pianoController.GetPartChannel(PianoController::paRight) == channel ? TRANS("R") : TRANS("L"),
 		NotificationType::dontSendNotification);
 	partLabel->setVisible(showMenuRow &&
 		(pianoController.GetPartChannel(PianoController::paRight) == channel ||
@@ -429,24 +430,24 @@ void ChannelComponent::showMenu(Button* button)
 {
 	PopupMenu menu;
 
-	menu.addSectionHeader("CHANNEL " + String(channel - PianoController::chMidi0));
-	menu.addItem(1, "Select Only This Channel");
-	menu.addItem(2, "Play on Virtual Keyboard", true,
+	menu.addSectionHeader(TRANS("CHANNEL") + " " + String(channel - PianoController::chMidi0));
+	menu.addItem(1, TRANS("Select Only This Channel"));
+	menu.addItem(2, TRANS("Play on Virtual Keyboard"), true,
 		settings.keyboardChannel == channel - PianoController::chMidi0);
 
-	menu.addSectionHeader("VOICE");
+	menu.addSectionHeader(TRANS("VOICE"));
 	String voice = Presets::VoiceTitle(pianoController.GetVoice(channel));
-	menu.addItem(100 + PianoController::chMain, "Select " + voice + " for Main");
-	menu.addItem(100 + PianoController::chLayer, "Select " + voice + " for Layer");
-	menu.addItem(100 + PianoController::chLeft, "Select " + voice + " for Left");
+	menu.addItem(100 + PianoController::chMain, TRANS("Select VOICENAME for Main").replace("VOICENAME", voice));
+	menu.addItem(100 + PianoController::chLayer, TRANS("Select VOICENAME for Layer").replace("VOICENAME", voice));
+	menu.addItem(100 + PianoController::chLeft, TRANS("Select VOICENAME for Left").replace("VOICENAME", voice));
 	menu.addSeparator();
 
-	menu.addSectionHeader("PART");
+	menu.addSectionHeader(TRANS("PART"));
 	bool right = pianoController.GetPartChannel(PianoController::paRight) == channel;
 	bool left = pianoController.GetPartChannel(PianoController::paLeft) == channel;
-	menu.addItem(200, "Right", true, right);
-	menu.addItem(201, "Left", true, left);
-	menu.addItem(202, "Backing", true, !right && !left);
+	menu.addItem(200, TRANS("Right"), true, right);
+	menu.addItem(201, TRANS("Left"), true, left);
+	menu.addItem(202, TRANS("Backing"), true, !right && !left);
 
 	GuiHelper::ShowMenuAsync(menu, button,
 		[this](int result)

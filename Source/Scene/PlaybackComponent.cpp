@@ -535,7 +535,7 @@ void PlaybackComponent::buttonClicked (Button* buttonThatWasClicked)
 //[MiscUserCode] You can add your own definitions of your custom methods or any other code here...
 void PlaybackComponent::chooseSong()
 {
-	GuiHelper::ShowFileOpenDialogAsync("Please select the song you want to load...",
+	GuiHelper::ShowFileOpenDialogAsync(TRANS("Please select the song you want to load..."),
 		settings.workingDirectory, "*.mid",
 		[this](const URL& url)
 		{
@@ -619,7 +619,7 @@ void PlaybackComponent::updatePlaybackState(PianoController::Aspect aspect)
 				pianoController.GetPlaying() ? BinaryData::buttonpause_png : BinaryData::buttonplay_png,
 				pianoController.GetPlaying() ? BinaryData::buttonpause_pngSize : BinaryData::buttonplay_pngSize),
 				1.000f, Colour (0x00000000), Image(), 0.750f, Colour (0x00000000), Image(), 1.000f, Colour (0x00000000));
-		playButton->setTooltip(pianoController.GetPlaying() ? "Pause" : "Play");
+		playButton->setTooltip(pianoController.GetPlaying() ? TRANS("Pause") : TRANS("Play"));
 	}
 	else if (aspect == PianoController::apTempo)
 	{
@@ -651,7 +651,7 @@ void PlaybackComponent::updatePlaybackState(PianoController::Aspect aspect)
 			pianoController.GetSongName() != "\\SONG\\NEW SONG";
 		songLabel->setText(songLoaded ?
 			File(pianoController.GetSongName()).getFileNameWithoutExtension() :
-			"Click here and select a Song",
+			TRANS("Click here and select a Song"),
 			NotificationType::dontSendNotification);
 	}
 }
@@ -762,9 +762,9 @@ void PlaybackComponent::loopButtonClicked()
 void PlaybackComponent::showStreamLightsMenu()
 {
 	PopupMenu menu;
-	menu.addSectionHeader("STREAM LIGHTS SPEED");
-	menu.addItem(1, "Fast", true, pianoController.GetStreamFast());
-	menu.addItem(2, "Slow", true, !pianoController.GetStreamFast());
+	menu.addSectionHeader(TRANS("STREAM LIGHTS SPEED"));
+	menu.addItem(1, TRANS("Fast"), true, pianoController.GetStreamFast());
+	menu.addItem(2, TRANS("Slow"), true, !pianoController.GetStreamFast());
 
 	menuShown = true;
 
@@ -785,10 +785,10 @@ void PlaybackComponent::showStreamLightsMenu()
 void PlaybackComponent::showGuideMenu()
 {
 	PopupMenu menu;
-	menu.addSectionHeader("GUIDE TYPE");
-	menu.addItem(100 + PianoController::gtCorrectKey, "Correct Key", true, pianoController.GetGuideType() == PianoController::gtCorrectKey);
-	menu.addItem(100 + PianoController::gtAnyKey, "Any Key", true, pianoController.GetGuideType() == PianoController::gtAnyKey);
-	menu.addItem(100 + PianoController::gtYourTempo, "Your Tempo", true, pianoController.GetGuideType() == PianoController::gtYourTempo);
+	menu.addSectionHeader(TRANS("GUIDE TYPE"));
+	menu.addItem(100 + PianoController::gtCorrectKey, TRANS("Correct Key"), true, pianoController.GetGuideType() == PianoController::gtCorrectKey);
+	menu.addItem(100 + PianoController::gtAnyKey, TRANS("Any Key"), true, pianoController.GetGuideType() == PianoController::gtAnyKey);
+	menu.addItem(100 + PianoController::gtYourTempo, TRANS("Your Tempo"), true, pianoController.GetGuideType() == PianoController::gtYourTempo);
 
 	menuShown = true;
 
