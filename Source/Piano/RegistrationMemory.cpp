@@ -539,7 +539,6 @@ void RegistrationMemory::SaveSettings()
 	}
 
 	XmlElement* elem = listElement->createNewChildElement("Keyboard");
-	elem->createNewChildElement("Visible")->addTextElement(settings.keyboardVisible ? "yes" : "no");
 	elem->createNewChildElement("Channel")->addTextElement(String(settings.keyboardChannel));
 
 	elem = listElement->createNewChildElement("Score");
@@ -566,11 +565,9 @@ void RegistrationMemory::LoadSettings()
 	XmlElement* keyElem = listElement->getChildByName("Keyboard");
 	if (keyElem)
 	{
-		if ((el = keyElem->getChildByName("Visible")))
-		{
-			String value = el->getAllSubText();
-			settings.keyboardVisible = value.equalsIgnoreCase("yes");
-		}
+		// The visibility of the keyboard is not part of the registration memory (older
+		// files may contain it): it stays as the user has set it, also when a song and
+		// its registration memory are loaded automatically.
 		if ((el = keyElem->getChildByName("Channel")))
 		{
 			int value = el->getAllSubText().getIntValue();

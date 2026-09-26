@@ -350,6 +350,7 @@ private:
 	bool m_networkPlaybackAvailable = true;
 	bool m_localPlaybackAvailable = false;
 	int m_pendingMeasure = 0; // measure to jump to after the song is loaded again
+	bool m_shownNotes[16][128] = {}; // notes of the local player shown on the virtual keyboard
 	std::shared_ptr<bool> m_alive = std::make_shared<bool>(true); // for delayed callbacks
 
 	void NotifyChanged(Aspect aspect, Channel channel = chNone);
@@ -359,6 +360,7 @@ private:
 	bool LoadLocalSong(const File& file);
 	bool LoadSongInternal(const File& file);
 	void ReloadSong();
+	void ShowLocalNote(const MidiMessage& message);
 	void ClearSongState();
 	bool IsLocalSongLoaded() const { return m_localPlayback && m_localPlayer && m_localPlayer->IsLoaded(); }
 	void ResetLocalMixState();

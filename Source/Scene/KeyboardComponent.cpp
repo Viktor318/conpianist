@@ -141,6 +141,16 @@ void KeyboardComponent::resized()
 
     midiKeyboardComponent->setBounds (0, 0, getWidth() - 0, getHeight() - 0);
     //[UserResized] Add your own custom resize handling here..
+	// The keys grow with the height of the keyboard (the height can be changed by the
+	// user), but only as long as the whole keyboard fits into the window.
+	const float DefaultKeyWidth = 16.0f;
+	const float DefaultHeight = 67.0f;
+	const int NumWhiteKeys = 52; // A0..C8
+	float keyWidth = DefaultKeyWidth * getHeight() / DefaultHeight;
+	keyWidth = std::min(keyWidth, (float)getWidth() / NumWhiteKeys);
+	keyWidth = std::max(keyWidth, DefaultKeyWidth);
+	midiKeyboardComponent->setKeyWidth(keyWidth);
+
 	float requiredWidth = midiKeyboardComponent->getTotalKeyboardWidth();
 	if (requiredWidth < getWidth())
 	{

@@ -52,6 +52,7 @@ public:
 	Rectangle<int> windowPos;
 	bool keyboardVisible = false;
 	int keyboardChannel = 1;
+	int keyboardHeight = 67; // height of the virtual keyboard panel, in pixels
 	String resourcesPath;
 	ScoreInstrumentNames scoreInstrumentNames = siMixed;
 	ScorePart scorePart = spRightAndLeft;

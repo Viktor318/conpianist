@@ -1012,6 +1012,7 @@ void PianoController::SetLocalPlayback(bool enabled)
 		m_localPlayer->sendMidi = [this](const MidiMessage& message)
 			{
 				m_pianoConnector->SendMidiMessageNow(message);
+				ShowLocalNote(message);
 			};
 		m_localPlayer->onChanged = [this](bool positionChanged, bool playingChanged)
 			{
@@ -1069,6 +1070,39 @@ void PianoController::SetPlaybackSource(bool local)
 		// This is done after the upload, so that the answers cannot be mistaken
 		// for the confirmation of the new song.
 		ResyncStateFromPiano();
+	}
+}
+
+// Shows the notes of the right and left hand parts played by the local player on the
+// virtual keyboard (the same way as the notes coming from the piano). Called by the
+// player, always with the player's lock held, so m_shownNotes needs no extra lock.
+void PianoController::ShowLocalNote(const MidiMessage& message)
+{
+	if (!message.isNoteOnOrOff())
+	{
+		return;
+	}
+
+	const int channel = message.getChannel(); // 1..16
+	const int note = message.getNoteNumber();
+	bool& shown = m_shownNotes[channel - 1][note];
+
+	if (message.isNoteOn())
+	{
+		const Channel ch = (Channel)(chMidi0 + channel);
+		const bool handPart = channel != 10 && // drums: the keys are drum sounds
+			(ch == m_partChannels[paRight] || ch == m_partChannels[paLeft]);
+		if (handPart)
+		{
+			shown = true;
+			NotifyNoteMessage(message);
+		}
+	}
+	else if (shown)
+	{
+		// released even if the part assignment has changed in the meantime
+		shown = false;
+		NotifyNoteMessage(message);
 	}
 }
 

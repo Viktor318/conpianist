@@ -76,6 +76,8 @@ public:
 	void checkNetworkPlayback();
 	void networkCheckFinished(bool reachable, int checkId);
 	void loadLastSong();
+	int getKeyboardHeight() const;
+	void setKeyboardHeight(int height, bool save);
     //[/UserMethods]
 
     void paint (Graphics& g) override;
@@ -106,6 +108,9 @@ private:
 	const static int ResetStalledInterval = 10; // seconds
 	const static int ResetConnectingInterval = 15; // seconds
 	const static int NetworkCheckTimeoutMs = 2000;
+	const static int DefaultKeyboardHeight = 67;
+	const static int KeyboardResizerHeight = 7;
+	std::unique_ptr<Component> keyboardResizer;
 	int networkCheckId = 0; // identifies the latest network check; older results are ignored
     //[/UserVariables]
 

@@ -28,6 +28,58 @@
 
 
 //[MiscUserDefs] You can add your own user definitions and misc code here...
+
+// A thin bar on the upper edge of the virtual keyboard: dragging it with the mouse
+// changes the height of the keyboard, a double click restores the default height.
+class KeyboardResizer : public Component
+{
+public:
+	std::function<int()> getHeightFunc;
+	std::function<void(int height, bool save)> setHeightFunc;
+	std::function<void()> resetFunc;
+
+	KeyboardResizer()
+	{
+		setMouseCursor(MouseCursor::UpDownResizeCursor);
+		setRepaintsOnMouseActivity(true);
+	}
+
+	void paint(Graphics& g) override
+	{
+		if (isMouseOverOrDragging())
+		{
+			g.setColour(Colour(0x80EE6C0A));
+			g.fillRect(0, getHeight() / 2 - 1, getWidth(), 3);
+		}
+	}
+
+	void mouseDown(const MouseEvent&) override
+	{
+		startHeight = getHeightFunc();
+	}
+
+	void mouseDrag(const MouseEvent& event) override
+	{
+		// dragging upwards makes the keyboard higher
+		setHeightFunc(startHeight - event.getDistanceFromDragStartY(), false);
+	}
+
+	void mouseUp(const MouseEvent& event) override
+	{
+		if (event.mouseWasDraggedSinceMouseDown())
+		{
+			setHeightFunc(getHeightFunc(), true);
+		}
+	}
+
+	void mouseDoubleClick(const MouseEvent&) override
+	{
+		resetFunc();
+	}
+
+private:
+	int startHeight = 0;
+};
 //[/MiscUserDefs]
 
 //==============================================================================
@@ -166,6 +218,13 @@ SceneComponent::SceneComponent (Settings& settings)
 	scoreButton->getProperties().set("tab", "yes");
 	mixerButton->getProperties().set("tab", "yes");
     keyboardButton->getProperties().set("toggle", "yes");
+
+    KeyboardResizer* resizer = new KeyboardResizer();
+    resizer->getHeightFunc = [this]() { return getKeyboardHeight(); };
+    resizer->setHeightFunc = [this](int height, bool save) { setKeyboardHeight(height, save); };
+    resizer->resetFunc = [this]() { setKeyboardHeight(DefaultKeyboardHeight, true); };
+    keyboardResizer.reset(resizer);
+    addChildComponent(keyboardResizer.get());
     //[/UserPreSize]
 
     setSize (850, 550);
@@ -261,10 +320,15 @@ void SceneComponent::resized()
     scoreButton->setBounds (0 + 298, (-8) + 18, 80, 34);
     mixerButton->setBounds (0 + 458, (-8) + 18, 80, 34);
     //[UserResized] Add your own custom resize handling here..
-    playbackPanel->setBounds(playbackPanel->getX(), playbackPanel->getY(), playbackPanel->getWidth(),
-    	playbackPanel->getHeight() + (keyboardPanel->isVisible() ? 0 : keyboardPanel->getHeight()));
-    largeContentPanel->setBounds(largeContentPanel->getX(), largeContentPanel->getY(), largeContentPanel->getWidth(),
-        largeContentPanel->getHeight() + (keyboardPanel->isVisible() ? 0 : keyboardPanel->getHeight()));
+    // the height of the virtual keyboard can be changed by the user
+    const int keyboardHeight = getKeyboardHeight();
+    keyboardPanel->setBounds (0, getHeight() - keyboardHeight, getWidth(), keyboardHeight);
+    const int contentHeight = getHeight() - 44 - (keyboardPanel->isVisible() ? keyboardHeight : 0);
+    playbackPanel->setBounds(playbackPanel->getX(), playbackPanel->getY(), playbackPanel->getWidth(), contentHeight);
+    largeContentPanel->setBounds(largeContentPanel->getX(), largeContentPanel->getY(), largeContentPanel->getWidth(), contentHeight);
+    keyboardResizer->setBounds(0, keyboardPanel->getY() - KeyboardResizerHeight / 2, getWidth(), KeyboardResizerHeight);
+    keyboardResizer->setVisible(keyboardPanel->isVisible());
+    keyboardResizer->toFront(false);
 	playbackComponent->setBounds(0, 0, playbackPanel->getWidth(), playbackPanel->getHeight());
     keyboardComponent->setBounds(0, 0, keyboardPanel->getWidth(), keyboardPanel->getHeight());
 
@@ -691,6 +755,29 @@ void SceneComponent::updateKeyboard()
 		keyboardButton->setToggleState(keyboardPanel->isVisible(), NotificationType::dontSendNotification);
 		resized();
     }
+}
+
+// The keyboard can be made higher up to half of the window, but not lower than the
+// default height.
+int SceneComponent::getKeyboardHeight() const
+{
+	const int maxHeight = std::max(DefaultKeyboardHeight, getHeight() / 2);
+	return jlimit(DefaultKeyboardHeight, maxHeight, settings.keyboardHeight);
+}
+
+void SceneComponent::setKeyboardHeight(int height, bool save)
+{
+	const int maxHeight = std::max(DefaultKeyboardHeight, getHeight() / 2);
+	height = jlimit(DefaultKeyboardHeight, maxHeight, height);
+	if (height != settings.keyboardHeight)
+	{
+		settings.keyboardHeight = height;
+		resized();
+	}
+	if (save)
+	{
+		settings.Save();
+	}
 }
 
 void SceneComponent::switchLargePanel(Button* button)
