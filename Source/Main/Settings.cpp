@@ -62,6 +62,8 @@ void Settings::Save()
 	prop.setValue("RtpLogging", rtpLogging);
 	prop.setValue("Language", language);
 	prop.setValue("LastSong", lastSong);
+	prop.setValue("MidiIn2", midiIn2);
+	prop.setValue("MidiOut", midiOut);
 
 	prop.save();
 	sendChangeMessage();
@@ -89,6 +91,8 @@ void Settings::Load()
 	rtpLogging = prop.getIntValue("RtpLogging", rtpLogging);
 	language = prop.getValue("Language", language);
 	lastSong = prop.getValue("LastSong", lastSong);
+	midiIn2 = prop.getValue("MidiIn2", midiIn2);
+	midiOut = prop.getValue("MidiOut", midiOut);
 }
 
 // Returns the UI language actually in use: "hu" or "en".

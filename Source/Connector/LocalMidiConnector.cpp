@@ -53,6 +53,104 @@ void LocalMidiConnector::SendMessage(const MidiMessage& message)
 	}
 }
 
+//==============================================================================
+
+MidiDeviceConnector::~MidiDeviceConnector()
+{
+	SetPorts("", "");
+}
+
+void MidiDeviceConnector::SetPorts(const String& inputName, const String& outputName)
+{
+	std::unique_ptr<MidiInput> oldInput;
+	std::unique_ptr<MidiOutput> oldOutput;
+	{
+		std::lock_guard<std::mutex> guard(m_mutex);
+		if (inputName != m_inputName) oldInput = std::move(m_input);
+		if (outputName != m_outputName) oldOutput = std::move(m_output);
+		m_inputName = inputName;
+		m_outputName = outputName;
+	}
+	if (oldInput) oldInput->stop();
+	oldInput.reset(); // closed outside the lock: the MIDI thread may be waiting for it
+	oldOutput.reset();
+	Refresh();
+}
+
+void MidiDeviceConnector::Refresh()
+{
+	String inputName, outputName;
+	bool needInput, needOutput;
+	{
+		std::lock_guard<std::mutex> guard(m_mutex);
+		inputName = m_inputName;
+		outputName = m_outputName;
+		// the same port for input and output (e.g. loopMIDI) would send everything
+		// back to itself endlessly, so the input is not used then
+		needInput = !m_input && inputName.isNotEmpty() && inputName != outputName;
+		needOutput = !m_output && outputName.isNotEmpty();
+	}
+
+	std::unique_ptr<MidiOutput> output;
+	if (needOutput)
+	{
+		for (auto& device : MidiOutput::getAvailableDevices())
+		{
+			if (device.name == outputName)
+			{
+				output = MidiOutput::openDevice(device.identifier);
+				break;
+			}
+		}
+	}
+
+	std::unique_ptr<MidiInput> input;
+	if (needInput)
+	{
+		for (auto& device : MidiInput::getAvailableDevices())
+		{
+			if (device.name == inputName)
+			{
+				input = MidiInput::openDevice(device.identifier, this);
+				break;
+			}
+		}
+	}
+
+	{
+		std::lock_guard<std::mutex> guard(m_mutex);
+		if (output && outputName == m_outputName && !m_output) m_output = std::move(output);
+		if (input && inputName == m_inputName && !m_input)
+		{
+			m_input = std::move(input);
+			m_input->start();
+		}
+	}
+}
+
+bool MidiDeviceConnector::IsOutputOpen()
+{
+	std::lock_guard<std::mutex> guard(m_mutex);
+	return m_output != nullptr;
+}
+
+void MidiDeviceConnector::Send(const MidiMessage& message)
+{
+	std::lock_guard<std::mutex> guard(m_mutex);
+	if (m_output)
+	{
+		m_output->sendMessageNow(message);
+	}
+}
+
+void MidiDeviceConnector::handleIncomingMidiMessage(MidiInput*, const MidiMessage& message)
+{
+	if (onIncoming)
+	{
+		onIncoming(message);
+	}
+}
+
 bool LocalMidiConnector::IsConnected()
 {
 	return m_audioDeviceManager->getDefaultMidiOutput() != nullptr &&

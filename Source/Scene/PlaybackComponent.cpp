@@ -283,6 +283,13 @@ PlaybackComponent::PlaybackComponent (Settings& settings, PianoController& piano
     usbPlaybackButton->setRadioGroupId (1);
     usbPlaybackButton->addListener (this);
 
+    midiDevicePlaybackButton.reset (new ToggleButton ("MIDI Device Playback Button"));
+    addAndMakeVisible (midiDevicePlaybackButton.get());
+    midiDevicePlaybackButton->setTooltip (TRANS("ConPianist plays the song itself on the MIDI device (MIDI Out in the Connection Settings)"));
+    midiDevicePlaybackButton->setButtonText (TRANS("Via MIDI Device"));
+    midiDevicePlaybackButton->setRadioGroupId (1);
+    midiDevicePlaybackButton->addListener (this);
+
 
     //[UserPreSize]
     playbackGroup->setColour(GroupComponent::outlineColourId, Colours::transparentBlack);
@@ -291,7 +298,7 @@ PlaybackComponent::PlaybackComponent (Settings& settings, PianoController& piano
     songGroup->setText("");
     //[/UserPreSize]
 
-    setSize (290, 482);
+    setSize (290, 506);
 
 
     //[Constructor] You can add your own custom stuff here..
@@ -360,6 +367,7 @@ PlaybackComponent::~PlaybackComponent()
     playSourceLabel = nullptr;
     networkPlaybackButton = nullptr;
     usbPlaybackButton = nullptr;
+    midiDevicePlaybackButton = nullptr;
 
 
     //[Destructor]. You can add your own custom destruction code here..
@@ -417,7 +425,7 @@ void PlaybackComponent::resized()
 
     songGroup->setBounds (0, -8, getWidth() - 0, 70);
     songLabel->setBounds (0 + 12, (-8) + 16, (getWidth() - 0) - 59, 70 - 29);
-    playbackGroup->setBounds (0, (-8) + 70 - 8, getWidth() - 0, 426);
+    playbackGroup->setBounds (0, (-8) + 70 - 8, getWidth() - 0, 450);
     positionSlider->setBounds (0 + 48, ((-8) + 70 - 8) + 22, (getWidth() - 0) - 96, 24);
     positionLabel->setBounds (8, ((-8) + 70 - 8) + 24, 36, 20);
     lengthLabel->setBounds (0 + (getWidth() - 0) - 8 - 36, ((-8) + 70 - 8) + 24, 36, 20);
@@ -432,18 +440,19 @@ void PlaybackComponent::resized()
     guideButton->setBounds (0 + 193, ((-8) + 70 - 8) + 60, 40, 28);
     loopButton->setBounds (148, ((-8) + 70 - 8) + 60, 40, 28);
     lightsButton->setBounds (0 + 238, ((-8) + 70 - 8) + 60, 40, 28);
-    volumeTitleLabel->setBounds (8, ((-8) + 70 - 8) + 258, 136, 24);
-    volumeSlider->setBounds (0 + 8, ((-8) + 70 - 8) + 282, (getWidth() - 0) - 16, 24);
-    volumeLabel->setBounds (getWidth() - 9 - 48, ((-8) + 70 - 8) + 258, 48, 24);
-    tempoTitleLabel->setBounds (8, ((-8) + 70 - 8) + 314, 136, 24);
-    tempoSlider->setBounds (0 + 8, ((-8) + 70 - 8) + 338, (getWidth() - 0) - 16, 24);
-    tempoLabel->setBounds (getWidth() - 9 - 48, ((-8) + 70 - 8) + 314, 48, 24);
-    transposeTitleLabel->setBounds (8, ((-8) + 70 - 8) + 370, 136, 24);
-    transposeSlider->setBounds (0 + 8, ((-8) + 70 - 8) + 394, (getWidth() - 0) - 16, 24);
-    transposeLabel->setBounds (getWidth() - 9 - 48, ((-8) + 70 - 8) + 370, 48, 24);
+    volumeTitleLabel->setBounds (8, ((-8) + 70 - 8) + 282, 136, 24);
+    volumeSlider->setBounds (0 + 8, ((-8) + 70 - 8) + 306, (getWidth() - 0) - 16, 24);
+    volumeLabel->setBounds (getWidth() - 9 - 48, ((-8) + 70 - 8) + 282, 48, 24);
+    tempoTitleLabel->setBounds (8, ((-8) + 70 - 8) + 338, 136, 24);
+    tempoSlider->setBounds (0 + 8, ((-8) + 70 - 8) + 362, (getWidth() - 0) - 16, 24);
+    tempoLabel->setBounds (getWidth() - 9 - 48, ((-8) + 70 - 8) + 338, 48, 24);
+    transposeTitleLabel->setBounds (8, ((-8) + 70 - 8) + 394, 136, 24);
+    transposeSlider->setBounds (0 + 8, ((-8) + 70 - 8) + 418, (getWidth() - 0) - 16, 24);
+    transposeLabel->setBounds (getWidth() - 9 - 48, ((-8) + 70 - 8) + 394, 48, 24);
     playSourceLabel->setBounds (8, ((-8) + 70 - 8) + 182, 136, 24);
     networkPlaybackButton->setBounds (10, ((-8) + 70 - 8) + 206, 268, 24);
     usbPlaybackButton->setBounds (10, ((-8) + 70 - 8) + 230, 268, 24);
+    midiDevicePlaybackButton->setBounds (10, ((-8) + 70 - 8) + 254, 268, 24);
     //[UserResized] Add your own custom resize handling here..
     //[/UserResized]
 }
@@ -560,14 +569,20 @@ void PlaybackComponent::buttonClicked (Button* buttonThatWasClicked)
     {
         //[UserButtonCode_networkPlaybackButton] -- add your button handler code here..
         // asynchronously: loading the song again may take a moment
-        MessageManager::callAsync([this](){pianoController.SetPlaybackSource(false);});
+        MessageManager::callAsync([this](){pianoController.SetPlaybackSource(PianoController::psPiano);});
         //[/UserButtonCode_networkPlaybackButton]
     }
     else if (buttonThatWasClicked == usbPlaybackButton.get())
     {
         //[UserButtonCode_usbPlaybackButton] -- add your button handler code here..
-        MessageManager::callAsync([this](){pianoController.SetPlaybackSource(true);});
+        MessageManager::callAsync([this](){pianoController.SetPlaybackSource(PianoController::psLocal);});
         //[/UserButtonCode_usbPlaybackButton]
+    }
+    else if (buttonThatWasClicked == midiDevicePlaybackButton.get())
+    {
+        //[UserButtonCode_midiDevicePlaybackButton] -- add your button handler code here..
+        MessageManager::callAsync([this](){pianoController.SetPlaybackSource(PianoController::psMidiDevice);});
+        //[/UserButtonCode_midiDevicePlaybackButton]
     }
 
     //[UserbuttonClicked_Post]
@@ -752,13 +767,15 @@ void PlaybackComponent::updateEnabledControls()
 
 void PlaybackComponent::updatePlaybackSourceState()
 {
-	const bool local = pianoController.IsLocalPlayback();
-	networkPlaybackButton->setToggleState(!local, NotificationType::dontSendNotification);
-	usbPlaybackButton->setToggleState(local, NotificationType::dontSendNotification);
+	const PianoController::PlaybackSource source = pianoController.GetPlaybackSource();
+	networkPlaybackButton->setToggleState(source == PianoController::psPiano, NotificationType::dontSendNotification);
+	usbPlaybackButton->setToggleState(source == PianoController::psLocal, NotificationType::dontSendNotification);
+	midiDevicePlaybackButton->setToggleState(source == PianoController::psMidiDevice, NotificationType::dontSendNotification);
 	networkPlaybackButton->setEnabled(pianoController.IsNetworkPlaybackAvailable());
 	usbPlaybackButton->setEnabled(pianoController.IsLocalPlaybackAvailable());
+	midiDevicePlaybackButton->setEnabled(pianoController.IsMidiDevicePlaybackAvailable());
 	playSourceLabel->setEnabled(pianoController.IsNetworkPlaybackAvailable() ||
-		pianoController.IsLocalPlaybackAvailable());
+		pianoController.IsLocalPlaybackAvailable() || pianoController.IsMidiDevicePlaybackAvailable());
 }
 
 void PlaybackComponent::mouseUp(const MouseEvent& event)
@@ -898,7 +915,7 @@ BEGIN_JUCER_METADATA
                  constructorParams="Settings&amp; settings, PianoController&amp; pianoController"
                  variableInitialisers="settings(settings), pianoController(pianoController)"
                  snapPixels="8" snapActive="1" snapShown="1" overlayOpacity="0.330"
-                 fixedSize="0" initialWidth="290" initialHeight="482">
+                 fixedSize="0" initialWidth="290" initialHeight="506">
   <BACKGROUND backgroundColour="ff323e44">
     <RECT pos="0 0 0M 58" fill="solid: ff4e5b62" hasStroke="0"/>
     <RECT pos="-4 156 -8M 1" fill="solid: ff4e5b62" hasStroke="0"/>
@@ -914,7 +931,7 @@ BEGIN_JUCER_METADATA
          editableDoubleClick="0" focusDiscardsChanges="0" fontname="Default font"
          fontsize="23.7" kerning="0.0" bold="0" italic="0" justification="33"/>
   <GROUPCOMPONENT name="Playback" id="c7b94b60aa96c6e2" memberName="playbackGroup"
-                  virtualName="" explicitFocusOrder="0" pos="0 8R 0M 426" posRelativeY="4e6df4a0ae6e851b"
+                  virtualName="" explicitFocusOrder="0" pos="0 8R 0M 450" posRelativeY="4e6df4a0ae6e851b"
                   title="Playback" textpos="36"/>
   <SLIDER name="Song Position slider" id="3f9d3a942dcf1d69" memberName="positionSlider"
           virtualName="" explicitFocusOrder="0" pos="48 22 96M 24" posRelativeX="c7b94b60aa96c6e2"
@@ -996,55 +1013,55 @@ BEGIN_JUCER_METADATA
                opacityNormal="1.0" colourNormal="0" resourceOver="" opacityOver="0.75"
                colourOver="0" resourceDown="" opacityDown="1.0" colourDown="0"/>
   <LABEL name="Volume Label" id="e9b9fa2403da7aeb" memberName="volumeTitleLabel"
-         virtualName="" explicitFocusOrder="0" pos="8 258 136 24" posRelativeY="c7b94b60aa96c6e2"
+         virtualName="" explicitFocusOrder="0" pos="8 282 136 24" posRelativeY="c7b94b60aa96c6e2"
          tooltip="Playback Volume" edTextCol="ff000000" edBkgCol="0" labelText="Volume"
          editableSingleClick="0" editableDoubleClick="0" focusDiscardsChanges="0"
          fontname="Default font" fontsize="15.0" kerning="0.0" bold="0"
          italic="0" justification="33"/>
   <SLIDER name="Volume Slider" id="1d5558a1e15fd965" memberName="volumeSlider"
-          virtualName="" explicitFocusOrder="0" pos="8 282 16M 24" posRelativeX="c7b94b60aa96c6e2"
+          virtualName="" explicitFocusOrder="0" pos="8 306 16M 24" posRelativeX="c7b94b60aa96c6e2"
           posRelativeY="c7b94b60aa96c6e2" posRelativeW="c7b94b60aa96c6e2"
           tooltip="Playback Volume" min="0.0" max="127.0" int="1.0" style="LinearHorizontal"
           textBoxPos="NoTextBox" textBoxEditable="0" textBoxWidth="80"
           textBoxHeight="20" skewFactor="1.0" needsCallback="1"/>
   <LABEL name="Volume Label" id="e81fccf91e43f02a" memberName="volumeLabel"
-         virtualName="" explicitFocusOrder="0" pos="9Rr 258 48 24" posRelativeY="c7b94b60aa96c6e2"
+         virtualName="" explicitFocusOrder="0" pos="9Rr 282 48 24" posRelativeY="c7b94b60aa96c6e2"
          tooltip="Playback Volume" edTextCol="ff000000" edBkgCol="0" labelText="100"
          editableSingleClick="0" editableDoubleClick="0" focusDiscardsChanges="0"
          fontname="Default font" fontsize="15.0" kerning="0.0" bold="0"
          italic="0" justification="34"/>
   <LABEL name="Tempo Label" id="41de6fa00dd29466" memberName="tempoTitleLabel"
-         virtualName="" explicitFocusOrder="0" pos="8 314 136 24" posRelativeY="c7b94b60aa96c6e2"
+         virtualName="" explicitFocusOrder="0" pos="8 338 136 24" posRelativeY="c7b94b60aa96c6e2"
          tooltip="Playback Tempo" edTextCol="ff000000" edBkgCol="0" labelText="Tempo"
          editableSingleClick="0" editableDoubleClick="0" focusDiscardsChanges="0"
          fontname="Default font" fontsize="15.0" kerning="0.0" bold="0"
          italic="0" justification="33"/>
   <SLIDER name="Tempo Slider" id="be0f7ca0a1c6df9a" memberName="tempoSlider"
-          virtualName="" explicitFocusOrder="0" pos="8 338 16M 24" posRelativeX="c7b94b60aa96c6e2"
+          virtualName="" explicitFocusOrder="0" pos="8 362 16M 24" posRelativeX="c7b94b60aa96c6e2"
           posRelativeY="c7b94b60aa96c6e2" posRelativeW="c7b94b60aa96c6e2"
           tooltip="Playback Tempo" min="5.0" max="280.0" int="1.0" style="LinearHorizontal"
           textBoxPos="NoTextBox" textBoxEditable="0" textBoxWidth="80"
           textBoxHeight="20" skewFactor="1.0" needsCallback="1"/>
   <LABEL name="Tempo Label" id="cc3c03127fcd4516" memberName="tempoLabel"
-         virtualName="" explicitFocusOrder="0" pos="9Rr 314 48 24" posRelativeY="c7b94b60aa96c6e2"
+         virtualName="" explicitFocusOrder="0" pos="9Rr 338 48 24" posRelativeY="c7b94b60aa96c6e2"
          tooltip="Playback Tempo" edTextCol="ff000000" edBkgCol="0" labelText="128"
          editableSingleClick="0" editableDoubleClick="0" focusDiscardsChanges="0"
          fontname="Default font" fontsize="15.0" kerning="0.0" bold="0"
          italic="0" justification="34"/>
   <LABEL name="Transpose Label" id="f18234a2e2a92be" memberName="transposeTitleLabel"
-         virtualName="" explicitFocusOrder="0" pos="8 370 136 24" posRelativeY="c7b94b60aa96c6e2"
+         virtualName="" explicitFocusOrder="0" pos="8 394 136 24" posRelativeY="c7b94b60aa96c6e2"
          tooltip="Playback Transpose" edTextCol="ff000000" edBkgCol="0"
          labelText="Transpose" editableSingleClick="0" editableDoubleClick="0"
          focusDiscardsChanges="0" fontname="Default font" fontsize="15.0"
          kerning="0.0" bold="0" italic="0" justification="33"/>
   <SLIDER name="Transpose Slider" id="b5af11eac08beef4" memberName="transposeSlider"
-          virtualName="" explicitFocusOrder="0" pos="8 394 16M 24" posRelativeX="c7b94b60aa96c6e2"
+          virtualName="" explicitFocusOrder="0" pos="8 418 16M 24" posRelativeX="c7b94b60aa96c6e2"
           posRelativeY="c7b94b60aa96c6e2" posRelativeW="c7b94b60aa96c6e2"
           tooltip="Playback Transpose" min="-12.0" max="12.0" int="1.0"
           style="LinearHorizontal" textBoxPos="NoTextBox" textBoxEditable="0"
           textBoxWidth="80" textBoxHeight="20" skewFactor="1.0" needsCallback="1"/>
   <LABEL name="Transpose Label" id="de60858318a22ee1" memberName="transposeLabel"
-         virtualName="" explicitFocusOrder="0" pos="9Rr 370 48 24" posRelativeY="c7b94b60aa96c6e2"
+         virtualName="" explicitFocusOrder="0" pos="9Rr 394 48 24" posRelativeY="c7b94b60aa96c6e2"
          tooltip="Playback Transpose" edTextCol="ff000000" edBkgCol="0"
          labelText="0" editableSingleClick="0" editableDoubleClick="0"
          focusDiscardsChanges="0" fontname="Default font" fontsize="15.0"
@@ -1065,6 +1082,11 @@ BEGIN_JUCER_METADATA
                 tooltip="ConPianist plays the song itself over the MIDI port (USB)"
                 buttonText="Via USB" connectedEdges="0" needsCallback="1" radioGroupId="1"
                 state="0"/>
+  <TOGGLEBUTTON name="MIDI Device Playback Button" id="4c9a7e21b6d05f38" memberName="midiDevicePlaybackButton"
+                virtualName="" explicitFocusOrder="0" pos="10 254 268 24" posRelativeY="c7b94b60aa96c6e2"
+                tooltip="ConPianist plays the song itself on the MIDI device (MIDI Out in the Connection Settings)"
+                buttonText="Via MIDI Device" connectedEdges="0" needsCallback="1"
+                radioGroupId="1" state="0"/>
 </JUCER_COMPONENT>
 
 END_JUCER_METADATA

@@ -663,9 +663,9 @@ void PianoController::SetSongChannelVoice(Channel ch, int voiceNum)
 		return;
 	}
 
-	m_pianoConnector->SendMidiMessage(MidiMessage::controllerEvent(midiChannel, 0, (voiceNum >> 16) & 0x7f));
-	m_pianoConnector->SendMidiMessage(MidiMessage::controllerEvent(midiChannel, 32, (voiceNum >> 8) & 0x7f));
-	m_pianoConnector->SendMidiMessage(MidiMessage::programChange(midiChannel, voiceNum & 0x7f));
+	SendMidiMessage(MidiMessage::controllerEvent(midiChannel, 0, (voiceNum >> 16) & 0x7f));
+	SendMidiMessage(MidiMessage::controllerEvent(midiChannel, 32, (voiceNum >> 8) & 0x7f));
+	SendMidiMessage(MidiMessage::programChange(midiChannel, voiceNum & 0x7f));
 
 	if (m_genericDevice)
 	{
@@ -752,12 +752,6 @@ void PianoController::SetKeyOffSampling(int keyOffSampling)
 
 void PianoController::IncomingMidiMessage(const MidiMessage& message)
 {
-	if (m_genericDevice)
-	{
-		// e.g. loopMIDI sends everything back: these are our own notes
-		return;
-	}
-
 	if (message.isNoteOnOrOff())
 	{
 		NotifyNoteMessage(message);
@@ -784,6 +778,15 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 	}
 
 	const Property property = pm->GetProperty();
+
+	if (m_genericDevice &&
+		(property == Property::Volume || property == Property::Pan || property == Property::Reverb ||
+		property == Property::VoiceMidi) &&
+		(IsSongChannel((Channel)pm->GetIndex()) || pm->GetIndex() == chMidiMaster))
+	{
+		// the song is played by a MIDI device: these belong to the piano's (unused) mixer
+		return;
+	}
 
 	if (m_localPlayback &&
 		(property == Property::Position || property == Property::Length ||
@@ -1009,7 +1012,7 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 			m_connected = true;
 			NotifyChanged(apConnection);
 
-			if (IsLocalSongLoaded())
+			if (IsLocalSongLoaded() && m_playbackSource == psLocal)
 			{
 				// The song may have been loaded while the piano was switched off; its
 				// voices and settings are sent only at loading, so it is loaded again.
@@ -1064,17 +1067,26 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 
 void PianoController::SetLocalPlayback(bool enabled)
 {
-	if (enabled == m_localPlayback)
+	if (enabled != m_localPlayback)
 	{
-		return;
+		ApplyPlaybackSource(enabled ? psLocal : psPiano);
 	}
+}
 
+void PianoController::ApplyPlaybackSource(PlaybackSource source)
+{
 	if (m_localPlayer)
 	{
+		// silence the old output before switching
 		m_localPlayer->Unload();
+		m_localPlayer->SetMasterVolumeScale(1.0);
 	}
 
-	m_localPlayback = enabled;
+	m_playbackSource = source;
+	m_localPlayback = source != psPiano;
+	m_genericDevice = source == psMidiDevice;
+	const bool enabled = m_localPlayback;
+	Logger::writeToLog("Playback: " + String(source == psPiano ? "piano" : source == psLocal ? "own player (USB)" : "own player (MIDI device)"));
 
 	if (enabled && !m_localPlayer)
 	{
@@ -1082,7 +1094,7 @@ void PianoController::SetLocalPlayback(bool enabled)
 		// notes are sent directly (not through the message queue) for exact timing
 		m_localPlayer->sendMidi = [this](const MidiMessage& message)
 			{
-				m_pianoConnector->SendMidiMessageNow(message);
+				SendToOutput(message);
 				OnLocalMessage(message);
 			};
 		m_localPlayer->onChanged = [this](bool positionChanged, bool playingChanged)
@@ -1100,18 +1112,64 @@ void PianoController::SetLocalPlayback(bool enabled)
 	}
 }
 
-void PianoController::SetPlaybackAvailability(bool network, bool local)
+// Song playback of the own player: to the piano (USB) or to the MIDI device.
+void PianoController::SendToOutput(const MidiMessage& message)
+{
+	if (m_genericDevice)
+	{
+		if (sendToMidiDevice) sendToMidiDevice(message);
+	}
+	else
+	{
+		m_pianoConnector->SendMidiMessageNow(message);
+	}
+}
+
+void PianoController::SendMidiMessage(const MidiMessage& message)
+{
+	if (m_genericDevice)
+	{
+		if (sendToMidiDevice) sendToMidiDevice(message);
+	}
+	else
+	{
+		m_pianoConnector->SendMidiMessage(message);
+	}
+}
+
+// Messages from MIDI In 2: played through to the MIDI device in psMidiDevice mode
+// (on their own channels), and their notes are shown on the virtual keyboard.
+void PianoController::IncomingMidiDeviceMessage(const MidiMessage& message)
+{
+	if (!m_genericDevice || message.isSysEx() || message.isActiveSense() || message.isMidiClock())
+	{
+		return;
+	}
+	if (sendToMidiDevice) sendToMidiDevice(message);
+	if (message.isNoteOnOrOff())
+	{
+		NotifyNoteMessage(message);
+	}
+}
+
+void PianoController::SetPlaybackAvailability(bool network, bool local, bool midiDevice)
 {
 	m_networkPlaybackAvailable = network;
 	m_localPlaybackAvailable = local;
+	m_midiDevicePlaybackAvailable = midiDevice;
 	NotifyChanged(apPlaybackSource);
 }
 
-void PianoController::SetPlaybackSource(bool local)
+void PianoController::SetPlaybackSource(PlaybackSource source, bool automatic)
 {
-	if (local == m_localPlayback ||
-		(local ? !m_localPlaybackAvailable : !m_networkPlaybackAvailable))
+	const bool available = source == psPiano ? m_networkPlaybackAvailable :
+		source == psLocal ? m_localPlaybackAvailable : m_midiDevicePlaybackAvailable;
+	if (source == m_playbackSource || !available)
 	{
+		if (source == m_playbackSource)
+		{
+			m_playbackSourceAutomatic = automatic;
+		}
 		// nothing to do; lets the UI show the actual state again
 		NotifyChanged(apPlaybackSource);
 		return;
@@ -1126,7 +1184,9 @@ void PianoController::SetPlaybackSource(bool local)
 		Stop(); // the piano's own player
 	}
 
-	SetLocalPlayback(local);
+	const PlaybackSource previousSource = m_playbackSource;
+	m_playbackSourceAutomatic = automatic;
+	ApplyPlaybackSource(source);
 	NotifyChanged(apPlaybackSource);
 
 	if (File::isAbsolutePath(songName) && File(songName).existsAsFile())
@@ -1135,9 +1195,10 @@ void PianoController::SetPlaybackSource(bool local)
 		LoadSongInternal(File(songName));
 	}
 
-	if (!m_localPlayback && m_connected)
+	if (m_connected && (!m_localPlayback || previousSource == psMidiDevice))
 	{
-		// the piano's own player is used again: read its song, parts and channels.
+		// the piano's own player (or its mixer) is used again: read its song, parts
+		// and channels.
 		// This is done after the upload, so that the answers cannot be mistaken
 		// for the confirmation of the new song.
 		ResyncStateFromPiano();
@@ -1243,7 +1304,7 @@ bool PianoController::LoadSongInternal(const File& file)
 			// own player until the next start (or until the connection settings change)
 			Logger::writeToLog("Song upload failed, switching to local playback");
 			m_networkPlaybackAvailable = false;
-			SetLocalPlayback(true);
+			ApplyPlaybackSource(psLocal);
 			NotifyChanged(apPlaybackSource);
 			if (onNetworkPlaybackFailed)
 			{
@@ -1354,27 +1415,6 @@ void PianoController::InitGenericMixer()
 	}
 	m_localPlayer->SetMasterVolumeScale(m_channels[chMidiMaster].volume / double(DefaultVolume));
 	NotifyChanged(apVolume, chMidiMaster);
-}
-
-void PianoController::SetGenericDevice(bool generic)
-{
-	if (generic == m_genericDevice)
-	{
-		return;
-	}
-
-	m_genericDevice = generic;
-	Logger::writeToLog(generic ? "General MIDI device mode" : "Piano mode");
-
-	if (m_localPlayer)
-	{
-		m_localPlayer->SetMasterVolumeScale(1.0);
-	}
-
-	// the song is loaded again, so that the mixer and the voices fit the device
-	ReloadSong();
-
-	NotifyChanged(apConnection);
 }
 
 void PianoController::ClearSongState()

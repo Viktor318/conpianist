@@ -200,7 +200,7 @@ void KeyboardComponent::PianoNoteMessage(const MidiMessage& message)
 
 void KeyboardComponent::PianoStateChanged(PianoController::Aspect aspect, PianoController::Channel channel)
 {
-	if (aspect == PianoController::apConnection ||
+	if (aspect == PianoController::apConnection || aspect == PianoController::apPlaybackSource ||
 		(aspect == PianoController::apActive && channel == PianoController::chLeft) ||
 		aspect == PianoController::apSplitPoint)
 	{

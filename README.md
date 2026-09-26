@@ -15,7 +15,7 @@ A program egyelőre nem teljes értékű helyettesítője a hivatalos alkalmazá
 - állapotvesztés nélkül csatlakozni/újracsatlakozni: a program indításkor beolvassa a zongora teljes állapotát, és megjeleníti a felületen;
 - MIDI-fájlokat feltölteni a zongorára hálózaton keresztül;
 - **MIDI-fájlokat lejátszani USB-kábelen keresztül is, Wi-Fi nélkül**: ilyenkor a ConPianist saját lejátszója játssza a dalt (tempó, transzponálás, ismétlés, szólamok, kotta szinkron működik; Stream Lights és Segéd nem). A bal panel Lejátszás részében választható, hogy a zongora saját lejátszója (hálózaton keresztül) vagy a ConPianist lejátszója (USB-n keresztül) játsszon; alapértelmezés a hálózati, ha a zongora elérhető;
-- **MIDI-fájlokat lejátszani más MIDI-eszközre is, zongora nélkül** (pl. loopMIDI-n keresztül szoftveres hangszerre, például a Cantabile-be): ha a kiválasztott MIDI-porton nem válaszol Yamaha zongora, a program általános MIDI-eszközként kezeli, a Keverő szabványos MIDI-vezérlőket és General MIDI hangszíneket használ;
+- **MIDI-fájlokat lejátszani más MIDI-eszközre is** (pl. loopMIDI-n keresztül szoftveres hangszerre, például a Cantabile-be): a Kapcsolat beállításaiban a MIDI Out és a MIDI In 2 állítható be; ha a zongora nem érhető el, a lejátszás automatikusan a MIDI-eszközre vált, a zongora mellett pedig a Lejátszás részben kézzel is választható. A Keverő ilyenkor szabványos MIDI-vezérlőket és General MIDI hangszíneket használ, a MIDI In 2 hangjai a MIDI Out-on szólnak;
 - a feltöltött MIDI-fájlok lejátszását vezérelni: indítás, szünet, pozíció;
 - a "stream lights" (billentyű-kivilágítás) vezérlése: ki, be, lassú, gyors;
 - a segéd (vezetett gyakorlás) mód vezérlése: ki, be, mód kiválasztása;

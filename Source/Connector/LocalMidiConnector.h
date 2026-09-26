@@ -39,3 +39,31 @@ private:
 	String m_outputName;
 	std::mutex m_sendMutex; // messages are sent from the queue thread and the song player
 };
+
+// The additional MIDI ports, independent of the piano's port: MIDI Out (a MIDI device,
+// e.g. loopMIDI to a software instrument) and MIDI In 2 (e.g. a MIDI keyboard).
+class MidiDeviceConnector : private MidiInputCallback
+{
+public:
+	~MidiDeviceConnector() override;
+
+	// Called from the MIDI thread for every message from MIDI In 2.
+	std::function<void(const MidiMessage&)> onIncoming;
+
+	// Opens the ports by name ("" = none). A port that is not available now is
+	// opened later by Refresh(), e.g. when loopMIDI is started after ConPianist.
+	void SetPorts(const String& inputName, const String& outputName);
+	void Refresh();
+	bool IsOutputOpen();
+	const String& GetOutputName() const { return m_outputName; }
+	void Send(const MidiMessage& message);
+
+private:
+	std::mutex m_mutex;
+	String m_inputName;
+	String m_outputName;
+	std::unique_ptr<MidiInput> m_input;
+	std::unique_ptr<MidiOutput> m_output;
+
+	void handleIncomingMidiMessage(MidiInput* source, const MidiMessage& message) override;
+};

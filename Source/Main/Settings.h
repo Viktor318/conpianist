@@ -62,6 +62,8 @@ public:
 	bool rtpLogging = false;
 	String language; // UI language: "en", "hu" or empty (use the system language)
 	String lastSong; // full path of the last loaded song, reloaded at start with USB playback
+	String midiIn2;  // secondary MIDI input, played through to MIDI Out in MIDI device mode
+	String midiOut;  // MIDI device used when the piano is not available (or chosen)
 
 private:
 	PropertiesFile::Options opt;

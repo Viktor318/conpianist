@@ -160,7 +160,8 @@ void MixerComponent::comboBoxChanged (ComboBox* comboBoxThatHasChanged)
 //[MiscUserCode] You can add your own definitions of your custom methods or any other code here...
 void MixerComponent::updateReverbEffectState()
 {
-	effectComboBox->setEnabled(pianoController.IsConnected());
+	// the reverb type belongs to the piano; not used with playback via a MIDI device
+	effectComboBox->setEnabled(pianoController.IsConnected() && !pianoController.IsMidiDevicePlayback());
 	effectComboBox->setSelectedId(pianoController.GetReverbEffect() + 1000000, NotificationType::dontSendNotification);
 	if (effectComboBox->getSelectedId() != pianoController.GetReverbEffect() + 1000000)
 	{

@@ -508,7 +508,7 @@ static PopupMenu buildGmVoicesMenu(int currentProgram, bool drums)
 
 String ChannelComponent::voiceTitle()
 {
-	if (pianoController.IsGenericDevice())
+	if (pianoController.IsMidiDevicePlayback())
 	{
 		return Presets::GmVoiceTitle(pianoController.GetVoice(channel),
 			channel == PianoController::chMidi10);
@@ -519,7 +519,7 @@ String ChannelComponent::voiceTitle()
 void ChannelComponent::showMenu(Button* button)
 {
 	PopupMenu menu;
-	const bool generic = pianoController.IsGenericDevice();
+	const bool generic = pianoController.IsMidiDevicePlayback();
 
 	menu.addSectionHeader(TRANS("CHANNEL") + " " + String(channel - PianoController::chMidi0));
 	menu.addItem(1, TRANS("Select Only This Channel"));
@@ -556,7 +556,7 @@ void ChannelComponent::showMenu(Button* button)
 	GuiHelper::ShowMenuAsync(menu, button,
 		[this](int result)
 		{
-			if (result >= VoiceMenuBase && pianoController.IsGenericDevice())
+			if (result >= VoiceMenuBase && pianoController.IsMidiDevicePlayback())
 			{
 				// General MIDI: bank 0, program number
 				pianoController.SetSongChannelVoice(channel, (result - VoiceMenuBase) & 0x7f);

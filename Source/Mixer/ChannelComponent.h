@@ -52,7 +52,8 @@ public:
     void changeListenerCallback(ChangeBroadcaster* source) override { if (source == &settings) applySettings(); }
 	void applySettings();
     void PianoStateChanged(PianoController::Aspect ap, PianoController::Channel ch) override
-		{ if (ch == channel || ap == PianoController::apConnection) MessageManager::callAsync([=](){updateChannelState(ap);}); }
+		{ if (ch == channel || ap == PianoController::apConnection || ap == PianoController::apPlaybackSource)
+			MessageManager::callAsync([=](){updateChannelState(ap);}); }
 	void updateChannelState(PianoController::Aspect aspect);
     void mouseDoubleClick(const MouseEvent& event) override;
     void mouseUp(const MouseEvent& event) override;

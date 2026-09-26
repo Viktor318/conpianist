@@ -234,8 +234,11 @@ SceneComponent::SceneComponent (Settings& settings)
 	pianoConnector.startThread();
     pianoController.SetPianoConnector(&pianoConnector);
     pianoController.AddListener(this);
+    pianoController.sendToMidiDevice = [this](const MidiMessage& message) { midiDevice.Send(message); };
+    midiDevice.onIncoming = [this](const MidiMessage& message) { pianoController.IncomingMidiDeviceMessage(message); };
     pianoController.onNetworkPlaybackFailed = [this]()
     	{
+    		networkReachable = false;
     		AlertWindow::showMessageBoxAsync(MessageBoxIconType::WarningIcon, "ConPianist",
     			TRANS("The piano cannot be reached over the network. Playback continues via USB."));
     	};
@@ -253,6 +256,8 @@ SceneComponent::~SceneComponent()
 {
     //[Destructor_pre]. You can add your own custom destruction code here..
     pianoController.ShutdownLocalPlayer();
+    midiDevice.onIncoming = nullptr;
+    midiDevice.SetPorts("", "");
     if (rtpMidiConnector)
     {
 		rtpMidiConnector->stopThread(1000);
@@ -422,7 +427,12 @@ void SceneComponent::PianoStateChanged(PianoController::Aspect aspect, PianoCont
 	}
 	if (aspect == PianoController::apConnection && pianoController.IsConnected())
 	{
-		MessageManager::callAsync([=](){pianoController.Sync();});
+		MessageManager::callAsync([=]()
+			{
+				pianoController.Sync();
+				updatePlaybackAvailability();
+				chooseDefaultPlaybackSource(false);
+			});
 	}
 	else if (aspect == PianoController::apActive && channel == PianoController::chLeft)
 	{
@@ -431,6 +441,10 @@ void SceneComponent::PianoStateChanged(PianoController::Aspect aspect, PianoCont
 	else if (aspect == PianoController::apSongLoaded)
 	{
 		MessageManager::callAsync([=](){loadSongState();});
+	}
+	else if (aspect == PianoController::apPlaybackSource)
+	{
+		MessageManager::callAsync([=](){updateSettingsState();});
 	}
 }
 
@@ -518,32 +532,24 @@ void SceneComponent::checkConnection()
 
 	Time curTime = Time::getCurrentTime();
 
-	if (!midiConnector->IsConnected())
+	// the MIDI device may be started later (e.g. loopMIDI): try to open it every 2 s
+	if (++midiDeviceRefreshCounter % 8 == 0)
 	{
-		portConnectedTime = curTime;
+		midiDevice.Refresh();
 	}
-
-	if (!pianoController.IsConnected() && pianoController.IsGenericDevice() && midiConnector->IsConnected())
-	{
-		// a general MIDI device does not answer; there is nothing to wait for
-		statusLabel->setText(TRANS("MIDI device: NAME").replace("NAME", settings.midiPort), NotificationType::dontSendNotification);
-		statusLabel->setColour(Label::textColourId, Colours::white);
-		return;
-	}
-
-	if (!pianoController.IsConnected() && localMidiConnector && midiConnector->IsConnected() &&
-		(curTime - portConnectedTime).inMilliseconds() >= GenericDeviceDelayMs)
-	{
-		// no Yamaha piano answers on this port
-		enterGenericDevice();
-		return;
-	}
+	updatePlaybackAvailability();
+	checkPianoAvailability(curTime);
 
 	if (!pianoController.IsConnected())
 	{
 		String prefix = midiConnector->IsConnected() ? TRANS("Connecting to the instrument") : TRANS("Looking for the instrument");
 		String status = statusLabel->getText();
-		if (status.startsWith(prefix) && status.length() < prefix.length() + 10)
+		if (pianoController.IsMidiDevicePlayback())
+		{
+			// playing on the MIDI device; the piano is still looked for in the background
+			status = TRANS("MIDI device: NAME").replace("NAME", midiDevice.GetOutputName());
+		}
+		else if (status.startsWith(prefix) && status.length() < prefix.length() + 10)
 		{
 			status += ".";
 		}
@@ -603,6 +609,14 @@ void SceneComponent::applySettings()
 		updatePlaybackSource();
 	}
 
+	if (currentMidiIn2 != settings.midiIn2 || currentMidiOut != settings.midiOut)
+	{
+		currentMidiIn2 = settings.midiIn2;
+		currentMidiOut = settings.midiOut;
+		midiDevice.SetPorts(settings.midiIn2, settings.midiOut);
+		updatePlaybackAvailability();
+	}
+
 	float scale = settings.zoomUi;
 	scale = std::min(std::max(scale, 0.25f), 4.0f);
 	scale = round(scale * 20) / 20;
@@ -627,10 +641,6 @@ void SceneComponent::resetMidiConnector()
 	pianoController.Disconnect();
 	pianoConnector.ClearQueue();
 
-	// the new port may have a piano again: wait for its answer
-	pianoConnector.SetPianoMessagesEnabled(true);
-	pianoController.SetGenericDevice(false);
-	portConnectedTime = Time::getCurrentTime();
 
 	if (midiConnector)
 	{
@@ -686,17 +696,91 @@ void SceneComponent::resetMidiConnector()
 void SceneComponent::updatePlaybackSource()
 {
 	networkCheckId++; // results of earlier checks are no longer relevant
+	networkReachable = true; // with a USB connection: assumed until the check is finished
+	pianoMissing = false;
 
-	if (settings.midiPort == "")
+	if (settings.midiPort != "")
 	{
-		pianoController.SetPlaybackAvailability(true, false);
-		pianoController.SetPlaybackSource(false);
+		checkNetworkPlayback();
+	}
+
+	updatePlaybackAvailability();
+	chooseDefaultPlaybackSource(true);
+}
+
+// Which players can be chosen now.
+void SceneComponent::updatePlaybackAvailability()
+{
+	const bool connected = pianoController.IsConnected();
+	const bool network = connected && networkReachable;
+	const bool usb = connected && settings.midiPort != "";
+	const bool device = midiDevice.IsOutputOpen();
+	const int availability = (network ? 1 : 0) + (usb ? 2 : 0) + (device ? 4 : 0);
+	if (availability != lastAvailability)
+	{
+		lastAvailability = availability;
+		pianoController.SetPlaybackAvailability(network, usb, device);
+	}
+}
+
+// The default player when the piano is available: its own player if it can be reached
+// over the network (Stream Lights and Guide work), otherwise ConPianist's own player
+// over USB. A player chosen by the user is kept, unless "force" (settings changed).
+void SceneComponent::chooseDefaultPlaybackSource(bool force)
+{
+	if (!pianoController.IsConnected() || (!force && !pianoController.IsPlaybackSourceAutomatic()))
+	{
 		return;
 	}
 
-	// until the check is finished, the current player stays in use
-	pianoController.SetPlaybackAvailability(pianoController.IsNetworkPlaybackAvailable(), true);
-	checkNetworkPlayback();
+	const bool usb = settings.midiPort != "";
+	const PianoController::PlaybackSource source = networkReachable || !usb ?
+		PianoController::psPiano : PianoController::psLocal;
+	pianoController.SetPlaybackSource(source, true);
+
+	if (source == PianoController::psLocal)
+	{
+		loadLastSong();
+	}
+}
+
+// If the piano is not available (switched off, not connected) for a few seconds, the
+// songs are played on the MIDI device (MIDI Out). When the piano is available again,
+// its player is used again, unless the user has chosen the MIDI device.
+void SceneComponent::checkPianoAvailability(Time curTime)
+{
+	if (pianoController.IsConnected())
+	{
+		pianoMissing = false;
+		return;
+	}
+
+	if (!pianoMissing)
+	{
+		pianoMissing = true;
+		pianoMissingSince = curTime;
+	}
+
+	const int delay = settings.midiPort == "" ? PianoMissingDelayNetworkMs : PianoMissingDelayUsbMs;
+	if ((curTime - pianoMissingSince).inMilliseconds() < delay || pianoController.IsMidiDevicePlayback())
+	{
+		return;
+	}
+
+	if (midiDevice.IsOutputOpen())
+	{
+		Logger::writeToLog("Piano not available, playing on MIDI device " + midiDevice.GetOutputName());
+		networkCheckId++; // a running network check is no longer relevant
+		pianoController.SetPlaybackSource(PianoController::psMidiDevice, true);
+		loadLastSong();
+		updateSettingsState();
+	}
+	else if (!noMidiOutMessageShown)
+	{
+		noMidiOutMessageShown = true;
+		AlertWindow::showMessageBoxAsync(MessageBoxIconType::InfoIcon, "ConPianist",
+			TRANS("The piano is not available. To play songs without the piano, choose a MIDI Out port in the Connection Settings."));
+	}
 }
 
 // Checks in the background, if the piano accepts connections on its upload port.
@@ -725,35 +809,16 @@ void SceneComponent::checkNetworkPlayback()
 
 void SceneComponent::networkCheckFinished(bool reachable, int checkId)
 {
-	if (checkId != networkCheckId || settings.midiPort == "" || pianoController.IsGenericDevice())
+	if (checkId != networkCheckId || settings.midiPort == "")
 	{
 		return;
 	}
 
 	Logger::writeToLog(String("Piano ") + (reachable ? "can" : "cannot") + " be reached over the network");
 
-	pianoController.SetPlaybackAvailability(reachable, true);
-	pianoController.SetPlaybackSource(!reachable);
-
-	if (!reachable)
-	{
-		loadLastSong();
-	}
-}
-
-// No Yamaha piano answers on the MIDI port: it is used as a general MIDI device. Only
-// ConPianist's own player can play there, and no piano messages are sent to it.
-void SceneComponent::enterGenericDevice()
-{
-	Logger::writeToLog("No piano answers on MIDI port " + settings.midiPort);
-
-	networkCheckId++; // the result of a running network check is no longer relevant
-	pianoConnector.SetPianoMessagesEnabled(false);
-	pianoController.SetGenericDevice(true);
-	pianoController.SetPlaybackAvailability(false, true);
-	pianoController.SetPlaybackSource(true);
-	loadLastSong();
-	updateSettingsState();
+	networkReachable = reachable;
+	updatePlaybackAvailability();
+	chooseDefaultPlaybackSource(false);
 }
 
 // With ConPianist's own player the song is not kept by the piano, so the last song

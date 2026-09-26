@@ -470,7 +470,7 @@ void VoiceComponent::buttonClicked (Button* buttonThatWasClicked)
 //[MiscUserCode] You can add your own definitions of your custom methods or any other code here...
 void VoiceComponent::PianoStateChanged(PianoController::Aspect aspect, PianoController::Channel channel)
 {
-	if (aspect == PianoController::apConnection)
+	if (aspect == PianoController::apConnection || aspect == PianoController::apPlaybackSource)
 	{
 		MessageManager::callAsync([=](){updateEnabledControls();});
 	}
@@ -611,7 +611,8 @@ void VoiceComponent::updateEnabledControls()
 {
 	for (Component* co : getChildren())
 	{
-		co->setEnabled(pianoController.IsConnected());
+		// with playback via a MIDI device the keyboard voices of the piano are not used
+		co->setEnabled(pianoController.IsConnected() && !pianoController.IsMidiDevicePlayback());
 	}
 }
 

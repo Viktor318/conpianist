@@ -59,6 +59,12 @@ public:
 private:
     //[UserVariables]   -- You can add your own custom variables in this section.
 	Settings& settings;
+	// MIDI device ports (independent of the piano's port)
+	std::unique_ptr<Label> midiIn2Label;
+	std::unique_ptr<ComboBox> midiIn2ComboBox;
+	std::unique_ptr<Label> midiOutLabel;
+	std::unique_ptr<ComboBox> midiOutComboBox;
+	static void fillPorts(ComboBox& comboBox, const StringArray& ports, const String& selected);
     //[/UserVariables]
 
     //==============================================================================

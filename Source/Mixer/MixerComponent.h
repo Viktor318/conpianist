@@ -47,7 +47,8 @@ public:
     //==============================================================================
     //[UserMethods]     -- You can add your own custom methods in this section.
     void PianoStateChanged(PianoController::Aspect ap, PianoController::Channel ch) override
-		{ if (ap == PianoController::apConnection || ap == PianoController::apReverbEffect)
+		{ if (ap == PianoController::apConnection || ap == PianoController::apReverbEffect ||
+			ap == PianoController::apPlaybackSource)
 			MessageManager::callAsync([=](){updateReverbEffectState();}); }
 	void updateReverbEffectState();
     //[/UserMethods]

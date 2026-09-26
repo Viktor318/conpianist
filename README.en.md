@@ -6,7 +6,7 @@
 > - bilingual user interface (English/Hungarian), switchable in the main menu (LANGUAGE);
 > - the voices of the song's MIDI channels can be changed in the mixer, and they are saved in the registration memory (`.conmem`);
 > - songs can also be played over USB without Wi-Fi, using ConPianist's own player; the player (the piano's own via the network, or ConPianist's via USB) can be chosen in the Playback section of the left panel;
-> - songs can also be played to any other MIDI device without the piano (e.g. via loopMIDI to a software instrument such as Cantabile), with General MIDI voices and standard MIDI controllers in the mixer;
+> - songs can also be played on another MIDI device (MIDI Out, e.g. via loopMIDI to a software instrument such as Cantabile) – automatically when the piano is not available, or chosen in the Playback section; the mixer then uses standard MIDI controllers and General MIDI voices, and a secondary input (MIDI In 2) is played through to MIDI Out;
 > - the played notes are shown on the virtual keyboard, which can be resized;
 > - builds with current tools (Visual Studio 2026, recent JUCE, vcpkg); several crash and freeze fixes.
 >

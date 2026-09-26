@@ -24,6 +24,8 @@
 #include "PianoConnector.h"
 #include "LocalSongPlayer.h"
 
+#include <atomic>
+
 class PianoController : public PianoConnector::Listener
 {
 public:
@@ -202,25 +204,35 @@ public:
 	void SetLocalPlayback(bool enabled);
 	bool IsLocalPlayback() const { return m_localPlayback; }
 	void ShutdownLocalPlayer();
-	// Playback source: the piano's own player (the song is uploaded over the network,
-	// Stream Lights and Guide work) or ConPianist's own player (MIDI port, USB).
-	// The availability is decided by the caller (connection settings, network check).
-	void SetPlaybackAvailability(bool network, bool local);
+	// Playback source:
+	// - psPiano: the piano's own player (the song is uploaded over the network,
+	//   Stream Lights and Guide work),
+	// - psLocal: ConPianist's own player, sending to the piano's MIDI port (USB),
+	// - psMidiDevice: ConPianist's own player, sending to another MIDI device (MIDI Out,
+	//   e.g. loopMIDI to a software instrument); the mixer settings are sent as standard
+	//   MIDI controllers and the voices are General MIDI voices.
+	// The availability is decided by the caller (connections, network check).
+	enum PlaybackSource { psPiano, psLocal, psMidiDevice };
+	void SetPlaybackAvailability(bool network, bool local, bool midiDevice);
 	bool IsNetworkPlaybackAvailable() const { return m_networkPlaybackAvailable; }
 	bool IsLocalPlaybackAvailable() const { return m_localPlaybackAvailable; }
+	bool IsMidiDevicePlaybackAvailable() const { return m_midiDevicePlaybackAvailable; }
 	// Switches the player; a loaded song is loaded again into the other player
 	// at the same measure. Ignored if the requested source is not available.
-	void SetPlaybackSource(bool local);
+	// "automatic": chosen by the program (not by the user).
+	void SetPlaybackSource(PlaybackSource source, bool automatic = false);
+	PlaybackSource GetPlaybackSource() const { return m_playbackSource; }
+	bool IsPlaybackSourceAutomatic() const { return m_playbackSourceAutomatic; }
+	bool IsMidiDevicePlayback() const { return m_playbackSource == psMidiDevice; }
 	// Loads a song into the current player. If the upload to the piano fails and
 	// the own player is available, playback continues with the own player.
 	bool LoadSong(const File& file);
-	// General MIDI device mode: the MIDI port is not a Yamaha piano (e.g. loopMIDI to a
-	// software instrument). Songs are played by the own player, the mixer settings are
-	// sent as standard MIDI controllers and the voices are General MIDI voices.
-	void SetGenericDevice(bool generic);
-	bool IsGenericDevice() const { return m_genericDevice; }
-	// Songs can be played and mixed: a piano is connected or a general MIDI device is used
-	bool IsReady() const { return m_connected || m_genericDevice; }
+	// Songs can be played and mixed: a piano is connected or a MIDI device is used
+	bool IsReady() const { return m_connected || IsMidiDevicePlayback(); }
+	// The MIDI device (MIDI Out): messages to it, and messages from MIDI In 2, which are
+	// played through to the MIDI device in psMidiDevice mode.
+	std::function<void(const MidiMessage&)> sendToMidiDevice;
+	void IncomingMidiDeviceMessage(const MidiMessage& message);
 	// Called (on the message thread) when the piano could not be reached over the
 	// network and playback switched to ConPianist's own player.
 	std::function<void()> onNetworkPlaybackFailed;
@@ -309,7 +321,8 @@ public:
 	int GetKeyOffSampling() { return m_keyOffSampling; }
 	void SetKeyOffSampling(int keyOffSampling);
 
-	void SendMidiMessage(const MidiMessage& message) { m_pianoConnector->SendMidiMessage(message); }
+	// e.g. the virtual keyboard: goes to the MIDI device in psMidiDevice mode
+	void SendMidiMessage(const MidiMessage& message);
 	void IncomingMidiMessage(const MidiMessage& message) override;
 	void IncomingPianoMessage(const PianoMessage& message) override;
 
@@ -359,7 +372,10 @@ private:
 	bool m_localPlaybackAvailable = false;
 	int m_pendingMeasure = 0; // measure to jump to after the song is loaded again
 	bool m_shownNotes[16][128] = {}; // notes of the local player shown on the virtual keyboard
-	bool m_genericDevice = false;
+	PlaybackSource m_playbackSource = psPiano;
+	std::atomic<bool> m_genericDevice{false}; // playback to a MIDI device (psMidiDevice)
+	bool m_playbackSourceAutomatic = false;
+	bool m_midiDevicePlaybackAvailable = false;
 	int m_genericBank[16] = {};       // bank select (MSB << 8 | LSB) sent on each channel
 	std::shared_ptr<bool> m_alive = std::make_shared<bool>(true); // for delayed callbacks
 
@@ -370,6 +386,8 @@ private:
 	bool LoadLocalSong(const File& file);
 	bool LoadSongInternal(const File& file);
 	void ReloadSong();
+	void ApplyPlaybackSource(PlaybackSource source);
+	void SendToOutput(const MidiMessage& message);
 	void ShowLocalNote(const MidiMessage& message);
 	void OnLocalMessage(const MidiMessage& message);
 	void InitGenericMixer();

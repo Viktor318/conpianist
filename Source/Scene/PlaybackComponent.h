@@ -109,6 +109,7 @@ private:
     std::unique_ptr<Label> playSourceLabel;
     std::unique_ptr<ToggleButton> networkPlaybackButton;
     std::unique_ptr<ToggleButton> usbPlaybackButton;
+    std::unique_ptr<ToggleButton> midiDevicePlaybackButton;
 
 
     //==============================================================================

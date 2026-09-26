@@ -56,7 +56,7 @@ ConnectionComponent::ConnectionComponent (Settings& settings)
     pianoIpEdit->setText (TRANS("192.168.1.235"));
 
     midiPortLabel.reset (new Label ("Midi Port Label",
-                                    TRANS("MIDI Port:")));
+                                    TRANS("Piano Midi Port:")));
     addAndMakeVisible (midiPortLabel.get());
     midiPortLabel->setFont (Font (15.00f, Font::plain).withTypefaceStyle ("Regular"));
     midiPortLabel->setJustificationType (Justification::centredRight);
@@ -79,6 +79,26 @@ ConnectionComponent::ConnectionComponent (Settings& settings)
 	pianoIpLabel->attachToComponent(pianoIpEdit.get(), true);
 	midiPortLabel->attachToComponent(midiPortComboBox.get(), true);
 
+	// MIDI device: used when the piano is not available, or when chosen in the
+	// Playback section ("Via MIDI Device")
+	auto makeLabel = [this](std::unique_ptr<Label>& label, const String& text)
+		{
+			label.reset(new Label(String(), text));
+			addAndMakeVisible(label.get());
+			label->setFont(Font(15.00f, Font::plain).withTypefaceStyle("Regular"));
+			label->setJustificationType(Justification::centredRight);
+		};
+	makeLabel(midiIn2Label, TRANS("MIDI In 2:"));
+	makeLabel(midiOutLabel, TRANS("MIDI Out:"));
+	midiIn2ComboBox.reset(new ComboBox("MIDI In 2 ComboBox"));
+	midiOutComboBox.reset(new ComboBox("MIDI Out ComboBox"));
+	addAndMakeVisible(midiIn2ComboBox.get());
+	addAndMakeVisible(midiOutComboBox.get());
+	midiIn2ComboBox->setTooltip(TRANS("Secondary MIDI input (e.g. a MIDI keyboard): with playback via MIDI device, it is played through to MIDI Out"));
+	midiOutComboBox->setTooltip(TRANS("MIDI device (e.g. loopMIDI to a software instrument): used for playback when the piano is not available"));
+	midiIn2Label->attachToComponent(midiIn2ComboBox.get(), true);
+	midiOutLabel->attachToComponent(midiOutComboBox.get(), true);
+
 	load();
     //[/UserPreSize]
 
@@ -86,6 +106,7 @@ ConnectionComponent::ConnectionComponent (Settings& settings)
 
 
     //[Constructor] You can add your own custom stuff here..
+    setSize (400, 170);
     //[/Constructor]
 }
 
@@ -125,6 +146,8 @@ void ConnectionComponent::resized()
     pianoIpEdit->setBounds (proportionOfWidth (0.3997f), 16, 136, 24);
     midiPortComboBox->setBounds (proportionOfWidth (0.3997f), 56, proportionOfWidth (0.5428f), 24);
     //[UserResized] Add your own custom resize handling here..
+    midiIn2ComboBox->setBounds (proportionOfWidth (0.3997f), 96, proportionOfWidth (0.5428f), 24);
+    midiOutComboBox->setBounds (proportionOfWidth (0.3997f), 136, proportionOfWidth (0.5428f), 24);
     //[/UserResized]
 }
 
@@ -151,11 +174,18 @@ void ConnectionComponent::save()
 	auto oldPianoIp = settings.pianoIp;
 	auto oldMidiPort = settings.midiPort;
 
+	auto oldMidiIn2 = settings.midiIn2;
+	auto oldMidiOut = settings.midiOut;
+
 	settings.pianoIp = pianoIpEdit->getText();
 	settings.midiPort = midiPortComboBox->getSelectedId() == 1 ? "" : midiPortComboBox->getText();
+	settings.midiIn2 = midiIn2ComboBox->getSelectedId() <= 1 ? "" : midiIn2ComboBox->getText();
+	settings.midiOut = midiOutComboBox->getSelectedId() <= 1 ? "" : midiOutComboBox->getText();
 
 	if (oldPianoIp != settings.pianoIp ||
-		oldMidiPort != settings.midiPort)
+		oldMidiPort != settings.midiPort ||
+		oldMidiIn2 != settings.midiIn2 ||
+		oldMidiOut != settings.midiOut)
 	{
 		settings.Save();
 	}
@@ -167,11 +197,9 @@ void ConnectionComponent::load()
 
 	midiPortComboBox->addItem(TRANS("Connect via Network"), 1);
 
-	// MIDI outputs: the piano's port, or any other MIDI device (e.g. loopMIDI to a
-	// software instrument), which is then used as a general MIDI device
 	StringArray ports;
-	for (auto& device : MidiOutput::getAvailableDevices())
-		ports.addIfNotAlreadyThere(device.name);
+	for (auto& device : MidiInput::getAvailableDevices())
+		ports.add(device.name);
 	midiPortComboBox->addItemList(ports, 2);
 
 	if (settings.midiPort == "")
@@ -186,6 +214,27 @@ void ConnectionComponent::load()
 			midiPortComboBox->setSelectedId(ind + 2);
 		}
 	}
+
+	StringArray outputs;
+	for (auto& device : MidiOutput::getAvailableDevices())
+		outputs.addIfNotAlreadyThere(device.name);
+	fillPorts(*midiIn2ComboBox, ports, settings.midiIn2);
+	fillPorts(*midiOutComboBox, outputs, settings.midiOut);
+}
+
+// Item 1 is "(none)"; a port that is not available now is still shown if it is set,
+// so that the setting is not lost (e.g. loopMIDI is not running at the moment).
+void ConnectionComponent::fillPorts(ComboBox& comboBox, const StringArray& ports, const String& selected)
+{
+	StringArray items(ports);
+	if (selected.isNotEmpty())
+	{
+		items.addIfNotAlreadyThere(selected);
+	}
+	comboBox.addItem(TRANS("(none)"), 1);
+	comboBox.addItemList(items, 2);
+	const int index = items.indexOf(selected);
+	comboBox.setSelectedId(selected.isEmpty() || index < 0 ? 1 : index + 2, NotificationType::dontSendNotification);
 }
 
 void ConnectionComponent::showDialog(Settings& settings)
@@ -221,7 +270,7 @@ BEGIN_JUCER_METADATA
               readonly="0" scrollbars="0" caret="1" popupmenu="1"/>
   <LABEL name="Midi Port Label" id="75ce146a83116b83" memberName="midiPortLabel"
          virtualName="" explicitFocusOrder="0" pos="128 56 144 24" edTextCol="ff000000"
-         edBkgCol="0" labelText="MIDI Port:" editableSingleClick="0"
+         edBkgCol="0" labelText="Piano Midi Port:" editableSingleClick="0"
          editableDoubleClick="0" focusDiscardsChanges="0" fontname="Default font"
          fontsize="15.0" kerning="0.0" bold="0" italic="0" justification="34"/>
   <COMBOBOX name="Midi Port ComboBox" id="d5a3cb7506a2d491" memberName="midiPortComboBox"
