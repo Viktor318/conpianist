@@ -338,4 +338,7 @@ private:
 	bool LoadLocalSong(const File& file);
 	void ClearSongState();
 	bool IsLocalSongLoaded() const { return m_localPlayback && m_localPlayer && m_localPlayer->IsLoaded(); }
+	void ResetLocalMixState();
+	void UpdateLocalMutes();
+	static bool IsSongChannel(Channel ch) { return chMidi1 <= ch && ch <= chMidi16; }
 };

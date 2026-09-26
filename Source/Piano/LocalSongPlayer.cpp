@@ -413,6 +413,36 @@ void LocalSongPlayer::ResetLoop()
 	m_loopEndTick = NoValue;
 }
 
+void LocalSongPlayer::SetChannelMuted(int channel, bool muted)
+{
+	if (channel < 1 || channel > NumChannels)
+	{
+		return;
+	}
+
+	const ScopedLock lock(m_lock);
+	const int ch = channel - 1;
+	if (m_muted[ch] == muted)
+	{
+		return;
+	}
+	m_muted[ch] = muted;
+
+	if (muted && m_loaded && m_usedChannels[ch])
+	{
+		// silence the channel at once, even notes held by the sustain pedal
+		for (int note = 0; note < 128; note++)
+		{
+			if (m_sounding[ch][note] != NoValue)
+			{
+				Send(MidiMessage::noteOff(channel, m_sounding[ch][note]));
+				m_sounding[ch][note] = NoValue;
+			}
+		}
+		Send(MidiMessage::allSoundOff(channel));
+	}
+}
+
 //==============================================================================
 // Playback thread
 
@@ -478,6 +508,10 @@ void LocalSongPlayer::SendEvent(const MidiMessage& message)
 
 	if (message.isNoteOn())
 	{
+		if (m_muted[ch])
+		{
+			return;
+		}
 		const int note = message.getNoteNumber();
 		const int sounding = transposable ? jlimit(0, 127, note + m_transpose) : note;
 		if (m_sounding[ch][note] != NoValue)

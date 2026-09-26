@@ -77,6 +77,11 @@ public:
 	void SetLoop(Position begin, Position end);
 	void ResetLoop();
 
+	// A muted channel (1..16) plays silently: its notes are not sent, but its controllers
+	// and program changes are, so it sounds right when it is switched on again.
+	// Used for the Mixer channel switches and the right/left/backing part buttons.
+	void SetChannelMuted(int channel, bool muted);
+
 	// MIDI channels (1..16) that contain notes
 	std::vector<int> GetUsedChannels() const;
 
@@ -119,6 +124,7 @@ private:
 	double m_endSeconds = 0.0;
 	double m_baseBpm = 120.0;
 	bool m_usedChannels[NumChannels] = {};
+	bool m_muted[NumChannels] = {};
 	bool m_loaded = false;
 
 	// controllers/programs that change during the song (not only in the setup part)

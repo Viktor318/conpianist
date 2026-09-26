@@ -226,6 +226,11 @@ void PianoController::Reset()
 	SetVoice(chLayer, "PRESET:/VOICE/Strings & Vocal/String Ensemble/Real Strings.T250.SAR");
 	SetVoice(chLeft, "PRESET:/VOICE/Piano/FM E.Piano/Sweet DX.T232.CLV");
 
+	if (m_localPlayback)
+	{
+		ResetLocalMixState();
+	}
+
 	ResyncStateFromPiano();
 }
 
@@ -505,16 +510,38 @@ void PianoController::SetReverbEffect(int effect)
 
 void PianoController::SetPart(Part part, bool enable)
 {
+	if (m_localPlayback)
+	{
+		m_parts[part] = enable;
+		NotifyChanged(apPart);
+		UpdateLocalMutes();
+		return;
+	}
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::Part, part, enable ? 1 : 0));
 }
 
 void PianoController::SetPartChannel(Part part, Channel channel)
 {
+	if (m_localPlayback)
+	{
+		const Channel oldCh = m_partChannels[part];
+		m_partChannels[part] = channel;
+		NotifyChanged(apPartChannel, oldCh);
+		NotifyChanged(apPartChannel, channel);
+		UpdateLocalMutes();
+		return;
+	}
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::PartChannel, part, channel - chMidi0));
 }
 
 void PianoController::SetPartAuto(bool enable)
 {
+	if (m_localPlayback)
+	{
+		m_partAuto = enable;
+		NotifyChanged(apPartAuto);
+		return;
+	}
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::PartAuto, 0, enable ? 1 : 0));
 }
 
@@ -587,6 +614,14 @@ void PianoController::SetSongChannelVoice(Channel ch, int voiceNum)
 
 void PianoController::SetActive(Channel ch, bool active)
 {
+	if (m_localPlayback && (IsSongChannel(ch) || ch == chMidiMaster))
+	{
+		// song channels are switched on and off by the local player, not by the piano
+		m_channels[ch].active = active;
+		NotifyChanged(apActive, ch);
+		UpdateLocalMutes();
+		return;
+	}
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::Active, ch, active ? 1 : 0));
 }
 
@@ -684,7 +719,11 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 		(property == Property::Position || property == Property::Length ||
 		property == Property::Play || property == Property::SongName ||
 		property == Property::Loop || property == Property::Tempo ||
-		property == Property::Transpose || property == Property::Present))
+		property == Property::Transpose || property == Property::Present ||
+		property == Property::Part || property == Property::PartChannel ||
+		property == Property::PartAuto ||
+		(property == Property::Active &&
+			(IsSongChannel((Channel)pm->GetIndex()) || pm->GetIndex() == chMidiMaster))))
 	{
 		// ConPianist plays the song itself; these values belong to the piano's own
 		// (unused) song player and would overwrite the local playback state
@@ -950,6 +989,11 @@ void PianoController::SetLocalPlayback(bool enabled)
 	}
 
 	ClearSongState();
+
+	if (enabled)
+	{
+		ResetLocalMixState();
+	}
 }
 
 // Stops the local player before the connectors are destroyed (on application exit).
@@ -987,6 +1031,11 @@ bool PianoController::LoadLocalSong(const File& file)
 	m_channels[chMidiMaster].enabled = true;
 	m_channels[chMidiMaster].active = true;
 	NotifyChanged(apEnable, chMidiMaster);
+	NotifyChanged(apActive, chMidiMaster);
+
+	// a new song starts with all channels and parts switched on, like on the piano;
+	// the registration memory of the song (if any) is applied after this
+	ResetLocalMixState();
 
 	NotifyChanged(apSongName);
 	NotifyChanged(apLength);
@@ -1024,6 +1073,56 @@ void PianoController::ClearSongState()
 	NotifyChanged(apPosition);
 	NotifyChanged(apPlayback);
 	NotifyChanged(apLoop);
+}
+
+// Switches all song channels and parts on (local playback only). With automatic part
+// selection, channel 1 is the right hand and channel 2 the left hand, as on the piano.
+void PianoController::ResetLocalMixState()
+{
+	for (Channel ch : MidiChannels)
+	{
+		m_channels[ch].active = true;
+		NotifyChanged(apActive, ch);
+	}
+
+	for (bool& part : m_parts)
+	{
+		part = true;
+	}
+	NotifyChanged(apPart);
+
+	if (m_partAuto)
+	{
+		const Channel autoChannels[2] = {chMidi1, chMidi2};
+		for (int part = paRight; part <= paLeft; part++)
+		{
+			const Channel oldCh = m_partChannels[part];
+			m_partChannels[part] = autoChannels[part];
+			NotifyChanged(apPartChannel, oldCh);
+			NotifyChanged(apPartChannel, autoChannels[part]);
+		}
+	}
+
+	UpdateLocalMutes();
+}
+
+// Tells the local player which song channels must be silent: a channel plays only if
+// the song (Balance), the channel itself (Mixer) and its part (right/left/backing) are on.
+void PianoController::UpdateLocalMutes()
+{
+	if (!m_localPlayer)
+	{
+		return;
+	}
+
+	const bool songActive = m_channels[chMidiMaster].active;
+	for (Channel ch : MidiChannels)
+	{
+		const Part part = m_partChannels[paRight] == ch ? paRight :
+			m_partChannels[paLeft] == ch ? paLeft : paBacking;
+		const bool audible = songActive && m_channels[ch].active && m_parts[part];
+		m_localPlayer->SetChannelMuted(ch - chMidi0, !audible);
+	}
 }
 
 bool PianoController::IsSongLoaded()
