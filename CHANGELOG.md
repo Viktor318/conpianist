@@ -6,7 +6,7 @@ Ez a fájl a ConPianist változásait dokumentálja. Az 1.0–3.0 verziók az er
 
 ### Új
 - **Lejátszott hangok a virtuális billentyűzeten USB-s lejátszásnál.** A ConPianist saját lejátszójával a jobb és bal kéz szólamának hangjai (a Keverő szólam-hozzárendelése szerint) automatikusan megjelennek a virtuális billentyűzeten, transzponálva, ahogy ténylegesen szólnak. A kíséret, a dobcsatorna és a némított szólamok hangjai nem jelennek meg; szünetnél, ugrásnál és megállításkor a kijelzés is törlődik. (Hálózati lejátszásnál ez nem lehetséges, mert a zongora nem küldi vissza a dal hangjait.)
-- **Átméretezhető virtuális billentyűzet.** A billentyűzet feletti vonal egérrel húzva állítja a billentyűzet magasságát (az alapmérettől az ablak feléig), a billentyűk arányosan szélesednek, amíg a teljes billentyűzet elfér. Dupla kattintás a vonalon visszaállítja az alapméretet. A beállított magasságot a program megjegyzi.
+- **Átméretezhető virtuális billentyűzet.** A billentyűzet feletti vonal egérrel húzva állítja a billentyűzet magasságát; a billentyűk arányosan szélesednek, és a magasság csak addig növelhető, amíg a teljes, 88 billentyűs sor elfér az ablakban (legfeljebb az ablak feléig). Dupla kattintás a vonalon visszaállítja az alapméretet. A beállított magasságot a program megjegyzi.
 
 ### Módosítva
 - A virtuális billentyűzet láthatósága nem része a regisztrációs memóriának: a `.conmem` fájlba már nem kerül be, a régebbi fájlokban lévő értéket a program figyelmen kívül hagyja. Így a billentyűzet a program újraindítása, dal betöltése és a lejátszó váltása után is úgy marad, ahogy utoljára beállították (a billentyűzet csatornája továbbra is a `.conmem` része).

@@ -77,6 +77,7 @@ public:
 	void networkCheckFinished(bool reachable, int checkId);
 	void loadLastSong();
 	int getKeyboardHeight() const;
+	int getMaxKeyboardHeight() const;
 	void setKeyboardHeight(int height, bool save);
     //[/UserMethods]
 

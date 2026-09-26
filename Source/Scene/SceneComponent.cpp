@@ -757,18 +757,26 @@ void SceneComponent::updateKeyboard()
     }
 }
 
-// The keyboard can be made higher up to half of the window, but not lower than the
-// default height.
+// The keyboard can be made higher only as long as the keys can grow with it, i.e. the
+// whole 88-key keyboard still fits into the width of the window (the keys keep their
+// proportions, see KeyboardComponent::resized), and at most up to half of the window.
+// It cannot be lower than the default height.
+int SceneComponent::getMaxKeyboardHeight() const
+{
+	const int DefaultKeyWidth = 16; // as in KeyboardComponent
+	const int NumWhiteKeys = 52;
+	const int fullWidthHeight = DefaultKeyboardHeight * getWidth() / (DefaultKeyWidth * NumWhiteKeys);
+	return std::max(DefaultKeyboardHeight, std::min(fullWidthHeight, getHeight() / 2));
+}
+
 int SceneComponent::getKeyboardHeight() const
 {
-	const int maxHeight = std::max(DefaultKeyboardHeight, getHeight() / 2);
-	return jlimit(DefaultKeyboardHeight, maxHeight, settings.keyboardHeight);
+	return jlimit(DefaultKeyboardHeight, getMaxKeyboardHeight(), settings.keyboardHeight);
 }
 
 void SceneComponent::setKeyboardHeight(int height, bool save)
 {
-	const int maxHeight = std::max(DefaultKeyboardHeight, getHeight() / 2);
-	height = jlimit(DefaultKeyboardHeight, maxHeight, height);
+	height = jlimit(DefaultKeyboardHeight, getMaxKeyboardHeight(), height);
 	if (height != settings.keyboardHeight)
 	{
 		settings.keyboardHeight = height;
