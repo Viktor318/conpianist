@@ -240,11 +240,12 @@ public:
 	void PlayLive(const MidiMessage& message);
 	// Live Play on the piano's own keyboard parts (the piano's second MIDI port, channel 1:
 	// the Voice tab settings) instead of the Mixer channels; used when "enabled" and the
-	// port is "available", otherwise the Mixer channels are used
+	// port is "available", but not with MIDI device playback (then Live Play sounds on the
+	// MIDI Out, on the Mixer channels, as the song); otherwise the Mixer channels are used
 	void SetLivePianoKeyboard(bool enabled, bool available);
 	bool GetLivePianoKeyboard() const { return m_liveKeyboardEnabled; }
-	bool IsLivePianoKeyboardAvailable() const { return m_liveKeyboardAvailable; }
-	bool IsLivePlayOnPianoKeyboard() const { return m_liveKeyboardEnabled && m_liveKeyboardAvailable; }
+	bool IsLivePianoKeyboardAvailable() const { return m_liveKeyboardAvailable && !m_genericDevice; }
+	bool IsLivePlayOnPianoKeyboard() const { return m_liveKeyboardEnabled && IsLivePianoKeyboardAvailable(); }
 	std::function<void(const MidiMessage&)> sendToPianoKeyboard;
 	// True once after the song was loaded again because the player was switched: the
 	// settings are then restored from before the switch, not from the registration memory.
@@ -404,6 +405,7 @@ private:
 	int m_liveMixerChannels = 1;  // the Mixer channels chosen for Live Play
 	bool m_liveKeyboardEnabled = false;
 	bool m_liveKeyboardAvailable = false;
+	void UpdateLiveTarget();
 	const static int LiveKeyboardBit = 1 << 16;
 	void ApplyLiveChannels(int channelMask);
 	void SendLive(int channel, const MidiMessage& message);

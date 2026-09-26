@@ -615,7 +615,10 @@ void SceneComponent::checkConnection()
 		}
 		else
 		{
-			statusLabel->setText(TRANS("Connected and ready"), NotificationType::dontSendNotification);
+			// with MIDI device playback the device is shown (the piano is connected too)
+			statusLabel->setText(pianoController.IsMidiDevicePlayback() ?
+				TRANS("MIDI device: NAME").replace("NAME", midiDevice.GetOutputName()) :
+				TRANS("Connected and ready"), NotificationType::dontSendNotification);
 		}
 		bool stalled = queueSize > 0 && pianoConnector.GetAttempt() > 1 &&
 			(curTime - pianoConnector.GetStallTime()).inSeconds() > IndicateStalledInterval;
@@ -732,21 +735,41 @@ void SceneComponent::resetMidiConnector()
 	lastResetTime = Time::getCurrentTime();
 }
 
-// The piano's second MIDI port, next to its first one (settings.midiPort); its name
-// depends on the system: "CSP-170-2", "CSP-170 2" or "MIDIOUT2 (CSP-170)".
+// The piano's second MIDI port, next to its first one (settings.midiPort). Its name
+// depends on the system and the driver, e.g. "CSP-170" and "CSP-170-2", "CSP-170-1" and
+// "CSP-170-2", "CSP-170" and "MIDIOUT2 (CSP-170)": the name of the first port without
+// its number ("CSP-170"), followed or enclosed by the number 2.
 String SceneComponent::findPianoKeyboardPort() const
 {
-	if (settings.midiPort == "")
+	const String port = settings.midiPort;
+	if (port == "")
 	{
 		return String(); // network connection: no second port
 	}
-	const StringArray names { settings.midiPort + "-2", settings.midiPort + " 2",
-		"MIDIOUT2 (" + settings.midiPort + ")" };
+
+	String base = port;
+	if (base.startsWith("MIDIOUT1 (") || base.startsWith("MIDIIN1 ("))
+	{
+		base = base.fromFirstOccurrenceOf("(", false, false).upToLastOccurrenceOf(")", false, false);
+	}
+	else if (base.endsWith("-1") || base.endsWith(" 1"))
+	{
+		base = base.dropLastCharacters(2);
+	}
+	base = base.trim();
+
 	for (auto& device : MidiOutput::getAvailableDevices())
 	{
-		if (names.contains(device.name))
+		const String name = device.name;
+		if (name == port || !name.contains(base))
 		{
-			return device.name;
+			continue;
+		}
+		// what remains without the base name must be the number 2 (with separators)
+		const String rest = name.replace(base, "").removeCharacters(" -_()[]:#");
+		if (rest == "2" || rest.equalsIgnoreCase("MIDIOUT2") || rest.equalsIgnoreCase("Port2"))
+		{
+			return name;
 		}
 	}
 	return String();
@@ -774,6 +797,11 @@ void SceneComponent::updatePianoKeyboardPort(bool reopen)
 
 	const bool available = name.isNotEmpty() &&
 		(shared ? midiDevice.IsOutputOpen() : pianoKeyboardPort.IsOutputOpen());
+	if (available != pianoController.IsLivePianoKeyboardAvailable() || reopen)
+	{
+		Logger::writeToLog("Piano keyboard port: " + (name.isEmpty() ? String("not found (piano port: ") +
+			settings.midiPort + ")" : name + (available ? " available" : " cannot be opened")));
+	}
 	pianoController.SetLivePianoKeyboard(settings.livePlayOnPiano, available);
 }
 
