@@ -294,7 +294,7 @@ PlaybackComponent::PlaybackComponent (Settings& settings, PianoController& piano
     //[UserPreSize]
     livePlayLabel.reset (new Label ("Live Play Label", TRANS("Live Play")));
     addAndMakeVisible (livePlayLabel.get());
-    livePlayLabel->setTooltip (TRANS("Where the virtual keyboard and MIDI In 2 sound"));
+    livePlayLabel->setTooltip (TRANS("Where the virtual keyboard and MIDI In 2 sound (the piano's own keys are not affected: they always play the piano's voices set on the Voice tab)"));
     livePlayLabel->setFont (Font (15.00f, Font::plain).withTypefaceStyle ("Regular"));
     livePlayLabel->setJustificationType (Justification::centredLeft);
     livePlayLabel->setEditable (false, false, false);

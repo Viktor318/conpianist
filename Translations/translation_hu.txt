@@ -178,7 +178,7 @@ countries: hu
 "The piano is not available. To play songs without the piano, choose a MIDI Out port in the Connection Settings." = "A zongora nem érhető el. Ha zongora nélkül szeretne zenedarabot lejátszani, válasszon MIDI Out portot a Kapcsolat beállításaiban."
 "(none)" = "(nincs)"
 "Live Play" = "Élő játék"
-"Where the virtual keyboard and MIDI In 2 sound" = "Hol szól a virtuális billentyűzet és a MIDI In 2"
+"Where the virtual keyboard and MIDI In 2 sound (the piano's own keys are not affected: they always play the piano's voices set on the Voice tab)" = "Hol szól a virtuális billentyűzet és a MIDI In 2 (a zongora saját billentyűire nincs hatással: azok mindig a Hangszín fülön beállított hangon szólnak)"
 "Piano (Voice tab)" = "Zongora (Hangszín fül)"
 "The virtual keyboard and MIDI In 2 sound with the piano's own voices (Voice tab settings); needs the USB connection" = "A virtuális billentyűzet és a MIDI In 2 a zongora saját hangján szól (a Hangszín fül beállításaival); USB-kapcsolat szükséges"
 "Mixer channels" = "Keverő csatornái"
