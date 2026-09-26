@@ -10,7 +10,7 @@ A lefordított, Windowson (64 bit) futtatható változat a [Releases](https://gi
 
 ## Funkciók
 
-A program egyelőre nem teljes értékű helyettesítője a hivatalos alkalmazásnak. Ennek ellenére már most is tud:
+A program a hivatalos alkalmazás legtöbb funkcióját ismeri, és a továbbfejlesztéseknek köszönhetően olyanokat is, amelyeket az nem: asztali gépen fut, USB-n Wi-Fi nélkül és más MIDI-eszközre is lejátszik. A program ezeket tudja:
 - csatlakozni a zongorához hálózaton vagy kábelen keresztül;
 - állapotvesztés nélkül csatlakozni/újracsatlakozni: a program indításkor beolvassa a zongora teljes állapotát, és megjeleníti a felületen;
 - **ugyanabban az állapotban indulni, ahogy bezárták**: bezáráskor a program elmenti a lejátszási módot, a hangszíneket, a Piano Room és a hangerőegyensúly beállításait, a Keverőt, a Lejátszás panelt, a betöltött dalt és a dalban elért pozíciót, és a következő indításkor ezeket visszaállítja;
