@@ -203,6 +203,7 @@ SceneComponent::SceneComponent (Settings& settings)
     topbarPanel->setText("");
 
 	playbackComponent.reset(new PlaybackComponent(settings, pianoController));
+	playbackComponent->onRecheck = [this]() { recheckAvailability(false); };
 	playbackPanel->addAndMakeVisible(playbackComponent.get());
 
 	keyboardComponent.reset(new KeyboardComponent(settings, pianoController));
@@ -499,7 +500,7 @@ void SceneComponent::showMenu()
 					MessageManager::callAsync([=](){pianoController.Reset();});
 					break;
 				case 4:
-					resetMidiConnector();
+					recheckAvailability(true);
 					break;
 				case 101:
 					loadState();
@@ -664,6 +665,15 @@ void SceneComponent::resetMidiConnector()
 	}
 	else
 	{
+		// The ports are closed first and opened again: after the USB cable was unplugged
+		// and plugged in again, the device usually has the same identifier, and JUCE would
+		// keep the old (no longer working) port open instead of opening it again.
+		for (auto& device : MidiInput::getAvailableDevices())
+		{
+			audioDeviceManager.setMidiInputDeviceEnabled(device.identifier, false);
+		}
+		audioDeviceManager.setDefaultMidiOutputDevice("");
+
 		// only the input with the same name as the output is used (the piano has one of
 		// each; a general MIDI device may have no input)
 		for (auto& device : MidiInput::getAvailableDevices())
@@ -706,6 +716,41 @@ void SceneComponent::updatePlaybackSource()
 
 	updatePlaybackAvailability();
 	chooseDefaultPlaybackSource(true);
+}
+
+// Checks again which outputs are available: the network (the piano's upload port), the
+// MIDI device (MIDI Out, MIDI In 2) and the piano's connection. With "resetConnection"
+// (menu: Reset Connection) the piano's connection is opened again in any case; otherwise
+// (the Recheck button) only if the piano is not connected, so a working connection
+// is not interrupted.
+void SceneComponent::recheckAvailability(bool resetConnection)
+{
+	Logger::writeToLog(resetConnection ? "Reset connection" : "Recheck outputs");
+
+	if (resetConnection || !pianoController.IsConnected())
+	{
+		resetMidiConnector();
+	}
+
+	// the MIDI device's ports are opened again too (a port of a device that was unplugged
+	// and plugged in again does not work any more), but not while a song plays on it
+	if (resetConnection || !pianoController.IsMidiDevicePlayback() || !pianoController.GetPlaying())
+	{
+		midiDevice.SetPorts("", "");
+	}
+	midiDevice.SetPorts(settings.midiIn2, settings.midiOut);
+	midiDevice.Refresh();
+
+	networkCheckId++;
+	networkReachable = true; // until the check is finished
+	pianoMissing = false;
+	if (settings.midiPort != "")
+	{
+		checkNetworkPlayback();
+	}
+
+	lastAvailability = -1;
+	updatePlaybackAvailability();
 }
 
 // Which players can be chosen now.

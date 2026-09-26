@@ -79,6 +79,7 @@ public:
 	void updatePlaybackAvailability();
 	void checkPianoAvailability(Time curTime);
 	void chooseDefaultPlaybackSource(bool force);
+	void recheckAvailability(bool resetConnection);
 	int getKeyboardHeight() const;
 	int getMaxKeyboardHeight() const;
 	void setKeyboardHeight(int height, bool save);
