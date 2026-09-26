@@ -1195,6 +1195,7 @@ void PianoController::ApplyPlaybackSource(PlaybackSource source)
 	m_playbackSource = source;
 	m_localPlayback = source != psPiano;
 	m_genericDevice = source == psMidiDevice;
+	UpdateLiveTarget(); // MIDI device playback: Live Play on the Mixer channels (MIDI Out)
 	const bool enabled = m_localPlayback;
 	Logger::writeToLog("Playback: " + String(source == psPiano ? "piano" : source == psLocal ? "own player (USB)" : "own player (MIDI device)"));
 
@@ -1268,6 +1269,14 @@ void PianoController::SetLiveChannels(int channelMask)
 
 	const ScopedLock lock(m_liveLock);
 	m_liveMixerChannels = channelMask;
+	ApplyLiveChannels(IsLivePlayOnPianoKeyboard() ? LiveKeyboardBit : m_liveMixerChannels);
+}
+
+// Uses the piano's keyboard or the Mixer channels for Live Play, as the settings and the
+// player (MIDI device playback: always the Mixer channels) require now.
+void PianoController::UpdateLiveTarget()
+{
+	const ScopedLock lock(m_liveLock);
 	ApplyLiveChannels(IsLivePlayOnPianoKeyboard() ? LiveKeyboardBit : m_liveMixerChannels);
 }
 
