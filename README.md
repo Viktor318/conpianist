@@ -6,7 +6,7 @@
 
 ## Letöltés
 
-A lefordított, Windowson (64 bit) futtatható változat a [Releases](https://github.com/Viktor318/conpianist/releases) oldalon található. A ZIP-fájlt egy tetszőleges mappába kell kicsomagolni, és a `ConPianist.exe`-t elindítani. A `Resources` mappának és a `.dll` fájloknak az `.exe` mellett kell maradniuk.
+A lefordított, Windowson (64 bit) futtatható változat a [Releases](https://github.com/Viktor318/conpianist/releases) oldalon található. A ZIP-fájlt egy tetszőleges mappába kell kicsomagolni, és a `ConPianist.exe`-t elindítani. A `Resources` mappának és a `.dll` fájloknak az `.exe` mellett kell maradniuk. A dalok, kották és `.conmem` fájlok alapértelmezett mappája a `%APPDATA%\ConPianist\Demo Midi Songs`; a ZIP-ben lévő `Demo Midi Songs` mappa tartalmát érdemes ide másolni.
 
 ## Funkciók
 
@@ -17,7 +17,8 @@ A program egyelőre nem teljes értékű helyettesítője a hivatalos alkalmazá
 - MIDI-fájlokat feltölteni a zongorára hálózaton keresztül;
 - **MIDI-fájlokat lejátszani USB-kábelen keresztül is, Wi-Fi nélkül**: ilyenkor a ConPianist saját lejátszója játssza a dalt (tempó, transzponálás, ismétlés, szólamok, kotta szinkron működik; Stream Lights és Segéd nem). A bal panel Lejátszás részében választható, hogy a zongora saját lejátszója (hálózaton keresztül) vagy a ConPianist lejátszója (USB-n keresztül) játsszon; a választást a program megjegyzi;
 - **MIDI-fájlokat lejátszani más MIDI-eszközre is** (pl. loopMIDI-n keresztül szoftveres hangszerre, például a Cantabile-be): a Kapcsolat beállításaiban a MIDI Out és a MIDI In 2 állítható be; ha a zongora nem érhető el, a lejátszás automatikusan a MIDI-eszközre vált, a zongora mellett pedig a Lejátszás részben kézzel is választható. A Keverő ilyenkor szabványos MIDI-vezérlőket és General MIDI hangszíneket használ, a virtuális billentyűzet és a MIDI In 2 a Keverőben kiválasztott élő játék csatornákon (akár többön, rétegezve) szól, a beállított transzponálással;
-- a feltöltött MIDI-fájlok lejátszását vezérelni: indítás, szünet, pozíció;
+- a lejátszó váltásakor (hálózat, USB, MIDI-eszköz) megtartani a Keverő és a bal panel beállításait; a zongora és a MIDI-eszköz között a hangszínek a Yamaha ↔ General MIDI megfelelőjükre váltanak;
+- a feltöltött MIDI-fájlok lejátszását vezérelni: indítás, szünet, pozíció; ugrás ütemenként, a tekerőgombokat 1 másodpercig nyomva pedig a dal elejére, illetve az utolsó ütemre;
 - a "stream lights" (billentyű-kivilágítás) vezérlése: ki, be, lassú, gyors;
 - a segéd (vezetett gyakorlás) mód vezérlése: ki, be, mód kiválasztása;
 - részek kiválasztása: kíséret, jobb kéz, bal kéz;
@@ -28,6 +29,7 @@ A program egyelőre nem teljes értékű helyettesítője a hivatalos alkalmazá
 - keverő az összes klasszikus funkcióval: MIDI-csatornák ki/be kapcsolása, hangerő, pan, zengetés, zengetéstípus;
 - extra funkciók a keverőben: rész-kiválasztás MIDI-csatornánként, hangszín kiválasztása közvetlenül a MIDI-csatornákból;
 - **a zenedarab csatornáinak hangszínét módosítani a keverőben** (pl. a jobb és bal kéz szólamát más hangszínen hallgatni);
+- **virtuális billentyűzet**: átméretezhető (a felette lévő vonal húzásával), USB-s és MIDI-eszközös lejátszásnál mutatja a jobb és bal kéz szólamának lejátszott hangjait; **élő játék** a Keverőben kiválasztott egy vagy több csatornán (rétegezve), a virtuális billentyűzettel és egy második MIDI-bemenettel (MIDI In 2), a beállított transzponálással;
 - hangerőegyensúly (balansz) beállítása a fő/bal/réteg/dal/mikrofon/aux in csatornákra: hangerő, pan, zengetés, zengetéstípus;
 - **Piano Room**: a zongora hangzásának finomhangolása — fedél helyzete, fényesség, környezet (zengetés), billentés érzékenysége, hangolás, virtuális rezonanciamodellezés (VRM), tompító- és húrrezonancia, billentyűfelengedési hang;
 - kották megjelenítése a lejátszási pozícióval szinkronban: a kottákat külön MusicXML-fájlban kell megadni (közvetlenül a MIDI-fájlból nem jeleníthető meg kotta);
@@ -58,9 +60,13 @@ Ez a változat saját, magáncélú felhasználásra készül egy Yamaha CSP-170
 - zenedarab lejátszása USB-n keresztül, Wi-Fi nélkül, a ConPianist saját lejátszójával; a lejátszó a bal panelen választható;
 - lejátszás más MIDI-eszközre is (pl. loopMIDI → Cantabile), zongora nélkül, General MIDI hangszínekkel;
 - a lejátszott hangok megjelennek a virtuális billentyűzeten, amely át is méretezhető;
+- élő játék több csatornán (rétegezve) a virtuális billentyűzettel és a MIDI In 2-vel, transzponálással;
+- indulás a bezáráskori állapotban (lejátszási mód, hangszínek, Keverő, dal, pozíció), a lejátszó váltásakor pedig a beállítások megmaradnak;
+- ugrás a dal elejére és végére a tekerőgombok hosszan nyomásával;
+- a kapcsolat az USB-kábel visszadugása után magától helyreáll;
 - több összeomlás és lefagyás javítása (dalszöveget tartalmazó kották, MIDI-feltöltés, hálózati csatlakozás);
 - apróbb kényelmi javítások, pl. rákérdezés létező fájl felülírása előtt.
 
 A részletes változáslista a [CHANGELOG.md](CHANGELOG.md) fájlban található.
 
-**Tervezett fejlesztés:** MIDI-fájl mentése a programban beállított hangzással (hangszín, hangerő, tempó, pan, zengetés), a kotta hangzásadatainak frissítésével; később kotta létrehozása MIDI-fájlból.
+**Tervezett fejlesztés:** stabilitási javítások (szálkezelés); MIDI-fájl mentése a programban beállított hangzással (hangszín, hangerő, tempó, pan, zengetés), a meglévő MusicXML-kotta hangzásadatainak frissítésével; a Segéd mód a ConPianist saját lejátszójával is.
