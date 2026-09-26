@@ -382,6 +382,7 @@ private:
 	CriticalSection m_liveLock;
 	int m_liveChannels = 1;
 	int m_liveNoteChannels[128] = {}; // channels on which each held note was started
+	int m_liveNoteTranspose[128] = {}; // transposition used when each held note was started
 	int m_liveSustainChannels = 0;    // channels on which the sustain pedal is down
 	bool m_playbackSourceAutomatic = false;
 	bool m_midiDevicePlaybackAvailable = false;

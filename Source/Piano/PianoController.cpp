@@ -1170,7 +1170,11 @@ void PianoController::SetLiveChannels(int channelMask)
 		const int channels = m_liveNoteChannels[note] & removed;
 		for (int ch = 1; ch <= 16; ch++)
 		{
-			if (channels & (1 << (ch - 1))) SendMidiMessage(MidiMessage::noteOff(ch, note));
+			const int sounding = ch == 10 ? note : note + m_liveNoteTranspose[note];
+			if ((channels & (1 << (ch - 1))) && sounding >= 0 && sounding <= 127)
+			{
+				SendMidiMessage(MidiMessage::noteOff(ch, sounding));
+			}
 		}
 		m_liveNoteChannels[note] &= ~removed;
 	}
@@ -1197,19 +1201,34 @@ void PianoController::PlayLive(const MidiMessage& message)
 	const ScopedLock lock(m_liveLock);
 	int channels = m_liveChannels;
 
+	// the notes are transposed like the song (not on the drum channel); a note is
+	// released with the transposition it was started with
+	const bool hasNote = isNote || message.isAftertouch();
+	const int note = hasNote ? message.getNoteNumber() : 0;
+	int transpose = m_transpose;
+
 	if (isNote)
 	{
-		const int note = message.getNoteNumber();
 		if (message.isNoteOn())
 		{
+			if (m_liveNoteChannels[note] != 0 && m_liveNoteTranspose[note] != transpose)
+			{
+				transpose = m_liveNoteTranspose[note]; // same key again while held
+			}
 			m_liveNoteChannels[note] |= channels;
+			m_liveNoteTranspose[note] = transpose;
 		}
 		else
 		{
 			// released where it was started, even if the channels have changed since
 			channels = m_liveNoteChannels[note];
+			transpose = m_liveNoteTranspose[note];
 			m_liveNoteChannels[note] = 0;
 		}
+	}
+	else if (message.isAftertouch() && m_liveNoteChannels[note] != 0)
+	{
+		transpose = m_liveNoteTranspose[note];
 	}
 	else if (message.isControllerOfType(64))
 	{
@@ -1225,6 +1244,15 @@ void PianoController::PlayLive(const MidiMessage& message)
 		{
 			MidiMessage copy(message);
 			copy.setChannel(ch);
+			if (hasNote && ch != 10)
+			{
+				const int sounding = note + transpose;
+				if (sounding < 0 || sounding > 127)
+				{
+					continue;
+				}
+				copy.setNoteNumber(sounding);
+			}
 			SendMidiMessage(copy);
 		}
 	}
