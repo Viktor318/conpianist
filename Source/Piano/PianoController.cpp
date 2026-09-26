@@ -1842,32 +1842,21 @@ PianoController::Position PianoController::GetLength()
 
 void PianoController::AddListener(Listener* listener)
 {
-	RemoveListener(listener);
-	m_listeners.push_back(listener);
+	m_listeners.add(listener);
 }
 
 void PianoController::RemoveListener(Listener* listener)
 {
-	std::vector<Listener*>::iterator pos = std::find(m_listeners.begin(), m_listeners.end(), listener);
-	if (pos != m_listeners.end())
-	{
-		m_listeners.erase(pos);
-	}
+	m_listeners.remove(listener);
 }
 
 void PianoController::NotifyChanged(Aspect aspect, Channel channel)
 {
-	for (auto listener : m_listeners)
-	{
-		listener->PianoStateChanged(aspect, channel);
-	}
+	m_listeners.call([aspect, channel](Listener& listener) { listener.PianoStateChanged(aspect, channel); });
 }
 
 void PianoController::NotifyNoteMessage(const MidiMessage& message)
 {
-	for (auto listener : m_listeners)
-	{
-		listener->PianoNoteMessage(message);
-	}
+	m_listeners.call([&message](Listener& listener) { listener.PianoNoteMessage(message); });
 }
 

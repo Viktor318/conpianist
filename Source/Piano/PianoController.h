@@ -342,7 +342,10 @@ public:
 
 private:
 	PianoConnector* m_pianoConnector;
-	std::vector<Listener*> m_listeners;
+	// Notifications come from several threads (piano messages, the local player, the UI),
+	// while the UI adds and removes listeners: the list is locked while it is used, so a
+	// listener cannot be removed (and deleted) while it is being notified.
+	ListenerList<Listener, Array<Listener*, CriticalSection>> m_listeners;
 	String m_remoteIp;
 	String m_model;
 	String m_version;

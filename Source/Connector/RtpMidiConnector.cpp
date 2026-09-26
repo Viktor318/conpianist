@@ -155,8 +155,14 @@ private:
 
 typedef midi::MidiInterface<RtpMidi,MidiSettings,MidiPlatform> Midi_t;
 
+// The RTP-MIDI session is global (the library's callbacks are static functions). It is
+// used by the connector's thread and by the threads sending messages, always with
+// g_rtpMutex held, and only by the connector that created it (g_owner): a connector that
+// is being stopped cannot delete the session of a new one.
 std::unique_ptr<RtpMidi> g_rtpMidi;
 std::unique_ptr<Midi_t> g_midi;
+std::mutex g_rtpMutex;
+RtpMidiConnector* g_owner = nullptr;
 
 void RtpMidi::SetupEvents()
 {
@@ -289,8 +295,8 @@ void RtpMidiConnector::run()
 	{
 		bool sessionReady;
 		{
-			std::lock_guard<std::mutex> guard(m_mutex);
-			sessionReady = g_rtpMidi && g_midi;
+			std::lock_guard<std::mutex> guard(g_rtpMutex);
+			sessionReady = g_owner == this && g_rtpMidi && g_midi;
 			if (!sessionReady)
 			{
 				// the session could not be started (no free port); try again
@@ -299,13 +305,17 @@ void RtpMidiConnector::run()
 		}
 		if (!sessionReady)
 		{
-			Thread::sleep(1000);
+			wait(1000); // returns at once when the thread is stopped
 			continue;
 		}
 
 		bool processed = false;
 		{
-			std::lock_guard<std::mutex> guard(m_mutex);
+			std::lock_guard<std::mutex> guard(g_rtpMutex);
+			if (g_owner != this || !g_rtpMidi || !g_midi)
+			{
+				continue;
+			}
 
 			if ((m_connected && g_rtpMidi->lastSensing > 0 &&
 				juce::Time::currentTimeMillis() - g_rtpMidi->lastSensing > ConnectionLostThreshold) ||
@@ -335,16 +345,21 @@ void RtpMidiConnector::run()
 
 		if (!processed)
 		{
-			Thread::sleep(5);
+			wait(5);
 		}
 	}
 
-	if (g_rtpMidi)
+	std::lock_guard<std::mutex> guard(g_rtpMutex);
+	if (g_owner == this)
 	{
-		g_rtpMidi->sendEndSession();
+		if (g_rtpMidi)
+		{
+			g_rtpMidi->sendEndSession();
+		}
+		g_midi.reset();
+		g_rtpMidi.reset();
+		g_owner = nullptr;
 	}
-	g_midi.reset();
-	g_rtpMidi.reset();
 }
 
 void RtpMidiConnector::ResetMidi()
@@ -358,6 +373,8 @@ void RtpMidiConnector::ResetMidi()
 
 	Logger::writeToLog("[RTP-MIDI] Starting session on port " + String(port));
 
+	g_owner = this;
+	g_midi.reset();
 	g_rtpMidi = std::make_unique<RtpMidi>(m_listener, m_connected, m_detailLogging, "ConPianist", port);
 	g_midi = std::make_unique<Midi_t>(*g_rtpMidi.get());
 
@@ -387,10 +404,10 @@ int RtpMidiConnector::FindFreePort()
 
 void RtpMidiConnector::SendMessage(const MidiMessage& message)
 {
-	std::lock_guard<std::mutex> guard(m_mutex);
-	if (!g_midi)
+	std::lock_guard<std::mutex> guard(g_rtpMutex);
+	if (g_owner != this || !g_midi)
 	{
-		return; // session not running (yet)
+		return; // session not running (yet), or not this connector's
 	}
 	if (message.isController())
 	{

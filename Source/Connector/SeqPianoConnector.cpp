@@ -21,11 +21,32 @@
 #include "SeqPianoConnector.h"
 #include "PianoMessage.h"
 
+// Sets the MIDI connector (or none: nullptr). Waits until a message that is being sent
+// to the previous connector is sent, so the previous connector can be deleted afterwards.
 void SeqPianoConnector::SetMidiConnector(MidiConnector* midiConnector)
 {
+	std::lock_guard<std::mutex> sendGuard(m_sendMutex);
 	std::lock_guard<std::mutex> guard(m_mutex);
 	m_midiConnector = midiConnector;
-	m_midiConnector->SetListener(this);
+	if (m_midiConnector)
+	{
+		m_midiConnector->SetListener(this);
+	}
+}
+
+bool SeqPianoConnector::IsConnected()
+{
+	std::lock_guard<std::mutex> sendGuard(m_sendMutex);
+	return m_midiConnector && m_midiConnector->IsConnected();
+}
+
+void SeqPianoConnector::SendToConnector(const MidiMessage& message)
+{
+	std::lock_guard<std::mutex> sendGuard(m_sendMutex);
+	if (m_midiConnector)
+	{
+		m_midiConnector->SendMessage(message);
+	}
 }
 
 void SeqPianoConnector::SendMidiMessage(const MidiMessage& message)
@@ -40,15 +61,7 @@ void SeqPianoConnector::SendMidiMessage(const MidiMessage& message)
 // song produces thousands of messages.
 void SeqPianoConnector::SendMidiMessageNow(const MidiMessage& message)
 {
-	MidiConnector* midiConnector;
-	{
-		std::lock_guard<std::mutex> guard(m_mutex);
-		midiConnector = m_midiConnector;
-	}
-	if (midiConnector)
-	{
-		midiConnector->SendMessage(message);
-	}
+	SendToConnector(message);
 }
 
 void SeqPianoConnector::SendPianoMessage(const PianoMessage& message)
@@ -176,10 +189,7 @@ void SeqPianoConnector::ProcessQueue()
 		}
 
 		PrintLog(m_attempt == 1 ? "SEND   " : "REPEAT" + String(m_attempt - 1), message);
-		if (m_midiConnector)
-		{
-			m_midiConnector->SendMessage(message);
-		}
+		SendToConnector(message);
 	}
 }
 

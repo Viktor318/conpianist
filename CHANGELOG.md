@@ -2,6 +2,13 @@
 
 Ez a fájl a ConPianist változásait dokumentálja. Az 1.0–3.0 verziók az eredeti [hugbug/conpianist](https://github.com/hugbug/conpianist) projekt kiadásai (lásd az [eredeti release-eket](https://github.com/hugbug/conpianist/releases)); az ez utáni bejegyzések ennek a fork-nak ([Viktor318/conpianist](https://github.com/Viktor318/conpianist)) a saját, magáncélú fejlesztései.
 
+## Következő verzió (fejlesztés alatt)
+
+### Javítva
+- **A hálózati lejátszás nem jött vissza magától:** ha a zongora a program indításakor ki volt kapcsolva, az USB-kapcsolat bekapcsoláskor helyreállt, de a hálózati elérhetőséget a program csak induláskor (és a Kapcsolat újraindításakor egyszer) ellenőrizte; ha a zongora Wi-Fi-je ekkor még nem csatlakozott, a hálózati lejátszás a program újraindításáig szürke maradt. Most USB-kapcsolatnál, amíg a zongora hálózaton nem érhető el, a program 10 másodpercenként újra ellenőrzi, és amint elérhető, visszavált a választott hálózati lejátszásra. Lejátszás közben nem vált, csak amikor a lejátszás megáll.
+- **Ritka összeomlás ablakok nyitásakor/zárásakor:** a zongora üzeneteit, a saját lejátszót és a felületet kiszolgáló szálak ugyanazt a figyelőlistát használták zárolás nélkül; ha lejátszás vagy üzenetcsere közben nyílt vagy zárult egy ablak (pl. a Hangerőegyensúly vagy a Piano Room), a program már törölt objektumot értesíthetett. A lista most zárolt, és egy figyelő nem törlődhet, amíg értesítést kap.
+- **Ritka összeomlás a kapcsolat újraindításakor:** a régi MIDI-kapcsolat már törlődött, miközben az üzenetsor még küldhetett rá, és a régi hálózati munkamenet leállása törölhette az új munkamenet közös adatait. Most a program előbb leválasztja a régi kapcsolatot (megvárja a folyamatban lévő küldést), leállítja és törli, és csak utána hozza létre az újat; a hálózati munkamenetet csak az a kapcsolat használhatja és törölheti, amelyik létrehozta.
+
 ## 4.3 (fork) – 2026. szeptember 26.
 
 Fő újdonságok: lejátszás MIDI-eszközre (pl. loopMIDI → Cantabile) zongora nélkül is, élő játék több csatornán a virtuális billentyűzettel és a MIDI In 2-vel, a lejátszott hangok a virtuális billentyűzeten, indulás a bezáráskori állapotban.

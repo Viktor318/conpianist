@@ -35,7 +35,6 @@ public:
 private:
 	String m_remoteIp;
 	bool m_connected = false;
-	std::mutex m_mutex;
 	bool m_detailLogging = false;
 	bool m_wantReset = false;
 	const static int ConnectionLostThreshold = 15000; // milliseconds

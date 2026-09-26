@@ -121,6 +121,10 @@ private:
 	const static int ResetStalledInterval = 10; // seconds
 	const static int ResetConnectingInterval = 15; // seconds
 	const static int NetworkCheckTimeoutMs = 2000;
+	// while the piano is connected (USB) but cannot be reached over the network (e.g. it
+	// was switched on after the program started and its Wi-Fi is not up yet), the network
+	// is checked again regularly
+	const static int NetworkRecheckIntervalMs = 10000;
 	const static int DefaultKeyboardHeight = 67;
 	const static int KeyboardResizerHeight = 7;
 	std::unique_ptr<Component> keyboardResizer;
@@ -139,6 +143,8 @@ private:
 	String currentMidiOut;
 	int lastAvailability = -1;
 	int networkCheckPendingId = -1; // the network check whose result is awaited
+	Time lastNetworkCheck;
+	void recheckNetwork(Time curTime);
 	// The state when the program was closed (LastState.conmem) is restored in two parts:
 	// the piano's settings when the piano is connected, the song and its settings when
 	// the song is loaded again.

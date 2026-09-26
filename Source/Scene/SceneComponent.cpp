@@ -259,9 +259,10 @@ SceneComponent::~SceneComponent()
     pianoController.ShutdownLocalPlayer();
     midiDevice.onIncoming = nullptr;
     midiDevice.SetPorts("", "");
+    pianoConnector.SetMidiConnector(nullptr); // nothing is sent to the connectors any more
     if (rtpMidiConnector)
     {
-		rtpMidiConnector->stopThread(1000);
+		rtpMidiConnector->stopThread(3000);
 	}
 	pianoConnector.stopThread(1000);
 
@@ -449,6 +450,11 @@ void SceneComponent::PianoStateChanged(PianoController::Aspect aspect, PianoCont
 	{
 		MessageManager::callAsync([=](){updateSettingsState();});
 	}
+	else if (aspect == PianoController::apPlayback && !pianoController.GetPlaying())
+	{
+		// a switch back to the chosen player that waited for the end of playback
+		MessageManager::callAsync([=](){chooseDefaultPlaybackSource();});
+	}
 }
 
 void SceneComponent::updateSettingsState()
@@ -542,6 +548,7 @@ void SceneComponent::checkConnection()
 	}
 	updatePlaybackAvailability();
 	checkPianoAvailability(curTime);
+	recheckNetwork(curTime);
 	restoreSongInPiano(curTime);
 
 	if (!pianoController.IsConnected())
@@ -645,18 +652,23 @@ void SceneComponent::resetMidiConnector()
 	pianoController.Disconnect();
 	pianoConnector.ClearQueue();
 
-
+	// Nothing is sent to the old connector any more (a message being sent is waited
+	// for), then the old connector is stopped and deleted, and only then is the new
+	// one created: the two never run at the same time.
+	pianoConnector.SetMidiConnector(nullptr);
 	if (midiConnector)
 	{
 		midiConnector->SetListener(nullptr);
 	}
-
-	pianoController.SetRemoteIp(settings.pianoIp);
-
+	midiConnector = nullptr;
 	if (rtpMidiConnector)
 	{
-		rtpMidiConnector->stopThread(1000);
+		rtpMidiConnector->stopThread(3000);
+		rtpMidiConnector.reset();
 	}
+	localMidiConnector.reset();
+
+	pianoController.SetRemoteIp(settings.pianoIp);
 
 	if (settings.midiPort == "")
 	{
@@ -664,7 +676,6 @@ void SceneComponent::resetMidiConnector()
 		midiConnector = rtpMidiConnector.get();
 		pianoConnector.SetMidiConnector(midiConnector);
 		rtpMidiConnector->startThread();
-		localMidiConnector.reset();
 	}
 	else
 	{
@@ -695,7 +706,6 @@ void SceneComponent::resetMidiConnector()
 		localMidiConnector = std::make_unique<LocalMidiConnector>(&audioDeviceManager);
 		midiConnector = localMidiConnector.get();
 		pianoConnector.SetMidiConnector(midiConnector);
-		rtpMidiConnector.reset();
 	}
 
 	lastResetTime = Time::getCurrentTime();
@@ -745,6 +755,21 @@ void SceneComponent::resetConnection()
 
 	lastAvailability = -1;
 	updatePlaybackAvailability();
+}
+
+// With a USB connection: if the piano cannot be reached over the network, it is checked
+// again every few seconds, so network playback becomes available (and is used again, if
+// it was chosen) as soon as the piano's Wi-Fi is up, e.g. after switching the piano on.
+void SceneComponent::recheckNetwork(Time curTime)
+{
+	if (settings.midiPort == "" || networkReachable || !pianoController.IsConnected() ||
+		isNetworkCheckRunning() ||
+		(curTime - lastNetworkCheck).inMilliseconds() < NetworkRecheckIntervalMs)
+	{
+		return;
+	}
+	networkCheckId++;
+	checkNetworkPlayback();
 }
 
 // Which players can be chosen now.
@@ -808,7 +833,16 @@ void SceneComponent::chooseDefaultPlaybackSource()
 		return;
 	}
 
-	if (source != pianoController.GetPlaybackSource())
+	const PianoController::PlaybackSource current = pianoController.GetPlaybackSource();
+	const bool currentAvailable = current == PianoController::psPiano ? network :
+		current == PianoController::psLocal ? usb : pianoController.IsMidiDevicePlaybackAvailable();
+	if (source != current && currentAvailable && pianoController.GetPlaying())
+	{
+		// the player works: it is not switched during playback, only when it stops
+		return;
+	}
+
+	if (source != current)
 	{
 		pianoController.SetPlaybackSource(source, source != preferred);
 	}
@@ -861,6 +895,7 @@ void SceneComponent::checkPianoAvailability(Time curTime)
 // Checks in the background, if the piano accepts connections on its upload port.
 void SceneComponent::checkNetworkPlayback()
 {
+	lastNetworkCheck = Time::getCurrentTime();
 	const int checkId = networkCheckId;
 	networkCheckPendingId = checkId;
 	const String pianoIp = settings.pianoIp;
@@ -894,7 +929,11 @@ void SceneComponent::networkCheckFinished(bool reachable, int checkId)
 		return;
 	}
 
-	Logger::writeToLog(String("Piano ") + (reachable ? "can" : "cannot") + " be reached over the network");
+	if (reachable != networkReachable || reachable)
+	{
+		// the regular checks while it cannot be reached are not logged every time
+		Logger::writeToLog(String("Piano ") + (reachable ? "can" : "cannot") + " be reached over the network");
+	}
 
 	networkReachable = reachable;
 	updatePlaybackAvailability();
