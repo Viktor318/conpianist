@@ -2,7 +2,7 @@
 
 <JUCERPROJECT name="ConPianist" projectType="guiapp" bundleIdentifier="prygunkov.ConPianist"
               companyName="Viktor Oszkó" companyCopyright="(C) 2018-2020 Andrey Prygunkov, (C) 2026 Viktor Oszkó"
-              companyEmail="" version="4.1" companyWebsite="https://github.com/Viktor318/conpianist"
+              companyEmail="" version="4.2" companyWebsite="https://github.com/Viktor318/conpianist"
               headerPath="../../Source/Connector&#10;../../Source/Main&#10;../../Source/Piano&#10;../../Source/Scene&#10;../../Source/Mixer&#10;../../Source/Room&#10;../../Library/AppleMIDI&#10;../../Library/Lomse/include&#10;../../Library/Lomse/src/agg/include&#10;../../Library/Lomse/packages&#10;../../Library/Lomse/packages/utfcpp&#10;../../Library/Lomse/build"
               id="MqsAFh" jucerFormatVersion="1">
   <MAINGROUP id="LcKf1o" name="ConPianist">

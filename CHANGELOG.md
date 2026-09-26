@@ -2,7 +2,9 @@
 
 Ez a fájl a ConPianist változásait dokumentálja. Az 1.0–3.0 verziók az eredeti [hugbug/conpianist](https://github.com/hugbug/conpianist) projekt kiadásai (lásd az [eredeti release-eket](https://github.com/hugbug/conpianist/releases)); az ez utáni bejegyzések ennek a fork-nak ([Viktor318/conpianist](https://github.com/Viktor318/conpianist)) a saját, magáncélú fejlesztései.
 
-## Következő verzió – fejlesztés alatt
+## 4.2 (fork) – 2026. szeptember 26.
+
+Fő újdonság: zenedarab lejátszása USB-n keresztül, Wi-Fi nélkül, a ConPianist saját lejátszójával; a lejátszó a bal panelen választható.
 
 ### Új
 - **Lejátszás USB-n keresztül, Wi-Fi nélkül.** A ConPianist saját lejátszója maga játssza le a MIDI-fájlt, és a hangokat pontos időzítéssel küldi a zongorának a MIDI-porton (USB) keresztül. Működik: lejátszás/szünet, pozíció és ütemszám, ugrás ütemenként, tempó, transzponálás, A–B ismétlés, kotta szinkron. A zenedarab elején lévő beállításokat (hangszínek, hangerő stb.) a program csak betöltéskor küldi el, így a Keverőben módosított hangszínek megmaradnak; a dal közepére ugráskor a közben változó beállításokat (pl. pedál) a program helyreállítja. A Stream Lights és a zongora Segéd módja ebben a módban nem működik, mert ezek a zongora saját lejátszójához kötődnek.
