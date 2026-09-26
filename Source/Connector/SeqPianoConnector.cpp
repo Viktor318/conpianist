@@ -35,6 +35,22 @@ void SeqPianoConnector::SendMidiMessage(const MidiMessage& message)
 	m_queue.push_back(message);
 }
 
+// Song playback: the note must go out at once, so it does not wait in the queue
+// behind piano messages that are waiting for confirmation. Not logged, because a
+// song produces thousands of messages.
+void SeqPianoConnector::SendMidiMessageNow(const MidiMessage& message)
+{
+	MidiConnector* midiConnector;
+	{
+		std::lock_guard<std::mutex> guard(m_mutex);
+		midiConnector = m_midiConnector;
+	}
+	if (midiConnector)
+	{
+		midiConnector->SendMessage(message);
+	}
+}
+
 void SeqPianoConnector::SendPianoMessage(const PianoMessage& message)
 {
 	MidiMessage midiMessage = MidiMessage::createSysExMessage(

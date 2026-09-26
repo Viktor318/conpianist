@@ -100,7 +100,10 @@ void PianoController::Sync()
 {
 	InitEvents();
 	SetLocalControl(true);
-	m_songLoaded = false;
+	if (!m_localPlayback)
+	{
+		m_songLoaded = false;
+	}
 	ResyncStateFromPiano();
 }
 
@@ -245,6 +248,11 @@ void PianoController::SetLocalControl(bool enabled)
 
 bool PianoController::UploadSong(const File& file)
 {
+	if (m_localPlayback)
+	{
+		return LoadLocalSong(file);
+	}
+
 	String headerHex = "01 00 00 06 00 00 00 01 00 00 00 00 00 00 00 01 00 00 00 00 00 00 00";
 
 	MemoryBlock message;
@@ -344,21 +352,45 @@ String PianoController::DecodeSongName(String rawValue)
 
 void PianoController::ResetSong()
 {
+	if (m_localPlayback)
+	{
+		if (m_localPlayer)
+		{
+			m_localPlayer->Unload();
+		}
+		ClearSongState();
+		return;
+	}
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::SongReset));
 }
 
 void PianoController::Play()
 {
+	if (m_localPlayback)
+	{
+		if (m_localPlayer) m_localPlayer->Play();
+		return;
+	}
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::Play, 1));
 }
 
 void PianoController::Pause()
 {
+	if (m_localPlayback)
+	{
+		if (m_localPlayer) m_localPlayer->Pause();
+		return;
+	}
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::Play, 2));
 }
 
 void PianoController::Stop()
 {
+	if (m_localPlayback)
+	{
+		if (m_localPlayer) m_localPlayer->Stop();
+		return;
+	}
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::Play, 0));
 }
 
@@ -384,6 +416,11 @@ void PianoController::SetStreamFast(bool fast)
 
 void PianoController::SetPosition(const Position position)
 {
+	if (m_localPlayback)
+	{
+		if (m_localPlayer) m_localPlayer->SetPosition({position.measure, position.beat});
+		return;
+	}
 	uint8_t data[4];
 	data[0] = (position.measure >> 7) & 0x7f;
 	data[1] = (position.measure >> 0) & 0x7f;
@@ -429,16 +466,35 @@ void PianoController::SetOctave(Channel ch, int octave)
 
 void PianoController::SetTempo(int tempo)
 {
+	if (m_localPlayback)
+	{
+		if (m_localPlayer) m_localPlayer->SetTempo(tempo);
+		m_tempo = tempo;
+		NotifyChanged(apTempo);
+		return;
+	}
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::Tempo, tempo));
 }
 
 void PianoController::ResetTempo()
 {
+	if (m_localPlayback)
+	{
+		SetTempo(IsLocalSongLoaded() ? m_localPlayer->GetBaseTempo() : DefaultTempo);
+		return;
+	}
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Reset, Property::Tempo));
 }
 
 void PianoController::SetTranspose(int transpose)
 {
+	if (m_localPlayback)
+	{
+		if (m_localPlayer) m_localPlayer->SetTranspose(transpose);
+		m_transpose = transpose;
+		NotifyChanged(apTranspose);
+		return;
+	}
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::Transpose, 2, transpose + TransposeBase));
 }
 
@@ -464,6 +520,14 @@ void PianoController::SetPartAuto(bool enable)
 
 void PianoController::SetLoop(Loop loop)
 {
+	if (m_localPlayback)
+	{
+		if (m_localPlayer) m_localPlayer->SetLoop({loop.begin.measure, loop.begin.beat}, {loop.end.measure, loop.end.beat});
+		m_loop = loop;
+		m_loopStart = {0,0};
+		NotifyChanged(apLoop);
+		return;
+	}
 	m_loopStart = {0,0};
 	uint8_t data[9] = {1,
 		(uint8_t)((loop.begin.measure >> 7) & 0x7f),
@@ -479,6 +543,14 @@ void PianoController::SetLoop(Loop loop)
 
 void PianoController::ResetLoop()
 {
+	if (m_localPlayback)
+	{
+		if (m_localPlayer) m_localPlayer->ResetLoop();
+		m_loop = {{0,0},{0,0}};
+		m_loopStart = {0,0};
+		NotifyChanged(apLoop);
+		return;
+	}
 	m_loopStart = {0,0};
 	uint8_t data[9] = {0,0,1,0,1,0,2,0,1};
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::Loop, 0, data, 9));
@@ -607,6 +679,18 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 	}
 
 	const Property property = pm->GetProperty();
+
+	if (m_localPlayback &&
+		(property == Property::Position || property == Property::Length ||
+		property == Property::Play || property == Property::SongName ||
+		property == Property::Loop || property == Property::Tempo ||
+		property == Property::Transpose || property == Property::Present))
+	{
+		// ConPianist plays the song itself; these values belong to the piano's own
+		// (unused) song player and would overwrite the local playback state
+		return;
+	}
+
 	const uint8_t* data = pm->GetRawValue();
 	const int size = pm->GetSize();
 	const int index = pm->GetIndex();
@@ -831,6 +915,145 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 	}
 
 	lastMessage = std::move(pm);
+}
+
+//==============================================================================
+// Local playback
+
+void PianoController::SetLocalPlayback(bool enabled)
+{
+	if (enabled == m_localPlayback)
+	{
+		return;
+	}
+
+	if (m_localPlayer)
+	{
+		m_localPlayer->Unload();
+	}
+
+	m_localPlayback = enabled;
+
+	if (enabled && !m_localPlayer)
+	{
+		m_localPlayer = std::make_unique<LocalSongPlayer>();
+		// notes are sent directly (not through the message queue) for exact timing
+		m_localPlayer->sendMidi = [this](const MidiMessage& message)
+			{
+				m_pianoConnector->SendMidiMessageNow(message);
+			};
+		m_localPlayer->onChanged = [this](bool positionChanged, bool playingChanged)
+			{
+				if (positionChanged) NotifyChanged(apPosition);
+				if (playingChanged) NotifyChanged(apPlayback);
+			};
+	}
+
+	ClearSongState();
+}
+
+// Stops the local player before the connectors are destroyed (on application exit).
+void PianoController::ShutdownLocalPlayer()
+{
+	if (m_localPlayer)
+	{
+		m_localPlayer->Unload();
+		m_localPlayer.reset();
+	}
+	m_localPlayback = false;
+}
+
+bool PianoController::LoadLocalSong(const File& file)
+{
+	if (!m_localPlayer || !m_localPlayer->Load(file))
+	{
+		return false;
+	}
+
+	m_songName = file.getFullPathName();
+	m_songLoaded = true;
+	m_loop = {{0,0},{0,0}};
+	m_loopStart = {0,0};
+	m_tempo = m_localPlayer->GetBaseTempo();
+	m_localPlayer->SetTranspose(m_transpose);
+
+	const std::vector<int> usedChannels = m_localPlayer->GetUsedChannels();
+	for (Channel ch : MidiChannels)
+	{
+		const int midiChannel = ch - chMidi0;
+		m_channels[ch].enabled = std::find(usedChannels.begin(), usedChannels.end(), midiChannel) != usedChannels.end();
+		NotifyChanged(apEnable, ch);
+	}
+	m_channels[chMidiMaster].enabled = true;
+	m_channels[chMidiMaster].active = true;
+	NotifyChanged(apEnable, chMidiMaster);
+
+	NotifyChanged(apSongName);
+	NotifyChanged(apLength);
+	NotifyChanged(apPosition);
+	NotifyChanged(apPlayback);
+	NotifyChanged(apTempo);
+	NotifyChanged(apTranspose);
+	NotifyChanged(apLoop);
+	NotifyChanged(apSongLoaded);
+	return true;
+}
+
+void PianoController::ClearSongState()
+{
+	m_songLoaded = false;
+	m_songLoading = false;
+	m_songName = "";
+	m_playing = false;
+	m_position = {0,0};
+	m_length = {0,0};
+	m_loop = {{0,0},{0,0}};
+	m_loopStart = {0,0};
+
+	for (Channel ch : MidiChannels)
+	{
+		m_channels[ch].enabled = false;
+		NotifyChanged(apEnable, ch);
+	}
+	m_channels[chMidiMaster].enabled = false;
+	m_channels[chMidiMaster].active = false;
+	NotifyChanged(apEnable, chMidiMaster);
+
+	NotifyChanged(apSongName);
+	NotifyChanged(apLength);
+	NotifyChanged(apPosition);
+	NotifyChanged(apPlayback);
+	NotifyChanged(apLoop);
+}
+
+bool PianoController::IsSongLoaded()
+{
+	return m_localPlayback ? m_songLoaded && IsLocalSongLoaded() : m_songLoaded;
+}
+
+bool PianoController::GetPlaying()
+{
+	return m_localPlayback ? IsLocalSongLoaded() && m_localPlayer->IsPlaying() : m_playing;
+}
+
+PianoController::Position PianoController::GetPosition()
+{
+	if (IsLocalSongLoaded())
+	{
+		const LocalSongPlayer::Position position = m_localPlayer->GetPosition();
+		return {position.measure, position.beat};
+	}
+	return m_position;
+}
+
+PianoController::Position PianoController::GetLength()
+{
+	if (IsLocalSongLoaded())
+	{
+		const LocalSongPlayer::Position length = m_localPlayer->GetLength();
+		return {length.measure, length.beat};
+	}
+	return m_length;
 }
 
 void PianoController::AddListener(Listener* listener)

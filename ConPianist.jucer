@@ -106,6 +106,10 @@
         <FILE id="ySUacG" name="PianoMessage.cpp" compile="1" resource="0"
               file="Source/Piano/PianoMessage.cpp"/>
         <FILE id="jTSWtJ" name="PianoMessage.h" compile="0" resource="0" file="Source/Piano/PianoMessage.h"/>
+        <FILE id="LsPl01" name="LocalSongPlayer.cpp" compile="1" resource="0"
+              file="Source/Piano/LocalSongPlayer.cpp"/>
+        <FILE id="LsPl02" name="LocalSongPlayer.h" compile="0" resource="0"
+              file="Source/Piano/LocalSongPlayer.h"/>
         <FILE id="jMbYph" name="Presets.cpp" compile="1" resource="0" file="Source/Piano/Presets.cpp"/>
         <FILE id="O7OpBT" name="Presets.h" compile="0" resource="0" file="Source/Piano/Presets.h"/>
         <FILE id="AFF0nC" name="RegistrationMemory.cpp" compile="1" resource="0"

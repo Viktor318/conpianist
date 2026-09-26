@@ -188,6 +188,7 @@ SceneComponent::SceneComponent (Settings& settings)
 SceneComponent::~SceneComponent()
 {
     //[Destructor_pre]. You can add your own custom destruction code here..
+    pianoController.ShutdownLocalPlayer();
     if (rtpMidiConnector)
     {
 		rtpMidiConnector->stopThread(1000);
@@ -564,6 +565,10 @@ void SceneComponent::resetMidiConnector()
 		pianoConnector.SetMidiConnector(midiConnector);
 		rtpMidiConnector.reset();
 	}
+
+	// a selected MIDI port means ConPianist plays the songs itself (USB);
+	// the network connection uses the piano's own song player
+	pianoController.SetLocalPlayback(settings.midiPort != "");
 
 	lastResetTime = Time::getCurrentTime();
 }

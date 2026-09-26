@@ -23,6 +23,8 @@
 
 #include "MidiConnector.h"
 
+#include <mutex>
+
 class LocalMidiConnector : public MidiConnector, public MidiInputCallback
 {
 public:
@@ -35,4 +37,5 @@ public:
 private:
 	AudioDeviceManager* m_audioDeviceManager;
 	String m_outputName;
+	std::mutex m_sendMutex; // messages are sent from the queue thread and the song player
 };

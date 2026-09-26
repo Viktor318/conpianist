@@ -37,6 +37,8 @@ public:
 	virtual ~PianoConnector() {}
 	void SetListener(Listener* listener) { m_listener = listener; }
 	virtual void SendMidiMessage(const MidiMessage& message) = 0;
+	// Sends immediately, bypassing any queue (used for song playback timing)
+	virtual void SendMidiMessageNow(const MidiMessage& message) { SendMidiMessage(message); }
 	virtual void SendPianoMessage(const PianoMessage& message) = 0;
 	virtual bool IsConnected() = 0;
 

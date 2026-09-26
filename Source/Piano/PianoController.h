@@ -22,6 +22,7 @@
 #include "../JuceLibraryCode/JuceHeader.h"
 
 #include "PianoConnector.h"
+#include "LocalSongPlayer.h"
 
 class PianoController : public PianoConnector::Listener
 {
@@ -193,6 +194,11 @@ public:
 	void Disconnect();
 	void Reset();
 	void Sync();
+	// Local playback: ConPianist plays the MIDI file itself over the MIDI port (USB)
+	// instead of uploading it to the piano's own player (network connection).
+	void SetLocalPlayback(bool enabled);
+	bool IsLocalPlayback() const { return m_localPlayback; }
+	void ShutdownLocalPlayer();
 	void InitEvents();
 	bool UploadSong(const File& file);
 	void ResetSong();
@@ -202,8 +208,8 @@ public:
 	const String& GetModel() { return m_model; }
 	const String& GetVersion() { return m_version; }
 	bool IsConnected() { return m_connected; }
-	bool IsSongLoaded() { return m_songLoaded; }
-	bool GetPlaying() { return m_playing; }
+	bool IsSongLoaded();
+	bool GetPlaying();
 	bool GetGuide() { return m_guide; }
 	void SetGuide(bool enable);
 	GuideType GetGuideType() { return m_guideType; }
@@ -214,8 +220,8 @@ public:
 	void SetStreamLights(bool enable);
 	bool GetStreamFast() { return m_streamFast; }
 	void SetStreamFast(bool fast);
-	Position GetLength() { return m_length; }
-	Position GetPosition() { return m_position; }
+	Position GetLength();
+	Position GetPosition();
 	void SetPosition(const Position position);
 	Loop GetLoop() { return m_loop; }
 	void SetLoop(Loop loop);
@@ -322,9 +328,14 @@ private:
 	int m_stringResonance = DefaultResonance;
 	int m_keyOffSampling = DefaultKeyOffSampling;
 	std::unique_ptr<PianoMessage> lastMessage;
+	bool m_localPlayback = false;
+	std::unique_ptr<LocalSongPlayer> m_localPlayer;
 
 	void NotifyChanged(Aspect aspect, Channel channel = chNone);
 	void NotifyNoteMessage(const MidiMessage& message);
 	void ResyncStateFromPiano();
 	String DecodeSongName(String rawValue);
+	bool LoadLocalSong(const File& file);
+	void ClearSongState();
+	bool IsLocalSongLoaded() const { return m_localPlayback && m_localPlayer && m_localPlayer->IsLoaded(); }
 };

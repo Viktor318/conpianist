@@ -46,6 +46,7 @@ void LocalMidiConnector::handleIncomingMidiMessage(MidiInput* source, const Midi
 
 void LocalMidiConnector::SendMessage(const MidiMessage& message)
 {
+	std::lock_guard<std::mutex> guard(m_sendMutex);
 	if (m_audioDeviceManager->getDefaultMidiOutput())
 	{
 		m_audioDeviceManager->getDefaultMidiOutput()->sendMessageNow(message);
