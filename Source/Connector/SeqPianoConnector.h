@@ -41,6 +41,8 @@ public:
 	void run() override;
 	int QueueSize();
 	void ClearQueue();
+	// With a general MIDI device (not a Yamaha piano) no piano messages are sent.
+	void SetPianoMessagesEnabled(bool enabled);
 
 private:
 	MidiConnector* m_midiConnector = nullptr;
@@ -51,6 +53,7 @@ private:
 	Time m_lastTime;
 	Time m_stallTime;
 	int m_attempt = 0;
+	bool m_pianoMessagesEnabled = true;
 	int m_repeatInterval = 0;
 	const static int DefaultRepeatInterval = 5000; // milliseconds
 	const static int StallRepeatInterval = 500; // milliseconds

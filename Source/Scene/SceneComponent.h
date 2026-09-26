@@ -76,6 +76,7 @@ public:
 	void checkNetworkPlayback();
 	void networkCheckFinished(bool reachable, int checkId);
 	void loadLastSong();
+	void enterGenericDevice();
 	int getKeyboardHeight() const;
 	int getMaxKeyboardHeight() const;
 	void setKeyboardHeight(int height, bool save);
@@ -113,6 +114,10 @@ private:
 	const static int KeyboardResizerHeight = 7;
 	std::unique_ptr<Component> keyboardResizer;
 	int networkCheckId = 0; // identifies the latest network check; older results are ignored
+	// A MIDI port without a Yamaha piano answering within this time is used as a general
+	// MIDI device (e.g. loopMIDI to a software instrument).
+	const static int GenericDeviceDelayMs = 3000;
+	Time portConnectedTime; // since when the MIDI port is open without an answer
     //[/UserVariables]
 
     //==============================================================================

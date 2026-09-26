@@ -435,31 +435,88 @@ void PianoController::SetPosition(const Position position)
 
 void PianoController::SetVolume(Channel ch, int volume)
 {
+	if (m_genericDevice)
+	{
+		// the song's own volume changes (CC7) are kept, scaled to the mixer setting
+		m_channels[ch].volume = volume;
+		if (m_localPlayer && ch == chMidiMaster)
+		{
+			m_localPlayer->SetMasterVolumeScale(volume / double(DefaultVolume));
+		}
+		else if (m_localPlayer && IsSongChannel(ch))
+		{
+			const int base = std::max(1, GenericSetupValue(ch, 7, DefaultVolume));
+			m_localPlayer->SetVolumeScale(ch - chMidi0, volume / double(base));
+		}
+		NotifyChanged(apVolume, ch);
+		return;
+	}
+
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::Volume, ch, volume));
 }
 
 void PianoController::ResetVolume(Channel ch)
 {
+	if (m_genericDevice)
+	{
+		SetVolume(ch, ch == chMidiMaster ? DefaultVolume : GenericSetupValue(ch, 7, DefaultVolume));
+		return;
+	}
+
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Reset, Property::Volume, ch, 0));
 }
 
 void PianoController::SetPan(Channel ch, int pan)
 {
+	if (m_genericDevice)
+	{
+		m_channels[ch].pan = pan;
+		if (m_localPlayer && IsSongChannel(ch))
+		{
+			m_localPlayer->SetControllerOverride(ch - chMidi0, 10, pan + PanBase);
+		}
+		NotifyChanged(apPan, ch);
+		return;
+	}
+
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::Pan, ch, pan + PanBase));
 }
 
 void PianoController::ResetPan(Channel ch)
 {
+	if (m_genericDevice)
+	{
+		SetPan(ch, GenericSetupValue(ch, 10, PanBase) - PanBase);
+		return;
+	}
+
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Reset, Property::Pan, ch, 0));
 }
 
 void PianoController::SetReverb(Channel ch, int reverb)
 {
+	if (m_genericDevice)
+	{
+		m_channels[ch].reverb = reverb;
+		if (m_localPlayer && IsSongChannel(ch))
+		{
+			m_localPlayer->SetControllerOverride(ch - chMidi0, 91, reverb);
+		}
+		NotifyChanged(apReverb, ch);
+		return;
+	}
+
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::Reverb, ch, reverb));
 }
 
 void PianoController::ResetReverb(Channel ch)
 {
+	if (m_genericDevice)
+	{
+		SetReverb(ch, GenericSetupValue(ch, 91, GenericDefaultReverb));
+		return;
+	}
+
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Reset, Property::Reverb, ch, 0));
 }
 
@@ -609,6 +666,14 @@ void PianoController::SetSongChannelVoice(Channel ch, int voiceNum)
 	m_pianoConnector->SendMidiMessage(MidiMessage::controllerEvent(midiChannel, 0, (voiceNum >> 16) & 0x7f));
 	m_pianoConnector->SendMidiMessage(MidiMessage::controllerEvent(midiChannel, 32, (voiceNum >> 8) & 0x7f));
 	m_pianoConnector->SendMidiMessage(MidiMessage::programChange(midiChannel, voiceNum & 0x7f));
+
+	if (m_genericDevice)
+	{
+		// a general MIDI device does not report its voices: the name is shown from here
+		m_genericBank[midiChannel - 1] = (voiceNum >> 8) & 0x7f7f;
+		m_channels[ch].voice = String(voiceNum);
+		NotifyChanged(apVoice, ch);
+	}
 }
 
 void PianoController::SetActive(Channel ch, bool active)
@@ -687,6 +752,12 @@ void PianoController::SetKeyOffSampling(int keyOffSampling)
 
 void PianoController::IncomingMidiMessage(const MidiMessage& message)
 {
+	if (m_genericDevice)
+	{
+		// e.g. loopMIDI sends everything back: these are our own notes
+		return;
+	}
+
 	if (message.isNoteOnOrOff())
 	{
 		NotifyNoteMessage(message);
@@ -1012,7 +1083,7 @@ void PianoController::SetLocalPlayback(bool enabled)
 		m_localPlayer->sendMidi = [this](const MidiMessage& message)
 			{
 				m_pianoConnector->SendMidiMessageNow(message);
-				ShowLocalNote(message);
+				OnLocalMessage(message);
 			};
 		m_localPlayer->onChanged = [this](bool positionChanged, bool playingChanged)
 			{
@@ -1070,6 +1141,33 @@ void PianoController::SetPlaybackSource(bool local)
 		// This is done after the upload, so that the answers cannot be mistaken
 		// for the confirmation of the new song.
 		ResyncStateFromPiano();
+	}
+}
+
+// Called for every message sent by the local player (with the player's lock held).
+void PianoController::OnLocalMessage(const MidiMessage& message)
+{
+	ShowLocalNote(message);
+
+	if (m_genericDevice && (message.isProgramChange() ||
+		(message.isController() && (message.getControllerNumber() == 0 || message.getControllerNumber() == 32))))
+	{
+		// keep track of the voices of the song, to show their names in the mixer
+		const int index = message.getChannel() - 1;
+		const Channel ch = (Channel)(chMidi0 + message.getChannel());
+		if (message.isProgramChange())
+		{
+			m_channels[ch].voice = String((m_genericBank[index] << 8) | message.getProgramChangeNumber());
+			NotifyChanged(apVoice, ch);
+		}
+		else if (message.getControllerNumber() == 0)
+		{
+			m_genericBank[index] = (m_genericBank[index] & 0x7f) | (message.getControllerValue() << 8);
+		}
+		else
+		{
+			m_genericBank[index] = (m_genericBank[index] & 0x7f00) | message.getControllerValue();
+		}
 	}
 }
 
@@ -1179,6 +1277,16 @@ void PianoController::ShutdownLocalPlayer()
 
 bool PianoController::LoadLocalSong(const File& file)
 {
+	if (m_genericDevice)
+	{
+		// General MIDI default voice (program 0) until the song selects another one
+		for (Channel ch : MidiChannels)
+		{
+			m_genericBank[ch - chMidi1] = 0;
+			m_channels[ch].voice = "0";
+		}
+	}
+
 	if (!m_localPlayer || !m_localPlayer->Load(file))
 	{
 		return false;
@@ -1207,6 +1315,11 @@ bool PianoController::LoadLocalSong(const File& file)
 	// the registration memory of the song (if any) is applied after this
 	ResetLocalMixState();
 
+	if (m_genericDevice)
+	{
+		InitGenericMixer();
+	}
+
 	NotifyChanged(apSongName);
 	NotifyChanged(apLength);
 	NotifyChanged(apPosition);
@@ -1216,6 +1329,52 @@ bool PianoController::LoadLocalSong(const File& file)
 	NotifyChanged(apLoop);
 	NotifyChanged(apSongLoaded);
 	return true;
+}
+
+// Value of a controller in the setup part of the loaded song (general MIDI devices).
+int PianoController::GenericSetupValue(Channel ch, int controller, int defaultValue)
+{
+	const int value = m_localPlayer && IsSongChannel(ch) ?
+		m_localPlayer->GetSetupController(ch - chMidi0, controller) : -1;
+	return value >= 0 ? value : defaultValue;
+}
+
+// The mixer of a general MIDI device starts with the values of the song.
+void PianoController::InitGenericMixer()
+{
+	for (Channel ch : MidiChannels)
+	{
+		m_channels[ch].volume = GenericSetupValue(ch, 7, DefaultVolume);
+		m_channels[ch].pan = GenericSetupValue(ch, 10, PanBase) - PanBase;
+		m_channels[ch].reverb = GenericSetupValue(ch, 91, GenericDefaultReverb);
+		NotifyChanged(apVolume, ch);
+		NotifyChanged(apPan, ch);
+		NotifyChanged(apReverb, ch);
+		NotifyChanged(apVoice, ch);
+	}
+	m_localPlayer->SetMasterVolumeScale(m_channels[chMidiMaster].volume / double(DefaultVolume));
+	NotifyChanged(apVolume, chMidiMaster);
+}
+
+void PianoController::SetGenericDevice(bool generic)
+{
+	if (generic == m_genericDevice)
+	{
+		return;
+	}
+
+	m_genericDevice = generic;
+	Logger::writeToLog(generic ? "General MIDI device mode" : "Piano mode");
+
+	if (m_localPlayer)
+	{
+		m_localPlayer->SetMasterVolumeScale(1.0);
+	}
+
+	// the song is loaded again, so that the mixer and the voices fit the device
+	ReloadSong();
+
+	NotifyChanged(apConnection);
 }
 
 void PianoController::ClearSongState()

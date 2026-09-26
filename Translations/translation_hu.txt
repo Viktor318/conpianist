@@ -48,7 +48,7 @@ countries: hu
 
 // --- Kapcsolat beállításai ---
 "Piano IP Address:" = "Zongora IP-címe:"
-"Piano Midi Port:" = "Zongora MIDI-portja:"
+"MIDI Port:" = "MIDI-port:"
 "Connect via Network" = "Csatlakozás hálózaton"
 "(no choices)" = "(nincs választható elem)"
 
@@ -168,3 +168,4 @@ countries: hu
 "ConPianist plays the song itself over the MIDI port (USB)" = "A ConPianist maga játssza le a zenedarabot a MIDI-porton (USB) keresztül"
 "Via USB" = "USB-n keresztül"
 "The piano cannot be reached over the network. Playback continues via USB." = "A zongora nem érhető el hálózaton, a lejátszás USB-n keresztül folytatódik."
+"MIDI device: NAME" = "MIDI-eszköz: NAME"

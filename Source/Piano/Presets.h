@@ -55,4 +55,11 @@ public:
 	static Voice* FindVoice(String voice);
 	static ReverbEffectList& ReverbEffects();
 	static String ReverbEffectTitle(int num);
+
+	// General MIDI voices, for MIDI devices that are not Yamaha pianos.
+	// Voice numbers have the same format as Voice::num (0x00MMLLPP), with bank 0.
+	static const StringArray& GmVoiceNames();   // 128 names, by program number
+	static const StringArray& GmFamilies();     // 16 families of 8 programs each
+	static const std::vector<std::pair<int, String>>& GmDrumKits(); // program, name
+	static String GmVoiceTitle(String voice, bool drums);
 };

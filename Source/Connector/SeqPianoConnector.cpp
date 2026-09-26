@@ -55,9 +55,29 @@ void SeqPianoConnector::SendPianoMessage(const PianoMessage& message)
 {
 	MidiMessage midiMessage = MidiMessage::createSysExMessage(
 		message.GetSysExData().getData(), (int)message.GetSysExData().getSize());
-	PrintLog("ENQUEUE", midiMessage);
 	std::lock_guard<std::mutex> guard(m_mutex);
+	if (!m_pianoMessagesEnabled)
+	{
+		return;
+	}
+	PrintLog("ENQUEUE", midiMessage);
 	m_queue.push_back(midiMessage);
+}
+
+void SeqPianoConnector::SetPianoMessagesEnabled(bool enabled)
+{
+	std::lock_guard<std::mutex> guard(m_mutex);
+	m_pianoMessagesEnabled = enabled;
+	if (!enabled)
+	{
+		// drop the piano messages that are still waiting (other MIDI messages stay)
+		m_queue.erase(std::remove_if(m_queue.begin(), m_queue.end(), [](const MidiMessage& message)
+			{
+				return PianoMessage::IsCspMessage(message.getSysExData(), message.getSysExDataSize());
+			}), m_queue.end());
+		m_waitConfirmation = false;
+		m_attempt = 0;
+	}
 }
 
 void SeqPianoConnector::IncomingMidiMessage(const MidiMessage& message)

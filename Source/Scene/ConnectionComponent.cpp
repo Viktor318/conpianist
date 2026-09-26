@@ -56,7 +56,7 @@ ConnectionComponent::ConnectionComponent (Settings& settings)
     pianoIpEdit->setText (TRANS("192.168.1.235"));
 
     midiPortLabel.reset (new Label ("Midi Port Label",
-                                    TRANS("Piano Midi Port:")));
+                                    TRANS("MIDI Port:")));
     addAndMakeVisible (midiPortLabel.get());
     midiPortLabel->setFont (Font (15.00f, Font::plain).withTypefaceStyle ("Regular"));
     midiPortLabel->setJustificationType (Justification::centredRight);
@@ -167,9 +167,11 @@ void ConnectionComponent::load()
 
 	midiPortComboBox->addItem(TRANS("Connect via Network"), 1);
 
+	// MIDI outputs: the piano's port, or any other MIDI device (e.g. loopMIDI to a
+	// software instrument), which is then used as a general MIDI device
 	StringArray ports;
-	for (auto& device : MidiInput::getAvailableDevices())
-		ports.add(device.name);
+	for (auto& device : MidiOutput::getAvailableDevices())
+		ports.addIfNotAlreadyThere(device.name);
 	midiPortComboBox->addItemList(ports, 2);
 
 	if (settings.midiPort == "")
@@ -219,7 +221,7 @@ BEGIN_JUCER_METADATA
               readonly="0" scrollbars="0" caret="1" popupmenu="1"/>
   <LABEL name="Midi Port Label" id="75ce146a83116b83" memberName="midiPortLabel"
          virtualName="" explicitFocusOrder="0" pos="128 56 144 24" edTextCol="ff000000"
-         edBkgCol="0" labelText="Piano Midi Port:" editableSingleClick="0"
+         edBkgCol="0" labelText="MIDI Port:" editableSingleClick="0"
          editableDoubleClick="0" focusDiscardsChanges="0" fontname="Default font"
          fontsize="15.0" kerning="0.0" bold="0" italic="0" justification="34"/>
   <COMBOBOX name="Midi Port ComboBox" id="d5a3cb7506a2d491" memberName="midiPortComboBox"

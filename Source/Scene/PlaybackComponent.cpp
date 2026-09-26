@@ -725,21 +725,22 @@ void PlaybackComponent::updateSettingsState()
 	bool pianoPlayer = pianoController.IsConnected() && !pianoController.IsLocalPlayback();
 	guideButton->setToggleState(pianoController.GetGuide() && pianoPlayer, NotificationType::dontSendNotification);
 	lightsButton->setToggleState(pianoController.GetStreamLights() && pianoPlayer, NotificationType::dontSendNotification);
-	backingPartButton->setToggleState(pianoController.GetPart(PianoController::paBacking) && pianoController.IsConnected(), NotificationType::dontSendNotification);
-	leftPartButton->setToggleState(pianoController.GetPart(PianoController::paLeft) && pianoController.IsConnected(), NotificationType::dontSendNotification);
-	rightPartButton->setToggleState(pianoController.GetPart(PianoController::paRight) && pianoController.IsConnected(), NotificationType::dontSendNotification);
+	backingPartButton->setToggleState(pianoController.GetPart(PianoController::paBacking) && pianoController.IsReady(), NotificationType::dontSendNotification);
+	leftPartButton->setToggleState(pianoController.GetPart(PianoController::paLeft) && pianoController.IsReady(), NotificationType::dontSendNotification);
+	rightPartButton->setToggleState(pianoController.GetPart(PianoController::paRight) && pianoController.IsReady(), NotificationType::dontSendNotification);
 }
 
 void PlaybackComponent::updateEnabledControls()
 {
 	for (Component* co : getChildren())
 	{
-		co->setEnabled(pianoController.IsConnected() && pianoController.IsSongLoaded());
+		co->setEnabled(pianoController.IsReady() && pianoController.IsSongLoaded());
 	}
 
-	songGroup->setEnabled(pianoController.IsConnected());
-	songLabel->setEnabled(pianoController.IsConnected());
-	chooseSongButton->setEnabled(pianoController.IsConnected());
+	// a general MIDI device (no piano) can also play songs
+	songGroup->setEnabled(pianoController.IsReady());
+	songLabel->setEnabled(pianoController.IsReady());
+	chooseSongButton->setEnabled(pianoController.IsReady());
 
 	// Stream Lights and Guide are functions of the piano's own player
 	guideButton->setEnabled(guideButton->isEnabled() && !pianoController.IsLocalPlayback());

@@ -203,6 +203,9 @@ bool LocalSongPlayer::Load(const File& file)
 		std::fill(std::begin(channel), std::end(channel), NoValue);
 	}
 
+	// a new song starts with the song's own mixer values
+	ResetMixer();
+
 	// send the setup part of the song (voices, volumes etc.)
 	SilenceAll();
 	for (const Event& event : m_events)
@@ -413,6 +416,74 @@ void LocalSongPlayer::ResetLoop()
 	m_loopEndTick = NoValue;
 }
 
+void LocalSongPlayer::ResetMixer()
+{
+	for (int ch = 0; ch < NumChannels; ch++)
+	{
+		m_volumeScale[ch] = 1.0;
+		m_songVolume[ch] = 100; // MIDI default
+		m_controllerOverride[ch][0] = NoValue;
+		m_controllerOverride[ch][1] = NoValue;
+	}
+}
+
+void LocalSongPlayer::SetVolumeScale(int channel, double scale)
+{
+	if (channel < 1 || channel > NumChannels) return;
+	const ScopedLock lock(m_lock);
+	m_volumeScale[channel - 1] = std::max(0.0, scale);
+	if (m_loaded) SendVolume(channel - 1);
+}
+
+void LocalSongPlayer::SetMasterVolumeScale(double scale)
+{
+	const ScopedLock lock(m_lock);
+	m_masterVolumeScale = std::max(0.0, scale);
+	if (m_loaded)
+	{
+		for (int ch = 0; ch < NumChannels; ch++)
+		{
+			if (m_usedChannels[ch]) SendVolume(ch);
+		}
+	}
+}
+
+void LocalSongPlayer::SetControllerOverride(int channel, int controller, int value)
+{
+	if (channel < 1 || channel > NumChannels || (controller != 10 && controller != 91)) return;
+	const ScopedLock lock(m_lock);
+	const int ch = channel - 1;
+	m_controllerOverride[ch][controller == 10 ? 0 : 1] = value;
+	if (m_loaded && value != NoValue)
+	{
+		Send(MidiMessage::controllerEvent(channel, controller, jlimit(0, 127, value)));
+	}
+}
+
+int LocalSongPlayer::GetSetupController(int channel, int controller) const
+{
+	if (channel < 1 || channel > NumChannels || controller < 0 || controller > 127) return NoValue;
+	const ScopedLock lock(m_lock);
+	return m_loaded ? m_setupController[channel - 1][controller] : NoValue;
+}
+
+int LocalSongPlayer::GetSetupProgram(int channel) const
+{
+	if (channel < 1 || channel > NumChannels) return NoValue;
+	const ScopedLock lock(m_lock);
+	return m_loaded ? m_setupProgram[channel - 1] : NoValue;
+}
+
+// Sends the scaled volume of a channel (with m_lock held).
+void LocalSongPlayer::SendVolume(int ch)
+{
+	const int value = roundToInt(m_songVolume[ch] * m_volumeScale[ch] * m_masterVolumeScale);
+	if (sendMidi)
+	{
+		sendMidi(MidiMessage::controllerEvent(ch + 1, 7, jlimit(0, 127, value)));
+	}
+}
+
 void LocalSongPlayer::SetChannelMuted(int channel, bool muted)
 {
 	if (channel < 1 || channel > NumChannels)
@@ -495,6 +566,27 @@ void LocalSongPlayer::hiResTimerCallback()
 
 void LocalSongPlayer::Send(const MidiMessage& message)
 {
+	if (message.isController())
+	{
+		// mixer settings for general MIDI devices (no effect with the default values)
+		const int ch = message.getChannel() - 1;
+		const int cc = message.getControllerNumber();
+		if (cc == 7)
+		{
+			m_songVolume[ch] = message.getControllerValue();
+			SendVolume(ch);
+			return;
+		}
+		if ((cc == 10 || cc == 91) && m_controllerOverride[ch][cc == 10 ? 0 : 1] != NoValue)
+		{
+			if (sendMidi)
+			{
+				sendMidi(MidiMessage::controllerEvent(ch + 1, cc, m_controllerOverride[ch][cc == 10 ? 0 : 1]));
+			}
+			return;
+		}
+	}
+
 	if (sendMidi)
 	{
 		sendMidi(message);

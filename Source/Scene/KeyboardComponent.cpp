@@ -223,7 +223,7 @@ void KeyboardComponent::updateEnabledControls()
 {
 	for (Component* co : getChildren())
 	{
-		co->setEnabled(pianoController.IsConnected());
+		co->setEnabled(pianoController.IsReady());
 	}
 }
 

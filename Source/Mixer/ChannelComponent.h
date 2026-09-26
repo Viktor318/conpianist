@@ -48,6 +48,7 @@ public:
 
     //==============================================================================
     //[UserMethods]     -- You can add your own custom methods in this section.
+    String voiceTitle();
     void changeListenerCallback(ChangeBroadcaster* source) override { if (source == &settings) applySettings(); }
 	void applySettings();
     void PianoStateChanged(PianoController::Aspect ap, PianoController::Channel ch) override

@@ -15,6 +15,7 @@ A program egyelőre nem teljes értékű helyettesítője a hivatalos alkalmazá
 - állapotvesztés nélkül csatlakozni/újracsatlakozni: a program indításkor beolvassa a zongora teljes állapotát, és megjeleníti a felületen;
 - MIDI-fájlokat feltölteni a zongorára hálózaton keresztül;
 - **MIDI-fájlokat lejátszani USB-kábelen keresztül is, Wi-Fi nélkül**: ilyenkor a ConPianist saját lejátszója játssza a dalt (tempó, transzponálás, ismétlés, szólamok, kotta szinkron működik; Stream Lights és Segéd nem). A bal panel Lejátszás részében választható, hogy a zongora saját lejátszója (hálózaton keresztül) vagy a ConPianist lejátszója (USB-n keresztül) játsszon; alapértelmezés a hálózati, ha a zongora elérhető;
+- **MIDI-fájlokat lejátszani más MIDI-eszközre is, zongora nélkül** (pl. loopMIDI-n keresztül szoftveres hangszerre, például a Cantabile-be): ha a kiválasztott MIDI-porton nem válaszol Yamaha zongora, a program általános MIDI-eszközként kezeli, a Keverő szabványos MIDI-vezérlőket és General MIDI hangszíneket használ;
 - a feltöltött MIDI-fájlok lejátszását vezérelni: indítás, szünet, pozíció;
 - a "stream lights" (billentyű-kivilágítás) vezérlése: ki, be, lassú, gyors;
 - a segéd (vezetett gyakorlás) mód vezérlése: ki, be, mód kiválasztása;
@@ -54,9 +55,11 @@ Ez a változat saját, magáncélú felhasználásra készül egy Yamaha CSP-170
 - kétnyelvű (magyar/angol) kezelőfelület, a szakkifejezések a CSP-170 magyar használati útmutatóját követik;
 - a zenedarab csatornáinak hangszíne módosítható a keverőben, és a regisztrációs memóriába is mentődik;
 - zenedarab lejátszása USB-n keresztül, Wi-Fi nélkül, a ConPianist saját lejátszójával; a lejátszó a bal panelen választható;
+- lejátszás más MIDI-eszközre is (pl. loopMIDI → Cantabile), zongora nélkül, General MIDI hangszínekkel;
+- a lejátszott hangok megjelennek a virtuális billentyűzeten, amely át is méretezhető;
 - több összeomlás és lefagyás javítása (dalszöveget tartalmazó kották, MIDI-feltöltés, hálózati csatlakozás);
 - apróbb kényelmi javítások, pl. rákérdezés létező fájl felülírása előtt.
 
 A részletes változáslista a [CHANGELOG.md](CHANGELOG.md) fájlban található.
 
-**Tervezett fejlesztés:** lejátszás más MIDI-kimenetekre is (pl. loopMIDI-n keresztül szoftveres hangszerekre), zongora nélkül.
+**Tervezett fejlesztés:** MIDI-fájl mentése a programban beállított hangzással (hangszín, hangerő, tempó, pan, zengetés), a kotta hangzásadatainak frissítésével; később kotta létrehozása MIDI-fájlból.

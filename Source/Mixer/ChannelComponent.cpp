@@ -359,7 +359,7 @@ void ChannelComponent::updateChannelState(PianoController::Aspect aspect)
 		inReverbChange = 0;
 	}
 
-	bool enabled = pianoController.GetEnabled(channel) && pianoController.IsConnected();
+	bool enabled = pianoController.GetEnabled(channel) && pianoController.IsReady();
 	bool active = pianoController.GetActive(channel);
 
 	titleButton->setEnabled(enabled);
@@ -367,13 +367,12 @@ void ChannelComponent::updateChannelState(PianoController::Aspect aspect)
 
 	titleLabel->setEnabled(enabled);
 
-	voiceLabel->setText(enabled ? Presets::VoiceTitle(pianoController.GetVoice(channel)) : "",
-		NotificationType::dontSendNotification);
+	voiceLabel->setText(enabled ? voiceTitle() : "", NotificationType::dontSendNotification);
 	voiceLabel->setTooltip(voiceLabel->getText());
 
-	panLabel->setEnabled(pianoController.IsConnected());
-	reverbLabel->setEnabled(pianoController.IsConnected());
-	volumeLabel->setEnabled(pianoController.IsConnected());
+	panLabel->setEnabled(pianoController.IsReady());
+	reverbLabel->setEnabled(pianoController.IsReady());
+	volumeLabel->setEnabled(pianoController.IsReady());
 
 	panSlider->setEnabled(enabled && active && channel != PianoController::chAuxIn);
 	reverbSlider->setEnabled(enabled && active && channel != PianoController::chAuxIn);
@@ -479,9 +478,48 @@ static PopupMenu buildVoicesMenu(Voice* currentVoice)
 	return voicesMenu;
 }
 
+// General MIDI voices (for devices that are not Yamaha pianos), grouped by families;
+// on the drum channel the drum kits.
+static PopupMenu buildGmVoicesMenu(int currentProgram, bool drums)
+{
+	PopupMenu voicesMenu;
+	if (drums)
+	{
+		for (const auto& kit : Presets::GmDrumKits())
+		{
+			voicesMenu.addItem(VoiceMenuBase + kit.first, kit.second, true, kit.first == currentProgram);
+		}
+		return voicesMenu;
+	}
+
+	const StringArray& names = Presets::GmVoiceNames();
+	for (int family = 0; family < 16; family++)
+	{
+		PopupMenu familyMenu;
+		for (int program = family * 8; program < family * 8 + 8; program++)
+		{
+			familyMenu.addItem(VoiceMenuBase + program, names[program], true, program == currentProgram);
+		}
+		voicesMenu.addSubMenu(Presets::GmFamilies()[family], familyMenu, true, Image(),
+			currentProgram >= family * 8 && currentProgram < family * 8 + 8);
+	}
+	return voicesMenu;
+}
+
+String ChannelComponent::voiceTitle()
+{
+	if (pianoController.IsGenericDevice())
+	{
+		return Presets::GmVoiceTitle(pianoController.GetVoice(channel),
+			channel == PianoController::chMidi10);
+	}
+	return Presets::VoiceTitle(pianoController.GetVoice(channel));
+}
+
 void ChannelComponent::showMenu(Button* button)
 {
 	PopupMenu menu;
+	const bool generic = pianoController.IsGenericDevice();
 
 	menu.addSectionHeader(TRANS("CHANNEL") + " " + String(channel - PianoController::chMidi0));
 	menu.addItem(1, TRANS("Select Only This Channel"));
@@ -490,11 +528,22 @@ void ChannelComponent::showMenu(Button* button)
 
 	menu.addSectionHeader(TRANS("VOICE"));
 	String voice = Presets::VoiceTitle(pianoController.GetVoice(channel));
-	// Experimental: change the voice of this song channel on the piano
-	menu.addSubMenu(TRANS("Change Voice"), buildVoicesMenu(Presets::FindVoice(pianoController.GetVoice(channel))));
-	menu.addItem(100 + PianoController::chMain, TRANS("Select VOICENAME for Main").replace("VOICENAME", voice));
-	menu.addItem(100 + PianoController::chLayer, TRANS("Select VOICENAME for Layer").replace("VOICENAME", voice));
-	menu.addItem(100 + PianoController::chLeft, TRANS("Select VOICENAME for Left").replace("VOICENAME", voice));
+	if (generic)
+	{
+		// General MIDI voices; the keyboard voices (Main, Layer, Left) belong to the piano
+		const String currentVoice = pianoController.GetVoice(channel);
+		menu.addSubMenu(TRANS("Change Voice"), buildGmVoicesMenu(
+			currentVoice.isEmpty() ? -1 : (currentVoice.getIntValue() & 0x7f),
+			channel == PianoController::chMidi10));
+	}
+	else
+	{
+		// change the voice of this song channel on the piano
+		menu.addSubMenu(TRANS("Change Voice"), buildVoicesMenu(Presets::FindVoice(pianoController.GetVoice(channel))));
+		menu.addItem(100 + PianoController::chMain, TRANS("Select VOICENAME for Main").replace("VOICENAME", voice));
+		menu.addItem(100 + PianoController::chLayer, TRANS("Select VOICENAME for Layer").replace("VOICENAME", voice));
+		menu.addItem(100 + PianoController::chLeft, TRANS("Select VOICENAME for Left").replace("VOICENAME", voice));
+	}
 	menu.addSeparator();
 
 	menu.addSectionHeader(TRANS("PART"));
@@ -507,6 +556,12 @@ void ChannelComponent::showMenu(Button* button)
 	GuiHelper::ShowMenuAsync(menu, button,
 		[this](int result)
 		{
+			if (result >= VoiceMenuBase && pianoController.IsGenericDevice())
+			{
+				// General MIDI: bank 0, program number
+				pianoController.SetSongChannelVoice(channel, (result - VoiceMenuBase) & 0x7f);
+				return;
+			}
 			if (result >= VoiceMenuBase)
 			{
 				VoiceList& voices = Presets::Voices();

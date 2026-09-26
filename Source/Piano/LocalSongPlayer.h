@@ -54,7 +54,7 @@ public:
 	// or from the thread that called a method of this class).
 	std::function<void(bool positionChanged, bool playingChanged)> onChanged;
 
-	LocalSongPlayer() = default;
+	LocalSongPlayer() { ResetMixer(); }
 	~LocalSongPlayer() override;
 
 	bool Load(const File& file);
@@ -81,6 +81,17 @@ public:
 	// and program changes are, so it sounds right when it is switched on again.
 	// Used for the Mixer channel switches and the right/left/backing part buttons.
 	void SetChannelMuted(int channel, bool muted);
+
+	// Mixer for devices that are not Yamaha pianos (general MIDI devices), where the
+	// mixer settings are sent as standard controllers. Reset when a song is loaded.
+	// The volume of a channel (CC7) is scaled: the song's own volume changes are kept,
+	// in proportion. Pan (CC10) and reverb (CC91) replace the song's values.
+	void SetVolumeScale(int channel, double scale);
+	void SetMasterVolumeScale(double scale);
+	void SetControllerOverride(int channel, int controller, int value); // NoValue: song's value
+	// Value of a controller in the setup part of the song (before the first note), or -1
+	int GetSetupController(int channel, int controller) const;
+	int GetSetupProgram(int channel) const;
 
 	// MIDI channels (1..16) that contain notes
 	std::vector<int> GetUsedChannels() const;
@@ -125,6 +136,10 @@ private:
 	double m_baseBpm = 120.0;
 	bool m_usedChannels[NumChannels] = {};
 	bool m_muted[NumChannels] = {};
+	double m_volumeScale[NumChannels];
+	double m_masterVolumeScale = 1.0;
+	int m_songVolume[NumChannels];            // last CC7 value of the song (unscaled)
+	int m_controllerOverride[NumChannels][2]; // pan, reverb
 	bool m_loaded = false;
 
 	// controllers/programs that change during the song (not only in the setup part)
@@ -151,6 +166,8 @@ private:
 	void hiResTimerCallback() override;
 
 	void Send(const MidiMessage& message);
+	void SendVolume(int ch);
+	void ResetMixer();
 	void SendEvent(const MidiMessage& message);
 	void SilenceAll();
 	void Chase(int tick);

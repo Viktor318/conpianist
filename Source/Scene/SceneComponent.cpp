@@ -443,7 +443,7 @@ void SceneComponent::updateSettingsState()
 			1.000f, Colour (0x00000000), Image(), 0.750f, Colour (0x00000000), Image(), 1.000f, Colour (0x00000000));
 
 	balanceButton->setEnabled(pianoController.IsConnected());
-	keyboardButton->setEnabled(pianoController.IsConnected());
+	keyboardButton->setEnabled(pianoController.IsReady());
 	muteButton->setEnabled(pianoController.IsConnected());
 }
 
@@ -517,6 +517,27 @@ void SceneComponent::checkConnection()
 	}
 
 	Time curTime = Time::getCurrentTime();
+
+	if (!midiConnector->IsConnected())
+	{
+		portConnectedTime = curTime;
+	}
+
+	if (!pianoController.IsConnected() && pianoController.IsGenericDevice() && midiConnector->IsConnected())
+	{
+		// a general MIDI device does not answer; there is nothing to wait for
+		statusLabel->setText(TRANS("MIDI device: NAME").replace("NAME", settings.midiPort), NotificationType::dontSendNotification);
+		statusLabel->setColour(Label::textColourId, Colours::white);
+		return;
+	}
+
+	if (!pianoController.IsConnected() && localMidiConnector && midiConnector->IsConnected() &&
+		(curTime - portConnectedTime).inMilliseconds() >= GenericDeviceDelayMs)
+	{
+		// no Yamaha piano answers on this port
+		enterGenericDevice();
+		return;
+	}
 
 	if (!pianoController.IsConnected())
 	{
@@ -606,6 +627,11 @@ void SceneComponent::resetMidiConnector()
 	pianoController.Disconnect();
 	pianoConnector.ClearQueue();
 
+	// the new port may have a piano again: wait for its answer
+	pianoConnector.SetPianoMessagesEnabled(true);
+	pianoController.SetGenericDevice(false);
+	portConnectedTime = Time::getCurrentTime();
+
 	if (midiConnector)
 	{
 		midiConnector->SetListener(nullptr);
@@ -628,8 +654,21 @@ void SceneComponent::resetMidiConnector()
 	}
 	else
 	{
-		audioDeviceManager.setMidiInputEnabled(settings.midiPort, true);
-		audioDeviceManager.setDefaultMidiOutput(settings.midiPort);
+		// only the input with the same name as the output is used (the piano has one of
+		// each; a general MIDI device may have no input)
+		for (auto& device : MidiInput::getAvailableDevices())
+		{
+			audioDeviceManager.setMidiInputDeviceEnabled(device.identifier, device.name == settings.midiPort);
+		}
+		String outputId;
+		for (auto& device : MidiOutput::getAvailableDevices())
+		{
+			if (device.name == settings.midiPort)
+			{
+				outputId = device.identifier;
+			}
+		}
+		audioDeviceManager.setDefaultMidiOutputDevice(outputId);
 		localMidiConnector = std::make_unique<LocalMidiConnector>(&audioDeviceManager);
 		midiConnector = localMidiConnector.get();
 		pianoConnector.SetMidiConnector(midiConnector);
@@ -686,7 +725,7 @@ void SceneComponent::checkNetworkPlayback()
 
 void SceneComponent::networkCheckFinished(bool reachable, int checkId)
 {
-	if (checkId != networkCheckId || settings.midiPort == "")
+	if (checkId != networkCheckId || settings.midiPort == "" || pianoController.IsGenericDevice())
 	{
 		return;
 	}
@@ -700,6 +739,21 @@ void SceneComponent::networkCheckFinished(bool reachable, int checkId)
 	{
 		loadLastSong();
 	}
+}
+
+// No Yamaha piano answers on the MIDI port: it is used as a general MIDI device. Only
+// ConPianist's own player can play there, and no piano messages are sent to it.
+void SceneComponent::enterGenericDevice()
+{
+	Logger::writeToLog("No piano answers on MIDI port " + settings.midiPort);
+
+	networkCheckId++; // the result of a running network check is no longer relevant
+	pianoConnector.SetPianoMessagesEnabled(false);
+	pianoController.SetGenericDevice(true);
+	pianoController.SetPlaybackAvailability(false, true);
+	pianoController.SetPlaybackSource(true);
+	loadLastSong();
+	updateSettingsState();
 }
 
 // With ConPianist's own player the song is not kept by the piano, so the last song

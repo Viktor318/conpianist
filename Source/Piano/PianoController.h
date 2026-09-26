@@ -159,6 +159,7 @@ public:
 	static const int MinReverb = 0;
 	static const int MaxReverb = 127;
 	static const int DefaultReverb = 0;
+	static const int GenericDefaultReverb = 40; // General MIDI default of CC91
 	static const int DefaultReverbEffect = 0x0118; // Recital Hall
 	static const int MinOctave = -2;
 	static const int MaxOctave = +2;
@@ -213,6 +214,13 @@ public:
 	// Loads a song into the current player. If the upload to the piano fails and
 	// the own player is available, playback continues with the own player.
 	bool LoadSong(const File& file);
+	// General MIDI device mode: the MIDI port is not a Yamaha piano (e.g. loopMIDI to a
+	// software instrument). Songs are played by the own player, the mixer settings are
+	// sent as standard MIDI controllers and the voices are General MIDI voices.
+	void SetGenericDevice(bool generic);
+	bool IsGenericDevice() const { return m_genericDevice; }
+	// Songs can be played and mixed: a piano is connected or a general MIDI device is used
+	bool IsReady() const { return m_connected || m_genericDevice; }
 	// Called (on the message thread) when the piano could not be reached over the
 	// network and playback switched to ConPianist's own player.
 	std::function<void()> onNetworkPlaybackFailed;
@@ -351,6 +359,8 @@ private:
 	bool m_localPlaybackAvailable = false;
 	int m_pendingMeasure = 0; // measure to jump to after the song is loaded again
 	bool m_shownNotes[16][128] = {}; // notes of the local player shown on the virtual keyboard
+	bool m_genericDevice = false;
+	int m_genericBank[16] = {};       // bank select (MSB << 8 | LSB) sent on each channel
 	std::shared_ptr<bool> m_alive = std::make_shared<bool>(true); // for delayed callbacks
 
 	void NotifyChanged(Aspect aspect, Channel channel = chNone);
@@ -361,6 +371,9 @@ private:
 	bool LoadSongInternal(const File& file);
 	void ReloadSong();
 	void ShowLocalNote(const MidiMessage& message);
+	void OnLocalMessage(const MidiMessage& message);
+	void InitGenericMixer();
+	int GenericSetupValue(Channel ch, int controller, int defaultValue);
 	void ClearSongState();
 	bool IsLocalSongLoaded() const { return m_localPlayback && m_localPlayer && m_localPlayer->IsLoaded(); }
 	void ResetLocalMixState();
