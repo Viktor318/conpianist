@@ -28,6 +28,7 @@ public:
 	void Save();
 	void Load();
 	String GetEffectiveLanguage() const;
+	File GetLastStateFile() const;
 	void ApplyLanguage() const;
 
 	enum ScoreInstrumentNames
@@ -67,6 +68,9 @@ public:
 	String lastSong; // full path of the last loaded song, reloaded at start with USB playback
 	String midiIn2;  // secondary MIDI input, played through to MIDI Out in MIDI device mode
 	String midiOut;  // MIDI device used when the piano is not available (or chosen)
+	// the playback output chosen by the user, used again at the next start:
+	// "network" (the piano's own player), "usb" (own player over USB) or "device" (MIDI Out)
+	String playbackSource = "network";
 
 private:
 	PropertiesFile::Options opt;

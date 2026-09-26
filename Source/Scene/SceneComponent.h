@@ -78,8 +78,16 @@ public:
 	void loadLastSong();
 	void updatePlaybackAvailability();
 	void checkPianoAvailability(Time curTime);
-	void chooseDefaultPlaybackSource(bool force);
-	void recheckAvailability(bool resetConnection);
+	void chooseDefaultPlaybackSource();
+	PianoController::PlaybackSource getPreferredPlaybackSource() const;
+	bool isNetworkCheckRunning() const { return networkCheckPendingId == networkCheckId; }
+	String getLastStateSong() const;
+	void restorePianoState();
+	void restoreSongState();
+	void restoreSongInPiano(Time curTime);
+	void saveLastState();
+	void scheduleLastStateSave();
+	void resetConnection();
 	int getKeyboardHeight() const;
 	int getMaxKeyboardHeight() const;
 	void setKeyboardHeight(int height, bool save);
@@ -130,6 +138,14 @@ private:
 	String currentMidiIn2;
 	String currentMidiOut;
 	int lastAvailability = -1;
+	int networkCheckPendingId = -1; // the network check whose result is awaited
+	// The state when the program was closed (LastState.conmem) is restored in two parts:
+	// the piano's settings when the piano is connected, the song and its settings when
+	// the song is loaded again.
+	bool pianoStateRestored = false;
+	bool songStateRestored = false;
+	bool songRestoreRequested = false;
+	Time connectedSince;
     //[/UserVariables]
 
     //==============================================================================

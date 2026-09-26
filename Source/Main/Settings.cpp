@@ -65,6 +65,7 @@ void Settings::Save()
 	prop.setValue("LastSong", lastSong);
 	prop.setValue("MidiIn2", midiIn2);
 	prop.setValue("MidiOut", midiOut);
+	prop.setValue("PlaybackSource", playbackSource);
 
 	prop.save();
 	sendChangeMessage();
@@ -100,6 +101,14 @@ void Settings::Load()
 	lastSong = prop.getValue("LastSong", lastSong);
 	midiIn2 = prop.getValue("MidiIn2", midiIn2);
 	midiOut = prop.getValue("MidiOut", midiOut);
+	playbackSource = prop.getValue("PlaybackSource", playbackSource);
+}
+
+// The state of the piano and the playback when the program was closed (a registration
+// memory file), next to the settings file.
+File Settings::GetLastStateFile() const
+{
+	return opt.getDefaultFile().getSiblingFile("LastState.conmem");
 }
 
 int Settings::FirstKeyboardChannel() const

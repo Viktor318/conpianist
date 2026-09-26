@@ -298,6 +298,12 @@ public:
 	const String& GetVoice(Channel ch) { return m_channels[ch].voice; }
 	void SetVoice(Channel ch, const String& voice);
 	void SetSongChannelVoice(Channel ch, int voiceNum);
+	// sets a song channel voice from a saved state: a Yamaha voice ("gmVoice" false) or a
+	// General MIDI voice, converted to the kind of voices of the current player
+	void SetSavedSongChannelVoice(Channel ch, int voiceNum, bool gmVoice);
+	// the Yamaha voice that was converted to the current General MIDI voice of the
+	// channel (MIDI device playback), or -1: saved instead of the converted voice
+	int GetOriginalSongChannelVoice(Channel ch) const;
 	bool GetActive(Channel ch) { return m_channels[ch].active; }
 	void SetActive(Channel ch, bool active);
 	bool GetEnabled(Channel ch) { return m_channels[ch].enabled; }
@@ -410,6 +416,12 @@ private:
 	bool m_playbackSourceAutomatic = false;
 	bool m_midiDevicePlaybackAvailable = false;
 	int m_genericBank[16] = {};       // bank select (MSB << 8 | LSB) sent on each channel
+	// Yamaha voices converted to General MIDI voices (per song channel, -1: none): when
+	// switching back to the piano, the original voice is used if it was not changed
+	int m_originalVoice[16];
+	int m_convertedVoice[16];
+	int ConvertSongChannelVoice(Channel ch, int voiceNum, bool fromGm, bool toGm);
+	void ClearConvertedVoices();
 	std::shared_ptr<bool> m_alive = std::make_shared<bool>(true); // for delayed callbacks
 
 	void NotifyChanged(Aspect aspect, Channel channel = chNone);

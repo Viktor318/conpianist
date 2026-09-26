@@ -22,8 +22,19 @@
 
 void RegistrationMemory::Save()
 {
-	XmlElement state("ConPianistRegistrationMemory");
-	root = &state;
+	std::unique_ptr<XmlElement> state = CreateXml();
+	state->writeTo(file);
+}
+
+std::unique_ptr<XmlElement> RegistrationMemory::CreateXml()
+{
+	std::unique_ptr<XmlElement> state = std::make_unique<XmlElement>("ConPianistRegistrationMemory");
+	root = state.get();
+
+	if (options.songname)
+	{
+		SaveSongName();
+	}
 
 	if (options.voices)
 	{
@@ -59,6 +70,11 @@ void RegistrationMemory::Save()
 		{
 			SaveChannel(ch, String("Midi") + String(ch - PianoController::chMidi0));
 		}
+		if (!options.balance)
+		{
+			// the song's volume (Playback panel) belongs to the mixer, too
+			SaveChannel(PianoController::chMidiMaster, "MidiMaster");
+		}
 	}
 
 	if (options.pianoroom)
@@ -71,7 +87,24 @@ void RegistrationMemory::Save()
 		SaveSettings();
 	}
 
-	state.writeTo(file);
+	root = nullptr;
+	return state;
+}
+
+// The full path of the loaded song, for information and for restoring the last state.
+void RegistrationMemory::SaveSongName()
+{
+	if (pianoController.IsSongLoaded() && File::isAbsolutePath(pianoController.GetSongName()))
+	{
+		root->createNewChildElement("Song")->addTextElement(pianoController.GetSongName());
+	}
+}
+
+String RegistrationMemory::GetSongName(const File& file)
+{
+	std::unique_ptr<XmlElement> state = XmlDocument::parse(file);
+	XmlElement* el = state ? state->getChildByName("Song") : nullptr;
+	return el ? el->getAllSubText().trim() : String();
 }
 
 void RegistrationMemory::Load()
@@ -115,6 +148,11 @@ void RegistrationMemory::Load()
 		{
 			LoadChannel(ch, String("Midi") + String(ch - PianoController::chMidi0));
 		}
+		if (!options.balance)
+		{
+			// the song's volume (Playback panel) belongs to the mixer, too
+			LoadChannel(PianoController::chMidiMaster, "MidiMaster");
+		}
 	}
 
 	if (options.pianoroom)
@@ -152,10 +190,24 @@ void RegistrationMemory::SaveChannel(PianoController::Channel channel, String na
 			Voice* vc = Presets::FindVoice(voice);
 			voice = vc ? String(vc->num) : String();
 		}
+		// With MIDI device playback the voices are General MIDI voices ("set" attribute);
+		// a voice converted from a Yamaha voice is saved as the original Yamaha voice.
+		bool gmVoice = pianoController.IsMidiDevicePlayback();
+		const int original = pianoController.GetOriginalSongChannelVoice(channel);
+		if (original >= 0)
+		{
+			voice = String(original);
+			gmVoice = false;
+		}
 		if (voice.isNotEmpty())
 		{
 			XmlElement* voiceElem = chElem->createNewChildElement("Voice");
-			voiceElem->setAttribute("title", Presets::VoiceTitle(voice));
+			if (gmVoice)
+			{
+				voiceElem->setAttribute("set", "gm");
+			}
+			voiceElem->setAttribute("title", gmVoice ?
+				Presets::GmVoiceTitle(voice, channel == PianoController::chMidi10) : Presets::VoiceTitle(voice));
 			voiceElem->addTextElement(voice);
 		}
 	}
@@ -197,7 +249,9 @@ void RegistrationMemory::LoadChannel(PianoController::Channel channel, String na
 		String value = el->getAllSubText().trim();
 		if (value.isNotEmpty())
 		{
-			pianoController.SetSongChannelVoice(channel, value.getIntValue());
+			// converted, if saved for another kind of player (Yamaha / General MIDI)
+			pianoController.SetSavedSongChannelVoice(channel, value.getIntValue(),
+				el->getStringAttribute("set").equalsIgnoreCase("gm"));
 		}
 	}
 }

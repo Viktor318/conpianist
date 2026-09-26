@@ -292,11 +292,6 @@ PlaybackComponent::PlaybackComponent (Settings& settings, PianoController& piano
 
 
     //[UserPreSize]
-    recheckButton.reset (new TextButton ("Recheck Button"));
-    addAndMakeVisible (recheckButton.get());
-    recheckButton->setButtonText (TRANS("Recheck"));
-    recheckButton->setTooltip (TRANS("Check the availability of the outputs again (network, USB, MIDI device)"));
-    recheckButton->onClick = [this]() { if (onRecheck) onRecheck(); };
     playbackGroup->setColour(GroupComponent::outlineColourId, Colours::transparentBlack);
     playbackGroup->setText("");
     songGroup->setColour(GroupComponent::outlineColourId, Colours::transparentBlack);
@@ -459,7 +454,6 @@ void PlaybackComponent::resized()
     usbPlaybackButton->setBounds (10, ((-8) + 70 - 8) + 230, 268, 24);
     midiDevicePlaybackButton->setBounds (10, ((-8) + 70 - 8) + 254, 268, 24);
     //[UserResized] Add your own custom resize handling here..
-    recheckButton->setBounds (getWidth() - 12 - 64, playSourceLabel->getY() + 1, 64, 22);
     //[/UserResized]
 }
 
@@ -574,20 +568,36 @@ void PlaybackComponent::buttonClicked (Button* buttonThatWasClicked)
     else if (buttonThatWasClicked == networkPlaybackButton.get())
     {
         //[UserButtonCode_networkPlaybackButton] -- add your button handler code here..
+        // only the chosen radio button (the others are notified when switched off);
         // asynchronously: loading the song again may take a moment
-        MessageManager::callAsync([this](){pianoController.SetPlaybackSource(PianoController::psPiano);});
+        if (networkPlaybackButton->getToggleState())
+        {
+            settings.playbackSource = "network"; // used again at the next start
+            settings.Save();
+            MessageManager::callAsync([this](){pianoController.SetPlaybackSource(PianoController::psPiano);});
+        }
         //[/UserButtonCode_networkPlaybackButton]
     }
     else if (buttonThatWasClicked == usbPlaybackButton.get())
     {
         //[UserButtonCode_usbPlaybackButton] -- add your button handler code here..
-        MessageManager::callAsync([this](){pianoController.SetPlaybackSource(PianoController::psLocal);});
+        if (usbPlaybackButton->getToggleState())
+        {
+            settings.playbackSource = "usb";
+            settings.Save();
+            MessageManager::callAsync([this](){pianoController.SetPlaybackSource(PianoController::psLocal);});
+        }
         //[/UserButtonCode_usbPlaybackButton]
     }
     else if (buttonThatWasClicked == midiDevicePlaybackButton.get())
     {
         //[UserButtonCode_midiDevicePlaybackButton] -- add your button handler code here..
-        MessageManager::callAsync([this](){pianoController.SetPlaybackSource(PianoController::psMidiDevice);});
+        if (midiDevicePlaybackButton->getToggleState())
+        {
+            settings.playbackSource = "device";
+            settings.Save();
+            MessageManager::callAsync([this](){pianoController.SetPlaybackSource(PianoController::psMidiDevice);});
+        }
         //[/UserButtonCode_midiDevicePlaybackButton]
     }
 
@@ -773,7 +783,6 @@ void PlaybackComponent::updateEnabledControls()
 
 void PlaybackComponent::updatePlaybackSourceState()
 {
-	recheckButton->setEnabled(true); // always usable, also without a song
 	const PianoController::PlaybackSource source = pianoController.GetPlaybackSource();
 	networkPlaybackButton->setToggleState(source == PianoController::psPiano, NotificationType::dontSendNotification);
 	usbPlaybackButton->setToggleState(source == PianoController::psLocal, NotificationType::dontSendNotification);

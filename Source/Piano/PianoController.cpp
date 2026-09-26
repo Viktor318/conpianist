@@ -39,6 +39,7 @@ PianoController::PianoController()
 		m_channels[ch].enabled = (ch < chMidi1 || ch > chMidi16) && ch != chMidiMaster;
 		m_channels[ch].active = m_channels[ch].enabled;
 	}
+	ClearConvertedVoices();
 }
 
 PianoController::~PianoController()
@@ -674,6 +675,61 @@ void PianoController::SetSongChannelVoice(Channel ch, int voiceNum)
 		m_genericBank[midiChannel - 1] = (voiceNum >> 8) & 0x7f7f;
 		m_channels[ch].voice = String(voiceNum);
 		NotifyChanged(apVoice, ch);
+	}
+}
+
+void PianoController::SetSavedSongChannelVoice(Channel ch, int voiceNum, bool gmVoice)
+{
+	if (ch < chMidi1 || ch > chMidi16)
+	{
+		return;
+	}
+	SetSongChannelVoice(ch, ConvertSongChannelVoice(ch, voiceNum, gmVoice, m_genericDevice));
+}
+
+int PianoController::GetOriginalSongChannelVoice(Channel ch) const
+{
+	if (ch < chMidi1 || ch > chMidi16 || !m_genericDevice)
+	{
+		return -1;
+	}
+	const int index = ch - chMidi1;
+	const String& voice = m_channels[ch].voice;
+	return m_originalVoice[index] >= 0 && voice.isNotEmpty() && voice.getIntValue() == m_convertedVoice[index] ?
+		m_originalVoice[index] : -1;
+}
+
+// Converts a song channel voice between Yamaha and General MIDI voices. A Yamaha voice
+// converted to General MIDI is remembered, so that converting back gives exactly the
+// same voice (if the channel still has the converted voice).
+int PianoController::ConvertSongChannelVoice(Channel ch, int voiceNum, bool fromGm, bool toGm)
+{
+	const int index = ch - chMidi1;
+	const bool drums = ch == chMidi10;
+	if (!fromGm && toGm)
+	{
+		const int gmVoice = Presets::GmVoiceForYamahaVoice(voiceNum, drums);
+		m_originalVoice[index] = voiceNum;
+		m_convertedVoice[index] = gmVoice;
+		return gmVoice;
+	}
+	if (fromGm && !toGm)
+	{
+		if (m_originalVoice[index] >= 0 && m_convertedVoice[index] == voiceNum)
+		{
+			return m_originalVoice[index];
+		}
+		return Presets::YamahaVoiceForGmVoice(voiceNum, drums);
+	}
+	return voiceNum;
+}
+
+void PianoController::ClearConvertedVoices()
+{
+	for (int i = 0; i < 16; i++)
+	{
+		m_originalVoice[i] = -1;
+		m_convertedVoice[i] = -1;
 	}
 }
 
@@ -1425,6 +1481,7 @@ bool PianoController::LoadSong(const File& file)
 	m_pendingMeasure = 0;
 	m_pendingSnapshot.valid = false;
 	m_skipRegistrationMemory = false;
+	ClearConvertedVoices();
 	return LoadSongInternal(file);
 }
 
@@ -1478,13 +1535,7 @@ void PianoController::ApplySnapshot(const MixSnapshot& snapshot)
 
 		if (state.voice.isNotEmpty())
 		{
-			const bool drums = ch == chMidi10;
-			int voice = state.voice.getIntValue();
-			if (toDevice && !fromDevice)
-				voice = Presets::GmVoiceForYamahaVoice(voice, drums);
-			else if (!toDevice && fromDevice)
-				voice = Presets::YamahaVoiceForGmVoice(voice, drums);
-			SetSongChannelVoice(ch, voice);
+			SetSongChannelVoice(ch, ConvertSongChannelVoice(ch, state.voice.getIntValue(), fromDevice, toDevice));
 		}
 	}
 

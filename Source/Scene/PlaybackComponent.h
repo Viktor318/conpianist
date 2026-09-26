@@ -77,10 +77,6 @@ private:
     int inVolumeChange = 0;
     int inTransposeChange = 0;
     int sliderTempo = 0;
-    std::unique_ptr<TextButton> recheckButton; // checks the availability of the outputs again
-public:
-    std::function<void()> onRecheck;
-private:
     //[/UserVariables]
 
     //==============================================================================

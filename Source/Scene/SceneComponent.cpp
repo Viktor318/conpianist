@@ -203,7 +203,6 @@ SceneComponent::SceneComponent (Settings& settings)
     topbarPanel->setText("");
 
 	playbackComponent.reset(new PlaybackComponent(settings, pianoController));
-	playbackComponent->onRecheck = [this]() { recheckAvailability(false); };
 	playbackPanel->addAndMakeVisible(playbackComponent.get());
 
 	keyboardComponent.reset(new KeyboardComponent(settings, pianoController));
@@ -256,6 +255,7 @@ SceneComponent::SceneComponent (Settings& settings)
 SceneComponent::~SceneComponent()
 {
     //[Destructor_pre]. You can add your own custom destruction code here..
+    saveLastState(); // restored at the next start
     pianoController.ShutdownLocalPlayer();
     midiDevice.onIncoming = nullptr;
     midiDevice.SetPorts("", "");
@@ -431,8 +431,10 @@ void SceneComponent::PianoStateChanged(PianoController::Aspect aspect, PianoCont
 		MessageManager::callAsync([=]()
 			{
 				pianoController.Sync();
+				connectedSince = Time::getCurrentTime();
+				restorePianoState();
 				updatePlaybackAvailability();
-				chooseDefaultPlaybackSource(false);
+				chooseDefaultPlaybackSource();
 			});
 	}
 	else if (aspect == PianoController::apActive && channel == PianoController::chLeft)
@@ -500,7 +502,7 @@ void SceneComponent::showMenu()
 					MessageManager::callAsync([=](){pianoController.Reset();});
 					break;
 				case 4:
-					recheckAvailability(true);
+					resetConnection();
 					break;
 				case 101:
 					loadState();
@@ -540,6 +542,7 @@ void SceneComponent::checkConnection()
 	}
 	updatePlaybackAvailability();
 	checkPianoAvailability(curTime);
+	restoreSongInPiano(curTime);
 
 	if (!pianoController.IsConnected())
 	{
@@ -715,29 +718,20 @@ void SceneComponent::updatePlaybackSource()
 	}
 
 	updatePlaybackAvailability();
-	chooseDefaultPlaybackSource(true);
+	chooseDefaultPlaybackSource();
 }
 
-// Checks again which outputs are available: the network (the piano's upload port), the
-// MIDI device (MIDI Out, MIDI In 2) and the piano's connection. With "resetConnection"
-// (menu: Reset Connection) the piano's connection is opened again in any case; otherwise
-// (the Recheck button) only if the piano is not connected, so a working connection
-// is not interrupted.
-void SceneComponent::recheckAvailability(bool resetConnection)
+// Menu "Reset Connection": opens the piano's connection and the MIDI device's ports
+// (MIDI Out, MIDI In 2) again and checks again which outputs are available (the network
+// is checked on the piano's upload port).
+void SceneComponent::resetConnection()
 {
-	Logger::writeToLog(resetConnection ? "Reset connection" : "Recheck outputs");
+	Logger::writeToLog("Reset connection");
 
-	if (resetConnection || !pianoController.IsConnected())
-	{
-		resetMidiConnector();
-	}
+	resetMidiConnector();
 
-	// the MIDI device's ports are opened again too (a port of a device that was unplugged
-	// and plugged in again does not work any more), but not while a song plays on it
-	if (resetConnection || !pianoController.IsMidiDevicePlayback() || !pianoController.GetPlaying())
-	{
-		midiDevice.SetPorts("", "");
-	}
+	// a port of a device that was unplugged and plugged in again does not work any more
+	midiDevice.SetPorts("", "");
 	midiDevice.SetPorts(settings.midiIn2, settings.midiOut);
 	midiDevice.Refresh();
 
@@ -765,25 +759,61 @@ void SceneComponent::updatePlaybackAvailability()
 	{
 		lastAvailability = availability;
 		pianoController.SetPlaybackAvailability(network, usb, device);
+		chooseDefaultPlaybackSource();
 	}
 }
 
-// The default player when the piano is available: its own player if it can be reached
-// over the network (Stream Lights and Guide work), otherwise ConPianist's own player
-// over USB. A player chosen by the user is kept, unless "force" (settings changed).
-void SceneComponent::chooseDefaultPlaybackSource(bool force)
+// The player chosen by the user (saved in the settings, also used at the next start).
+PianoController::PlaybackSource SceneComponent::getPreferredPlaybackSource() const
 {
-	if (!pianoController.IsConnected() || (!force && !pianoController.IsPlaybackSourceAutomatic()))
+	return settings.playbackSource == "usb" ? PianoController::psLocal :
+		settings.playbackSource == "device" ? PianoController::psMidiDevice :
+		PianoController::psPiano;
+}
+
+// Chooses the player, whenever the available players change: the one chosen by the
+// user, if it is available; otherwise another one, until the chosen one is available
+// again. With the piano: its own player (network) or ConPianist's own player (USB);
+// without the piano the MIDI device is chosen a few seconds later (see
+// checkPianoAvailability).
+void SceneComponent::chooseDefaultPlaybackSource()
+{
+	const PianoController::PlaybackSource preferred = getPreferredPlaybackSource();
+	const bool network = pianoController.IsNetworkPlaybackAvailable();
+	const bool usb = pianoController.IsLocalPlaybackAvailable();
+
+	PianoController::PlaybackSource source;
+	if (preferred == PianoController::psMidiDevice && pianoController.IsMidiDevicePlaybackAvailable())
+	{
+		source = PianoController::psMidiDevice;
+	}
+	else if (!pianoController.IsConnected())
+	{
+		return;
+	}
+	else if (preferred == PianoController::psLocal && usb)
+	{
+		source = PianoController::psLocal;
+	}
+	else if (network)
+	{
+		source = PianoController::psPiano;
+	}
+	else if (usb)
+	{
+		source = PianoController::psLocal;
+	}
+	else
 	{
 		return;
 	}
 
-	const bool usb = settings.midiPort != "";
-	const PianoController::PlaybackSource source = networkReachable || !usb ?
-		PianoController::psPiano : PianoController::psLocal;
-	pianoController.SetPlaybackSource(source, true);
+	if (source != pianoController.GetPlaybackSource())
+	{
+		pianoController.SetPlaybackSource(source, source != preferred);
+	}
 
-	if (source == PianoController::psLocal)
+	if (source != PianoController::psPiano)
 	{
 		loadLastSong();
 	}
@@ -832,6 +862,7 @@ void SceneComponent::checkPianoAvailability(Time curTime)
 void SceneComponent::checkNetworkPlayback()
 {
 	const int checkId = networkCheckId;
+	networkCheckPendingId = checkId;
 	const String pianoIp = settings.pianoIp;
 	Component::SafePointer<SceneComponent> self(this);
 
@@ -854,6 +885,10 @@ void SceneComponent::checkNetworkPlayback()
 
 void SceneComponent::networkCheckFinished(bool reachable, int checkId)
 {
+	if (checkId == networkCheckPendingId)
+	{
+		networkCheckPendingId = -1;
+	}
 	if (checkId != networkCheckId || settings.midiPort == "")
 	{
 		return;
@@ -863,24 +898,187 @@ void SceneComponent::networkCheckFinished(bool reachable, int checkId)
 
 	networkReachable = reachable;
 	updatePlaybackAvailability();
-	chooseDefaultPlaybackSource(false);
+	chooseDefaultPlaybackSource();
 }
 
 // With ConPianist's own player the song is not kept by the piano, so the last song
-// is loaded again (its registration memory is loaded with it).
+// is loaded again: at the start the song of the last state (restored with its
+// settings, see loadSongState), later the last loaded song (with its registration memory).
 void SceneComponent::loadLastSong()
 {
-	if (!pianoController.IsLocalPlayback() || pianoController.IsSongLoaded() ||
-		!File::isAbsolutePath(settings.lastSong))
+	if (!pianoController.IsLocalPlayback() || pianoController.IsSongLoaded())
 	{
 		return;
 	}
 
-	File file(settings.lastSong);
+	String song = songStateRestored ? String() : getLastStateSong();
+	if (song.isEmpty())
+	{
+		song = settings.lastSong;
+	}
+
+	if (File::isAbsolutePath(song) && File(song).existsAsFile())
+	{
+		pianoController.LoadSong(File(song));
+	}
+	else
+	{
+		songStateRestored = true; // nothing to restore
+	}
+}
+
+// The song saved in the last state (full path), or empty.
+String SceneComponent::getLastStateSong() const
+{
+	const File file = settings.GetLastStateFile();
+	return file.existsAsFile() ? RegistrationMemory::GetSongName(file) : String();
+}
+
+// Restores the piano's own settings of the last state (voices, balance, Piano Room),
+// once, when the piano is connected for the first time.
+void SceneComponent::restorePianoState()
+{
+	if (pianoStateRestored)
+	{
+		return;
+	}
+	pianoStateRestored = true;
+
+	const File file = settings.GetLastStateFile();
 	if (file.existsAsFile())
 	{
-		pianoController.LoadSong(file);
+		Logger::writeToLog("Restoring the piano settings of the last state");
+		RegistrationMemory::Options opts;
+		opts.songname = false;
+		opts.mixer = false;
+		opts.playback = false;
+		opts.settings = false;
+		RegistrationMemory regmem(pianoController, settings, opts, file);
+		regmem.Load();
 	}
+}
+
+// Restores the settings of the song of the last state (Mixer, Playback panel, position).
+void SceneComponent::restoreSongState()
+{
+	const File file = settings.GetLastStateFile();
+	if (file.existsAsFile())
+	{
+		Logger::writeToLog("Restoring the song settings of the last state");
+		RegistrationMemory::Options opts;
+		opts.songname = false;
+		opts.voices = false;
+		opts.balance = false;
+		opts.pianoroom = false;
+		opts.settings = false;
+		RegistrationMemory regmem(pianoController, settings, opts, file);
+		regmem.Load();
+	}
+}
+
+// With the piano's own player (network), the song of the last state is loaded into the
+// piano at the start, unless the piano still has it. This is done after the piano's
+// state was read and the network was checked.
+void SceneComponent::restoreSongInPiano(Time curTime)
+{
+	if (songStateRestored || songRestoreRequested || !pianoController.IsConnected() ||
+		pianoController.IsLocalPlayback() || isNetworkCheckRunning() ||
+		pianoConnector.QueueSize() > 0 || (curTime - connectedSince).inMilliseconds() < 1500)
+	{
+		return;
+	}
+	songRestoreRequested = true;
+
+	const String song = getLastStateSong();
+	if (!File::isAbsolutePath(song) || !File(song).existsAsFile())
+	{
+		songStateRestored = true; // nothing to restore
+		return;
+	}
+
+	const String loaded = pianoController.IsSongLoaded() ? pianoController.GetSongName() : String();
+	if (File::isAbsolutePath(loaded) && File(loaded) == File(song))
+	{
+		// the piano still has the song
+		songStateRestored = true;
+		restoreSongState();
+		return;
+	}
+
+	Logger::writeToLog("Loading the song of the last state");
+	pianoController.LoadSong(File(song)); // its settings: see loadSongState
+}
+
+// Saves the current state, restored at the next start. Parts that were not known in
+// this session (the piano was not connected, the song was not loaded yet) are kept
+// from the previously saved state.
+void SceneComponent::saveLastState()
+{
+	const File file = settings.GetLastStateFile();
+	RegistrationMemory regmem(pianoController, settings, {}, file);
+	std::unique_ptr<XmlElement> state = regmem.CreateXml();
+
+	std::unique_ptr<XmlElement> previous = file.existsAsFile() ? XmlDocument::parse(file) : nullptr;
+	if (previous)
+	{
+		auto keep = [](XmlElement& parent, const XmlElement* previousParent, const String& name)
+			{
+				if (XmlElement* el = parent.getChildByName(name))
+				{
+					parent.removeChildElement(el, true);
+				}
+				if (const XmlElement* old = previousParent ? previousParent->getChildByName(name) : nullptr)
+				{
+					parent.addChildElement(new XmlElement(*old));
+				}
+			};
+		XmlElement* channels = state->getChildByName("Channels");
+		if (!channels)
+		{
+			channels = state->createNewChildElement("Channels");
+		}
+		const XmlElement* previousChannels = previous->getChildByName("Channels");
+
+		if (!pianoStateRestored)
+		{
+			keep(*state, previous.get(), "Voices");
+			keep(*state, previous.get(), "PianoRoom");
+			for (const char* name : {"Main", "Left", "Layer", "Mic", "AuxIn"})
+			{
+				keep(*channels, previousChannels, name);
+			}
+		}
+		if (!songStateRestored)
+		{
+			keep(*state, previous.get(), "Song");
+			keep(*state, previous.get(), "Playback");
+			keep(*channels, previousChannels, "MidiMaster");
+			for (int i = 1; i <= 16; i++)
+			{
+				keep(*channels, previousChannels, "Midi" + String(i));
+			}
+		}
+	}
+
+	file.getParentDirectory().createDirectory();
+	if (!state->writeTo(file))
+	{
+		Logger::writeToLog("Cannot save the last state: " + file.getFullPathName());
+	}
+}
+
+// Saves the state a little later (after a song was loaded and its settings applied),
+// so that it is not lost if the program does not end normally.
+void SceneComponent::scheduleLastStateSave()
+{
+	Component::SafePointer<SceneComponent> self(this);
+	Timer::callAfterDelay(3000, [self]()
+		{
+			if (self != nullptr)
+			{
+				self->saveLastState();
+			}
+		});
 }
 
 void SceneComponent::zoomUi(bool zoomIn)
@@ -1034,18 +1232,39 @@ void SceneComponent::changeLanguage(const String& language)
 
 void SceneComponent::loadSongState()
 {
-	if (pianoController.TakeSkipRegistrationMemory())
+	const bool switched = pianoController.TakeSkipRegistrationMemory();
+	const String song = pianoController.GetSongName();
+
+	if (!songStateRestored)
+	{
+		// the first song after the start: if it is the song of the last state, its
+		// settings are restored instead of its own registration memory
+		songStateRestored = true;
+		const String lastSong = getLastStateSong();
+		if (File::isAbsolutePath(song) && File::isAbsolutePath(lastSong) && File(song) == File(lastSong))
+		{
+			restoreSongState();
+			scheduleLastStateSave();
+			return;
+		}
+	}
+
+	if (switched)
 	{
 		// the player was switched: the settings from before the switch are kept
 		return;
 	}
 
-	File file = File(pianoController.GetSongName()).withFileExtension(".conmem");
-	if (file.existsAsFile() && file.getSize() > 0)
+	if (File::isAbsolutePath(song))
 	{
-		RegistrationMemory regmem(pianoController, settings, {}, file);
-		regmem.Load();
+		File file = File(song).withFileExtension(".conmem");
+		if (file.existsAsFile() && file.getSize() > 0)
+		{
+			RegistrationMemory regmem(pianoController, settings, {}, file);
+			regmem.Load();
+		}
 	}
+	scheduleLastStateSave();
 }
 //[/MiscUserCode]
 

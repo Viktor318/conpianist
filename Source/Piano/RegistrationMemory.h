@@ -42,6 +42,8 @@ public:
 		pianoController(pianoController), settings(settings), options(options), file(file) {}
 	void Save();
 	void Load();
+	std::unique_ptr<XmlElement> CreateXml(); // the state to save
+	static String GetSongName(const File& file); // the song saved in a file, or empty
 
 private:
 	PianoController& pianoController;
@@ -66,4 +68,5 @@ private:
 	void LoadPianoRoom();
 	void SaveSettings();
 	void LoadSettings();
+	void SaveSongName();
 };

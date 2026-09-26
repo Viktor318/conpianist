@@ -177,5 +177,3 @@ countries: hu
 "MIDI device (e.g. loopMIDI to a software instrument): used for playback when the piano is not available" = "MIDI-eszköz (pl. loopMIDI egy szoftveres hangszerhez): ezen szól a lejátszás, ha a zongora nem érhető el"
 "The piano is not available. To play songs without the piano, choose a MIDI Out port in the Connection Settings." = "A zongora nem érhető el. Ha zongora nélkül szeretne zenedarabot lejátszani, válasszon MIDI Out portot a Kapcsolat beállításaiban."
 "(none)" = "(nincs)"
-"Recheck" = "Újra"
-"Check the availability of the outputs again (network, USB, MIDI device)" = "A kimenetek elérhetőségének újraellenőrzése (hálózat, USB, MIDI-eszköz)"
