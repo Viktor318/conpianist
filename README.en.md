@@ -43,11 +43,11 @@ The program is not an adequate replacement for the official app yet. Nonetheless
 
 ## Screenshots
 
-![Playback with scores](https://user-images.githubusercontent.com/3368402/79354560-d8c86b00-7f3c-11ea-8710-9c948982de3a.png)
+![Playback with scores](docs/screenshots/playback-en.png)
 
-![Voice selection](https://user-images.githubusercontent.com/3368402/79360975-f699ce00-7f44-11ea-8aa1-803be03533d7.png)
+![Voice selection](docs/screenshots/voices-en.png)
 
-![Mixer](https://user-images.githubusercontent.com/3368402/79354913-4ffdff00-7f3d-11ea-8bf9-0ecda2180204.png)
+![Mixer](docs/screenshots/mixer-en.png)
 
 ## Acknowledgements
 

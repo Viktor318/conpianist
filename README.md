@@ -38,13 +38,11 @@ A program egyelőre nem teljes értékű helyettesítője a hivatalos alkalmazá
 
 ## Képernyőképek
 
-![Lejátszás kottával](https://user-images.githubusercontent.com/3368402/79354560-d8c86b00-7f3c-11ea-8710-9c948982de3a.png)
+![Lejátszás kottával](docs/screenshots/playback-hu.png)
 
-![Hangszínválasztás](https://user-images.githubusercontent.com/3368402/79360975-f699ce00-7f44-11ea-8aa1-803be03533d7.png)
+![Hangszínválasztás](docs/screenshots/voices-hu.png)
 
-![Keverő](https://user-images.githubusercontent.com/3368402/79354913-4ffdff00-7f3d-11ea-8bf9-0ecda2180204.png)
-
-*(A képernyőképek az eredeti, angol nyelvű változatot mutatják.)*
+![Keverő](docs/screenshots/mixer-hu.png)
 
 ## Köszönetnyilvánítás
 
