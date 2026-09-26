@@ -23,7 +23,7 @@
 
 ## Features
 
-The program covers most functions of the official app, and thanks to the enhancements also some that the official app lacks: it runs on desktop computers, and plays songs over USB without Wi-Fi and on other MIDI devices. The program can:
+The program is not an adequate replacement for the official app yet. Nonetheless the program already can:
 - connect to piano via network or cable;
 - connect/reconnect without losing piano state: the program reads whole piano state on start and indicates it in the UI;
 - upload midi-files to piano via network (but can't upload via USB cable);
