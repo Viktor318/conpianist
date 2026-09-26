@@ -1137,18 +1137,96 @@ void PianoController::SendMidiMessage(const MidiMessage& message)
 	}
 }
 
-// Messages from MIDI In 2: played through to the MIDI device in psMidiDevice mode
-// (on their own channels), and their notes are shown on the virtual keyboard.
+// Messages from MIDI In 2: played like the virtual keyboard (Live Play), and their
+// notes are shown on the virtual keyboard.
 void PianoController::IncomingMidiDeviceMessage(const MidiMessage& message)
 {
-	if (!m_genericDevice || message.isSysEx() || message.isActiveSense() || message.isMidiClock())
-	{
-		return;
-	}
-	if (sendToMidiDevice) sendToMidiDevice(message);
 	if (message.isNoteOnOrOff())
 	{
 		NotifyNoteMessage(message);
+	}
+	PlayLive(message);
+}
+
+void PianoController::SetLiveChannels(int channelMask)
+{
+	channelMask &= 0xFFFF;
+	if (channelMask == 0)
+	{
+		channelMask = 1; // channel 1 by default
+	}
+
+	const ScopedLock lock(m_liveLock);
+	const int removed = m_liveChannels & ~channelMask;
+	m_liveChannels = channelMask;
+	if (removed == 0)
+	{
+		return;
+	}
+
+	// channels that are no longer used: release their held notes and the pedal
+	for (int note = 0; note < 128; note++)
+	{
+		const int channels = m_liveNoteChannels[note] & removed;
+		for (int ch = 1; ch <= 16; ch++)
+		{
+			if (channels & (1 << (ch - 1))) SendMidiMessage(MidiMessage::noteOff(ch, note));
+		}
+		m_liveNoteChannels[note] &= ~removed;
+	}
+	for (int ch = 1; ch <= 16; ch++)
+	{
+		if (m_liveSustainChannels & removed & (1 << (ch - 1)))
+		{
+			SendMidiMessage(MidiMessage::controllerEvent(ch, 64, 0));
+		}
+	}
+	m_liveSustainChannels &= ~removed;
+}
+
+void PianoController::PlayLive(const MidiMessage& message)
+{
+	const bool isNote = message.isNoteOnOrOff();
+	if (!isNote && !message.isController() && !message.isPitchWheel() &&
+		!message.isChannelPressure() && !message.isAftertouch())
+	{
+		// e.g. program changes (would change the voices), system messages, clock
+		return;
+	}
+
+	const ScopedLock lock(m_liveLock);
+	int channels = m_liveChannels;
+
+	if (isNote)
+	{
+		const int note = message.getNoteNumber();
+		if (message.isNoteOn())
+		{
+			m_liveNoteChannels[note] |= channels;
+		}
+		else
+		{
+			// released where it was started, even if the channels have changed since
+			channels = m_liveNoteChannels[note];
+			m_liveNoteChannels[note] = 0;
+		}
+	}
+	else if (message.isControllerOfType(64))
+	{
+		if (message.getControllerValue() >= 64)
+			m_liveSustainChannels |= channels;
+		else
+			m_liveSustainChannels &= ~channels;
+	}
+
+	for (int ch = 1; ch <= 16; ch++)
+	{
+		if (channels & (1 << (ch - 1)))
+		{
+			MidiMessage copy(message);
+			copy.setChannel(ch);
+			SendMidiMessage(copy);
+		}
 	}
 }
 

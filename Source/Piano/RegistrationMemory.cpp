@@ -539,7 +539,13 @@ void RegistrationMemory::SaveSettings()
 	}
 
 	XmlElement* elem = listElement->createNewChildElement("Keyboard");
-	elem->createNewChildElement("Channel")->addTextElement(String(settings.keyboardChannel));
+	elem->createNewChildElement("Channel")->addTextElement(String(settings.FirstKeyboardChannel())); // older versions
+	StringArray channels;
+	for (int channel = 1; channel <= 16; channel++)
+	{
+		if (settings.IsKeyboardChannel(channel)) channels.add(String(channel));
+	}
+	elem->createNewChildElement("Channels")->addTextElement(channels.joinIntoString(","));
 
 	elem = listElement->createNewChildElement("Score");
 	elem->createNewChildElement("InstrumentNames")->addTextElement(String(
@@ -571,7 +577,18 @@ void RegistrationMemory::LoadSettings()
 		if ((el = keyElem->getChildByName("Channel")))
 		{
 			int value = el->getAllSubText().getIntValue();
-			settings.keyboardChannel = value;
+			if (value >= 1 && value <= 16) settings.keyboardChannels = 1 << (value - 1);
+		}
+		if ((el = keyElem->getChildByName("Channels")))
+		{
+			// several Live Play channels (newer files)
+			int channels = 0;
+			for (const String& item : StringArray::fromTokens(el->getAllSubText(), ",", ""))
+			{
+				const int channel = item.trim().getIntValue();
+				if (channel >= 1 && channel <= 16) channels |= 1 << (channel - 1);
+			}
+			if (channels != 0) settings.keyboardChannels = channels;
 		}
 	}
 

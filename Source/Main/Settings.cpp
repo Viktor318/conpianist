@@ -52,7 +52,8 @@ void Settings::Save()
 	prop.setValue("Window.Width", windowPos.getWidth());
 	prop.setValue("Window.Height", windowPos.getHeight());
 	prop.setValue("Keyboard.Visible", keyboardVisible);
-	prop.setValue("Keyboard.Channel", keyboardChannel);
+	prop.setValue("Keyboard.Channels", keyboardChannels);
+	prop.setValue("Keyboard.Channel", FirstKeyboardChannel()); // for older versions
 	prop.setValue("Keyboard.Height", keyboardHeight);
 	prop.setValue("Score.InstrumentNames", scoreInstrumentNames);
 	prop.setValue("Score.Part", scorePart);
@@ -81,7 +82,13 @@ void Settings::Load()
 	windowPos.setHeight(prop.getIntValue("Window.Height", windowPos.getHeight()));
 	zoomUi = prop.getDoubleValue("ZoomUi", zoomUi);
 	keyboardVisible = prop.getIntValue("Keyboard.Visible", keyboardVisible);
-	keyboardChannel = prop.getIntValue("Keyboard.Channel", keyboardChannel);
+	// older versions stored a single channel
+	const int oldChannel = prop.getIntValue("Keyboard.Channel", 1);
+	keyboardChannels = prop.getIntValue("Keyboard.Channels", 1 << (jlimit(1, 16, oldChannel) - 1)) & 0xFFFF;
+	if (keyboardChannels == 0)
+	{
+		keyboardChannels = 1;
+	}
 	keyboardHeight = prop.getIntValue("Keyboard.Height", keyboardHeight);
 	scoreInstrumentNames = (ScoreInstrumentNames)prop.getIntValue("Score.InstrumentNames", scoreInstrumentNames);
 	scoreShowMidiChannel = prop.getIntValue("Score.ShowMidiChannel", scoreShowMidiChannel);
@@ -93,6 +100,15 @@ void Settings::Load()
 	lastSong = prop.getValue("LastSong", lastSong);
 	midiIn2 = prop.getValue("MidiIn2", midiIn2);
 	midiOut = prop.getValue("MidiOut", midiOut);
+}
+
+int Settings::FirstKeyboardChannel() const
+{
+	for (int channel = 1; channel <= 16; channel++)
+	{
+		if (IsKeyboardChannel(channel)) return channel;
+	}
+	return 1;
 }
 
 // Returns the UI language actually in use: "hu" or "en".

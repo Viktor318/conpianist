@@ -173,7 +173,8 @@ void KeyboardComponent::handleNoteOn(MidiKeyboardState *source, int midiChannel,
 		}
 		else
 		{
-			pianoController.SendMidiMessage(MidiMessage::noteOn(midiChannel, midiNoteNumber, velocity));
+			// Live Play: sent on every Live Play channel (chosen in the Mixer)
+			pianoController.PlayLive(MidiMessage::noteOn(midiChannel, midiNoteNumber, velocity));
 		}
 	}
 }
@@ -182,7 +183,7 @@ void KeyboardComponent::handleNoteOff(MidiKeyboardState *source, int midiChannel
 {
 	if (velocity > 0.0001 && !m_splitMode)
 	{
-		pianoController.SendMidiMessage(MidiMessage::noteOff(midiChannel, midiNoteNumber, velocity));
+		pianoController.PlayLive(MidiMessage::noteOff(midiChannel, midiNoteNumber, velocity));
 	}
 }
 
@@ -210,7 +211,8 @@ void KeyboardComponent::PianoStateChanged(PianoController::Aspect aspect, PianoC
 
 void KeyboardComponent::applySettings()
 {
-	midiKeyboardComponent->setMidiChannel(settings.keyboardChannel);
+	midiKeyboardComponent->setMidiChannel(settings.FirstKeyboardChannel());
+	pianoController.SetLiveChannels(settings.keyboardChannels);
 }
 
 void KeyboardComponent::updateKeyboardState()

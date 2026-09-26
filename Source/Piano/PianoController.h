@@ -233,6 +233,11 @@ public:
 	// played through to the MIDI device in psMidiDevice mode.
 	std::function<void(const MidiMessage&)> sendToMidiDevice;
 	void IncomingMidiDeviceMessage(const MidiMessage& message);
+	// Live Play: notes and controllers played on the virtual keyboard or on MIDI In 2 are
+	// sent on every Live Play channel (bit 0 = MIDI channel 1), to the piano or, with
+	// playback via the MIDI device, to MIDI Out. The channel of the message is ignored.
+	void SetLiveChannels(int channelMask);
+	void PlayLive(const MidiMessage& message);
 	// Called (on the message thread) when the piano could not be reached over the
 	// network and playback switched to ConPianist's own player.
 	std::function<void()> onNetworkPlaybackFailed;
@@ -374,6 +379,10 @@ private:
 	bool m_shownNotes[16][128] = {}; // notes of the local player shown on the virtual keyboard
 	PlaybackSource m_playbackSource = psPiano;
 	std::atomic<bool> m_genericDevice{false}; // playback to a MIDI device (psMidiDevice)
+	CriticalSection m_liveLock;
+	int m_liveChannels = 1;
+	int m_liveNoteChannels[128] = {}; // channels on which each held note was started
+	int m_liveSustainChannels = 0;    // channels on which the sustain pedal is down
 	bool m_playbackSourceAutomatic = false;
 	bool m_midiDevicePlaybackAvailable = false;
 	int m_genericBank[16] = {};       // bank select (MSB << 8 | LSB) sent on each channel

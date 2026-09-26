@@ -37,7 +37,7 @@ ChannelComponent::ChannelComponent (Settings& settings, PianoController& pianoCo
 
     keyboardButton.reset (new ImageButton ("Keyboard Button"));
     addAndMakeVisible (keyboardButton.get());
-    keyboardButton->setTooltip (TRANS("Target for Virtual Keyboard"));
+    keyboardButton->setTooltip (TRANS("Live Play Channel"));
     keyboardButton->setButtonText (TRANS("Menu"));
     keyboardButton->addListener (this);
 
@@ -397,7 +397,7 @@ void ChannelComponent::updateChannelState(PianoController::Aspect aspect)
 void ChannelComponent::applySettings()
 {
 	keyboardButton->setVisible(settings.keyboardVisible &&
-		settings.keyboardChannel == channel - PianoController::chMidi0);
+		settings.IsKeyboardChannel(channel - PianoController::chMidi0));
 }
 
 void ChannelComponent::mouseDoubleClick(const MouseEvent& event)
@@ -523,8 +523,9 @@ void ChannelComponent::showMenu(Button* button)
 
 	menu.addSectionHeader(TRANS("CHANNEL") + " " + String(channel - PianoController::chMidi0));
 	menu.addItem(1, TRANS("Select Only This Channel"));
-	menu.addItem(2, TRANS("Use Virtual Keyboard"), true,
-		settings.keyboardChannel == channel - PianoController::chMidi0);
+	// Live Play (virtual keyboard, MIDI In 2): several channels can be chosen
+	menu.addItem(2, TRANS("Live Play on This Channel"), true,
+		settings.IsKeyboardChannel(channel - PianoController::chMidi0));
 
 	menu.addSectionHeader(TRANS("VOICE"));
 	String voice = Presets::VoiceTitle(pianoController.GetVoice(channel));
@@ -584,7 +585,13 @@ void ChannelComponent::showMenu(Button* button)
 			}
 			else if (result == 2)
 			{
-				settings.keyboardChannel = channel - PianoController::chMidi0;
+				const int bit = 1 << (channel - PianoController::chMidi0 - 1);
+				const int channels = settings.keyboardChannels ^ bit;
+				if (channels == 0)
+				{
+					return; // at least one Live Play channel stays chosen
+				}
+				settings.keyboardChannels = channels;
 				settings.Save();
 			}
 			else if (group == 1)
@@ -681,7 +688,7 @@ BEGIN_JUCER_METADATA
   <BACKGROUND backgroundColour="ff323e44"/>
   <IMAGEBUTTON name="Keyboard Button" id="311be94902dadf45" memberName="keyboardButton"
                virtualName="" explicitFocusOrder="0" pos="11 96 48 16" posRelativeX="f4f376ddb622016f"
-               posRelativeY="c7b94b60aa96c6e2" tooltip="Target for Virtual Keyboard"
+               posRelativeY="c7b94b60aa96c6e2" tooltip="Live Play Channel"
                buttonText="Menu" connectedEdges="0" needsCallback="1" radioGroupId="0"
                keepProportions="1" resourceNormal="BinaryData::buttonkeyboardwide_png"
                opacityNormal="1.0" colourNormal="0" resourceOver="" opacityOver="0.75"

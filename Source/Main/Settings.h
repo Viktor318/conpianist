@@ -51,7 +51,10 @@ public:
 	float zoomUi = 1.0;
 	Rectangle<int> windowPos;
 	bool keyboardVisible = false;
-	int keyboardChannel = 1;
+	// Live Play channels (virtual keyboard, MIDI In 2): bit 0 = MIDI channel 1 etc.
+	int keyboardChannels = 1;
+	bool IsKeyboardChannel(int channel) const { return channel >= 1 && channel <= 16 && (keyboardChannels & (1 << (channel - 1))) != 0; }
+	int FirstKeyboardChannel() const;
 	int keyboardHeight = 67; // height of the virtual keyboard panel, in pixels
 	String resourcesPath;
 	ScoreInstrumentNames scoreInstrumentNames = siMixed;
