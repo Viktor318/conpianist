@@ -989,6 +989,12 @@ void SceneComponent::changeLanguage(const String& language)
 
 void SceneComponent::loadSongState()
 {
+	if (pianoController.TakeSkipRegistrationMemory())
+	{
+		// the player was switched: the settings from before the switch are kept
+		return;
+	}
+
 	File file = File(pianoController.GetSongName()).withFileExtension(".conmem");
 	if (file.existsAsFile() && file.getSize() > 0)
 	{

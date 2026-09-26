@@ -19,6 +19,8 @@
 
 #include "Presets.h"
 
+#include <map>
+
 namespace
 {
 	using U = CharPointer_UTF8;
@@ -3004,4 +3006,106 @@ String Presets::GmVoiceTitle(String voice, bool drums)
 		return "Drum Kit " + String(program + 1);
 	}
 	return GmVoiceNames()[program];
+}
+
+
+// Program number of the General MIDI voice for a Yamaha category, or -1.
+static int GmProgramForCategory(const String& category2)
+{
+	static const std::map<String, int> programs = {
+		{"Grand Piano", 0}, {"Upright Piano", 0}, {"Piano Layer", 0}, {"Electric Piano", 4},
+		{"FM E.Piano", 5}, {"Clavi", 7}, {"Harpsichord", 6}, {"Tonewheel Organ", 16},
+		{"Transistor Organ", 16}, {"Classical Pipe", 19}, {"Theatre Pipe", 19}, {"Organ Flutes", 16},
+		{"Harmonica", 22}, {"Accordion", 21}, {"Nylon Acoustic", 24}, {"Steel Acoustic", 25},
+		{"Clean Solid", 27}, {"Distortion Solid", 30}, {"World", 25}, {"Bass", 33},
+		{"Synth Bass", 38}, {"String Solo", 40}, {"String Ensemble", 48}, {"Orchestral Layers", 48},
+		{"Choir", 52}, {"Brass Solo", 56}, {"Brass Ensemble", 61}, {"Sax Solo", 65},
+		{"Sax Ensemble", 65}, {"Woodwind Solo", 73}, {"Woodwind Ens", 73}, {"Woodwind World", 75},
+		{"Chromatic Perc", 11}, {"Orchestral Perc", 46}, {"Synth Lead", 80}, {"Synth Perc", 88},
+		{"Synth Strings", 50}, {"Synth Brass", 62}, {"Synth Pad", 89}, {"Synth Dance", 81},
+		{"Synth Effects", 96}
+	};
+	auto it = programs.find(category2);
+	return it != programs.end() ? it->second : -1;
+}
+
+// General MIDI drum kit (program number) for the title of a drum kit.
+static int GmDrumKitForTitle(const String& title)
+{
+	const String t = title.toLowerCase();
+	if (t.contains("brush")) return 40;
+	if (t.contains("jazz")) return 32;
+	if (t.contains("power") || t.contains("rock")) return 16;
+	if (t.contains("room")) return 8;
+	if (t.contains("808") || t.contains("analog") || t.contains("t8")) return 25;
+	if (t.contains("electr") || t.contains("dance") || t.contains("hip")) return 24;
+	if (t.contains("orchestr") || t.contains("symphon")) return 48;
+	if (t.contains("sfx") || t.contains("noise")) return 56;
+	return 0;
+}
+
+int Presets::GmVoiceForYamahaVoice(int yamahaVoice, bool drums)
+{
+	Voice* voice = FindVoice(String(yamahaVoice));
+	const int msb = (yamahaVoice >> 16) & 0x7f;
+	const int program = yamahaVoice & 0x7f;
+
+	if (drums)
+	{
+		return voice ? GmDrumKitForTitle(voice->title) : 0;
+	}
+
+	// the voice may have exactly the name of a General MIDI voice
+	if (voice)
+	{
+		const int index = GmVoiceNames().indexOf(voice->title, true);
+		if (index >= 0) return index;
+	}
+
+	// in these banks the program numbers follow General MIDI
+	if (msb == 0 || msb == 104 || msb == 108)
+	{
+		return program;
+	}
+
+	const int byCategory = voice ? GmProgramForCategory(voice->category2) : -1;
+	return byCategory >= 0 ? byCategory : 0; // piano, if nothing fits
+}
+
+int Presets::YamahaVoiceForGmVoice(int gmVoice, bool drums)
+{
+	const int program = gmVoice & 0x7f;
+	const VoiceList& list = Voices();
+
+	if (drums)
+	{
+		const Voice* first = nullptr;
+		for (const Voice& voice : list)
+		{
+			if (voice.category2 != "Drum Kits") continue;
+			if (!first) first = &voice;
+			if (GmDrumKitForTitle(voice.title) == program && (program != 0 || voice.title.containsIgnoreCase("real") ||
+				voice.title.containsIgnoreCase("standard")))
+			{
+				return voice.num;
+			}
+		}
+		return first ? first->num : list.front().num;
+	}
+
+	// 1. the same name, 2. a voice whose nearest General MIDI voice is this one,
+	// 3. a voice of the same General MIDI family (8 programs), 4. the grand piano
+	for (const Voice& voice : list)
+	{
+		if (voice.title.equalsIgnoreCase(GmVoiceNames()[program])) return voice.num;
+	}
+	for (const Voice& voice : list)
+	{
+		if (voice.category1 != "Perc & Drums" && GmVoiceForYamahaVoice(voice.num, false) == program) return voice.num;
+	}
+	for (const Voice& voice : list)
+	{
+		if (voice.category1 != "Perc & Drums" && GmVoiceForYamahaVoice(voice.num, false) / 8 == program / 8) return voice.num;
+	}
+	return list.front().num; // CFX Grand
 }

@@ -62,4 +62,9 @@ public:
 	static const StringArray& GmFamilies();     // 16 families of 8 programs each
 	static const std::vector<std::pair<int, String>>& GmDrumKits(); // program, name
 	static String GmVoiceTitle(String voice, bool drums);
+
+	// Nearest General MIDI voice of a Yamaha voice (by its category and program number),
+	// and the other way round. If there is no suitable voice, a piano is returned.
+	static int GmVoiceForYamahaVoice(int yamahaVoice, bool drums);
+	static int YamahaVoiceForGmVoice(int gmVoice, bool drums);
 };

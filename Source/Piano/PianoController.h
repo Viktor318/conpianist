@@ -238,6 +238,9 @@ public:
 	// playback via the MIDI device, to MIDI Out. The channel of the message is ignored.
 	void SetLiveChannels(int channelMask);
 	void PlayLive(const MidiMessage& message);
+	// True once after the song was loaded again because the player was switched: the
+	// settings are then restored from before the switch, not from the registration memory.
+	bool TakeSkipRegistrationMemory() { const bool skip = m_skipRegistrationMemory; m_skipRegistrationMemory = false; return skip; }
 	// Called (on the message thread) when the piano could not be reached over the
 	// network and playback switched to ConPianist's own player.
 	std::function<void()> onNetworkPlaybackFailed;
@@ -384,6 +387,26 @@ private:
 	int m_liveNoteChannels[128] = {}; // channels on which each held note was started
 	int m_liveNoteTranspose[128] = {}; // transposition used when each held note was started
 	int m_liveSustainChannels = 0;    // channels on which the sustain pedal is down
+
+	// Mixer and playback settings kept when the player is switched (the song is loaded
+	// again into the other player and would otherwise start with its own settings).
+	struct MixSnapshot
+	{
+		bool valid = false;
+		PlaybackSource source = psPiano;
+		struct ChannelState { bool enabled; bool active; int volume; int pan; int reverb; String voice; } channels[16];
+		int masterVolume = DefaultVolume;
+		bool masterActive = true;
+		bool parts[3];
+		Channel partChannels[2];
+		int tempo = DefaultTempo;
+		int transpose = 0;
+		Loop loop{{0,0},{0,0}};
+	};
+	MixSnapshot m_pendingSnapshot;
+	bool m_skipRegistrationMemory = false;
+	MixSnapshot TakeSnapshot();
+	void ApplySnapshot(const MixSnapshot& snapshot);
 	bool m_playbackSourceAutomatic = false;
 	bool m_midiDevicePlaybackAvailable = false;
 	int m_genericBank[16] = {};       // bank select (MSB << 8 | LSB) sent on each channel

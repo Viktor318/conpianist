@@ -19,6 +19,7 @@
 
 #include "PianoController.h"
 #include "PianoMessage.h"
+#include "Presets.h"
 
 const std::vector<PianoController::Channel> PianoController::AllChannels = {
 	chMain, chLayer, chLeft,
@@ -1038,10 +1039,11 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 			m_songLoading = false;
 			NotifyChanged(apSongLoaded);
 
-			if (m_pendingMeasure > 1)
+			if (m_pendingMeasure > 1 || m_pendingSnapshot.valid)
 			{
 				// the song was loaded again after switching the player: go back to the
-				// measure where it was; a short delay lets the piano finish loading
+				// measure where it was and restore the settings; a short delay lets the
+				// piano finish loading
 				const int measure = m_pendingMeasure;
 				std::weak_ptr<bool> alive = m_alive;
 				MessageManager::callAsync([this, alive, measure]()
@@ -1050,7 +1052,18 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 							{
 								if (alive.lock() && !m_localPlayback && m_songLoaded)
 								{
-									SetPosition({measure, 1});
+									if (m_pendingSnapshot.valid)
+									{
+										ApplySnapshot(m_pendingSnapshot);
+									}
+									if (measure > 1)
+									{
+										SetPosition({measure, 1});
+									}
+								}
+								if (alive.lock())
+								{
+									m_pendingSnapshot.valid = false;
 								}
 							});
 					});
@@ -1291,14 +1304,26 @@ void PianoController::SetPlaybackSource(PlaybackSource source, bool automatic)
 	}
 
 	const PlaybackSource previousSource = m_playbackSource;
+	const bool reload = File::isAbsolutePath(songName) && File(songName).existsAsFile();
+	if (reload)
+	{
+		// the settings of the Mixer and the Playback panel are kept
+		m_pendingSnapshot = TakeSnapshot();
+	}
+
 	m_playbackSourceAutomatic = automatic;
 	ApplyPlaybackSource(source);
 	NotifyChanged(apPlaybackSource);
 
-	if (File::isAbsolutePath(songName) && File(songName).existsAsFile())
+	if (reload)
 	{
 		m_pendingMeasure = measure;
-		LoadSongInternal(File(songName));
+		m_skipRegistrationMemory = true;
+		if (!LoadSongInternal(File(songName)))
+		{
+			m_pendingSnapshot.valid = false;
+			m_skipRegistrationMemory = false;
+		}
 	}
 
 	if (m_connected && (!m_localPlayback || previousSource == psMidiDevice))
@@ -1383,15 +1408,103 @@ void PianoController::ReloadSong()
 	const File file(m_songName);
 	if (file.existsAsFile())
 	{
+		m_pendingSnapshot = TakeSnapshot();
 		m_pendingMeasure = GetPosition().measure;
-		LoadSongInternal(file);
+		m_skipRegistrationMemory = true;
+		if (!LoadSongInternal(file))
+		{
+			m_pendingSnapshot.valid = false;
+			m_skipRegistrationMemory = false;
+		}
 	}
 }
 
 bool PianoController::LoadSong(const File& file)
 {
+	// a song loaded by the user starts with its own settings (and registration memory)
 	m_pendingMeasure = 0;
+	m_pendingSnapshot.valid = false;
+	m_skipRegistrationMemory = false;
 	return LoadSongInternal(file);
+}
+
+PianoController::MixSnapshot PianoController::TakeSnapshot()
+{
+	MixSnapshot snapshot;
+	snapshot.valid = true;
+	snapshot.source = m_playbackSource;
+	for (Channel ch : MidiChannels)
+	{
+		const ChannelInfo& info = m_channels[ch];
+		String voice = info.voice;
+		if (voice.startsWith("PRESET:"))
+		{
+			Voice* preset = Presets::FindVoice(voice);
+			voice = preset ? String(preset->num) : String();
+		}
+		snapshot.channels[ch - chMidi1] = {info.enabled, info.active, info.volume, info.pan, info.reverb, voice};
+	}
+	snapshot.masterVolume = m_channels[chMidiMaster].volume;
+	snapshot.masterActive = m_channels[chMidiMaster].active;
+	for (int i = 0; i < 3; i++) snapshot.parts[i] = m_parts[i];
+	for (int i = 0; i < 2; i++) snapshot.partChannels[i] = m_partChannels[i];
+	snapshot.tempo = m_tempo;
+	snapshot.transpose = m_transpose;
+	snapshot.loop = m_loop;
+	return snapshot;
+}
+
+// Restores the settings from before the player was switched, sent to the new player.
+// The voices are converted between Yamaha and General MIDI voices when switching
+// between the piano and a MIDI device.
+void PianoController::ApplySnapshot(const MixSnapshot& snapshot)
+{
+	const bool toDevice = m_playbackSource == psMidiDevice;
+	const bool fromDevice = snapshot.source == psMidiDevice;
+
+	for (Channel ch : MidiChannels)
+	{
+		// the same song: the channels used in it are known from before the switch
+		// (with the piano's own player they are reported only a little later)
+		const MixSnapshot::ChannelState& state = snapshot.channels[ch - chMidi1];
+		if (!state.enabled)
+		{
+			continue; // not used in the song
+		}
+		SetActive(ch, state.active);
+		SetVolume(ch, state.volume);
+		SetPan(ch, state.pan);
+		SetReverb(ch, state.reverb);
+
+		if (state.voice.isNotEmpty())
+		{
+			const bool drums = ch == chMidi10;
+			int voice = state.voice.getIntValue();
+			if (toDevice && !fromDevice)
+				voice = Presets::GmVoiceForYamahaVoice(voice, drums);
+			else if (!toDevice && fromDevice)
+				voice = Presets::YamahaVoiceForGmVoice(voice, drums);
+			SetSongChannelVoice(ch, voice);
+		}
+	}
+
+	SetVolume(chMidiMaster, snapshot.masterVolume);
+	if (m_localPlayback)
+	{
+		SetActive(chMidiMaster, snapshot.masterActive);
+	}
+	SetPartChannel(paRight, snapshot.partChannels[paRight]);
+	SetPartChannel(paLeft, snapshot.partChannels[paLeft]);
+	for (int i = 0; i < 3; i++)
+	{
+		SetPart((Part)i, snapshot.parts[i]);
+	}
+	SetTempo(snapshot.tempo);
+	SetTranspose(snapshot.transpose);
+	if (snapshot.loop.begin.measure > 0)
+	{
+		SetLoop(snapshot.loop);
+	}
 }
 
 bool PianoController::LoadSongInternal(const File& file)
@@ -1420,6 +1533,11 @@ bool PianoController::LoadSongInternal(const File& file)
 		}
 	}
 
+	if (ok && m_localPlayback && m_pendingSnapshot.valid)
+	{
+		ApplySnapshot(m_pendingSnapshot);
+		m_pendingSnapshot.valid = false;
+	}
 	if (ok && m_localPlayback && m_pendingMeasure > 1)
 	{
 		SetPosition({m_pendingMeasure, 1});
