@@ -377,6 +377,7 @@ void PianoController::Play()
 		if (m_localPlayer) m_localPlayer->Play();
 		return;
 	}
+	m_stopRequested = false;
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::Play, 1));
 }
 
@@ -387,6 +388,7 @@ void PianoController::Pause()
 		if (m_localPlayer) m_localPlayer->Pause();
 		return;
 	}
+	m_stopRequested = true;
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::Play, 2));
 }
 
@@ -397,6 +399,7 @@ void PianoController::Stop()
 		if (m_localPlayer) m_localPlayer->Stop();
 		return;
 	}
+	m_stopRequested = true;
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::Play, 0));
 }
 
@@ -870,6 +873,16 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 	if (property == Property::Position && size == 4)
 	{
 		m_position = {(data[0] << 7) + data[1], (data[2] << 7) + data[3]};
+		if (m_playing && m_songLoaded)
+		{
+			// the settings while playing; not after jumping back (at the end of the song
+			// the piano resets them and goes back to the beginning)
+			if (m_position.measure >= m_lastPlayedMeasure)
+			{
+				m_playingSnapshot = TakeSnapshot();
+			}
+			m_lastPlayedMeasure = m_position.measure;
+		}
 		NotifyChanged(apPosition);
 	}
 	else if (property == Property::Length && size == 4)
@@ -883,7 +896,35 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 	}
 	else if (property == Property::Play)
 	{
+		const bool wasPlaying = m_playing;
 		m_playing = boolValue;
+		if (m_playing && !wasPlaying)
+		{
+			m_stopRequested = false;
+			m_lastPlayedMeasure = 0;
+			m_playingSnapshot.valid = false;
+		}
+		else if (wasPlaying && !m_playing && !m_stopRequested && m_playingSnapshot.valid &&
+			m_lastPlayedMeasure >= m_length.measure - 1)
+		{
+			// The song has ended: the piano goes back to the beginning and sets the song's
+			// own settings (voices, volumes etc.) again. The settings made in ConPianist
+			// are restored, after a short delay that lets the piano finish.
+			Logger::writeToLog("End of the song: restoring the settings");
+			const MixSnapshot snapshot = m_playingSnapshot;
+			m_playingSnapshot.valid = false;
+			std::weak_ptr<bool> alive = m_alive;
+			MessageManager::callAsync([this, alive, snapshot]()
+				{
+					Timer::callAfterDelay(800, [this, alive, snapshot]()
+						{
+							if (alive.lock() && !m_localPlayback && m_songLoaded && !m_playing)
+							{
+								ApplySnapshot(snapshot);
+							}
+						});
+				});
+		}
 		NotifyChanged(apPlayback);
 	}
 	else if (property == Property::Guide)

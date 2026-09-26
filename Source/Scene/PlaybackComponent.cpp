@@ -93,7 +93,7 @@ PlaybackComponent::PlaybackComponent (Settings& settings, PianoController& piano
                            Image(), 1.000f, Colour (0x00000000));
     rewindButton.reset (new ImageButton ("Rewind Button"));
     addAndMakeVisible (rewindButton.get());
-    rewindButton->setTooltip (TRANS("Jump to previous measure"));
+    rewindButton->setTooltip (TRANS("Jump to previous measure (hold for 1 s: to the beginning of the song)"));
     rewindButton->setButtonText (TRANS("Rewind"));
     rewindButton->addListener (this);
 
@@ -103,7 +103,7 @@ PlaybackComponent::PlaybackComponent (Settings& settings, PianoController& piano
                              Image(), 1.000f, Colour (0x00000000));
     forwardButton.reset (new ImageButton ("Forward Button"));
     addAndMakeVisible (forwardButton.get());
-    forwardButton->setTooltip (TRANS("Jump to next measure"));
+    forwardButton->setTooltip (TRANS("Jump to next measure (hold for 1 s: to the last measure)"));
     forwardButton->setButtonText (TRANS("Play"));
     forwardButton->addListener (this);
 
@@ -321,6 +321,8 @@ PlaybackComponent::PlaybackComponent (Settings& settings, PianoController& piano
     songGroup->addMouseListener(this, true);
     lightsButton->addMouseListener(this, false);
     guideButton->addMouseListener(this, false);
+    rewindButton->addMouseListener(this, false);
+    forwardButton->addMouseListener(this, false);
     volumeTitleLabel->addMouseListener(this, false);
     volumeLabel->addMouseListener(this, false);
     volumeSlider->addMouseListener(this, false);
@@ -512,6 +514,11 @@ void PlaybackComponent::buttonClicked (Button* buttonThatWasClicked)
     else if (buttonThatWasClicked == rewindButton.get())
     {
         //[UserButtonCode_rewindButton] -- add your button handler code here..
+        if (longPressDone)
+        {
+            longPressDone = false; // held: already jumped to the beginning
+            return;
+        }
         pianoController.SetPosition({pianoController.GetPosition().measure -
         	(ModifierKeys::getCurrentModifiers().isShiftDown() ? 0 : 1),
         	(ModifierKeys::getCurrentModifiers().isShiftDown() ? pianoController.GetPosition().beat - 1 : 1)});
@@ -520,6 +527,11 @@ void PlaybackComponent::buttonClicked (Button* buttonThatWasClicked)
     else if (buttonThatWasClicked == forwardButton.get())
     {
         //[UserButtonCode_forwardButton] -- add your button handler code here..
+        if (longPressDone)
+        {
+            longPressDone = false; // held: already jumped to the end
+            return;
+        }
         pianoController.SetPosition({pianoController.GetPosition().measure +
         	(ModifierKeys::getCurrentModifiers().isShiftDown() ? 0 : 1),
         	(ModifierKeys::getCurrentModifiers().isShiftDown() ? pianoController.GetPosition().beat + 1 : 1)});
@@ -794,8 +806,45 @@ void PlaybackComponent::updatePlaybackSourceState()
 		pianoController.IsLocalPlaybackAvailable() || pianoController.IsMidiDevicePlaybackAvailable());
 }
 
+// Holding the rewind or forward button for a second jumps to the beginning or to the
+// last measure of the song, still while the button is held.
+void PlaybackComponent::mouseDown(const MouseEvent& event)
+{
+	if ((event.eventComponent == rewindButton.get() || event.eventComponent == forwardButton.get()) &&
+		event.mods.isLeftButtonDown())
+	{
+		longPressDone = false;
+		const int id = ++longPressId;
+		const bool end = event.eventComponent == forwardButton.get();
+		Component::SafePointer<PlaybackComponent> self(this);
+		Timer::callAfterDelay(LongPressMs, [self, id, end]()
+			{
+				if (self != nullptr && self->longPressId == id)
+				{
+					self->longPressDone = true;
+					self->jumpToSongEdge(end);
+				}
+			});
+	}
+}
+
+void PlaybackComponent::jumpToSongEdge(bool end)
+{
+	if (!pianoController.IsSongLoaded())
+	{
+		return;
+	}
+	const int measure = end ? std::max(1, pianoController.GetLength().measure) : 1;
+	pianoController.SetPosition({measure, 1});
+}
+
 void PlaybackComponent::mouseUp(const MouseEvent& event)
 {
+	if (event.eventComponent == rewindButton.get() || event.eventComponent == forwardButton.get())
+	{
+		longPressId++; // released: a running timer does not jump any more
+	}
+
 	if (event.eventComponent == songGroup.get() ||
 		event.eventComponent == songLabel.get())
 	{
@@ -975,13 +1024,13 @@ BEGIN_JUCER_METADATA
                colourOver="0" resourceDown="" opacityDown="1.0" colourDown="0"/>
   <IMAGEBUTTON name="Rewind Button" id="e7074d9d71bdc0e6" memberName="rewindButton"
                virtualName="" explicitFocusOrder="0" pos="14 60 40 28" posRelativeY="c7b94b60aa96c6e2"
-               tooltip="Jump to previous measure" buttonText="Rewind" connectedEdges="0"
+               tooltip="Jump to previous measure (hold for 1 s: to the beginning of the song)" buttonText="Rewind" connectedEdges="0"
                needsCallback="1" radioGroupId="0" keepProportions="1" resourceNormal="BinaryData::buttonrewind_png"
                opacityNormal="1.0" colourNormal="0" resourceOver="" opacityOver="0.75"
                colourOver="0" resourceDown="" opacityDown="1.0" colourDown="0"/>
   <IMAGEBUTTON name="Forward Button" id="80a800a526f191f0" memberName="forwardButton"
                virtualName="" explicitFocusOrder="0" pos="104 60 40 28" posRelativeY="c7b94b60aa96c6e2"
-               tooltip="Jump to next measure" buttonText="Play" connectedEdges="0"
+               tooltip="Jump to next measure (hold for 1 s: to the last measure)" buttonText="Play" connectedEdges="0"
                needsCallback="1" radioGroupId="0" keepProportions="1" resourceNormal="BinaryData::buttonfastforward_png"
                opacityNormal="1.0" colourNormal="0" resourceOver="" opacityOver="0.75"
                colourOver="0" resourceDown="" opacityDown="1.0" colourDown="0"/>

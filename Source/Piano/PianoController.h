@@ -410,6 +410,12 @@ private:
 		Loop loop{{0,0},{0,0}};
 	};
 	MixSnapshot m_pendingSnapshot;
+	// The piano's own player sets the song's own settings again when the song ends (and
+	// jumps back to the beginning): the settings during playback are kept here and
+	// restored then.
+	MixSnapshot m_playingSnapshot;
+	int m_lastPlayedMeasure = 0;
+	bool m_stopRequested = false; // stopped or paused by the user (not the end of the song)
 	bool m_skipRegistrationMemory = false;
 	MixSnapshot TakeSnapshot();
 	void ApplySnapshot(const MixSnapshot& snapshot);

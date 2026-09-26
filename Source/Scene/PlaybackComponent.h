@@ -54,7 +54,9 @@ public:
 	void updateChannelState();
 	void updateSettingsState();
 	void updateEnabledControls();
+	void mouseDown(const MouseEvent& event) override;
 	void mouseUp(const MouseEvent& event) override;
+	void jumpToSongEdge(bool end);
 	void mouseDoubleClick (const MouseEvent& event) override;
 	void loopButtonClicked();
 	void showStreamLightsMenu();
@@ -77,6 +79,10 @@ private:
     int inVolumeChange = 0;
     int inTransposeChange = 0;
     int sliderTempo = 0;
+    // holding the rewind/forward button jumps to the beginning/end of the song
+    const static int LongPressMs = 1000;
+    int longPressId = 0;       // identifies the current press; older timers are ignored
+    bool longPressDone = false; // the jump was done: the click on release is ignored
     //[/UserVariables]
 
     //==============================================================================
