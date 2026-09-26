@@ -23,6 +23,7 @@ Ez a fájl a ConPianist változásait dokumentálja. Az 1.0–3.0 verziók az er
 - A Keverőben a zengetéstípus legördülő listája nem lóg bele az elválasztó vonalba (a magyar „Zengetés” felirat hosszabb, mint az angol).
 - A „Zongoraállapot mentése” rákérdez, mielőtt egy már létező fájlt felülírna.
 - A regisztrációs memória betöltésekor a program már nem próbálja be-/kikapcsolni a zenedarab Master csatornáját, amit a zongora visszautasít.
+- A Keverő csatornamenüjének „Lejátszás a virtuális billentyűzeten” pontja új nevet kapott: „Virtuális billentyűzet használata”. A pont azt választja ki, hogy a virtuális billentyűzetre kattintva melyik csatornán szóljon a hang; a régi név azt sugallta, hogy a dal hangjai jelennek meg a billentyűzeten.
 
 ## 4.1 (fork) – 2026. szeptember
 
