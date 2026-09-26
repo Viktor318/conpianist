@@ -28,7 +28,7 @@ Fő újdonság: zenedarab lejátszása USB-n keresztül, Wi-Fi nélkül, a ConPi
 - A „Zongoraállapot mentése” rákérdez, mielőtt egy már létező fájlt felülírna.
 - A regisztrációs memória betöltésekor a program már nem próbálja be-/kikapcsolni a zenedarab Master csatornáját, amit a zongora visszautasít.
 - A kotta egérgörgővel és húzással csak a kotta tetejéig és aljáig görgethető; korábban a kottát a „végtelenbe” lehetett tolni. Ablakméret-változáskor a görgetési pozíció a kottán belül marad.
-- A Keverő csatornamenüjének „Lejátszás a virtuális billentyűzeten” pontja új nevet kapott: „Virtuális billentyűzet használata”. A pont azt választja ki, hogy a virtuális billentyűzetre kattintva melyik csatornán szóljon a hang; a régi név azt sugallta, hogy a dal hangjai jelennek meg a billentyűzeten.
+- A Keverő csatornamenüjének „Lejátszás a virtuális billentyűzeten” pontja új nevet kapott: „Virtuális billentyűzet használata” (angolul „Play on Virtual Keyboard” helyett „Use Virtual Keyboard”). A pont azt választja ki, hogy a virtuális billentyűzetre kattintva melyik csatornán szóljon a hang; a régi név azt sugallta, hogy a dal hangjai jelennek meg a billentyűzeten.
 
 ## 4.1 (fork) – 2026. szeptember
 

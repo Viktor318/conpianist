@@ -485,7 +485,7 @@ void ChannelComponent::showMenu(Button* button)
 
 	menu.addSectionHeader(TRANS("CHANNEL") + " " + String(channel - PianoController::chMidi0));
 	menu.addItem(1, TRANS("Select Only This Channel"));
-	menu.addItem(2, TRANS("Play on Virtual Keyboard"), true,
+	menu.addItem(2, TRANS("Use Virtual Keyboard"), true,
 		settings.keyboardChannel == channel - PianoController::chMidi0);
 
 	menu.addSectionHeader(TRANS("VOICE"));

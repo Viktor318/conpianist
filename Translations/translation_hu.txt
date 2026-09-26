@@ -117,7 +117,7 @@ countries: hu
 "Target for Virtual Keyboard" = "Virtuális billentyűzet célja"
 "CHANNEL" = "CSATORNA"
 "Select Only This Channel" = "Csak ez a csatorna szóljon"
-"Play on Virtual Keyboard" = "Virtuális billentyűzet használata"
+"Use Virtual Keyboard" = "Virtuális billentyűzet használata"
 "VOICE" = "HANGSZÍN"
 "Change Voice" = "Hangszín módosítása"
 "Select VOICENAME for Main" = "VOICENAME kiválasztása fő hangszínnek"
