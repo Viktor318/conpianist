@@ -114,3 +114,26 @@ void ::LookAndFeel::drawLabel(Graphics& gr, Label& label)
 
 	LookAndFeel_V4::drawLabel(gr, label);
 }
+
+// Toggle buttons in a radio group are drawn as round radio buttons.
+void ::LookAndFeel::drawTickBox(Graphics& gr, Component& component, float x, float y, float w, float h,
+	bool ticked, bool isEnabled, bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown)
+{
+	Button* button = dynamic_cast<Button*>(&component);
+	if (button == nullptr || button->getRadioGroupId() == 0)
+	{
+		LookAndFeel_V4::drawTickBox(gr, component, x, y, w, h, ticked, isEnabled,
+			shouldDrawButtonAsHighlighted, shouldDrawButtonAsDown);
+		return;
+	}
+
+	Colour colour(isEnabled ? 0xFEEE6C0A : 0xff4e5b62);
+	Rectangle<float> r(x, y, w, h);
+	gr.setColour(colour);
+	gr.drawEllipse(r.reduced(1.0f), 2.0f);
+
+	if (ticked)
+	{
+		gr.fillEllipse(r.reduced(w * 0.28f));
+	}
+}

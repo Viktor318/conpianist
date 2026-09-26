@@ -138,7 +138,8 @@ public:
 		apVrm,
 		apDamperResonance,
 		apStringResonance,
-		apKeyOffSampling
+		apKeyOffSampling,
+		apPlaybackSource
 	};
 
 	static const int MinVolume = 0;
@@ -174,6 +175,7 @@ public:
 	static const int DefaultFixedVelocity = 100;
 	static const LidPosition DefaultLidPosition = lpOpen;
 	static const TouchCurve DefaultTouchCurve = tcMedium;
+	static const int UploadPort = 10504; // TCP port of the piano for uploading songs
 
 	class Listener
 	{
@@ -199,6 +201,21 @@ public:
 	void SetLocalPlayback(bool enabled);
 	bool IsLocalPlayback() const { return m_localPlayback; }
 	void ShutdownLocalPlayer();
+	// Playback source: the piano's own player (the song is uploaded over the network,
+	// Stream Lights and Guide work) or ConPianist's own player (MIDI port, USB).
+	// The availability is decided by the caller (connection settings, network check).
+	void SetPlaybackAvailability(bool network, bool local);
+	bool IsNetworkPlaybackAvailable() const { return m_networkPlaybackAvailable; }
+	bool IsLocalPlaybackAvailable() const { return m_localPlaybackAvailable; }
+	// Switches the player; a loaded song is loaded again into the other player
+	// at the same measure. Ignored if the requested source is not available.
+	void SetPlaybackSource(bool local);
+	// Loads a song into the current player. If the upload to the piano fails and
+	// the own player is available, playback continues with the own player.
+	bool LoadSong(const File& file);
+	// Called (on the message thread) when the piano could not be reached over the
+	// network and playback switched to ConPianist's own player.
+	std::function<void()> onNetworkPlaybackFailed;
 	void InitEvents();
 	bool UploadSong(const File& file);
 	void ResetSong();
@@ -330,12 +347,18 @@ private:
 	std::unique_ptr<PianoMessage> lastMessage;
 	bool m_localPlayback = false;
 	std::unique_ptr<LocalSongPlayer> m_localPlayer;
+	bool m_networkPlaybackAvailable = true;
+	bool m_localPlaybackAvailable = false;
+	int m_pendingMeasure = 0; // measure to jump to after the song is loaded again
+	std::shared_ptr<bool> m_alive = std::make_shared<bool>(true); // for delayed callbacks
 
 	void NotifyChanged(Aspect aspect, Channel channel = chNone);
 	void NotifyNoteMessage(const MidiMessage& message);
 	void ResyncStateFromPiano();
 	String DecodeSongName(String rawValue);
 	bool LoadLocalSong(const File& file);
+	bool LoadSongInternal(const File& file);
+	void ReloadSong();
 	void ClearSongState();
 	bool IsLocalSongLoaded() const { return m_localPlayback && m_localPlayer && m_localPlayer->IsLoaded(); }
 	void ResetLocalMixState();

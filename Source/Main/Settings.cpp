@@ -60,6 +60,7 @@ void Settings::Save()
 	prop.setValue("Logging", logging);
 	prop.setValue("RtpLogging", rtpLogging);
 	prop.setValue("Language", language);
+	prop.setValue("LastSong", lastSong);
 
 	prop.save();
 	sendChangeMessage();
@@ -85,6 +86,7 @@ void Settings::Load()
 	logging = prop.getIntValue("Logging", logging);
 	rtpLogging = prop.getIntValue("RtpLogging", rtpLogging);
 	language = prop.getValue("Language", language);
+	lastSong = prop.getValue("LastSong", lastSong);
 }
 
 // Returns the UI language actually in use: "hu" or "en".

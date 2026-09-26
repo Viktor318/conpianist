@@ -5,6 +5,7 @@
 > **New in this fork** (see [CHANGELOG.md](CHANGELOG.md), in Hungarian):
 > - bilingual user interface (English/Hungarian), switchable in the main menu (LANGUAGE);
 > - the voices of the song's MIDI channels can be changed in the mixer, and they are saved in the registration memory (`.conmem`);
+> - songs can also be played over USB without Wi-Fi, using ConPianist's own player; the player (the piano's own via the network, or ConPianist's via USB) can be chosen in the Playback section of the left panel;
 > - builds with current tools (Visual Studio 2026, recent JUCE, vcpkg); several crash and freeze fixes.
 >
 > A ready-to-run Windows (64-bit) build is available on the [Releases](https://github.com/Viktor318/conpianist/releases) page.

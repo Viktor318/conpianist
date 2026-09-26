@@ -72,6 +72,10 @@ public:
 	void loadSongState();
 	void changeLanguage(const String& language);
 	void resetMidiConnector();
+	void updatePlaybackSource();
+	void checkNetworkPlayback();
+	void networkCheckFinished(bool reachable, int checkId);
+	void loadLastSong();
     //[/UserMethods]
 
     void paint (Graphics& g) override;
@@ -101,6 +105,8 @@ private:
 	const static int IndicateStalledInterval = 2; // seconds
 	const static int ResetStalledInterval = 10; // seconds
 	const static int ResetConnectingInterval = 15; // seconds
+	const static int NetworkCheckTimeoutMs = 2000;
+	int networkCheckId = 0; // identifies the latest network check; older results are ignored
     //[/UserVariables]
 
     //==============================================================================

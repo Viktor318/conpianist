@@ -60,6 +60,7 @@ public:
 	bool logging = false;
 	bool rtpLogging = false;
 	String language; // UI language: "en", "hu" or empty (use the system language)
+	String lastSong; // full path of the last loaded song, reloaded at start with USB playback
 
 private:
 	PropertiesFile::Options opt;

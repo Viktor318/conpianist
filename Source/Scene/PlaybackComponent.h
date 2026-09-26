@@ -59,6 +59,7 @@ public:
 	void loopButtonClicked();
 	void showStreamLightsMenu();
 	void showGuideMenu();
+	void updatePlaybackSourceState();
     //[/UserMethods]
 
     void paint (Graphics& g) override;
@@ -105,6 +106,9 @@ private:
     std::unique_ptr<Label> transposeTitleLabel;
     std::unique_ptr<Slider> transposeSlider;
     std::unique_ptr<Label> transposeLabel;
+    std::unique_ptr<Label> playSourceLabel;
+    std::unique_ptr<ToggleButton> networkPlaybackButton;
+    std::unique_ptr<ToggleButton> usbPlaybackButton;
 
 
     //==============================================================================

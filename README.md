@@ -13,7 +13,8 @@ A lefordított, Windowson (64 bit) futtatható változat a [Releases](https://gi
 A program egyelőre nem teljes értékű helyettesítője a hivatalos alkalmazásnak. Ennek ellenére már most is tud:
 - csatlakozni a zongorához hálózaton vagy kábelen keresztül;
 - állapotvesztés nélkül csatlakozni/újracsatlakozni: a program indításkor beolvassa a zongora teljes állapotát, és megjeleníti a felületen;
-- MIDI-fájlokat feltölteni a zongorára hálózaton keresztül (USB-kábelen keresztül egyelőre nem);
+- MIDI-fájlokat feltölteni a zongorára hálózaton keresztül;
+- **MIDI-fájlokat lejátszani USB-kábelen keresztül is, Wi-Fi nélkül**: ilyenkor a ConPianist saját lejátszója játssza a dalt (tempó, transzponálás, ismétlés, szólamok, kotta szinkron működik; Stream Lights és Segéd nem). A bal panel Lejátszás részében választható, hogy a zongora saját lejátszója (hálózaton keresztül) vagy a ConPianist lejátszója (USB-n keresztül) játsszon; alapértelmezés a hálózati, ha a zongora elérhető;
 - a feltöltött MIDI-fájlok lejátszását vezérelni: indítás, szünet, pozíció;
 - a "stream lights" (billentyű-kivilágítás) vezérlése: ki, be, lassú, gyors;
 - a segéd (vezetett gyakorlás) mód vezérlése: ki, be, mód kiválasztása;
@@ -52,9 +53,10 @@ A ConPianist forráskódja a következő könyvtárakat tartalmazza:
 Ez a változat saját, magáncélú felhasználásra készül egy Yamaha CSP-170 zongorához, modern fejlesztői eszközökkel (Visual Studio 2026, friss JUCE, vcpkg) újra buildelve. Az eredeti programhoz képest a legfontosabb változások:
 - kétnyelvű (magyar/angol) kezelőfelület, a szakkifejezések a CSP-170 magyar használati útmutatóját követik;
 - a zenedarab csatornáinak hangszíne módosítható a keverőben, és a regisztrációs memóriába is mentődik;
+- zenedarab lejátszása USB-n keresztül, Wi-Fi nélkül, a ConPianist saját lejátszójával; a lejátszó a bal panelen választható;
 - több összeomlás és lefagyás javítása (dalszöveget tartalmazó kották, MIDI-feltöltés, hálózati csatlakozás);
 - apróbb kényelmi javítások, pl. rákérdezés létező fájl felülírása előtt.
 
 A részletes változáslista a [CHANGELOG.md](CHANGELOG.md) fájlban található.
 
-**Tervezett fejlesztés:** zenedarab lejátszása USB-kapcsolaton keresztül is, Wi-Fi nélkül.
+**Tervezett fejlesztés:** lejátszás más MIDI-kimenetekre is (pl. loopMIDI-n keresztül szoftveres hangszerekre), zongora nélkül.

@@ -309,7 +309,6 @@ bool PianoController::UploadSong(const File& file)
 	// otherwise the whole window freezes if the piano does not answer.
 	// Note: write() and read() return -1 on error, which would count as "true"
 	// in a boolean expression, so their results are compared explicitly.
-	const int UploadPort = 10504;
 	const int ConnectTimeoutMs = 3000;
 	const int ResponseTimeoutMs = 10000;
 	const int messageSize = (int)message.getSize();
@@ -938,6 +937,20 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 		{
 			m_connected = true;
 			NotifyChanged(apConnection);
+
+			if (IsLocalSongLoaded())
+			{
+				// The song may have been loaded while the piano was switched off; its
+				// voices and settings are sent only at loading, so it is loaded again.
+				std::weak_ptr<bool> alive = m_alive;
+				MessageManager::callAsync([this, alive]()
+					{
+						if (alive.lock())
+						{
+							ReloadSong();
+						}
+					});
+			}
 		}
 	}
 	else if (property == Property::SongName)
@@ -950,6 +963,25 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 		{
 			m_songLoading = false;
 			NotifyChanged(apSongLoaded);
+
+			if (m_pendingMeasure > 1)
+			{
+				// the song was loaded again after switching the player: go back to the
+				// measure where it was; a short delay lets the piano finish loading
+				const int measure = m_pendingMeasure;
+				std::weak_ptr<bool> alive = m_alive;
+				MessageManager::callAsync([this, alive, measure]()
+					{
+						Timer::callAfterDelay(500, [this, alive, measure]()
+							{
+								if (alive.lock() && !m_localPlayback && m_songLoaded)
+								{
+									SetPosition({measure, 1});
+								}
+							});
+					});
+			}
+			m_pendingMeasure = 0;
 		}
 	}
 
@@ -994,6 +1026,110 @@ void PianoController::SetLocalPlayback(bool enabled)
 	{
 		ResetLocalMixState();
 	}
+}
+
+void PianoController::SetPlaybackAvailability(bool network, bool local)
+{
+	m_networkPlaybackAvailable = network;
+	m_localPlaybackAvailable = local;
+	NotifyChanged(apPlaybackSource);
+}
+
+void PianoController::SetPlaybackSource(bool local)
+{
+	if (local == m_localPlayback ||
+		(local ? !m_localPlaybackAvailable : !m_networkPlaybackAvailable))
+	{
+		// nothing to do; lets the UI show the actual state again
+		NotifyChanged(apPlaybackSource);
+		return;
+	}
+
+	// the loaded song is loaded again into the other player, at the same measure
+	const String songName = IsSongLoaded() ? m_songName : String();
+	const int measure = GetPosition().measure;
+
+	if (!m_localPlayback)
+	{
+		Stop(); // the piano's own player
+	}
+
+	SetLocalPlayback(local);
+	NotifyChanged(apPlaybackSource);
+
+	if (File::isAbsolutePath(songName) && File(songName).existsAsFile())
+	{
+		m_pendingMeasure = measure;
+		LoadSongInternal(File(songName));
+	}
+
+	if (!m_localPlayback && m_connected)
+	{
+		// the piano's own player is used again: read its song, parts and channels.
+		// This is done after the upload, so that the answers cannot be mistaken
+		// for the confirmation of the new song.
+		ResyncStateFromPiano();
+	}
+}
+
+// Loads the current song again into the own player (at the same measure), unless it
+// is playing.
+void PianoController::ReloadSong()
+{
+	if (!IsLocalSongLoaded() || GetPlaying())
+	{
+		return;
+	}
+
+	const File file(m_songName);
+	if (file.existsAsFile())
+	{
+		m_pendingMeasure = GetPosition().measure;
+		LoadSongInternal(file);
+	}
+}
+
+bool PianoController::LoadSong(const File& file)
+{
+	m_pendingMeasure = 0;
+	return LoadSongInternal(file);
+}
+
+bool PianoController::LoadSongInternal(const File& file)
+{
+	bool ok = false;
+	if (m_localPlayback)
+	{
+		ok = LoadLocalSong(file);
+	}
+	else
+	{
+		ok = UploadSong(file);
+		if (!ok && m_localPlaybackAvailable)
+		{
+			// the piano cannot be reached over the network: continue with ConPianist's
+			// own player until the next start (or until the connection settings change)
+			Logger::writeToLog("Song upload failed, switching to local playback");
+			m_networkPlaybackAvailable = false;
+			SetLocalPlayback(true);
+			NotifyChanged(apPlaybackSource);
+			if (onNetworkPlaybackFailed)
+			{
+				onNetworkPlaybackFailed();
+			}
+			ok = LoadLocalSong(file);
+		}
+	}
+
+	if (ok && m_localPlayback && m_pendingMeasure > 1)
+	{
+		SetPosition({m_pendingMeasure, 1});
+	}
+	if (!ok || m_localPlayback)
+	{
+		m_pendingMeasure = 0;
+	}
+	return ok;
 }
 
 // Stops the local player before the connectors are destroyed (on application exit).

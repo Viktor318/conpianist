@@ -40,4 +40,8 @@ public:
 		float rotaryEndAngle, Slider&) override;
 
 	void drawLabel(Graphics&, Label&) override;
+
+	void drawTickBox(Graphics&, Component&, float x, float y, float w, float h,
+		bool ticked, bool isEnabled, bool shouldDrawButtonAsHighlighted,
+		bool shouldDrawButtonAsDown) override;
 };

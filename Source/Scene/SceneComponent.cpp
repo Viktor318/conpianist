@@ -175,6 +175,11 @@ SceneComponent::SceneComponent (Settings& settings)
 	pianoConnector.startThread();
     pianoController.SetPianoConnector(&pianoConnector);
     pianoController.AddListener(this);
+    pianoController.onNetworkPlaybackFailed = [this]()
+    	{
+    		AlertWindow::showMessageBoxAsync(MessageBoxIconType::WarningIcon, "ConPianist",
+    			TRANS("The piano cannot be reached over the network. Playback continues via USB."));
+    	};
     settings.addChangeListener(this);
 	applySettings();
 	updateSettingsState();
@@ -510,6 +515,7 @@ void SceneComponent::applySettings()
 		resetMidiConnector();
 		currentPianoIp = settings.pianoIp;
 		currentMidiPort = settings.midiPort;
+		updatePlaybackSource();
 	}
 
 	float scale = settings.zoomUi;
@@ -566,11 +572,87 @@ void SceneComponent::resetMidiConnector()
 		rtpMidiConnector.reset();
 	}
 
-	// a selected MIDI port means ConPianist plays the songs itself (USB);
-	// the network connection uses the piano's own song player
-	pianoController.SetLocalPlayback(settings.midiPort != "");
-
 	lastResetTime = Time::getCurrentTime();
+}
+
+// Decides which player plays the songs, after the start and after the connection
+// settings were changed. The piano's own player (song uploaded over the network) is
+// preferred, because only it supports Stream Lights and Guide. With a network
+// connection it is the only choice; with a MIDI port (USB) it is used if the piano
+// can be reached over the network, otherwise ConPianist plays the songs itself.
+void SceneComponent::updatePlaybackSource()
+{
+	networkCheckId++; // results of earlier checks are no longer relevant
+
+	if (settings.midiPort == "")
+	{
+		pianoController.SetPlaybackAvailability(true, false);
+		pianoController.SetPlaybackSource(false);
+		return;
+	}
+
+	// until the check is finished, the current player stays in use
+	pianoController.SetPlaybackAvailability(pianoController.IsNetworkPlaybackAvailable(), true);
+	checkNetworkPlayback();
+}
+
+// Checks in the background, if the piano accepts connections on its upload port.
+void SceneComponent::checkNetworkPlayback()
+{
+	const int checkId = networkCheckId;
+	const String pianoIp = settings.pianoIp;
+	Component::SafePointer<SceneComponent> self(this);
+
+	Thread::launch([self, pianoIp, checkId]()
+		{
+			StreamingSocket socket;
+			const bool reachable = pianoIp.isNotEmpty() &&
+				socket.connect(pianoIp, PianoController::UploadPort, NetworkCheckTimeoutMs);
+			socket.close();
+
+			MessageManager::callAsync([self, reachable, checkId]()
+				{
+					if (self != nullptr)
+					{
+						self->networkCheckFinished(reachable, checkId);
+					}
+				});
+		});
+}
+
+void SceneComponent::networkCheckFinished(bool reachable, int checkId)
+{
+	if (checkId != networkCheckId || settings.midiPort == "")
+	{
+		return;
+	}
+
+	Logger::writeToLog(String("Piano ") + (reachable ? "can" : "cannot") + " be reached over the network");
+
+	pianoController.SetPlaybackAvailability(reachable, true);
+	pianoController.SetPlaybackSource(!reachable);
+
+	if (!reachable)
+	{
+		loadLastSong();
+	}
+}
+
+// With ConPianist's own player the song is not kept by the piano, so the last song
+// is loaded again (its registration memory is loaded with it).
+void SceneComponent::loadLastSong()
+{
+	if (!pianoController.IsLocalPlayback() || pianoController.IsSongLoaded() ||
+		!File::isAbsolutePath(settings.lastSong))
+	{
+		return;
+	}
+
+	File file(settings.lastSong);
+	if (file.existsAsFile())
+	{
+		pianoController.LoadSong(file);
+	}
 }
 
 void SceneComponent::zoomUi(bool zoomIn)
