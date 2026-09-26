@@ -29,6 +29,7 @@ public:
 	void Load();
 	String GetEffectiveLanguage() const;
 	File GetLastStateFile() const;
+	File GetDefaultSongDirectory() const;
 	void ApplyLanguage() const;
 
 	enum ScoreInstrumentNames
