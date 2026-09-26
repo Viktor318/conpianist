@@ -35,6 +35,9 @@ ScoreComponent* ScoreComponent::Create(Settings& settings, PianoController& pian
 #include <lomse_tempo_line.h>
 #include <lomse_score_algorithms.h>
 #include <lomse_fragment_mark.h>
+#include <lomse_gm_basic.h>
+#include <lomse_graphical_model.h>
+#include <functional>
 
 #include "GuiHelper.h"
 #include "ScoreComponent.h"
@@ -93,6 +96,9 @@ private:
 	LUnits ScaledUnits(int pixels);
 	unsigned GetMouseFlags(const MouseEvent& event);
 	void UpdateTempoLine(bool scroll);
+	void SetViewport(int y);
+	void LimitViewport();
+	int ScoreBottom();
 	void UpdateABMarks(bool force);
 	void BuildControls();
 	void LoadScore(const File& file);
@@ -265,6 +271,9 @@ void LomseScoreComponent::PrepareImage()
 
 		interactor->redraw_bitmap();
 
+		// after resizing, the old scroll position may lie outside the score
+		LimitViewport();
+
 		UpdateABMarks(true);
 		UpdateTempoLine(false);
 	}
@@ -292,9 +301,80 @@ void LomseScoreComponent::LomseEvent(SpEventInfo event)
 		SpEventUpdateViewport viewportEvent(static_pointer_cast<EventUpdateViewport>(event));
 		SpInteractor interactor = m_presenter->get_interactor(0).lock();
 		const int OFFSET_CORRECTION = 19; // empirical value
-		int yPos = std::max(viewportEvent->get_new_viewport_y() - OFFSET_CORRECTION, 0);
-		interactor->new_viewport(0, yPos);
+		SetViewport(viewportEvent->get_new_viewport_y() - OFFSET_CORRECTION);
 	}
+}
+
+// Scrolls the score vertically, but only as far as the score reaches: the top of the
+// score cannot move below the top of the window, and the bottom of the score cannot
+// move above the bottom of the window. There is no horizontal scrolling (the page is
+// as wide as the window).
+void LomseScoreComponent::SetViewport(int y)
+{
+	if (!m_presenter || !m_image) return;
+
+	SpInteractor interactor = m_presenter->get_interactor(0).lock();
+	int bottom = ScoreBottom();
+	if (bottom < 0)
+	{
+		Pixels viewWidth = 0, viewHeight = 0;
+		interactor->get_view_size(&viewWidth, &viewHeight);
+		bottom = int(viewHeight);
+	}
+	const int maxY = std::max(0, bottom - m_image->getHeight());
+	y = jlimit(0, maxY, y);
+
+	Pixels curX = 0, curY = 0;
+	interactor->get_viewport(&curX, &curY);
+	if (curX != 0 || curY != y)
+	{
+		interactor->new_viewport(0, y);
+	}
+}
+
+// Returns the position (in view pixels) of the bottom of the last system of the score,
+// plus a small margin, or -1 if unknown. The last page is as high as the window, so its
+// empty part below the last system (and the gap after the pages) is not scrolled to.
+int LomseScoreComponent::ScoreBottom()
+{
+	SpInteractor interactor = m_presenter->get_interactor(0).lock();
+	GraphicModel* model = interactor->get_graphic_model();
+	if (!model || model->get_num_pages() == 0) return -1;
+
+	const int lastPage = model->get_num_pages() - 1;
+	LUnits bottom = 0.0f;
+	std::function<void(GmoBox*)> findLastSystem = [&](GmoBox* box)
+		{
+			for (GmoBox* child : box->get_child_boxes())
+			{
+				if (child->is_box_system())
+					bottom = std::max(bottom, child->get_bottom());
+				else
+					findLastSystem(child);
+			}
+		};
+	findLastSystem(model->get_page(lastPage));
+	if (bottom <= 0.0f) return -1;
+
+	const LUnits BottomMargin = 500.0f; // the same as the bottom margin of the page
+	double x = 0.0;
+	double y = double(bottom + BottomMargin);
+	interactor->model_point_to_screen(&x, &y, lastPage); // relative to the current viewport
+
+	Pixels viewportX = 0, viewportY = 0;
+	interactor->get_viewport(&viewportX, &viewportY);
+	return int(y) + int(viewportY);
+}
+
+// Moves the current scroll position back into the allowed range (after dragging).
+void LomseScoreComponent::LimitViewport()
+{
+	if (!m_presenter || !m_image) return;
+
+	SpInteractor interactor = m_presenter->get_interactor(0).lock();
+	Pixels x = 0, y = 0;
+	interactor->get_viewport(&x, &y);
+	SetViewport(int(y));
 }
 
 void LomseScoreComponent::resized()
@@ -400,21 +480,21 @@ void LomseScoreComponent::mouseMove(const MouseEvent& event)
 void LomseScoreComponent::mouseDrag(const MouseEvent& event)
 {
 	mouseMove(event);
+	LimitViewport();
 }
 
 void LomseScoreComponent::mouseWheelMove(const MouseEvent& event, const MouseWheelDetails& details)
 {
 	if (!m_presenter || !m_image) return;
 
+	// the same distance as before, when the wheel was simulated as dragging the view,
+	// but limited to the extent of the score
 	float scrollY = details.deltaY * 256;
 
 	SpInteractor interactor = m_presenter->get_interactor(0).lock();
-	interactor->on_mouse_button_down(int(event.getMouseDownScreenX() * m_scale),
-		int(event.getScreenY() * m_scale), k_mouse_left);
-	interactor->on_mouse_move(int(event.getMouseDownScreenX() * m_scale),
-		int((event.getScreenY() + scrollY) * m_scale), k_mouse_left);
-	interactor->on_mouse_button_up(int(event.getMouseDownScreenX() * m_scale),
-		int((event.getScreenY() + scrollY) * m_scale), k_mouse_left);
+	Pixels x = 0, y = 0;
+	interactor->get_viewport(&x, &y);
+	SetViewport(int(y) - int(scrollY * m_scale));
 }
 
 unsigned LomseScoreComponent::GetMouseFlags(const MouseEvent& event)
