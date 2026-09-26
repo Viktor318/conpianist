@@ -55,6 +55,7 @@ void Settings::Save()
 	prop.setValue("Keyboard.Channels", keyboardChannels);
 	prop.setValue("Keyboard.Channel", FirstKeyboardChannel()); // for older versions
 	prop.setValue("Keyboard.Height", keyboardHeight);
+	prop.setValue("LivePlay.OnPiano", livePlayOnPiano);
 	prop.setValue("Score.InstrumentNames", scoreInstrumentNames);
 	prop.setValue("Score.Part", scorePart);
 	prop.setValue("Score.ShowMidiChannel", scoreShowMidiChannel);
@@ -92,6 +93,7 @@ void Settings::Load()
 		keyboardChannels = 1;
 	}
 	keyboardHeight = prop.getIntValue("Keyboard.Height", keyboardHeight);
+	livePlayOnPiano = prop.getBoolValue("LivePlay.OnPiano", livePlayOnPiano);
 	scoreInstrumentNames = (ScoreInstrumentNames)prop.getIntValue("Score.InstrumentNames", scoreInstrumentNames);
 	scoreShowMidiChannel = prop.getIntValue("Score.ShowMidiChannel", scoreShowMidiChannel);
 	scorePart = (ScorePart)prop.getIntValue("Score.Part", scorePart);

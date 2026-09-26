@@ -47,6 +47,8 @@ public:
 
     //==============================================================================
     //[UserMethods]     -- You can add your own custom methods in this section.
+    // the height needed for all controls (the left panel scrolls if it is lower)
+    const static int MinimumHeight = 592;
     void chooseSong();
     void loadSong(const URL& url);
     void PianoStateChanged(PianoController::Aspect aspect, PianoController::Channel channel) override;
@@ -83,6 +85,11 @@ private:
     const static int LongPressMs = 1000;
     int longPressId = 0;       // identifies the current press; older timers are ignored
     bool longPressDone = false; // the jump was done: the click on release is ignored
+    // Live Play: on the piano's own keyboard parts (Voice tab) or on the Mixer channels
+    std::unique_ptr<Label> livePlayLabel;
+    std::unique_ptr<ToggleButton> livePianoButton;
+    std::unique_ptr<ToggleButton> liveMixerButton;
+    void setLivePlayOnPiano(bool onPiano);
     //[/UserVariables]
 
     //==============================================================================

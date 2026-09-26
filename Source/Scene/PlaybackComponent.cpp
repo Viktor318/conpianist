@@ -292,6 +292,27 @@ PlaybackComponent::PlaybackComponent (Settings& settings, PianoController& piano
 
 
     //[UserPreSize]
+    livePlayLabel.reset (new Label ("Live Play Label", TRANS("Live Play")));
+    addAndMakeVisible (livePlayLabel.get());
+    livePlayLabel->setTooltip (TRANS("Where the virtual keyboard and MIDI In 2 sound"));
+    livePlayLabel->setFont (Font (15.00f, Font::plain).withTypefaceStyle ("Regular"));
+    livePlayLabel->setJustificationType (Justification::centredLeft);
+    livePlayLabel->setEditable (false, false, false);
+
+    livePianoButton.reset (new ToggleButton ("Live Piano Button"));
+    addAndMakeVisible (livePianoButton.get());
+    livePianoButton->setTooltip (TRANS("The virtual keyboard and MIDI In 2 sound with the piano's own voices (Voice tab settings); needs the USB connection"));
+    livePianoButton->setButtonText (TRANS("Piano (Voice tab)"));
+    livePianoButton->setRadioGroupId (2);
+    livePianoButton->addListener (this);
+
+    liveMixerButton.reset (new ToggleButton ("Live Mixer Button"));
+    addAndMakeVisible (liveMixerButton.get());
+    liveMixerButton->setTooltip (TRANS("The virtual keyboard and MIDI In 2 sound on the Mixer channels chosen for Live Play"));
+    liveMixerButton->setButtonText (TRANS("Mixer channels"));
+    liveMixerButton->setRadioGroupId (2);
+    liveMixerButton->addListener (this);
+
     playbackGroup->setColour(GroupComponent::outlineColourId, Colours::transparentBlack);
     playbackGroup->setText("");
     songGroup->setColour(GroupComponent::outlineColourId, Colours::transparentBlack);
@@ -456,6 +477,10 @@ void PlaybackComponent::resized()
     usbPlaybackButton->setBounds (10, ((-8) + 70 - 8) + 230, 268, 24);
     midiDevicePlaybackButton->setBounds (10, ((-8) + 70 - 8) + 254, 268, 24);
     //[UserResized] Add your own custom resize handling here..
+    const int liveTop = transposeSlider->getBottom() + 8;
+    livePlayLabel->setBounds (8, liveTop, 136, 24);
+    livePianoButton->setBounds (10, liveTop + 24, 268, 24);
+    liveMixerButton->setBounds (10, liveTop + 48, 268, 24);
     //[/UserResized]
 }
 
@@ -614,6 +639,15 @@ void PlaybackComponent::buttonClicked (Button* buttonThatWasClicked)
     }
 
     //[UserbuttonClicked_Post]
+    // only the chosen radio button (the other one is notified when switched off)
+    if (buttonThatWasClicked == livePianoButton.get() && livePianoButton->getToggleState())
+    {
+        setLivePlayOnPiano(true);
+    }
+    else if (buttonThatWasClicked == liveMixerButton.get() && liveMixerButton->getToggleState())
+    {
+        setLivePlayOnPiano(false);
+    }
     //[/UserbuttonClicked_Post]
 }
 
@@ -804,6 +838,23 @@ void PlaybackComponent::updatePlaybackSourceState()
 	midiDevicePlaybackButton->setEnabled(pianoController.IsMidiDevicePlaybackAvailable());
 	playSourceLabel->setEnabled(pianoController.IsNetworkPlaybackAvailable() ||
 		pianoController.IsLocalPlaybackAvailable() || pianoController.IsMidiDevicePlaybackAvailable());
+
+	// Live Play: on the piano only if its second port is available (the Mixer otherwise)
+	const bool onPiano = pianoController.IsLivePlayOnPianoKeyboard();
+	livePianoButton->setToggleState(onPiano, NotificationType::dontSendNotification);
+	liveMixerButton->setToggleState(!onPiano, NotificationType::dontSendNotification);
+	livePianoButton->setEnabled(pianoController.IsLivePianoKeyboardAvailable());
+	liveMixerButton->setEnabled(true);
+	livePlayLabel->setEnabled(true);
+}
+
+// The choice is saved in the settings (and in registration memories); the scene applies
+// it to the piano controller.
+void PlaybackComponent::setLivePlayOnPiano(bool onPiano)
+{
+	settings.livePlayOnPiano = onPiano;
+	settings.Save();
+	settings.sendChangeMessage();
 }
 
 // Holding the rewind or forward button for a second jumps to the beginning or to the

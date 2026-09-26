@@ -105,6 +105,7 @@ private:
     PianoController pianoController;
 	SeqPianoConnector pianoConnector;
     std::unique_ptr<PlaybackComponent> playbackComponent;
+    std::unique_ptr<Viewport> playbackViewport; // the left panel scrolls if the window is low
     std::unique_ptr<VoiceComponent> voiceComponent;
     std::unique_ptr<ScoreComponent> scoreComponent;
     std::unique_ptr<MixerComponent> mixerComponent;
@@ -132,6 +133,14 @@ private:
 	// MIDI device (MIDI Out, MIDI In 2): used for playback when the piano is not
 	// available for this time (USB / network connection), or when chosen by the user
 	MidiDeviceConnector midiDevice;
+	// The piano's second MIDI port (e.g. "CSP-170-2", with a USB connection): it plays the
+	// piano's own keyboard parts (Voice tab), used for Live Play. If it is also the MIDI
+	// Out, the MIDI device's port is used ("shared").
+	MidiDeviceConnector pianoKeyboardPort;
+	String pianoKeyboardPortName;
+	std::atomic<bool> pianoKeyboardShared { false };
+	String findPianoKeyboardPort() const;
+	void updatePianoKeyboardPort(bool reopen);
 	const static int PianoMissingDelayUsbMs = 3000;
 	const static int PianoMissingDelayNetworkMs = 15000;
 	bool networkReachable = true;  // result of the last network check (USB connection)

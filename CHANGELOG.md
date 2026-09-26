@@ -4,6 +4,11 @@ Ez a fájl a ConPianist változásait dokumentálja. Az 1.0–3.0 verziók az er
 
 ## Következő verzió (fejlesztés alatt)
 
+### Új
+- **Élő játék a zongora saját hangján.** A bal panel alján új **Élő játék** rész: **„Zongora (Hangszín fül)”** vagy **„Keverő csatornái”**. Az első esetben a virtuális billentyűzet és a MIDI In 2 (a pedállal és a többi vezérlővel együtt) a zongora második MIDI-portján (pl. „CSP-170-2”) szól, pontosan úgy, mint a zongora saját billentyűzete: a Hangszín fül beállításaival (Fő, Réteg, Bal kéz az osztásponttal, Piano Room), a program transzponálásával. A második esetben a Keverőben élő játékra kiválasztott csatornákon szól, ahogy eddig. A zongora hangja mindhárom lejátszási módban választható, ha a zongora USB-n csatlakozik (így MIDI-eszköz módban is: a dal a MIDI Out-on, az élő játék a zongorán szól); ha a második port nem érhető el (pl. csak hálózati kapcsolatnál vagy kihúzott kábelnél), az élő játék a Keverő csatornáin szól. A választás a beállításokba és a `.conmem`-be is mentődik.
+- A Hangszín fül MIDI-eszköz módban is használható, ha a zongora csatlakozik.
+- A bal panel görgethető, ha az ablak alacsonyabb, mint amennyi hely a vezérlőknek kell.
+
 ### Javítva
 - **A hálózati lejátszás nem jött vissza magától:** ha a zongora a program indításakor ki volt kapcsolva, az USB-kapcsolat bekapcsoláskor helyreállt, de a hálózati elérhetőséget a program csak induláskor (és a Kapcsolat újraindításakor egyszer) ellenőrizte; ha a zongora Wi-Fi-je ekkor még nem csatlakozott, a hálózati lejátszás a program újraindításáig szürke maradt. Most USB-kapcsolatnál, amíg a zongora hálózaton nem érhető el, a program 10 másodpercenként újra ellenőrzi, és amint elérhető, visszavált a választott hálózati lejátszásra. Lejátszás közben nem vált, csak amikor a lejátszás megáll.
 - **Ritka összeomlás ablakok nyitásakor/zárásakor:** a zongora üzeneteit, a saját lejátszót és a felületet kiszolgáló szálak ugyanazt a figyelőlistát használták zárolás nélkül; ha lejátszás vagy üzenetcsere közben nyílt vagy zárult egy ablak (pl. a Hangerőegyensúly vagy a Piano Room), a program már törölt objektumot értesíthetett. A lista most zárolt, és egy figyelő nem törlődhet, amíg értesítést kap.

@@ -238,6 +238,14 @@ public:
 	// playback via the MIDI device, to MIDI Out. The channel of the message is ignored.
 	void SetLiveChannels(int channelMask);
 	void PlayLive(const MidiMessage& message);
+	// Live Play on the piano's own keyboard parts (the piano's second MIDI port, channel 1:
+	// the Voice tab settings) instead of the Mixer channels; used when "enabled" and the
+	// port is "available", otherwise the Mixer channels are used
+	void SetLivePianoKeyboard(bool enabled, bool available);
+	bool GetLivePianoKeyboard() const { return m_liveKeyboardEnabled; }
+	bool IsLivePianoKeyboardAvailable() const { return m_liveKeyboardAvailable; }
+	bool IsLivePlayOnPianoKeyboard() const { return m_liveKeyboardEnabled && m_liveKeyboardAvailable; }
+	std::function<void(const MidiMessage&)> sendToPianoKeyboard;
 	// True once after the song was loaded again because the player was switched: the
 	// settings are then restored from before the switch, not from the registration memory.
 	bool TakeSkipRegistrationMemory() { const bool skip = m_skipRegistrationMemory; m_skipRegistrationMemory = false; return skip; }
@@ -392,7 +400,13 @@ private:
 	PlaybackSource m_playbackSource = psPiano;
 	std::atomic<bool> m_genericDevice{false}; // playback to a MIDI device (psMidiDevice)
 	CriticalSection m_liveLock;
-	int m_liveChannels = 1;
+	int m_liveChannels = 1;       // the channels used now (bit 16: the piano's keyboard)
+	int m_liveMixerChannels = 1;  // the Mixer channels chosen for Live Play
+	bool m_liveKeyboardEnabled = false;
+	bool m_liveKeyboardAvailable = false;
+	const static int LiveKeyboardBit = 1 << 16;
+	void ApplyLiveChannels(int channelMask);
+	void SendLive(int channel, const MidiMessage& message);
 	int m_liveNoteChannels[128] = {}; // channels on which each held note was started
 	int m_liveNoteTranspose[128] = {}; // transposition used when each held note was started
 	int m_liveSustainChannels = 0;    // channels on which the sustain pedal is down

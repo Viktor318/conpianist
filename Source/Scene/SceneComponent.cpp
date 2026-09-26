@@ -203,7 +203,11 @@ SceneComponent::SceneComponent (Settings& settings)
     topbarPanel->setText("");
 
 	playbackComponent.reset(new PlaybackComponent(settings, pianoController));
-	playbackPanel->addAndMakeVisible(playbackComponent.get());
+	playbackViewport.reset(new Viewport());
+	playbackViewport->setViewedComponent(playbackComponent.get(), false);
+	playbackViewport->setScrollBarsShown(true, false);
+	playbackViewport->setScrollBarThickness(8);
+	playbackPanel->addAndMakeVisible(playbackViewport.get());
 
 	keyboardComponent.reset(new KeyboardComponent(settings, pianoController));
 	keyboardPanel->addAndMakeVisible(keyboardComponent.get());
@@ -235,6 +239,10 @@ SceneComponent::SceneComponent (Settings& settings)
     pianoController.SetPianoConnector(&pianoConnector);
     pianoController.AddListener(this);
     pianoController.sendToMidiDevice = [this](const MidiMessage& message) { midiDevice.Send(message); };
+    pianoController.sendToPianoKeyboard = [this](const MidiMessage& message)
+    	{
+    		if (pianoKeyboardShared) midiDevice.Send(message); else pianoKeyboardPort.Send(message);
+    	};
     midiDevice.onIncoming = [this](const MidiMessage& message) { pianoController.IncomingMidiDeviceMessage(message); };
     pianoController.onNetworkPlaybackFailed = [this]()
     	{
@@ -258,6 +266,8 @@ SceneComponent::~SceneComponent()
     saveLastState(); // restored at the next start
     pianoController.ShutdownLocalPlayer();
     midiDevice.onIncoming = nullptr;
+    pianoController.sendToPianoKeyboard = nullptr;
+    pianoKeyboardPort.SetPorts("", "");
     midiDevice.SetPorts("", "");
     pianoConnector.SetMidiConnector(nullptr); // nothing is sent to the connectors any more
     if (rtpMidiConnector)
@@ -336,7 +346,11 @@ void SceneComponent::resized()
     keyboardResizer->setBounds(0, keyboardPanel->getY() - KeyboardResizerHeight / 2, getWidth(), KeyboardResizerHeight);
     keyboardResizer->setVisible(keyboardPanel->isVisible());
     keyboardResizer->toFront(false);
-	playbackComponent->setBounds(0, 0, playbackPanel->getWidth(), playbackPanel->getHeight());
+	// the left panel scrolls if it is lower than its controls need
+	playbackViewport->setBounds(0, 0, playbackPanel->getWidth(), playbackPanel->getHeight());
+	const bool scroll = playbackPanel->getHeight() < PlaybackComponent::MinimumHeight;
+	playbackComponent->setSize(playbackPanel->getWidth() - (scroll ? playbackViewport->getScrollBarThickness() : 0),
+		jmax(playbackPanel->getHeight(), (int)PlaybackComponent::MinimumHeight));
     keyboardComponent->setBounds(0, 0, keyboardPanel->getWidth(), keyboardPanel->getHeight());
 
 	if (voiceComponent->isVisible())
@@ -545,6 +559,7 @@ void SceneComponent::checkConnection()
 	if (++midiDeviceRefreshCounter % 8 == 0)
 	{
 		midiDevice.Refresh();
+		updatePianoKeyboardPort(false); // the piano may be switched on or plugged in later
 	}
 	updatePlaybackAvailability();
 	checkPianoAvailability(curTime);
@@ -628,6 +643,9 @@ void SceneComponent::applySettings()
 		updatePlaybackAvailability();
 	}
 
+	// the port may change with the piano's port or the MIDI Out; Live Play setting
+	updatePianoKeyboardPort(false);
+
 	float scale = settings.zoomUi;
 	scale = std::min(std::max(scale, 0.25f), 4.0f);
 	scale = round(scale * 20) / 20;
@@ -708,7 +726,55 @@ void SceneComponent::resetMidiConnector()
 		pianoConnector.SetMidiConnector(midiConnector);
 	}
 
+	// opened again too (after unplugging the USB cable the old port does not work)
+	updatePianoKeyboardPort(true);
+
 	lastResetTime = Time::getCurrentTime();
+}
+
+// The piano's second MIDI port, next to its first one (settings.midiPort); its name
+// depends on the system: "CSP-170-2", "CSP-170 2" or "MIDIOUT2 (CSP-170)".
+String SceneComponent::findPianoKeyboardPort() const
+{
+	if (settings.midiPort == "")
+	{
+		return String(); // network connection: no second port
+	}
+	const StringArray names { settings.midiPort + "-2", settings.midiPort + " 2",
+		"MIDIOUT2 (" + settings.midiPort + ")" };
+	for (auto& device : MidiOutput::getAvailableDevices())
+	{
+		if (names.contains(device.name))
+		{
+			return device.name;
+		}
+	}
+	return String();
+}
+
+// Opens the piano's second port (again, if "reopen") and tells the piano controller
+// whether Live Play can sound on the piano's own keyboard parts.
+void SceneComponent::updatePianoKeyboardPort(bool reopen)
+{
+	const String name = findPianoKeyboardPort();
+	const bool shared = name.isNotEmpty() && name == settings.midiOut;
+	pianoKeyboardShared = shared;
+
+	const String portName = shared ? String() : name;
+	if (portName != pianoKeyboardPortName || reopen)
+	{
+		pianoKeyboardPortName = portName;
+		pianoKeyboardPort.SetPorts("", "");
+		pianoKeyboardPort.SetPorts("", portName);
+	}
+	else if (portName.isNotEmpty())
+	{
+		pianoKeyboardPort.Refresh();
+	}
+
+	const bool available = name.isNotEmpty() &&
+		(shared ? midiDevice.IsOutputOpen() : pianoKeyboardPort.IsOutputOpen());
+	pianoController.SetLivePianoKeyboard(settings.livePlayOnPiano, available);
 }
 
 // Decides which player plays the songs, after the start and after the connection

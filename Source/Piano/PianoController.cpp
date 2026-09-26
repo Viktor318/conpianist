@@ -1267,6 +1267,47 @@ void PianoController::SetLiveChannels(int channelMask)
 	}
 
 	const ScopedLock lock(m_liveLock);
+	m_liveMixerChannels = channelMask;
+	ApplyLiveChannels(IsLivePlayOnPianoKeyboard() ? LiveKeyboardBit : m_liveMixerChannels);
+}
+
+void PianoController::SetLivePianoKeyboard(bool enabled, bool available)
+{
+	{
+		const ScopedLock lock(m_liveLock);
+		if (enabled == m_liveKeyboardEnabled && available == m_liveKeyboardAvailable)
+		{
+			return;
+		}
+		m_liveKeyboardEnabled = enabled;
+		m_liveKeyboardAvailable = available;
+		ApplyLiveChannels(IsLivePlayOnPianoKeyboard() ? LiveKeyboardBit : m_liveMixerChannels);
+	}
+	NotifyChanged(apPlaybackSource); // the UI shows where Live Play sounds
+}
+
+// Sends a Live Play message: on a Mixer channel (1..16) like the song, or on the piano's
+// own keyboard parts (17: the second MIDI port, channel 1).
+void PianoController::SendLive(int channel, const MidiMessage& message)
+{
+	MidiMessage copy(message);
+	if (channel == 17)
+	{
+		copy.setChannel(1);
+		if (sendToPianoKeyboard)
+		{
+			sendToPianoKeyboard(copy);
+		}
+		return;
+	}
+	copy.setChannel(channel);
+	SendMidiMessage(copy);
+}
+
+// Sets the channels used for Live Play (with m_liveLock held). Held notes and the pedal
+// are released on the channels that are no longer used.
+void PianoController::ApplyLiveChannels(int channelMask)
+{
 	const int removed = m_liveChannels & ~channelMask;
 	m_liveChannels = channelMask;
 	if (removed == 0)
@@ -1278,21 +1319,21 @@ void PianoController::SetLiveChannels(int channelMask)
 	for (int note = 0; note < 128; note++)
 	{
 		const int channels = m_liveNoteChannels[note] & removed;
-		for (int ch = 1; ch <= 16; ch++)
+		for (int ch = 1; ch <= 17; ch++)
 		{
 			const int sounding = ch == 10 ? note : note + m_liveNoteTranspose[note];
 			if ((channels & (1 << (ch - 1))) && sounding >= 0 && sounding <= 127)
 			{
-				SendMidiMessage(MidiMessage::noteOff(ch, sounding));
+				SendLive(ch, MidiMessage::noteOff(1, sounding));
 			}
 		}
 		m_liveNoteChannels[note] &= ~removed;
 	}
-	for (int ch = 1; ch <= 16; ch++)
+	for (int ch = 1; ch <= 17; ch++)
 	{
 		if (m_liveSustainChannels & removed & (1 << (ch - 1)))
 		{
-			SendMidiMessage(MidiMessage::controllerEvent(ch, 64, 0));
+			SendLive(ch, MidiMessage::controllerEvent(1, 64, 0));
 		}
 	}
 	m_liveSustainChannels &= ~removed;
@@ -1348,12 +1389,11 @@ void PianoController::PlayLive(const MidiMessage& message)
 			m_liveSustainChannels &= ~channels;
 	}
 
-	for (int ch = 1; ch <= 16; ch++)
+	for (int ch = 1; ch <= 17; ch++)
 	{
 		if (channels & (1 << (ch - 1)))
 		{
 			MidiMessage copy(message);
-			copy.setChannel(ch);
 			if (hasNote && ch != 10)
 			{
 				const int sounding = note + transpose;
@@ -1363,7 +1403,7 @@ void PianoController::PlayLive(const MidiMessage& message)
 				}
 				copy.setNoteNumber(sounding);
 			}
-			SendMidiMessage(copy);
+			SendLive(ch, copy);
 		}
 	}
 }

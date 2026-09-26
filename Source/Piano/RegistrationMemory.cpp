@@ -600,6 +600,7 @@ void RegistrationMemory::SaveSettings()
 		if (settings.IsKeyboardChannel(channel)) channels.add(String(channel));
 	}
 	elem->createNewChildElement("Channels")->addTextElement(channels.joinIntoString(","));
+	elem->createNewChildElement("LivePlay")->addTextElement(settings.livePlayOnPiano ? "piano" : "mixer");
 
 	elem = listElement->createNewChildElement("Score");
 	elem->createNewChildElement("InstrumentNames")->addTextElement(String(
@@ -643,6 +644,11 @@ void RegistrationMemory::LoadSettings()
 				if (channel >= 1 && channel <= 16) channels |= 1 << (channel - 1);
 			}
 			if (channels != 0) settings.keyboardChannels = channels;
+		}
+		if ((el = keyElem->getChildByName("LivePlay")))
+		{
+			// Live Play on the piano's own keyboard parts or on the Mixer channels
+			settings.livePlayOnPiano = !el->getAllSubText().trim().equalsIgnoreCase("mixer");
 		}
 	}
 
