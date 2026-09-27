@@ -504,6 +504,7 @@ void SceneComponent::showMenu()
 	menu.addItem(201, "English", true, settings.GetEffectiveLanguage() == "en");
 	menu.addItem(202, "Magyar", true, settings.GetEffectiveLanguage() == "hu");
 	menu.addSectionHeader(TRANS("ABOUT"));
+	menu.addItem(997, TRANS("About ConPianist..."));
 	menu.addItem(998, TRANS("Version:") + " \t" + JUCEApplication::getInstance()->getApplicationVersion(), false, false);
 	menu.addItem(999, TRANS("Homepage"));
 
@@ -533,6 +534,9 @@ void SceneComponent::showMenu()
 				case 201:
 				case 202:
 					changeLanguage(result == 202 ? "hu" : "en");
+					break;
+				case 997:
+					showAbout();
 					break;
 				case 999:
 					URL("https://github.com/Viktor318/conpianist").launchInDefaultBrowser();
@@ -1344,6 +1348,38 @@ void SceneComponent::loadState()
 				regmem.Load();
 			});
     	});
+}
+
+// Main menu "About ConPianist...": the purpose and the main functions of the program,
+// its authors and license, in the language of the user interface.
+void SceneComponent::showAbout()
+{
+	const String version = JUCEApplication::getInstance()->getApplicationVersion();
+	const String text = settings.GetEffectiveLanguage() == "hu" ?
+		String(CharPointer_UTF8(
+		"Vez\xc3\xa9" "rl\xc5\x91" "program Yamaha Clavinova CSP digit\xc3\xa1" "lis zongor\xc3\xa1"
+		"khoz (fejlesztve \xc3\xa9" "s tesztelve: CSP-170), a Yamaha Smart Pianist alkalmaz\xc3\xa1"
+		"s asztali alternat\xc3\xad" "v\xc3\xa1" "ja.\n\nMIRE J\xc3\x93" "?\nA zongora hangsz\xc3\xad"
+		"neinek, kever\xc5\x91" "j\xc3\xa9" "nek \xc3\xa9" "s Piano Room be\xc3\xa1" "ll\xc3\xad" "t\xc3\xa1"
+		"sainak kezel\xc3\xa9" "se; MIDI-dalok lej\xc3\xa1" "tsz\xc3\xa1" "sa kott\xc3\xa1"
+		"val, gyakorl\xc3\xa1" "shoz (sz\xc3\xb3" "lamok, temp\xc3\xb3" ", transzpon\xc3\xa1" "l\xc3\xa1"
+		"s, ism\xc3\xa9" "tl\xc3\xa9" "s).\n\nLEJ\xc3\x81" "TSZ\xc3\x81" "SI M\xc3\x93" "DOK\n\xe2\x80\x93"
+		" H\xc3\xa1" "l\xc3\xb3" "zaton: a dal a zongora saj\xc3\xa1" "t lej\xc3\xa1" "tsz\xc3\xb3"
+		"j\xc3\xa1" "val sz\xc3\xb3" "l (Stream Lights, Seg\xc3\xa9" "d).\n\xe2\x80\x93"
+		" USB-n: a ConPianist maga j\xc3\xa1" "tssza a dalt, Wi-Fi n\xc3\xa9" "lk\xc3\xbc" "l.\n\xe2\x80\x93"
+		" MIDI-eszk\xc3\xb6" "z\xc3\xb6" "n: a dal m\xc3\xa1" "s MIDI-eszk\xc3\xb6" "z\xc3\xb6"
+		"n sz\xc3\xb3" "l (pl. szoftveres hangszeren), zongora n\xc3\xa9" "lk\xc3\xbc" "l is.\n\n\xc3\x89"
+		"L\xc5\x90" " J\xc3\x81" "T\xc3\x89" "K\nA virtu\xc3\xa1" "lis billenty\xc5\xb1" "zet \xc3\xa9"
+		"s a MIDI In 2 a zongora saj\xc3\xa1" "t hangj\xc3\xa1" "n vagy a Kever\xc5\x91" " csatorn\xc3\xa1"
+		"in sz\xc3\xb3" "l.\n\nK\xc3\x89" "SZ\xc3\x8d" "T\xc5\x90"
+		"K\nEredeti program: Andrey Prygunkov (hugbug/conpianist)\nFork \xc3\xa9" "s tov\xc3\xa1"
+		"bbfejleszt\xc3\xa9" "s: Viktor Oszk\xc3\xb3"
+		" (Viktor318/conpianist)\n\nLICENC\nGNU General Public License v3. Felhaszn\xc3\xa1" "lt k\xc3\xb6"
+		"nyvt\xc3\xa1" "rak: JUCE, Lomse, Arduino AppleMIDI Library.")) :
+		String(CharPointer_UTF8(
+		"Control app for Yamaha Clavinova CSP digital pianos (developed and tested with the CSP-170), a desktop alternative to Yamaha's Smart Pianist app.\n\nWHAT IS IT FOR?\nManaging the piano's voices, mixer and Piano Room settings; playing MIDI songs with scores for practice (parts, tempo, transpose, loop).\n\nPLAYBACK MODES\n- Via network: the song is played by the piano's own player (Stream Lights, Guide).\n- Via USB: ConPianist plays the song itself, without Wi-Fi.\n- Via MIDI device: the song is played on another MIDI device (e.g. a software instrument), even without the piano.\n\nLIVE PLAY\nThe virtual keyboard and MIDI In 2 sound with the piano's own voices or on the Mixer channels.\n\nAUTHORS\nOriginal program: Andrey Prygunkov (hugbug/conpianist)\nFork and further development: Viktor Oszk\xc3\xb3"
+		" (Viktor318/conpianist)\n\nLICENSE\nGNU General Public License v3. Libraries used: JUCE, Lomse, Arduino AppleMIDI Library."));
+	AlertWindow::showMessageBoxAsync(MessageBoxIconType::NoIcon, "ConPianist " + version, text);
 }
 
 void SceneComponent::changeLanguage(const String& language)

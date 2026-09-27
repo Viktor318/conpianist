@@ -71,6 +71,7 @@ public:
 	void loadState();
 	void loadSongState();
 	void changeLanguage(const String& language);
+	void showAbout();
 	void resetMidiConnector();
 	void updatePlaybackSource();
 	void checkNetworkPlayback();

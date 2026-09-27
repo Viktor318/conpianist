@@ -7,6 +7,7 @@ Ez a fájl a ConPianist változásait dokumentálja. Az 1.0–3.0 verziók az er
 ### Új
 - **Élő játék a zongora saját hangján.** A bal panel alján új **Élő játék** rész: **„Zongora (Hangszín fül)”** vagy **„Keverő csatornái”**. Az első esetben a virtuális billentyűzet és a MIDI In 2 (a pedállal és a többi vezérlővel együtt) a zongora második MIDI-portján (pl. „CSP-170-2”) szól, pontosan úgy, mint a zongora saját billentyűzete: a Hangszín fül beállításaival (Fő, Réteg, Bal kéz az osztásponttal, Piano Room), a program transzponálásával. A második esetben a Keverőben élő játékra kiválasztott csatornákon szól, ahogy eddig. A zongora hangja hálózati és USB-s lejátszásnál választható, ha a zongora USB-n csatlakozik; ha a második port nem érhető el (pl. csak hálózati kapcsolatnál vagy kihúzott kábelnél), az élő játék a Keverő csatornáin szól. MIDI-eszköz módban az élő játék mindig a MIDI Out-on, a Keverő csatornáin szól, mint eddig (a „Zongora” gomb szürke, de a választás megmarad, és hálózati vagy USB-s lejátszásnál újra érvényes). A választás a beállításokba és a `.conmem`-be is mentődik.
 - A bal panel görgethető, ha az ablak alacsonyabb, mint amennyi hely a vezérlőknek kell.
+- **A programról…** menüpont a Főmenü Névjegy részében: rövid leírás a program céljáról, a lejátszási módokról és az élő játékról, a készítőkről és a licencről (a felület nyelvén).
 - MIDI-eszköz módban a felső sor akkor is a MIDI-eszköz nevét mutatja, ha a zongora is csatlakozik (eddig csak kikapcsolt zongoránál).
 
 ### Javítva
