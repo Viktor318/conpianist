@@ -504,9 +504,9 @@ void SceneComponent::showMenu()
 	menu.addItem(201, "English", true, settings.GetEffectiveLanguage() == "en");
 	menu.addItem(202, "Magyar", true, settings.GetEffectiveLanguage() == "hu");
 	menu.addSectionHeader(TRANS("ABOUT"));
-	menu.addItem(997, TRANS("About ConPianist..."));
 	menu.addItem(998, TRANS("Version:") + " \t" + JUCEApplication::getInstance()->getApplicationVersion(), false, false);
 	menu.addItem(999, TRANS("Homepage"));
+	menu.addItem(997, TRANS("About ConPianist..."));
 
 	GuiHelper::ShowMenuAsync(menu, menuButton.get(),
 		[this](int result)
