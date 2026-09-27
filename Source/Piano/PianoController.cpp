@@ -1,7 +1,9 @@
 /*
- *  This file is part of ConPianist. See <https://github.com/hugbug/conpianist>.
+ *  This file is part of ConPianist. See <https://github.com/Viktor318/conpianist>.
+ *  Fork of the original project <https://github.com/hugbug/conpianist>.
  *
  *  Copyright (C) 2018-2020 Andrey Prygunkov <hugbug@users.sourceforge.net>
+ *  Copyright (C) 2026 Viktor Oszkó <oszko.viktor@gmail.com>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
