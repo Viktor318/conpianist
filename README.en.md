@@ -8,16 +8,17 @@
 > - songs can also be played over USB without Wi-Fi, using ConPianist's own player; the player (the piano's own via the network, or ConPianist's via USB) can be chosen in the Playback section of the left panel;
 > - songs can also be played on another MIDI device (MIDI Out, e.g. via loopMIDI to a software instrument such as Cantabile) – automatically when the piano is not available, or chosen in the Playback section; the mixer then uses standard MIDI controllers and General MIDI voices, and a secondary input (MIDI In 2) is played through to MIDI Out;
 > - the played notes are shown on the virtual keyboard, which can be resized;
-> - Live Play on one or more (layered) channels chosen in the mixer, with the virtual keyboard and MIDI In 2, with the transposition applied;
+> - Live Play with the virtual keyboard and MIDI In 2, with the transposition applied: either on the piano's own keyboard parts (the Voice tab settings: Main, Layer, Left with the split point) or on one or more (layered) mixer channels – also on channels not used in the song, with their own voice, volume, pan, reverb and a per-channel octave;
+> - in the mixer channel menu: take the voice and settings of a keyboard part (Main / Layer / Left) from the Voice tab, and reset a channel;
 > - switching the player keeps the mixer and left-panel settings; between the piano and a MIDI device, voices are mapped to their Yamaha ↔ General MIDI equivalents;
 > - the program starts in the state it was closed in (playback output, voices, Piano Room, balance, mixer, Playback panel, song, position – saved to `LastState.conmem`);
 > - holding the rewind / forward button for 1 second jumps to the beginning / last measure of the song;
 > - the connection recovers by itself after the USB cable is plugged in again; "Reset Connection" also reopens the MIDI device and rechecks the network;
-> - builds with current tools (Visual Studio 2026, recent JUCE, vcpkg); several crash and freeze fixes.
+> - builds with current tools (Visual Studio 2026, recent JUCE, vcpkg); several crash and freeze fixes (including threading).
 >
 > A ready-to-run Windows (64-bit) build is available on the [Releases](https://github.com/Viktor318/conpianist/releases) page: unzip it to any folder and start `ConPianist.exe` (the `Resources` folder and the `.dll` files must stay next to the `.exe`). The default folder for songs, scores and `.conmem` files is `%APPDATA%\ConPianist\Demo Midi Songs`; it is worth copying the contents of the included `Demo Midi Songs` folder there.
 >
-> **Planned:** stability fixes (threading); saving a MIDI file with the sound set in the program (voice, volume, tempo, pan, reverb), also updating the sound data of an existing MusicXML score; Guide mode with ConPianist's own player.
+> **Planned:** a separate transpose setting for the piano's keyboard in Piano Room; saving a MIDI file with the sound set in the program (voice, volume, tempo, pan, reverb), also updating the sound data of an existing MusicXML score; Guide mode with ConPianist's own player.
 
 **ConPianist** or **Connected Pianist** is an app to control Yamaha digital pianos of CSP (Clavinova Smart Piano) series. This is an alternative to Yamaha's own app "Smart Pianist". Unlike Smart Pianist, which works on iOS and Android, Connected Pianist is designed for desktop systems - macOS, Windows and Linux. It works on iPad too though.
 

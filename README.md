@@ -29,7 +29,8 @@ A program egyelőre nem teljes értékű helyettesítője a hivatalos alkalmazá
 - keverő az összes klasszikus funkcióval: MIDI-csatornák ki/be kapcsolása, hangerő, pan, zengetés, zengetéstípus;
 - extra funkciók a keverőben: rész-kiválasztás MIDI-csatornánként, hangszín kiválasztása közvetlenül a MIDI-csatornákból;
 - **a zenedarab csatornáinak hangszínét módosítani a keverőben** (pl. a jobb és bal kéz szólamát más hangszínen hallgatni);
-- **virtuális billentyűzet**: átméretezhető (a felette lévő vonal húzásával), USB-s és MIDI-eszközös lejátszásnál mutatja a jobb és bal kéz szólamának lejátszott hangjait; **élő játék** a Keverőben kiválasztott egy vagy több csatornán (rétegezve), a virtuális billentyűzettel és egy második MIDI-bemenettel (MIDI In 2), a beállított transzponálással;
+- **virtuális billentyűzet**: átméretezhető (a felette lévő vonal húzásával), USB-s és MIDI-eszközös lejátszásnál mutatja a jobb és bal kéz szólamának lejátszott hangjait;
+- **élő játék** a virtuális billentyűzettel és egy második MIDI-bemenettel (MIDI In 2), a beállított transzponálással: vagy a zongora saját hangján (a Hangszín fül beállításaival: Fő, Réteg, Bal kéz az osztásponttal), vagy a Keverőben kiválasztott egy vagy több csatornán (rétegezve) – a dalban nem használt csatornákon is, saját hangszínnel, hangerővel, pannal, zengetéssel és csatornánkénti oktávval; a Hangszín fül szólamainak beállításai egy kattintással átvehetők a Keverő csatornáira;
 - hangerőegyensúly (balansz) beállítása a fő/bal/réteg/dal/mikrofon/aux in csatornákra: hangerő, pan, zengetés, zengetéstípus;
 - **Piano Room**: a zongora hangzásának finomhangolása — fedél helyzete, fényesség, környezet (zengetés), billentés érzékenysége, hangolás, virtuális rezonanciamodellezés (VRM), tompító- és húrrezonancia, billentyűfelengedési hang;
 - kották megjelenítése a lejátszási pozícióval szinkronban: a kottákat külön MusicXML-fájlban kell megadni (közvetlenül a MIDI-fájlból nem jeleníthető meg kotta);
@@ -58,13 +59,14 @@ Ez a változat saját, magáncélú felhasználásra készül egy Yamaha CSP-170
 - zenedarab lejátszása USB-n keresztül, Wi-Fi nélkül, a ConPianist saját lejátszójával; a lejátszó a bal panelen választható;
 - lejátszás más MIDI-eszközre is (pl. loopMIDI → Cantabile), zongora nélkül, General MIDI hangszínekkel;
 - a lejátszott hangok megjelennek a virtuális billentyűzeten, amely át is méretezhető;
-- élő játék több csatornán (rétegezve) a virtuális billentyűzettel és a MIDI In 2-vel, transzponálással;
+- élő játék a virtuális billentyűzettel és a MIDI In 2-vel, transzponálással: a zongora saját hangján (Hangszín fül) vagy a Keverő csatornáin (rétegezve, a dalban nem használt csatornákon is, csatornánkénti oktávval);
+- a Keverő csatornamenüjében hangszín átvétele a Hangszín fülről, és Alaphelyzet csatornánként;
 - indulás a bezáráskori állapotban (lejátszási mód, hangszínek, Keverő, dal, pozíció), a lejátszó váltásakor pedig a beállítások megmaradnak;
 - ugrás a dal elejére és végére a tekerőgombok hosszan nyomásával;
 - a kapcsolat az USB-kábel visszadugása után magától helyreáll;
-- több összeomlás és lefagyás javítása (dalszöveget tartalmazó kották, MIDI-feltöltés, hálózati csatlakozás);
+- több összeomlás és lefagyás javítása (dalszöveget tartalmazó kották, MIDI-feltöltés, hálózati csatlakozás, szálkezelés);
 - apróbb kényelmi javítások, pl. rákérdezés létező fájl felülírása előtt.
 
 A részletes változáslista a [CHANGELOG.md](CHANGELOG.md) fájlban található.
 
-**Tervezett fejlesztés:** stabilitási javítások (szálkezelés); MIDI-fájl mentése a programban beállított hangzással (hangszín, hangerő, tempó, pan, zengetés), a meglévő MusicXML-kotta hangzásadatainak frissítésével; a Segéd mód a ConPianist saját lejátszójával is.
+**Tervezett fejlesztés:** a zongora billentyűzetének külön transzponálása a Piano Roomban; MIDI-fájl mentése a programban beállított hangzással (hangszín, hangerő, tempó, pan, zengetés), a meglévő MusicXML-kotta hangzásadatainak frissítésével; a Segéd mód a ConPianist saját lejátszójával is.
