@@ -452,6 +452,7 @@ void SceneComponent::PianoStateChanged(PianoController::Aspect aspect, PianoCont
 				pianoController.Sync();
 				connectedSince = Time::getCurrentTime();
 				restorePianoState();
+				pianoController.RestoreLiveChannels(); // Live Play channels not used in the song
 				updatePlaybackAvailability();
 				chooseDefaultPlaybackSource();
 			});

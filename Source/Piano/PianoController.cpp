@@ -42,6 +42,11 @@ PianoController::PianoController()
 		m_channels[ch].active = m_channels[ch].enabled;
 	}
 	ClearConvertedVoices();
+	for (int i = 0; i < 16; i++)
+	{
+		m_liveOriginalVoice[i] = -1;
+		m_liveConvertedVoice[i] = -1;
+	}
 }
 
 PianoController::~PianoController()
@@ -442,11 +447,22 @@ void PianoController::SetPosition(const Position position)
 
 void PianoController::SetVolume(Channel ch, int volume)
 {
+	const bool liveOnly = IsLiveOnlyChannel(ch);
+	if (liveOnly)
+	{
+		LiveStateFor(ch).volume = volume;
+	}
+
 	if (m_genericDevice)
 	{
 		// the song's own volume changes (CC7) are kept, scaled to the mixer setting
 		m_channels[ch].volume = volume;
-		if (m_localPlayer && ch == chMidiMaster)
+		if (liveOnly)
+		{
+			// not played by the song player: sent directly
+			SendMidiMessage(MidiMessage::controllerEvent(ch - chMidi0, 7, jlimit(0, 127, volume)));
+		}
+		else if (m_localPlayer && ch == chMidiMaster)
 		{
 			m_localPlayer->SetMasterVolumeScale(volume / double(DefaultVolume));
 		}
@@ -475,10 +491,20 @@ void PianoController::ResetVolume(Channel ch)
 
 void PianoController::SetPan(Channel ch, int pan)
 {
+	const bool liveOnly = IsLiveOnlyChannel(ch);
+	if (liveOnly)
+	{
+		LiveStateFor(ch).pan = pan;
+	}
+
 	if (m_genericDevice)
 	{
 		m_channels[ch].pan = pan;
-		if (m_localPlayer && IsSongChannel(ch))
+		if (liveOnly)
+		{
+			SendMidiMessage(MidiMessage::controllerEvent(ch - chMidi0, 10, jlimit(0, 127, pan + PanBase)));
+		}
+		else if (m_localPlayer && IsSongChannel(ch))
 		{
 			m_localPlayer->SetControllerOverride(ch - chMidi0, 10, pan + PanBase);
 		}
@@ -502,10 +528,20 @@ void PianoController::ResetPan(Channel ch)
 
 void PianoController::SetReverb(Channel ch, int reverb)
 {
+	const bool liveOnly = IsLiveOnlyChannel(ch);
+	if (liveOnly)
+	{
+		LiveStateFor(ch).reverb = reverb;
+	}
+
 	if (m_genericDevice)
 	{
 		m_channels[ch].reverb = reverb;
-		if (m_localPlayer && IsSongChannel(ch))
+		if (liveOnly)
+		{
+			SendMidiMessage(MidiMessage::controllerEvent(ch - chMidi0, 91, jlimit(0, 127, reverb)));
+		}
+		else if (m_localPlayer && IsSongChannel(ch))
 		{
 			m_localPlayer->SetControllerOverride(ch - chMidi0, 91, reverb);
 		}
@@ -668,6 +704,13 @@ void PianoController::SetSongChannelVoice(Channel ch, int voiceNum)
 	if (midiChannel < 1 || midiChannel > 16)
 	{
 		return;
+	}
+
+	if (IsLiveOnlyChannel(ch))
+	{
+		LiveChannelState& state = LiveStateFor(ch);
+		state.voice = voiceNum;
+		state.gmVoice = m_genericDevice;
 	}
 
 	SendMidiMessage(MidiMessage::controllerEvent(midiChannel, 0, (voiceNum >> 16) & 0x7f));
@@ -996,6 +1039,18 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 	{
 		m_channels[ch].enabled = boolValue;
 		NotifyChanged(apEnable, ch);
+		if (!boolValue && IsLiveOnlyChannel(ch))
+		{
+			// a Live Play channel not used in the (new) song: its own settings again
+			std::weak_ptr<bool> alive = m_alive;
+			MessageManager::callAsync([this, alive, ch]()
+				{
+					if (alive.lock())
+					{
+						ApplyLiveChannel(ch);
+					}
+				});
+		}
 	}
 	else if (property == Property::VoiceMidi && size == 4)
 	{
@@ -1274,9 +1329,119 @@ void PianoController::SetLiveChannels(int channelMask)
 		channelMask = 1; // channel 1 by default
 	}
 
-	const ScopedLock lock(m_liveLock);
-	m_liveMixerChannels = channelMask;
-	ApplyLiveChannels(IsLivePlayOnPianoKeyboard() ? LiveKeyboardBit : m_liveMixerChannels);
+	int added;
+	{
+		const ScopedLock lock(m_liveLock);
+		added = channelMask & ~m_liveMixerChannels;
+		m_liveMixerChannels = channelMask;
+		ApplyLiveChannels(IsLivePlayOnPianoKeyboard() ? LiveKeyboardBit : m_liveMixerChannels);
+	}
+
+	// channels not used in the song, now used for Live Play: their own settings
+	for (Channel ch : MidiChannels)
+	{
+		if (added & (1 << (ch - chMidi1)))
+		{
+			ApplyLiveChannel(ch);
+		}
+	}
+}
+
+bool PianoController::IsLiveOnlyChannel(Channel ch) const
+{
+	return IsSongChannel(ch) && (m_liveMixerChannels & (1 << (ch - chMidi1))) != 0 &&
+		!m_channels[ch].enabled;
+}
+
+// The state of a live-only channel; the defaults are filled in when it is used first.
+PianoController::LiveChannelState& PianoController::LiveStateFor(Channel ch)
+{
+	LiveChannelState& state = m_liveState[ch - chMidi1];
+	if (!state.set)
+	{
+		state.set = true;
+		state.gmVoice = m_genericDevice;
+		state.voice = m_genericDevice ? 0 : Presets::Voices().front().num; // piano (CFX Grand)
+		state.volume = DefaultVolume;
+		state.pan = DefaultPan;
+		state.reverb = m_genericDevice ? GenericDefaultReverb : DefaultReverb;
+	}
+	return state;
+}
+
+// The state to save: a Yamaha voice converted to General MIDI is saved as the original.
+PianoController::LiveChannelState PianoController::GetLiveChannelState(Channel ch) const
+{
+	if (!IsSongChannel(ch))
+	{
+		return {};
+	}
+	const int index = ch - chMidi1;
+	LiveChannelState state = m_liveState[index];
+	if (state.set && state.gmVoice && m_liveOriginalVoice[index] >= 0 &&
+		m_liveConvertedVoice[index] == state.voice)
+	{
+		state.voice = m_liveOriginalVoice[index];
+		state.gmVoice = false;
+	}
+	return state;
+}
+
+void PianoController::SetLiveChannelState(Channel ch, const LiveChannelState& state)
+{
+	if (!IsSongChannel(ch))
+	{
+		return;
+	}
+	const int index = ch - chMidi1;
+	m_liveState[index] = state;
+	m_liveOriginalVoice[index] = -1;
+	m_liveConvertedVoice[index] = -1;
+	ApplyLiveChannel(ch);
+}
+
+// Sends the settings of all live-only channels (e.g. after a song is loaded: the player
+// or the piano may have reset them).
+void PianoController::RestoreLiveChannels()
+{
+	for (Channel ch : MidiChannels)
+	{
+		ApplyLiveChannel(ch);
+	}
+}
+
+// Sends the voice, volume, pan and reverb of a live-only channel to the current player.
+// The voice is converted between Yamaha and General MIDI voices if it was set for the
+// other kind of player.
+void PianoController::ApplyLiveChannel(Channel ch)
+{
+	if (!IsLiveOnlyChannel(ch) || !IsReady())
+	{
+		return;
+	}
+
+	const int index = ch - chMidi1;
+	const bool drums = ch == chMidi10;
+	const bool toGm = m_genericDevice;
+	const LiveChannelState state = LiveStateFor(ch); // a copy: the setters store it again
+
+	int voice = state.voice;
+	if (!state.gmVoice && toGm)
+	{
+		voice = Presets::GmVoiceForYamahaVoice(state.voice, drums);
+		m_liveOriginalVoice[index] = state.voice;
+		m_liveConvertedVoice[index] = voice;
+	}
+	else if (state.gmVoice && !toGm)
+	{
+		voice = m_liveOriginalVoice[index] >= 0 && m_liveConvertedVoice[index] == state.voice ?
+			m_liveOriginalVoice[index] : Presets::YamahaVoiceForGmVoice(state.voice, drums);
+	}
+
+	SetSongChannelVoice(ch, voice);
+	SetVolume(ch, state.volume);
+	SetPan(ch, state.pan);
+	SetReverb(ch, state.reverb);
 }
 
 // Uses the piano's keyboard or the Mixer channels for Live Play, as the settings and the
@@ -1581,6 +1746,7 @@ void PianoController::SetPlaybackSource(PlaybackSource source, bool automatic)
 		ResyncStateFromPiano();
 	}
 
+	RestoreLiveChannels();
 	ResumeLivePedal();
 }
 
@@ -1748,6 +1914,8 @@ void PianoController::ApplySnapshot(const MixSnapshot& snapshot)
 	{
 		SetLoop(snapshot.loop);
 	}
+
+	RestoreLiveChannels();
 }
 
 bool PianoController::LoadSongInternal(const File& file)
@@ -1852,6 +2020,9 @@ bool PianoController::LoadLocalSong(const File& file)
 	{
 		InitGenericMixer();
 	}
+
+	// the Live Play channels not used in the song keep their own settings
+	RestoreLiveChannels();
 
 	NotifyChanged(apSongName);
 	NotifyChanged(apLength);

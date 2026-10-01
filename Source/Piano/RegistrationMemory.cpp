@@ -116,6 +116,12 @@ void RegistrationMemory::Load()
 
 	root = savedState.get();
 
+	if (options.settings)
+	{
+		// first: the Live Play channels decide how the mixer channels are loaded
+		LoadSettings();
+	}
+
 	if (options.voices)
 	{
 		LoadVoice(PianoController::chMain, "Main");
@@ -160,11 +166,6 @@ void RegistrationMemory::Load()
 	if (options.pianoroom)
 	{
 		LoadPianoRoom();
-	}
-
-	if (options.settings)
-	{
-		LoadSettings();
 	}
 }
 
@@ -222,6 +223,12 @@ void RegistrationMemory::LoadChannel(PianoController::Channel channel, String na
 
 	XmlElement* chElem = listElement->getChildByName(name);
 	if (!chElem) return;
+
+	if (IsSongChannel(channel) && !pianoController.GetEnabled(channel) &&
+		settings.IsKeyboardChannel(channel - PianoController::chMidi0))
+	{
+		return; // a Live Play channel not used in the song: its settings are in "LiveChannels"
+	}
 
 	XmlElement* el;
 	// Aux In and the song master channel cannot be switched on/off (the piano rejects it)
@@ -604,6 +611,31 @@ void RegistrationMemory::SaveSettings()
 	elem->createNewChildElement("Channels")->addTextElement(channels.joinIntoString(","));
 	elem->createNewChildElement("LivePlay")->addTextElement(settings.livePlayOnPiano ? "piano" : "mixer");
 
+	// the settings of the Live Play channels not used in the song (also of the channels
+	// not used for Live Play at the moment: they are kept for the next time)
+	XmlElement* liveElem = elem->createNewChildElement("LiveChannels");
+	for (PianoController::Channel ch : PianoController::MidiChannels)
+	{
+		const PianoController::LiveChannelState state = pianoController.GetLiveChannelState(ch);
+		if (!state.set)
+		{
+			continue;
+		}
+		XmlElement* chElem = liveElem->createNewChildElement("Channel");
+		chElem->setAttribute("number", ch - PianoController::chMidi0);
+		chElem->setAttribute("voice", state.voice);
+		if (state.gmVoice)
+		{
+			chElem->setAttribute("set", "gm");
+		}
+		chElem->setAttribute("title", state.gmVoice ?
+			Presets::GmVoiceTitle(String(state.voice), ch == PianoController::chMidi10) :
+			Presets::VoiceTitle(String(state.voice)));
+		chElem->setAttribute("volume", state.volume);
+		chElem->setAttribute("pan", state.pan);
+		chElem->setAttribute("reverb", state.reverb);
+	}
+
 	elem = listElement->createNewChildElement("Score");
 	elem->createNewChildElement("InstrumentNames")->addTextElement(String(
 		settings.scoreInstrumentNames == Settings::siHidden ? "hidden" :
@@ -651,6 +683,25 @@ void RegistrationMemory::LoadSettings()
 		{
 			// Live Play on the piano's own keyboard parts or on the Mixer channels
 			settings.livePlayOnPiano = !el->getAllSubText().trim().equalsIgnoreCase("mixer");
+		}
+		if ((el = keyElem->getChildByName("LiveChannels")))
+		{
+			for (auto* chElem : el->getChildWithTagNameIterator("Channel"))
+			{
+				const int number = chElem->getIntAttribute("number");
+				if (number < 1 || number > 16)
+				{
+					continue;
+				}
+				PianoController::LiveChannelState state;
+				state.set = true;
+				state.voice = chElem->getIntAttribute("voice");
+				state.gmVoice = chElem->getStringAttribute("set").equalsIgnoreCase("gm");
+				state.volume = jlimit(0, 127, chElem->getIntAttribute("volume", PianoController::DefaultVolume));
+				state.pan = jlimit(-64, 63, chElem->getIntAttribute("pan", PianoController::DefaultPan));
+				state.reverb = jlimit(0, 127, chElem->getIntAttribute("reverb", PianoController::DefaultReverb));
+				pianoController.SetLiveChannelState(PianoController::Channel(PianoController::chMidi0 + number), state);
+			}
 		}
 	}
 

@@ -239,6 +239,24 @@ public:
 	// sent on every Live Play channel (bit 0 = MIDI channel 1), to the piano or, with
 	// playback via the MIDI device, to MIDI Out. The channel of the message is ignored.
 	void SetLiveChannels(int channelMask);
+	// Live-only Mixer channels: song channels (Midi1..Midi16) not used in the song but
+	// chosen for Live Play. Their voice, volume, pan and reverb are kept here (also while
+	// the channel is not used for Live Play) and sent again when the channel is used for
+	// Live Play again, after a song is loaded and when the player changes. A song using
+	// the channel overrides them (then it is a song channel).
+	struct LiveChannelState
+	{
+		bool set = false;      // false: the defaults (piano voice, volume 100, pan centre)
+		int voice = 0;         // 0x00MMLLPP
+		bool gmVoice = false;  // a General MIDI voice (MIDI device playback)
+		int volume = DefaultVolume;
+		int pan = DefaultPan;
+		int reverb = DefaultReverb;
+	};
+	bool IsLiveOnlyChannel(Channel ch) const;
+	LiveChannelState GetLiveChannelState(Channel ch) const;
+	void SetLiveChannelState(Channel ch, const LiveChannelState& state);
+	void RestoreLiveChannels();
 	void PlayLive(const MidiMessage& message);
 	// Releases every note and the sustain pedal still held by Live Play, at once (not
 	// through the queue): on application exit the note-offs from MIDI In 2 or the
@@ -426,6 +444,13 @@ private:
 	int m_liveSuspendedPiano = 0;     // channels released by SuspendLive on the piano
 	int m_liveSuspendedDevice = 0;    // ... and on the MIDI device (MIDI Out)
 	bool m_liveSendNow = false;       // ReleaseLive: send without the queue
+	LiveChannelState m_liveState[16];
+	// a Yamaha voice of a live-only channel converted to General MIDI (-1: none): used
+	// again when switching back to the piano, if the voice was not changed meanwhile
+	int m_liveOriginalVoice[16];
+	int m_liveConvertedVoice[16];
+	LiveChannelState& LiveStateFor(Channel ch);
+	void ApplyLiveChannel(Channel ch);
 
 	// Mixer and playback settings kept when the player is switched (the song is loaded
 	// again into the other player and would otherwise start with its own settings).

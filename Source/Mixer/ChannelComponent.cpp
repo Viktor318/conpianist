@@ -178,6 +178,7 @@ ChannelComponent::ChannelComponent (Settings& settings, PianoController& pianoCo
 
     //[UserPreSize]
     titleButton->getProperties().set("toggle", "yes");
+    titleColour = titleLabel->findColour(Label::textColourId);
     titleLabel->setText(title.startsWith("Ch. ") ? TRANS("Ch.") + title.substring(3) : TRANS(title),
         NotificationType::dontSendNotification);
 	panLabel->setVisible(showLabels);
@@ -359,13 +360,29 @@ void ChannelComponent::updateChannelState(PianoController::Aspect aspect)
 		inReverbChange = 0;
 	}
 
-	bool enabled = pianoController.GetEnabled(channel) && pianoController.IsReady();
-	bool active = pianoController.GetActive(channel);
+	// A song channel not used in the song is either used for Live Play only (white frame,
+	// its own voice and settings) or unused (grey; a click switches it on for Live Play).
+	const bool ready = pianoController.IsReady();
+	const bool liveOnly = isLiveOnlyChannel() && ready;
+	const bool unused = isMidiChannel() && !pianoController.GetEnabled(channel) && !liveOnly;
+	bool enabled = (pianoController.GetEnabled(channel) || liveOnly) && ready;
+	bool active = pianoController.GetActive(channel) || liveOnly;
 
 	titleButton->setEnabled(enabled);
-	titleButton->setToggleState(enabled && active, NotificationType::dontSendNotification);
+	titleButton->setToggleState(enabled && active && !liveOnly, NotificationType::dontSendNotification);
+	if (liveOnly != titleButton->getProperties().contains("live"))
+	{
+		if (liveOnly)
+			titleButton->getProperties().set("live", "yes");
+		else
+			titleButton->getProperties().remove("live");
+		titleButton->repaint();
+	}
 
-	titleLabel->setEnabled(enabled);
+	// an unused channel stays clickable (the label receives the clicks), shown dimmed
+	titleLabel->setEnabled(enabled || (unused && ready));
+	titleLabel->setColour(Label::textColourId, liveOnly ? Colours::white :
+		unused ? titleColour.withMultipliedAlpha(0.5f) : titleColour);
 
 	voiceLabel->setText(enabled ? voiceTitle() : "", NotificationType::dontSendNotification);
 	voiceLabel->setTooltip(voiceLabel->getText());
@@ -382,9 +399,11 @@ void ChannelComponent::updateChannelState(PianoController::Aspect aspect)
 	reverbSlider->setValue(pianoController.GetReverb(channel), NotificationType::dontSendNotification);
 	volumeSlider->setValue(pianoController.GetVolume(channel), NotificationType::dontSendNotification);
 
-	menuButton->setEnabled(enabled);
-	menuButton2->setEnabled(enabled);
+	menuButton->setEnabled(enabled || (unused && ready));
+	menuButton2->setEnabled(enabled || (unused && ready));
 	keyboardButton->setEnabled(enabled);
+	// Live Play on the piano's keyboard parts: the Mixer channels are not used now
+	keyboardButton->setAlpha(pianoController.IsLivePlayOnPianoKeyboard() ? 0.35f : 1.0f);
 
 	partLabel->setText(pianoController.GetPartChannel(PianoController::paRight) == channel ? TRANS("R") : TRANS("L"),
 		NotificationType::dontSendNotification);
@@ -398,6 +417,35 @@ void ChannelComponent::applySettings()
 {
 	keyboardButton->setVisible(settings.keyboardVisible &&
 		settings.IsKeyboardChannel(channel - PianoController::chMidi0));
+	updateChannelState(PianoController::apActive); // live-only or unused channel
+}
+
+bool ChannelComponent::isMidiChannel() const
+{
+	return channel >= PianoController::chMidi1 && channel <= PianoController::chMidi16;
+}
+
+// Chosen for Live Play but not used in the song (checked with the settings, which change
+// a moment before the Live Play channels of the controller).
+bool ChannelComponent::isLiveOnlyChannel() const
+{
+	return isMidiChannel() && !pianoController.GetEnabled(channel) &&
+		settings.IsKeyboardChannel(channel - PianoController::chMidi0);
+}
+
+// Switches the channel on or off for Live Play; the last Live Play channel stays on.
+void ChannelComponent::toggleLiveChannel()
+{
+	const int bit = 1 << (channel - PianoController::chMidi0 - 1);
+	const int channels = settings.keyboardChannels ^ bit;
+	if (channels == 0)
+	{
+		AlertWindow::showMessageBoxAsync(MessageBoxIconType::InfoIcon, "ConPianist",
+			TRANS("At least one Live Play channel must stay on."));
+		return;
+	}
+	settings.keyboardChannels = channels;
+	settings.Save();
 }
 
 void ChannelComponent::mouseDoubleClick(const MouseEvent& event)
@@ -520,12 +568,28 @@ void ChannelComponent::showMenu(Button* button)
 {
 	PopupMenu menu;
 	const bool generic = pianoController.IsMidiDevicePlayback();
+	const bool songChannel = pianoController.GetEnabled(channel);
+	const bool liveOnly = isLiveOnlyChannel();
 
 	menu.addSectionHeader(TRANS("CHANNEL") + " " + String(channel - PianoController::chMidi0));
-	menu.addItem(1, TRANS("Select Only This Channel"));
+	if (songChannel)
+	{
+		menu.addItem(1, TRANS("Select Only This Channel"));
+	}
 	// Live Play (virtual keyboard, MIDI In 2): several channels can be chosen
 	menu.addItem(2, TRANS("Live Play on This Channel"), true,
 		settings.IsKeyboardChannel(channel - PianoController::chMidi0));
+
+	if (!songChannel && !liveOnly)
+	{
+		// not used: it can only be switched on for Live Play
+		GuiHelper::ShowMenuAsync(menu, button,
+			[this, self = Component::SafePointer<Component>(this)](int result)
+			{
+				if (self != nullptr && result == 2) toggleLiveChannel();
+			});
+		return;
+	}
 
 	menu.addSectionHeader(TRANS("VOICE"));
 	String voice = Presets::VoiceTitle(pianoController.GetVoice(channel));
@@ -545,14 +609,17 @@ void ChannelComponent::showMenu(Button* button)
 		menu.addItem(100 + PianoController::chLayer, TRANS("Select VOICENAME for Layer").replace("VOICENAME", voice));
 		menu.addItem(100 + PianoController::chLeft, TRANS("Select VOICENAME for Left").replace("VOICENAME", voice));
 	}
-	menu.addSeparator();
-
-	menu.addSectionHeader(TRANS("PART"));
-	bool right = pianoController.GetPartChannel(PianoController::paRight) == channel;
-	bool left = pianoController.GetPartChannel(PianoController::paLeft) == channel;
-	menu.addItem(200, TRANS("Right"), true, right);
-	menu.addItem(201, TRANS("Left"), true, left);
-	menu.addItem(202, TRANS("Backing"), true, !right && !left);
+	if (songChannel)
+	{
+		// the parts belong to the song (not to a channel used for Live Play only)
+		menu.addSeparator();
+		menu.addSectionHeader(TRANS("PART"));
+		bool right = pianoController.GetPartChannel(PianoController::paRight) == channel;
+		bool left = pianoController.GetPartChannel(PianoController::paLeft) == channel;
+		menu.addItem(200, TRANS("Right"), true, right);
+		menu.addItem(201, TRANS("Left"), true, left);
+		menu.addItem(202, TRANS("Backing"), true, !right && !left);
+	}
 
 	GuiHelper::ShowMenuAsync(menu, button,
 		[this, self = Component::SafePointer<Component>(this)](int result)
@@ -586,14 +653,7 @@ void ChannelComponent::showMenu(Button* button)
 			}
 			else if (result == 2)
 			{
-				const int bit = 1 << (channel - PianoController::chMidi0 - 1);
-				const int channels = settings.keyboardChannels ^ bit;
-				if (channels == 0)
-				{
-					return; // at least one Live Play channel stays chosen
-				}
-				settings.keyboardChannels = channels;
-				settings.Save();
+				toggleLiveChannel();
 			}
 			else if (group == 1)
 			{
@@ -661,6 +721,14 @@ void ChannelComponent::toggleChannel()
 		for (PianoController::Channel ch : PianoController::MidiChannels)
 		{
 			pianoController.SetActive(ch, !allChannelsActive);
+		}
+	}
+	else if (isMidiChannel() && !pianoController.GetEnabled(channel))
+	{
+		// not used in the song: switched on or off for Live Play
+		if (pianoController.IsReady())
+		{
+			toggleLiveChannel();
 		}
 	}
 	else if (channel != PianoController::chAuxIn)

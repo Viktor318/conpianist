@@ -26,9 +26,10 @@ void ::LookAndFeel::drawButtonBackground(Graphics& gr, Button& btn, const Colour
 {
 	bool toggle = btn.getProperties().contains("toggle");
 	bool tab = btn.getProperties().contains("tab");
+	bool live = btn.getProperties().contains("live"); // Mixer channel used for Live Play only
 	bool enabled = btn.isEnabled();
 
-	Colour outline = Colour(toggle && enabled ? 0xFEEE6C0A : 0xff4e5b62);
+	Colour outline = live && enabled ? Colours::white : Colour(toggle && enabled ? 0xFEEE6C0A : 0xff4e5b62);
 	Colour fill = Colour(0x0);
 
 	if (((isMouseOverButton || isButtonDown) && !toggle) || (btn.getToggleState() && (toggle || tab)))

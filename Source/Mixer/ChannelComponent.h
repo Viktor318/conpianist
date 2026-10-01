@@ -60,6 +60,9 @@ public:
     void mouseUp(const MouseEvent& event) override;
 	void showMenu(Button* button);
 	void toggleChannel();
+	void toggleLiveChannel();
+	bool isMidiChannel() const;
+	bool isLiveOnlyChannel() const;
     //[/UserMethods]
 
     void paint (Graphics& g) override;
@@ -78,6 +81,7 @@ private:
     bool showMenuRow;
     bool shrinkMenu;
     int inVolumeChange = 0;
+    Colour titleColour; // the normal colour of the title (white: used for Live Play only)
     int inPanChange = 0;
     int inReverbChange = 0;
     //[/UserVariables]

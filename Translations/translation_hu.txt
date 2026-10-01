@@ -118,6 +118,7 @@ countries: hu
 "CHANNEL" = "CSATORNA"
 "Select Only This Channel" = "Csak ez a csatorna szóljon"
 "Live Play on This Channel" = "Élő játék ezen a csatornán"
+"At least one Live Play channel must stay on." = "Legalább egy élő játék csatornának bekapcsolva kell maradnia."
 "VOICE" = "HANGSZÍN"
 "Change Voice" = "Hangszín módosítása"
 "Select VOICENAME for Main" = "VOICENAME kiválasztása fő hangszínnek"
