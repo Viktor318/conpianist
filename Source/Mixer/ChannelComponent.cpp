@@ -179,6 +179,14 @@ ChannelComponent::ChannelComponent (Settings& settings, PianoController& pianoCo
     //[UserPreSize]
     titleButton->getProperties().set("toggle", "yes");
     titleColour = titleLabel->findColour(Label::textColourId);
+    octaveLabel.reset(new Label("Octave Label", String()));
+    addChildComponent(octaveLabel.get());
+    octaveLabel->setFont(Font(13.00f, Font::plain).withTypefaceStyle("Regular"));
+    octaveLabel->setJustificationType(Justification::centred);
+    octaveLabel->setBorderSize(BorderSize<int>(0));
+    octaveLabel->setInterceptsMouseClicks(false, false);
+    octaveLabel->setTooltip(TRANS("Live Play Octave"));
+    octaveLabel->setBounds(49, 95, 20, 18);
     titleLabel->setText(title.startsWith("Ch. ") ? TRANS("Ch.") + title.substring(3) : TRANS(title),
         NotificationType::dontSendNotification);
 	panLabel->setVisible(showLabels);
@@ -233,6 +241,7 @@ ChannelComponent::~ChannelComponent()
     settings.removeChangeListener(this);
     //[/Destructor_pre]
 
+    octaveLabel = nullptr;
     keyboardButton = nullptr;
     menuButton = nullptr;
     partLabel = nullptr;
@@ -404,6 +413,15 @@ void ChannelComponent::updateChannelState(PianoController::Aspect aspect)
 	keyboardButton->setEnabled(enabled);
 	// Live Play on the piano's keyboard parts: the Mixer channels are not used now
 	keyboardButton->setAlpha(pianoController.IsLivePlayOnPianoKeyboard() ? 0.35f : 1.0f);
+
+	// the Live Play octave (if not 0) beside the keyboard icon, which moves to the left
+	const int octave = isMidiChannel() ? pianoController.GetLiveOctave(channel) : 0;
+	const bool showOctave = octave != 0 && settings.IsKeyboardChannel(channel - PianoController::chMidi0);
+	octaveLabel->setText((octave > 0 ? "+" : "") + String(octave), NotificationType::dontSendNotification);
+	octaveLabel->setVisible(showOctave);
+	octaveLabel->setEnabled(enabled);
+	octaveLabel->setAlpha(keyboardButton->getAlpha());
+	keyboardButton->setTopLeftPosition(showOctave ? 2 : 11, keyboardButton->getY());
 
 	partLabel->setText(pianoController.GetPartChannel(PianoController::paRight) == channel ? TRANS("R") : TRANS("L"),
 		NotificationType::dontSendNotification);
@@ -631,7 +649,6 @@ void ChannelComponent::showMenu(Button* button)
 	}
 
 	menu.addSectionHeader(TRANS("VOICE"));
-	String voice = Presets::VoiceTitle(pianoController.GetVoice(channel));
 	if (generic)
 	{
 		// General MIDI voices; the keyboard voices (Main, Layer, Left) belong to the piano
@@ -646,9 +663,49 @@ void ChannelComponent::showMenu(Button* button)
 		Voice* currentVoice = Presets::FindVoice(pianoController.GetVoice(channel));
 		menu.addSubMenu(TRANS("Change Voice"), channel == PianoController::chMidi10 ?
 			buildDrumKitsMenu(currentVoice) : buildVoicesMenu(currentVoice));
-		menu.addItem(100 + PianoController::chMain, TRANS("Select VOICENAME for Main").replace("VOICENAME", voice));
-		menu.addItem(100 + PianoController::chLayer, TRANS("Select VOICENAME for Layer").replace("VOICENAME", voice));
-		menu.addItem(100 + PianoController::chLeft, TRANS("Select VOICENAME for Left").replace("VOICENAME", voice));
+	}
+
+	const PianoController::Channel parts[] = {PianoController::chMain, PianoController::chLayer, PianoController::chLeft};
+	const char* partNames[] = {"Main", "Layer", "Left Hand"};
+
+	if (channel != PianoController::chMidi10)
+	{
+		// the voice, volume, pan, reverb and octave of a keyboard part (Voice tab)
+		PopupMenu takeMenu;
+		bool canTake = false;
+		for (int i = 0; i < 3; i++)
+		{
+			const bool known = pianoController.CanTakeKeyboardPart(parts[i]);
+			canTake = canTake || known;
+			const String partVoice = Presets::VoiceTitle(pianoController.GetVoice(parts[i]));
+			takeMenu.addItem(300 + parts[i], TRANS(partNames[i]) + (known ? " (" + partVoice + ")" : String()), known);
+		}
+		menu.addSubMenu(TRANS("Take Voice from"), takeMenu, canTake);
+	}
+
+	if (!generic)
+	{
+		// the voice of this channel for a keyboard part (Voice tab)
+		PopupMenu giveMenu;
+		for (int i = 0; i < 3; i++)
+		{
+			giveMenu.addItem(100 + parts[i], TRANS(partNames[i]));
+		}
+		menu.addSubMenu(TRANS("Use Voice for"), giveMenu,
+			Presets::FindVoice(pianoController.GetVoice(channel)) != nullptr);
+	}
+
+	if (channel != PianoController::chMidi10 &&
+		settings.IsKeyboardChannel(channel - PianoController::chMidi0))
+	{
+		// the octave of the notes played live on this channel (not of the song)
+		menu.addSectionHeader(TRANS("LIVE PLAY OCTAVE"));
+		const int octave = pianoController.GetLiveOctave(channel);
+		for (int value = -2; value <= 2; value++)
+		{
+			menu.addItem(602 + value, value > 0 ? "+" + String(value) : value == 0 ? String(" 0") : String(value),
+				true, value == octave);
+		}
 	}
 	if (songChannel)
 	{
@@ -695,6 +752,14 @@ void ChannelComponent::showMenu(Button* button)
 			else if (result == 2)
 			{
 				toggleLiveChannel();
+			}
+			else if (group == 6)
+			{
+				pianoController.SetLiveOctave(channel, result - 602);
+			}
+			else if (group == 3)
+			{
+				pianoController.TakeKeyboardPart(channel, PianoController::Channel(result - 300));
 			}
 			else if (group == 1)
 			{

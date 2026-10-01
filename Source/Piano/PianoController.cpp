@@ -1402,6 +1402,86 @@ void PianoController::SetLiveChannelState(Channel ch, const LiveChannelState& st
 	ApplyLiveChannel(ch);
 }
 
+// Semitones added to the Live Play notes of a Mixer channel (1..16; not the drum channel
+// and not the piano's keyboard parts, which have their own octaves).
+int PianoController::LiveOctaveShift(int midiChannel) const
+{
+	return midiChannel >= 1 && midiChannel <= 16 && midiChannel != 10 ? m_liveOctave[midiChannel - 1] * 12 : 0;
+}
+
+void PianoController::SetLiveOctave(Channel ch, int octave)
+{
+	if (!IsSongChannel(ch) || ch == chMidi10)
+	{
+		return;
+	}
+	octave = jlimit(-2, 2, octave);
+	const int midiChannel = ch - chMidi0;
+	{
+		const ScopedLock lock(m_liveLock);
+		if (m_liveOctave[midiChannel - 1] == octave)
+		{
+			return;
+		}
+		// the notes held on the channel are released with the old octave
+		const int bit = 1 << (midiChannel - 1);
+		for (int note = 0; note < 128; note++)
+		{
+			if (m_liveNoteChannels[note] & bit)
+			{
+				const int sounding = note + m_liveNoteTranspose[note] + LiveOctaveShift(midiChannel);
+				if (sounding >= 0 && sounding <= 127)
+				{
+					SendLive(midiChannel, MidiMessage::noteOff(1, sounding));
+				}
+				m_liveNoteChannels[note] &= ~bit;
+			}
+		}
+		m_liveOctave[midiChannel - 1] = octave;
+	}
+	NotifyChanged(apOctave, ch);
+}
+
+bool PianoController::CanTakeKeyboardPart(Channel part) const
+{
+	return Presets::FindVoice(m_channels[part].voice) != nullptr;
+}
+
+void PianoController::TakeKeyboardPart(Channel mixerChannel, Channel part)
+{
+	if (!IsSongChannel(mixerChannel) || mixerChannel == chMidi10)
+	{
+		return; // the drum channel plays drum kits only
+	}
+
+	Voice* preset = Presets::FindVoice(m_channels[part].voice);
+	if (preset)
+	{
+		if (m_genericDevice)
+		{
+			// the nearest General MIDI voice; the Yamaha voice is used again on the piano
+			const bool liveOnly = IsLiveOnlyChannel(mixerChannel);
+			const int gmVoice = liveOnly ? Presets::GmVoiceForYamahaVoice(preset->num, false) :
+				ConvertSongChannelVoice(mixerChannel, preset->num, false, true);
+			SetSongChannelVoice(mixerChannel, gmVoice);
+			if (liveOnly)
+			{
+				m_liveOriginalVoice[mixerChannel - chMidi1] = preset->num;
+				m_liveConvertedVoice[mixerChannel - chMidi1] = gmVoice;
+			}
+		}
+		else
+		{
+			SetSongChannelVoice(mixerChannel, preset->num);
+		}
+	}
+
+	SetVolume(mixerChannel, m_channels[part].volume);
+	SetPan(mixerChannel, m_channels[part].pan);
+	SetReverb(mixerChannel, m_channels[part].reverb);
+	SetLiveOctave(mixerChannel, m_channels[part].octave);
+}
+
 // Sends the settings of all live-only channels (e.g. after a song is loaded: the player
 // or the piano may have reset them).
 void PianoController::RestoreLiveChannels()
@@ -1595,7 +1675,7 @@ void PianoController::ReleaseLiveChannels(int removed)
 		const int channels = m_liveNoteChannels[note] & removed;
 		for (int ch = 1; ch <= 17; ch++)
 		{
-			const int sounding = ch == 10 ? note : note + m_liveNoteTranspose[note];
+			const int sounding = ch == 10 ? note : note + m_liveNoteTranspose[note] + LiveOctaveShift(ch);
 			if ((channels & (1 << (ch - 1))) && sounding >= 0 && sounding <= 127)
 			{
 				SendLive(ch, MidiMessage::noteOff(1, sounding));
@@ -1672,7 +1752,7 @@ void PianoController::PlayLive(const MidiMessage& message)
 			MidiMessage copy(message);
 			if (hasNote && ch != 10)
 			{
-				const int sounding = note + transpose;
+				const int sounding = note + transpose + LiveOctaveShift(ch);
 				if (sounding < 0 || sounding > 127)
 				{
 					continue;

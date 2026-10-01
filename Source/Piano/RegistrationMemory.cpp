@@ -611,6 +611,14 @@ void RegistrationMemory::SaveSettings()
 	elem->createNewChildElement("Channels")->addTextElement(channels.joinIntoString(","));
 	elem->createNewChildElement("LivePlay")->addTextElement(settings.livePlayOnPiano ? "piano" : "mixer");
 
+	// the Live Play octaves of the Mixer channels 1..16
+	StringArray octaves;
+	for (PianoController::Channel ch : PianoController::MidiChannels)
+	{
+		octaves.add(String(pianoController.GetLiveOctave(ch)));
+	}
+	elem->createNewChildElement("LiveOctaves")->addTextElement(octaves.joinIntoString(","));
+
 	// the settings of the Live Play channels not used in the song (also of the channels
 	// not used for Live Play at the moment: they are kept for the next time)
 	XmlElement* liveElem = elem->createNewChildElement("LiveChannels");
@@ -683,6 +691,15 @@ void RegistrationMemory::LoadSettings()
 		{
 			// Live Play on the piano's own keyboard parts or on the Mixer channels
 			settings.livePlayOnPiano = !el->getAllSubText().trim().equalsIgnoreCase("mixer");
+		}
+		if ((el = keyElem->getChildByName("LiveOctaves")))
+		{
+			const StringArray octaves = StringArray::fromTokens(el->getAllSubText(), ",", "");
+			for (int i = 0; i < octaves.size() && i < 16; i++)
+			{
+				pianoController.SetLiveOctave(PianoController::Channel(PianoController::chMidi1 + i),
+					octaves[i].trim().getIntValue());
+			}
 		}
 		if ((el = keyElem->getChildByName("LiveChannels")))
 		{

@@ -82,6 +82,7 @@ private:
     bool shrinkMenu;
     int inVolumeChange = 0;
     Colour titleColour; // the normal colour of the title (white: used for Live Play only)
+    std::unique_ptr<Label> octaveLabel; // Live Play octave, beside the keyboard icon
     int inPanChange = 0;
     int inReverbChange = 0;
     //[/UserVariables]

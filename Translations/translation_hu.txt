@@ -121,9 +121,11 @@ countries: hu
 "At least one Live Play channel must stay on." = "Legalább egy élő játék csatornának bekapcsolva kell maradnia."
 "VOICE" = "HANGSZÍN"
 "Change Voice" = "Hangszín módosítása"
-"Select VOICENAME for Main" = "VOICENAME kiválasztása fő hangszínnek"
-"Select VOICENAME for Layer" = "VOICENAME kiválasztása réteghangszínnek"
-"Select VOICENAME for Left" = "VOICENAME kiválasztása bal kezes hangszínnek"
+"Take Voice from" = "Hangszín átvétele"
+"Use Voice for" = "Hangszín átadása"
+"Left Hand" = "Bal kéz"
+"LIVE PLAY OCTAVE" = "ÉLŐ JÁTÉK OKTÁVJA"
+"Live Play Octave" = "Élő játék oktávja"
 "PART" = "SZÓLAM"
 
 // --- Piano Room ---

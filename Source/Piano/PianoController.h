@@ -257,6 +257,14 @@ public:
 	LiveChannelState GetLiveChannelState(Channel ch) const;
 	void SetLiveChannelState(Channel ch, const LiveChannelState& state);
 	void RestoreLiveChannels();
+	// Live Play octave of a Mixer channel (-2..+2): only for the notes played live on
+	// the channel, not for the song; not on the drum channel (10).
+	int GetLiveOctave(Channel ch) const { return IsSongChannel(ch) ? m_liveOctave[ch - chMidi1] : 0; }
+	void SetLiveOctave(Channel ch, int octave);
+	// Copies the voice, volume, pan, reverb and octave of a keyboard part (Voice tab:
+	// Main, Layer, Left) to a Mixer channel; possible if the voice of the part is known.
+	bool CanTakeKeyboardPart(Channel part) const;
+	void TakeKeyboardPart(Channel mixerChannel, Channel part);
 	void PlayLive(const MidiMessage& message);
 	// Releases every note and the sustain pedal still held by Live Play, at once (not
 	// through the queue): on application exit the note-offs from MIDI In 2 or the
@@ -445,6 +453,8 @@ private:
 	int m_liveSuspendedDevice = 0;    // ... and on the MIDI device (MIDI Out)
 	bool m_liveSendNow = false;       // ReleaseLive: send without the queue
 	LiveChannelState m_liveState[16];
+	int m_liveOctave[16] = {};        // Live Play octave of each Mixer channel
+	int LiveOctaveShift(int midiChannel) const;
 	// a Yamaha voice of a live-only channel converted to General MIDI (-1: none): used
 	// again when switching back to the piano, if the voice was not changed meanwhile
 	int m_liveOriginalVoice[16];
