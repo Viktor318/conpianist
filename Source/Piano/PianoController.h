@@ -240,6 +240,10 @@ public:
 	// playback via the MIDI device, to MIDI Out. The channel of the message is ignored.
 	void SetLiveChannels(int channelMask);
 	void PlayLive(const MidiMessage& message);
+	// Releases every note and the sustain pedal still held by Live Play, at once (not
+	// through the queue): on application exit the note-offs from MIDI In 2 or the
+	// virtual keyboard would never arrive, and the notes would sound on.
+	void ReleaseLive();
 	// Live Play on the piano's own keyboard parts (the piano's second MIDI port, channel 1:
 	// the Voice tab settings) instead of the Mixer channels; used when "enabled" and the
 	// port is "available", but not with MIDI device playback (then Live Play sounds on the
@@ -414,6 +418,7 @@ private:
 	int m_liveNoteChannels[128] = {}; // channels on which each held note was started
 	int m_liveNoteTranspose[128] = {}; // transposition used when each held note was started
 	int m_liveSustainChannels = 0;    // channels on which the sustain pedal is down
+	bool m_liveSendNow = false;       // ReleaseLive: send without the queue
 
 	// Mixer and playback settings kept when the player is switched (the song is loaded
 	// again into the other player and would otherwise start with its own settings).

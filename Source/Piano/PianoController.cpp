@@ -1312,7 +1312,35 @@ void PianoController::SendLive(int channel, const MidiMessage& message)
 		return;
 	}
 	copy.setChannel(channel);
+	if (m_liveSendNow && !m_genericDevice)
+	{
+		m_pianoConnector->SendMidiMessageNow(copy);
+		return;
+	}
 	SendMidiMessage(copy);
+}
+
+void PianoController::ReleaseLive()
+{
+	const ScopedLock lock(m_liveLock);
+
+	// every channel with a held note or pedal, also one that is no longer used
+	int held = m_liveSustainChannels;
+	for (int note = 0; note < 128; note++)
+	{
+		held |= m_liveNoteChannels[note];
+	}
+	if (held == 0)
+	{
+		return;
+	}
+
+	const int channels = m_liveChannels;
+	m_liveChannels |= held;
+	m_liveSendNow = true;
+	ApplyLiveChannels(0); // releases the notes and the pedal on the removed channels
+	m_liveSendNow = false;
+	m_liveChannels = channels;
 }
 
 // Sets the channels used for Live Play (with m_liveLock held). Held notes and the pedal

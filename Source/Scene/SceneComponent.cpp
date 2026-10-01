@@ -264,8 +264,12 @@ SceneComponent::~SceneComponent()
 {
     //[Destructor_pre]. You can add your own custom destruction code here..
     saveLastState(); // restored at the next start
-    pianoController.ShutdownLocalPlayer();
+    // MIDI In 2 is closed first (the output stays open), so no more notes arrive;
+    // then the notes still held there or on the virtual keyboard are released
+    midiDevice.SetPorts("", midiDevice.GetOutputName());
     midiDevice.onIncoming = nullptr;
+    pianoController.ReleaseLive();
+    pianoController.ShutdownLocalPlayer();
     pianoController.sendToPianoKeyboard = nullptr;
     pianoKeyboardPort.SetPorts("", "");
     midiDevice.SetPorts("", "");
