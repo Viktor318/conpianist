@@ -415,6 +415,8 @@ private:
 	const static int LiveKeyboardBit = 1 << 16;
 	void ApplyLiveChannels(int channelMask);
 	void ReleaseLiveChannels(int channelMask);
+	void SuspendLive();
+	void ResumeLivePedal();
 	void SendLive(int channel, const MidiMessage& message);
 	int m_liveNoteChannels[128] = {}; // channels on which each held note was started
 	int m_liveNoteTranspose[128] = {}; // transposition used when each held note was started

@@ -1187,6 +1187,11 @@ void PianoController::SetLocalPlayback(bool enabled)
 
 void PianoController::ApplyPlaybackSource(PlaybackSource source)
 {
+	// the Live Play notes and pedal are released on the old output (even if the
+	// channels stay the same, the output may change); the pedal held down is sent
+	// again when the switch is complete (ResumeLivePedal)
+	SuspendLive();
+
 	if (m_localPlayer)
 	{
 		// silence the old output before switching
@@ -1368,6 +1373,42 @@ void PianoController::ApplyLiveChannels(int channelMask)
 	}
 }
 
+// Releases the held notes and the pedal of Live Play on the current output, but keeps
+// the state of the sustain pedal, so that it can go on with the new output.
+void PianoController::SuspendLive()
+{
+	const ScopedLock lock(m_liveLock);
+	int held = m_liveSustainChannels;
+	for (int note = 0; note < 128; note++)
+	{
+		held |= m_liveNoteChannels[note];
+	}
+	if (held != 0)
+	{
+		ReleaseLiveChannels(held);
+	}
+}
+
+// Sends the sustain pedal still held down on the Live Play channels again, after the
+// output has changed or the song has been loaded (the player releases the pedal on the
+// channels of the song when it loads, stops or jumps).
+void PianoController::ResumeLivePedal()
+{
+	const ScopedLock lock(m_liveLock);
+	if (m_liveSustainValue <= 0)
+	{
+		return;
+	}
+	for (int ch = 1; ch <= 17; ch++)
+	{
+		if (m_liveChannels & (1 << (ch - 1)))
+		{
+			SendLive(ch, MidiMessage::controllerEvent(1, 64, m_liveSustainValue));
+		}
+	}
+	m_liveSustainChannels |= m_liveChannels;
+}
+
 // Releases the held notes and the pedal on the given channels (with m_liveLock held).
 void PianoController::ReleaseLiveChannels(int removed)
 {
@@ -1528,6 +1569,8 @@ void PianoController::SetPlaybackSource(PlaybackSource source, bool automatic)
 		// for the confirmation of the new song.
 		ResyncStateFromPiano();
 	}
+
+	ResumeLivePedal();
 }
 
 // Called for every message sent by the local player (with the player's lock held).
@@ -1734,6 +1777,10 @@ bool PianoController::LoadSongInternal(const File& file)
 	if (!ok || m_localPlayback)
 	{
 		m_pendingMeasure = 0;
+	}
+	if (ok)
+	{
+		ResumeLivePedal(); // loading the song released the pedal on its channels
 	}
 	return ok;
 }
