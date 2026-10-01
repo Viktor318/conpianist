@@ -139,6 +139,7 @@ public:
 		apFixedCurve,
 		apFixedVelocity,
 		apMasterTune,
+		apKeyboardTranspose,
 		apVrm,
 		apDamperResonance,
 		apStringResonance,
@@ -371,6 +372,10 @@ public:
 	void SetFixedVelocity(int fixedVelocity);
 	int GetMasterTune() { return m_masterTune; }
 	void SetMasterTune(int masterTune);
+	// Transposition of the piano's own keyboard (and of Live Play on the piano's keyboard
+	// parts), in semitones; separate from the transposition of the song (SetTranspose).
+	int GetKeyboardTranspose() { return m_keyboardTranspose; }
+	void SetKeyboardTranspose(int transpose);
 	int GetVrm() { return m_vrm; }
 	void SetVrm(bool vrm);
 	int GetDamperResonance() { return m_damperResonance; }
@@ -423,6 +428,7 @@ private:
 	bool m_fixedCurve[3]{false,false,false};
 	int m_fixedVelocity = DefaultFixedVelocity;
 	int m_masterTune = 0;
+	int m_keyboardTranspose = 0;
 	bool m_vrm = false;
 	int m_damperResonance = DefaultResonance;
 	int m_stringResonance = DefaultResonance;

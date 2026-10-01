@@ -154,6 +154,10 @@
               file="Source/Room/PrMasterTuneComponent.cpp"/>
         <FILE id="CI6pFp" name="PrMasterTuneComponent.h" compile="0" resource="0"
               file="Source/Room/PrMasterTuneComponent.h"/>
+        <FILE id="Tq7KpX" name="PrTransposeComponent.cpp" compile="1" resource="0"
+              file="Source/Room/PrTransposeComponent.cpp"/>
+        <FILE id="Hw3ZmN" name="PrTransposeComponent.h" compile="0" resource="0"
+              file="Source/Room/PrTransposeComponent.h"/>
         <FILE id="rsaegU" name="PrStringResonanceComponent.cpp" compile="1"
               resource="0" file="Source/Room/PrStringResonanceComponent.cpp"/>
         <FILE id="uIz6mJ" name="PrStringResonanceComponent.h" compile="0" resource="0"

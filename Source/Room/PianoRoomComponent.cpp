@@ -24,6 +24,7 @@
 #include "PrVrmComponent.h"
 #include "PrEnvironmentComponent.h"
 #include "PrMasterTuneComponent.h"
+#include "PrTransposeComponent.h"
 #include "PrStringResonanceComponent.h"
 #include "PrTouchCurveComponent.h"
 #include "PrHalfPedalPointComponent.h"
@@ -61,6 +62,7 @@ PianoRoomComponent::PianoRoomComponent (Settings& settings, PianoController& pia
     AddComponent(new PrTouchCurveComponent(settings, pianoController));
     AddComponent(new PrEnvironmentComponent(settings, pianoController));
     AddComponent(new PrMasterTuneComponent(settings, pianoController));
+    AddComponent(new PrTransposeComponent(settings, pianoController));
     AddComponent(new PrVrmComponent(settings, pianoController));
     AddComponent(new PrDamperResonanceComponent(settings, pianoController));
     AddComponent(new PrStringResonanceComponent(settings, pianoController));

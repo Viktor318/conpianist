@@ -2,6 +2,11 @@
 
 Ez a fájl a ConPianist változásait dokumentálja. Az 1.0–3.0 verziók az eredeti [hugbug/conpianist](https://github.com/hugbug/conpianist) projekt kiadásai (lásd az [eredeti release-eket](https://github.com/hugbug/conpianist/releases)); az ez utáni bejegyzések ennek a fork-nak ([Viktor318/conpianist](https://github.com/Viktor318/conpianist)) a saját, magáncélú fejlesztései.
 
+## Következő verzió (fejlesztés alatt)
+
+### Új
+- **A zongora billentyűzetének külön transzponálása.** A Piano Room ablakban a Hangolás alatt új **Transzponálás** csúszka (−12…+12 félhang, dupla kattintásra 0): a zongora saját billentyűit és a „Zongora (Hangszín fül)” módban szóló élő játékot transzponálja, a dalt nem. A Lejátszás panel Transzponálás csúszkája ezentúl csak a dalra és a Keverő csatornáin szóló élő játékra hat. A beállítás a Piano Room többi beállításával együtt mentődik.
+
 ## 4.4 (fork) – 2026. október 1.
 
 Fő újdonságok: élő játék a zongora saját hangján (Hangszín fül) vagy a Keverő csatornáin, a dalban nem használt csatornákon is, csatornánkénti oktávval; hangszín átvétele a Hangszín fülről; rövidebb csatornamenü Alaphelyzet ponttal; stabilitási (szálkezelési) javítások.

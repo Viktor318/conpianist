@@ -142,6 +142,7 @@ void PianoController::ResyncStateFromPiano()
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::ReverbEffect));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::Tempo));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::Transpose, 2, 0));
+	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::Transpose, 1, 0));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::VoicePreset, chMain, 0));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::VoicePreset, chLayer, 0));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::VoicePreset, chLeft, 0));
@@ -217,6 +218,7 @@ void PianoController::Reset()
 	SetFixedCurve(chLeft, false);
 	SetFixedVelocity(DefaultFixedVelocity);
 	SetMasterTune(0);
+	SetKeyboardTranspose(0);
 	SetVrm(true);
 	SetDamperResonance(DefaultResonance);
 	SetStringResonance(DefaultResonance);
@@ -829,6 +831,14 @@ void PianoController::SetFixedVelocity(int fixedVelocity)
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::FixedVelocity, 0, fixedVelocity));
 }
 
+// The piano's Transpose property: index 1 is the keyboard, index 2 the MIDI song
+// (index 0 transposes the whole instrument and is not used).
+void PianoController::SetKeyboardTranspose(int transpose)
+{
+	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::Transpose, 1,
+		jlimit(MinTranspose, MaxTranspose, transpose) + TransposeBase));
+}
+
 void PianoController::SetMasterTune(int masterTune)
 {
 	int tune = masterTune * MasterTuneFactor + MasterTuneBase;
@@ -897,7 +907,7 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 		(property == Property::Position || property == Property::Length ||
 		property == Property::Play || property == Property::SongName ||
 		property == Property::Loop || property == Property::Tempo ||
-		property == Property::Transpose || property == Property::Present ||
+		(property == Property::Transpose && pm->GetIndex() != 1) || property == Property::Present ||
 		property == Property::Part || property == Property::PartChannel ||
 		property == Property::PartAuto ||
 		(property == Property::Active &&
@@ -1061,6 +1071,11 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 	{
 		m_tempo = intValue;
 		NotifyChanged(apTempo);
+	}
+	else if (property == Property::Transpose && index == 1)
+	{
+		m_keyboardTranspose = intValue - TransposeBase;
+		NotifyChanged(apKeyboardTranspose);
 	}
 	else if (property == Property::Transpose && index == 2)
 	{
@@ -1771,7 +1786,8 @@ void PianoController::ReleaseLiveChannels(int removed)
 		const int channels = m_liveNoteChannels[note] & removed;
 		for (int ch = 1; ch <= 17; ch++)
 		{
-			const int sounding = ch == 10 ? note : note + m_liveNoteTranspose[note] + LiveOctaveShift(ch);
+			// drum channel and the piano's keyboard parts (17): not transposed here
+			const int sounding = ch == 10 || ch == 17 ? note : note + m_liveNoteTranspose[note] + LiveOctaveShift(ch);
 			if ((channels & (1 << (ch - 1))) && sounding >= 0 && sounding <= 127)
 			{
 				SendLive(ch, MidiMessage::noteOff(1, sounding));
@@ -1846,7 +1862,9 @@ void PianoController::PlayLive(const MidiMessage& message)
 		if (channels & (1 << (ch - 1)))
 		{
 			MidiMessage copy(message);
-			if (hasNote && ch != 10)
+			// not on the drum channel; the piano's keyboard parts (17) are transposed by
+			// the piano itself (keyboard transpose), like its own keys
+			if (hasNote && ch != 10 && ch != 17)
 			{
 				const int sounding = note + transpose + LiveOctaveShift(ch);
 				if (sounding < 0 || sounding > 127)

@@ -377,6 +377,7 @@ void RegistrationMemory::SavePianoRoom()
 		pianoController.GetTouchCurve() == PianoController::tcHard2 ? "hard2" : ""));
 	listElement->createNewChildElement("FixedVelocity")->addTextElement(String(pianoController.GetFixedVelocity()));
 	listElement->createNewChildElement("MasterTune")->addTextElement(String(440.0 + pianoController.GetMasterTune()/10.0));
+	listElement->createNewChildElement("Transpose")->addTextElement(String(pianoController.GetKeyboardTranspose()));
 	listElement->createNewChildElement("Vrm")->addTextElement(String(pianoController.GetVrm() ? "yes" : "no"));
 	listElement->createNewChildElement("DamperResonance")->addTextElement(String(pianoController.GetDamperResonance()));
 	listElement->createNewChildElement("StringResonance")->addTextElement(String(pianoController.GetStringResonance()));
@@ -438,6 +439,11 @@ void RegistrationMemory::LoadPianoRoom()
 		// round, do not truncate: e.g. 442.3 Hz must give 23, not 22
 		int value = roundToInt((el->getAllSubText().getDoubleValue() - 440.0) * 10.0);
 		pianoController.SetMasterTune(value);
+	}
+	if ((el = listElement->getChildByName("Transpose")))
+	{
+		// transposition of the piano's keyboard (not of the song)
+		pianoController.SetKeyboardTranspose(el->getAllSubText().getIntValue());
 	}
 	if ((el = listElement->getChildByName("Vrm")))
 	{
