@@ -415,8 +415,9 @@ void ChannelComponent::updateChannelState(PianoController::Aspect aspect)
 
 void ChannelComponent::applySettings()
 {
-	keyboardButton->setVisible(settings.keyboardVisible &&
-		settings.IsKeyboardChannel(channel - PianoController::chMidi0));
+	// shown on every Live Play channel, also when the virtual keyboard is hidden
+	// (MIDI In 2 plays on these channels, too)
+	keyboardButton->setVisible(settings.IsKeyboardChannel(channel - PianoController::chMidi0));
 	updateChannelState(PianoController::apActive); // live-only or unused channel
 }
 
