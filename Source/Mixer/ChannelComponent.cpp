@@ -527,6 +527,44 @@ static PopupMenu buildVoicesMenu(Voice* currentVoice)
 	return voicesMenu;
 }
 
+// The drum channel (10) plays drum kits only: a submenu with the drum kits of the piano
+// (bank MSB 127). The percussion and SFX kits (MSB 126) cannot be used there: the piano
+// replaces their bank with 127 and plays another kit.
+static PopupMenu buildDrumKitsMenu(Voice* currentVoice)
+{
+	PopupMenu kitsMenu;
+	PopupMenu categoryMenu;
+	String category;
+
+	auto flushCategory = [&]()
+	{
+		if (categoryMenu.getNumItems() > 0)
+		{
+			kitsMenu.addSubMenu(category, categoryMenu);
+		}
+		categoryMenu.clear();
+	};
+
+	VoiceList& voices = Presets::Voices();
+	for (int i = 0; i < (int)voices.size(); i++)
+	{
+		Voice& vc = voices[i];
+		if (((vc.num >> 16) & 0x7f) != 127)
+		{
+			continue; // not a kit
+		}
+		if (vc.category2 != category)
+		{
+			flushCategory();
+			category = vc.category2;
+		}
+		categoryMenu.addItem(VoiceMenuBase + i, vc.title, true, &vc == currentVoice);
+	}
+	flushCategory();
+
+	return kitsMenu;
+}
+
 // General MIDI voices (for devices that are not Yamaha pianos), grouped by families;
 // on the drum channel the drum kits.
 static PopupMenu buildGmVoicesMenu(int currentProgram, bool drums)
@@ -605,7 +643,9 @@ void ChannelComponent::showMenu(Button* button)
 	else
 	{
 		// change the voice of this song channel on the piano
-		menu.addSubMenu(TRANS("Change Voice"), buildVoicesMenu(Presets::FindVoice(pianoController.GetVoice(channel))));
+		Voice* currentVoice = Presets::FindVoice(pianoController.GetVoice(channel));
+		menu.addSubMenu(TRANS("Change Voice"), channel == PianoController::chMidi10 ?
+			buildDrumKitsMenu(currentVoice) : buildVoicesMenu(currentVoice));
 		menu.addItem(100 + PianoController::chMain, TRANS("Select VOICENAME for Main").replace("VOICENAME", voice));
 		menu.addItem(100 + PianoController::chLayer, TRANS("Select VOICENAME for Layer").replace("VOICENAME", voice));
 		menu.addItem(100 + PianoController::chLeft, TRANS("Select VOICENAME for Left").replace("VOICENAME", voice));

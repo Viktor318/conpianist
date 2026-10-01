@@ -1361,7 +1361,9 @@ PianoController::LiveChannelState& PianoController::LiveStateFor(Channel ch)
 	{
 		state.set = true;
 		state.gmVoice = m_genericDevice;
-		state.voice = m_genericDevice ? 0 : Presets::Voices().front().num; // piano (CFX Grand)
+		// piano (CFX Grand); on the drum channel the standard drum kit
+		state.voice = m_genericDevice ? 0 :
+			ch == chMidi10 ? Presets::YamahaVoiceForGmVoice(0, true) : Presets::Voices().front().num;
 		state.volume = DefaultVolume;
 		state.pan = DefaultPan;
 		state.reverb = m_genericDevice ? GenericDefaultReverb : DefaultReverb;
