@@ -89,6 +89,11 @@ std::unique_ptr<XmlElement> RegistrationMemory::CreateXml()
 		SaveSettings();
 	}
 
+	if (options.livechannels)
+	{
+		SaveLiveChannels();
+	}
+
 	root = nullptr;
 	return state;
 }
@@ -120,6 +125,11 @@ void RegistrationMemory::Load()
 	{
 		// first: the Live Play channels decide how the mixer channels are loaded
 		LoadSettings();
+	}
+
+	if (options.livechannels)
+	{
+		LoadLiveChannels();
 	}
 
 	if (options.voices)
@@ -593,35 +603,22 @@ void RegistrationMemory::LoadPlayback()
 	}
 }
 
-void RegistrationMemory::SaveSettings()
+// The Live Play octaves of the Mixer channels and the settings of the Live Play channels
+// not used in the song. They are separate from the mixer channels and from the other
+// settings, so that they are restored at every start (also without a song).
+void RegistrationMemory::SaveLiveChannels()
 {
-	XmlElement* listElement = root->getChildByName("Settings");
-	if (!listElement)
-	{
-		listElement = root->createNewChildElement("Settings");
-	}
-
-	XmlElement* elem = listElement->createNewChildElement("Keyboard");
-	elem->createNewChildElement("Channel")->addTextElement(String(settings.FirstKeyboardChannel())); // older versions
-	StringArray channels;
-	for (int channel = 1; channel <= 16; channel++)
-	{
-		if (settings.IsKeyboardChannel(channel)) channels.add(String(channel));
-	}
-	elem->createNewChildElement("Channels")->addTextElement(channels.joinIntoString(","));
-	elem->createNewChildElement("LivePlay")->addTextElement(settings.livePlayOnPiano ? "piano" : "mixer");
-
 	// the Live Play octaves of the Mixer channels 1..16
 	StringArray octaves;
 	for (PianoController::Channel ch : PianoController::MidiChannels)
 	{
 		octaves.add(String(pianoController.GetLiveOctave(ch)));
 	}
-	elem->createNewChildElement("LiveOctaves")->addTextElement(octaves.joinIntoString(","));
+	root->createNewChildElement("LiveOctaves")->addTextElement(octaves.joinIntoString(","));
 
 	// the settings of the Live Play channels not used in the song (also of the channels
 	// not used for Live Play at the moment: they are kept for the next time)
-	XmlElement* liveElem = elem->createNewChildElement("LiveChannels");
+	XmlElement* liveElem = root->createNewChildElement("LiveChannels");
 	for (PianoController::Channel ch : PianoController::MidiChannels)
 	{
 		const PianoController::LiveChannelState state = pianoController.GetLiveChannelState(ch);
@@ -643,6 +640,64 @@ void RegistrationMemory::SaveSettings()
 		chElem->setAttribute("pan", state.pan);
 		chElem->setAttribute("reverb", state.reverb);
 	}
+}
+
+void RegistrationMemory::LoadLiveChannels()
+{
+	// older files: inside Settings/Keyboard
+	XmlElement* settingsElem = root->getChildByName("Settings");
+	XmlElement* oldElem = settingsElem ? settingsElem->getChildByName("Keyboard") : nullptr;
+	XmlElement* liveElem = root->getChildByName("LiveOctaves") || root->getChildByName("LiveChannels") ? root : oldElem;
+	if (!liveElem) return;
+
+	XmlElement* el;
+	if ((el = liveElem->getChildByName("LiveOctaves")))
+	{
+		const StringArray octaves = StringArray::fromTokens(el->getAllSubText(), ",", "");
+		for (int i = 0; i < octaves.size() && i < 16; i++)
+		{
+			pianoController.SetLiveOctave(PianoController::Channel(PianoController::chMidi1 + i),
+				octaves[i].trim().getIntValue());
+		}
+	}
+	if ((el = liveElem->getChildByName("LiveChannels")))
+	{
+		for (auto* chElem : el->getChildWithTagNameIterator("Channel"))
+		{
+			const int number = chElem->getIntAttribute("number");
+			if (number < 1 || number > 16)
+			{
+				continue;
+			}
+			PianoController::LiveChannelState state;
+			state.set = true;
+			state.voice = chElem->getIntAttribute("voice");
+			state.gmVoice = chElem->getStringAttribute("set").equalsIgnoreCase("gm");
+			state.volume = jlimit(0, 127, chElem->getIntAttribute("volume", PianoController::DefaultVolume));
+			state.pan = jlimit(-64, 63, chElem->getIntAttribute("pan", PianoController::DefaultPan));
+			state.reverb = jlimit(0, 127, chElem->getIntAttribute("reverb", PianoController::DefaultReverb));
+			pianoController.SetLiveChannelState(PianoController::Channel(PianoController::chMidi0 + number), state);
+		}
+	}
+}
+
+void RegistrationMemory::SaveSettings()
+{
+	XmlElement* listElement = root->getChildByName("Settings");
+	if (!listElement)
+	{
+		listElement = root->createNewChildElement("Settings");
+	}
+
+	XmlElement* elem = listElement->createNewChildElement("Keyboard");
+	elem->createNewChildElement("Channel")->addTextElement(String(settings.FirstKeyboardChannel())); // older versions
+	StringArray channels;
+	for (int channel = 1; channel <= 16; channel++)
+	{
+		if (settings.IsKeyboardChannel(channel)) channels.add(String(channel));
+	}
+	elem->createNewChildElement("Channels")->addTextElement(channels.joinIntoString(","));
+	elem->createNewChildElement("LivePlay")->addTextElement(settings.livePlayOnPiano ? "piano" : "mixer");
 
 	elem = listElement->createNewChildElement("Score");
 	elem->createNewChildElement("InstrumentNames")->addTextElement(String(
@@ -691,34 +746,6 @@ void RegistrationMemory::LoadSettings()
 		{
 			// Live Play on the piano's own keyboard parts or on the Mixer channels
 			settings.livePlayOnPiano = !el->getAllSubText().trim().equalsIgnoreCase("mixer");
-		}
-		if ((el = keyElem->getChildByName("LiveOctaves")))
-		{
-			const StringArray octaves = StringArray::fromTokens(el->getAllSubText(), ",", "");
-			for (int i = 0; i < octaves.size() && i < 16; i++)
-			{
-				pianoController.SetLiveOctave(PianoController::Channel(PianoController::chMidi1 + i),
-					octaves[i].trim().getIntValue());
-			}
-		}
-		if ((el = keyElem->getChildByName("LiveChannels")))
-		{
-			for (auto* chElem : el->getChildWithTagNameIterator("Channel"))
-			{
-				const int number = chElem->getIntAttribute("number");
-				if (number < 1 || number > 16)
-				{
-					continue;
-				}
-				PianoController::LiveChannelState state;
-				state.set = true;
-				state.voice = chElem->getIntAttribute("voice");
-				state.gmVoice = chElem->getStringAttribute("set").equalsIgnoreCase("gm");
-				state.volume = jlimit(0, 127, chElem->getIntAttribute("volume", PianoController::DefaultVolume));
-				state.pan = jlimit(-64, 63, chElem->getIntAttribute("pan", PianoController::DefaultPan));
-				state.reverb = jlimit(0, 127, chElem->getIntAttribute("reverb", PianoController::DefaultReverb));
-				pianoController.SetLiveChannelState(PianoController::Channel(PianoController::chMidi0 + number), state);
-			}
 		}
 	}
 

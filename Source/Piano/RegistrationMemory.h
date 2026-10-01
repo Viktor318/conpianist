@@ -38,6 +38,7 @@ public:
 		bool playback = true;
 		bool pianoroom = true;
 		bool settings = true;
+		bool livechannels = true; // Live Play octaves, channels used for Live Play only
 	};
 
 	RegistrationMemory(PianoController& pianoController, Settings& settings, const Options options, const File file) :
@@ -70,5 +71,7 @@ private:
 	void LoadPianoRoom();
 	void SaveSettings();
 	void LoadSettings();
+	void SaveLiveChannels();
+	void LoadLiveChannels();
 	void SaveSongName();
 };

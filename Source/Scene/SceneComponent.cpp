@@ -1201,6 +1201,12 @@ void SceneComponent::saveLastState()
 				keep(*channels, previousChannels, "Midi" + String(i));
 			}
 		}
+		if (!pianoStateRestored && !songStateRestored)
+		{
+			// the Live Play channels were not restored in this session either
+			keep(*state, previous.get(), "LiveOctaves");
+			keep(*state, previous.get(), "LiveChannels");
+		}
 	}
 
 	file.getParentDirectory().createDirectory();
