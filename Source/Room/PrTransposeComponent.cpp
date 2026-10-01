@@ -141,7 +141,10 @@ void PrTransposeComponent::updatePianoState(PianoController::Aspect aspect)
 
 void PrTransposeComponent::mouseDoubleClick (const MouseEvent& e)
 {
-    pianoController.SetKeyboardTranspose(0);
+	inSliderChange = 0;
+	slider->setValue(0, NotificationType::dontSendNotification);
+	pianoController.SetKeyboardTranspose(0);
+	repaint();
 }
 //[/MiscUserCode]
 

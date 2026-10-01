@@ -112,7 +112,7 @@ void PrMasterTuneComponent::sliderValueChanged (Slider* sliderThatWasMoved)
     {
         //[UserSliderCode_slider] -- add your slider handling code here..
         inSliderChange++;
-        pianoController.SetMasterTune((slider->getValue() - 440) * 10);
+        pianoController.SetMasterTune(roundToInt((slider->getValue() - 440) * 10));
         //[/UserSliderCode_slider]
     }
 
@@ -141,7 +141,12 @@ void PrMasterTuneComponent::updatePianoState(PianoController::Aspect aspect)
 
 void PrMasterTuneComponent::mouseDoubleClick (const MouseEvent& e)
 {
-    pianoController.SetMasterTune(0);
+	// back to 440 Hz; shown at once, also if answers of the piano to the clicks of the
+	// double click are still awaited (they would otherwise hide the new value)
+	inSliderChange = 0;
+	slider->setValue(440.0, NotificationType::dontSendNotification);
+	pianoController.SetMasterTune(0);
+	repaint();
 }
 //[/MiscUserCode]
 
