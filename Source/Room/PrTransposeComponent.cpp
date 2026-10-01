@@ -56,6 +56,9 @@ PrTransposeComponent::PrTransposeComponent (Settings& settings, PianoController&
 
     //[UserPreSize]
 	slider->setScrollWheelEnabled(false);
+	// not the transposition of the song (Playback panel)
+	titleLabel->setText(TRANS("Transpose (keyboard)"), NotificationType::dontSendNotification);
+	titleLabel->setTooltip(TRANS("Transposes the piano's own keys and Live Play on the piano (Voice tab). The song is transposed on the left panel."));
     //[/UserPreSize]
 
     setSize (640, 74);

@@ -93,6 +93,10 @@ countries: hu
 "Tempo" = "Tempó"
 "Playback Tempo" = "Lejátszási tempó"
 "Transpose" = "Transzponálás"
+"Transpose (song and Mixer)" = "Transzponálás (dal és Keverő)"
+"Transpose (keyboard)" = "Transzponálás (billentyűzet)"
+"Transposes the song and Live Play on the Mixer channels. The piano's own keyboard is transposed in Piano Room." = "A dalt és a Keverő csatornáin szóló élő játékot transzponálja. A zongora saját billentyűzete a Piano Roomban állítható."
+"Transposes the piano's own keys and Live Play on the piano (Voice tab). The song is transposed on the left panel." = "A zongora saját billentyűit és a Zongora (Hangszín fül) módú élő játékot transzponálja. A dal a bal panelen állítható."
 "Playback Transpose" = "Lejátszási transzponálás"
 
 // --- Hangszínválasztás ---
