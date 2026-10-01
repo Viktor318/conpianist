@@ -414,10 +414,12 @@ private:
 	void UpdateLiveTarget();
 	const static int LiveKeyboardBit = 1 << 16;
 	void ApplyLiveChannels(int channelMask);
+	void ReleaseLiveChannels(int channelMask);
 	void SendLive(int channel, const MidiMessage& message);
 	int m_liveNoteChannels[128] = {}; // channels on which each held note was started
 	int m_liveNoteTranspose[128] = {}; // transposition used when each held note was started
 	int m_liveSustainChannels = 0;    // channels on which the sustain pedal is down
+	int m_liveSustainValue = 0;       // the last sustain pedal value played (0: up)
 	bool m_liveSendNow = false;       // ReleaseLive: send without the queue
 
 	// Mixer and playback settings kept when the player is switched (the song is loaded

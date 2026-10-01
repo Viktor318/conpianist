@@ -1335,26 +1335,42 @@ void PianoController::ReleaseLive()
 		return;
 	}
 
-	const int channels = m_liveChannels;
-	m_liveChannels |= held;
 	m_liveSendNow = true;
-	ApplyLiveChannels(0); // releases the notes and the pedal on the removed channels
+	ReleaseLiveChannels(held);
 	m_liveSendNow = false;
-	m_liveChannels = channels;
+	m_liveSustainValue = 0;
 }
 
 // Sets the channels used for Live Play (with m_liveLock held). Held notes and the pedal
-// are released on the channels that are no longer used.
+// are released on the channels that are no longer used; a sustain pedal still held down
+// goes on with the new channels, so it need not be pressed again.
 void PianoController::ApplyLiveChannels(int channelMask)
 {
 	const int removed = m_liveChannels & ~channelMask;
+	const int added = channelMask & ~m_liveChannels;
 	m_liveChannels = channelMask;
-	if (removed == 0)
+
+	if (removed != 0)
 	{
-		return;
+		ReleaseLiveChannels(removed);
 	}
 
-	// channels that are no longer used: release their held notes and the pedal
+	if (added != 0 && m_liveSustainValue > 0)
+	{
+		for (int ch = 1; ch <= 17; ch++)
+		{
+			if (added & (1 << (ch - 1)))
+			{
+				SendLive(ch, MidiMessage::controllerEvent(1, 64, m_liveSustainValue));
+			}
+		}
+		m_liveSustainChannels |= added;
+	}
+}
+
+// Releases the held notes and the pedal on the given channels (with m_liveLock held).
+void PianoController::ReleaseLiveChannels(int removed)
+{
 	for (int note = 0; note < 128; note++)
 	{
 		const int channels = m_liveNoteChannels[note] & removed;
@@ -1422,7 +1438,9 @@ void PianoController::PlayLive(const MidiMessage& message)
 	}
 	else if (message.isControllerOfType(64))
 	{
-		if (message.getControllerValue() >= 64)
+		// any value above 0 counts as down (half pedal too): released on a switch
+		m_liveSustainValue = message.getControllerValue();
+		if (m_liveSustainValue > 0)
 			m_liveSustainChannels |= channels;
 		else
 			m_liveSustainChannels &= ~channels;
