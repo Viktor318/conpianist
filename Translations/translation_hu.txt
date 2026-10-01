@@ -124,7 +124,6 @@ countries: hu
 "Take Voice from" = "Hangszín átvétele"
 "Use Voice for" = "Hangszín átadása"
 "Left Hand" = "Bal kéz"
-"LIVE PLAY OCTAVE" = "ÉLŐ JÁTÉK OKTÁVJA"
 "Live Play Octave" = "Élő játék oktávja"
 "PART" = "SZÓLAM"
 

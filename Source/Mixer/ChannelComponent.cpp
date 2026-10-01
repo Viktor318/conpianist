@@ -648,6 +648,31 @@ void ChannelComponent::showMenu(Button* button)
 		return;
 	}
 
+	if (channel != PianoController::chMidi10 &&
+		settings.IsKeyboardChannel(channel - PianoController::chMidi0))
+	{
+		// the octave of the notes played live on this channel (not of the song)
+		auto octaveText = [](int value) { return value > 0 ? "+" + String(value) : String(value); };
+		const int octave = pianoController.GetLiveOctave(channel);
+		PopupMenu octaveMenu;
+		for (int value = -2; value <= 2; value++)
+		{
+			octaveMenu.addItem(602 + value, octaveText(value), true, value == octave);
+		}
+		menu.addSubMenu(TRANS("Live Play Octave") + ": " + octaveText(octave), octaveMenu);
+	}
+	if (songChannel)
+	{
+		// the parts belong to the song (not to a channel used for Live Play only)
+		bool right = pianoController.GetPartChannel(PianoController::paRight) == channel;
+		bool left = pianoController.GetPartChannel(PianoController::paLeft) == channel;
+		PopupMenu partMenu;
+		partMenu.addItem(200, TRANS("Right"), true, right);
+		partMenu.addItem(201, TRANS("Left"), true, left);
+		partMenu.addItem(202, TRANS("Backing"), true, !right && !left);
+		menu.addSubMenu(TRANS("Part") + ": " + (right ? TRANS("Right") : left ? TRANS("Left") : TRANS("Backing")), partMenu);
+	}
+
 	menu.addSectionHeader(TRANS("VOICE"));
 	if (generic)
 	{
@@ -695,29 +720,6 @@ void ChannelComponent::showMenu(Button* button)
 			Presets::FindVoice(pianoController.GetVoice(channel)) != nullptr);
 	}
 
-	if (channel != PianoController::chMidi10 &&
-		settings.IsKeyboardChannel(channel - PianoController::chMidi0))
-	{
-		// the octave of the notes played live on this channel (not of the song)
-		menu.addSectionHeader(TRANS("LIVE PLAY OCTAVE"));
-		const int octave = pianoController.GetLiveOctave(channel);
-		for (int value = -2; value <= 2; value++)
-		{
-			menu.addItem(602 + value, value > 0 ? "+" + String(value) : value == 0 ? String(" 0") : String(value),
-				true, value == octave);
-		}
-	}
-	if (songChannel)
-	{
-		// the parts belong to the song (not to a channel used for Live Play only)
-		menu.addSeparator();
-		menu.addSectionHeader(TRANS("PART"));
-		bool right = pianoController.GetPartChannel(PianoController::paRight) == channel;
-		bool left = pianoController.GetPartChannel(PianoController::paLeft) == channel;
-		menu.addItem(200, TRANS("Right"), true, right);
-		menu.addItem(201, TRANS("Left"), true, left);
-		menu.addItem(202, TRANS("Backing"), true, !right && !left);
-	}
 
 	GuiHelper::ShowMenuAsync(menu, button,
 		[this, self = Component::SafePointer<Component>(this)](int result)
