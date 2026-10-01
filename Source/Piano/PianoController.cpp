@@ -1482,6 +1482,102 @@ void PianoController::TakeKeyboardPart(Channel mixerChannel, Channel part)
 	SetLiveOctave(mixerChannel, m_channels[part].octave);
 }
 
+// The voice (0x00MMLLPP) a MIDI file sets first on a channel (1..16), or -1.
+static int SongSetupVoice(const File& file, int midiChannel)
+{
+	FileInputStream stream(file);
+	MidiFile midiFile;
+	if (!stream.openedOk() || !midiFile.readFrom(stream))
+	{
+		return -1;
+	}
+
+	int voice = -1;
+	double voiceTime = 0;
+	for (int t = 0; t < midiFile.getNumTracks(); t++)
+	{
+		const MidiMessageSequence* track = midiFile.getTrack(t);
+		int msb = 0;
+		int lsb = 0;
+		for (int i = 0; i < track->getNumEvents(); i++)
+		{
+			const MidiMessage& msg = track->getEventPointer(i)->message;
+			if (msg.getChannel() != midiChannel)
+			{
+				continue;
+			}
+			if (msg.isControllerOfType(0))
+			{
+				msb = msg.getControllerValue();
+			}
+			else if (msg.isControllerOfType(32))
+			{
+				lsb = msg.getControllerValue();
+			}
+			else if (msg.isProgramChange())
+			{
+				if (voice < 0 || msg.getTimeStamp() < voiceTime)
+				{
+					voice = (msb << 16) | (lsb << 8) | msg.getProgramChangeNumber();
+					voiceTime = msg.getTimeStamp();
+				}
+				break; // the first voice of the channel in this track
+			}
+		}
+	}
+	return voice;
+}
+
+void PianoController::ResetChannelSettings(Channel ch)
+{
+	if (!IsSongChannel(ch))
+	{
+		return;
+	}
+	const int index = ch - chMidi1;
+
+	if (IsLiveOnlyChannel(ch))
+	{
+		// the defaults of a live-only channel (also remembered as its settings)
+		m_liveState[index] = {};
+		m_liveOriginalVoice[index] = -1;
+		m_liveConvertedVoice[index] = -1;
+		ApplyLiveChannel(ch);
+	}
+	else if (m_channels[ch].enabled)
+	{
+		// the values of the song
+		if (m_localPlayback)
+		{
+			// sent by ConPianist's own player when the song was loaded
+			const int volume = GenericSetupValue(ch, 7, -1);
+			const int pan = GenericSetupValue(ch, 10, -1);
+			const int reverb = GenericSetupValue(ch, 91, -1);
+			if (volume >= 0) SetVolume(ch, volume); else ResetVolume(ch);
+			if (pan >= 0) SetPan(ch, pan - PanBase); else ResetPan(ch);
+			if (reverb >= 0) SetReverb(ch, reverb); else ResetReverb(ch);
+		}
+		else
+		{
+			ResetVolume(ch); // the piano's own player knows the values of the song
+			ResetPan(ch);
+			ResetReverb(ch);
+		}
+
+		// the piano cannot reset the voice: it is read from the MIDI file
+		const File file(File::isAbsolutePath(m_songName) ? File(m_songName) : File());
+		const int voice = file.existsAsFile() ? SongSetupVoice(file, ch - chMidi0) : -1;
+		if (voice >= 0)
+		{
+			m_originalVoice[index] = -1;
+			m_convertedVoice[index] = -1;
+			SetSongChannelVoice(ch, voice);
+		}
+	}
+
+	SetLiveOctave(ch, 0);
+}
+
 // Sends the settings of all live-only channels (e.g. after a song is loaded: the player
 // or the piano may have reset them).
 void PianoController::RestoreLiveChannels()

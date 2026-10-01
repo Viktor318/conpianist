@@ -265,6 +265,10 @@ public:
 	// Main, Layer, Left) to a Mixer channel; possible if the voice of the part is known.
 	bool CanTakeKeyboardPart(Channel part) const;
 	void TakeKeyboardPart(Channel mixerChannel, Channel part);
+	// Resets the voice, volume, pan, reverb and Live Play octave of a Mixer channel: to
+	// the values of the song on a channel used in the song, otherwise to the defaults of
+	// a live-only channel. On/off, the part and the Live Play selection are kept.
+	void ResetChannelSettings(Channel ch);
 	void PlayLive(const MidiMessage& message);
 	// Releases every note and the sustain pedal still held by Live Play, at once (not
 	// through the queue): on application exit the note-offs from MIDI In 2 or the

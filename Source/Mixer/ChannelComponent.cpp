@@ -720,6 +720,10 @@ void ChannelComponent::showMenu(Button* button)
 			Presets::FindVoice(pianoController.GetVoice(channel)) != nullptr);
 	}
 
+	// voice, volume, pan, reverb and octave back to the song's (or the default) values
+	menu.addSeparator();
+	menu.addItem(3, TRANS("Reset Channel"));
+
 
 	GuiHelper::ShowMenuAsync(menu, button,
 		[this, self = Component::SafePointer<Component>(this)](int result)
@@ -754,6 +758,23 @@ void ChannelComponent::showMenu(Button* button)
 			else if (result == 2)
 			{
 				toggleLiveChannel();
+			}
+			else if (result == 3)
+			{
+				// asks first: protects against an accidental click
+				AlertWindow::showAsync(MessageBoxOptions()
+						.withIconType(MessageBoxIconType::QuestionIcon)
+						.withTitle("ConPianist")
+						.withMessage(TRANS("All settings of this channel will be reset. Continue?"))
+						.withButton(TRANS("Yes"))
+						.withButton(TRANS("Cancel")),
+					[this, self](int button)
+					{
+						if (self != nullptr && button == 1)
+						{
+							pianoController.ResetChannelSettings(channel);
+						}
+					});
 			}
 			else if (group == 6)
 			{
