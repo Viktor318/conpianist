@@ -1360,16 +1360,9 @@ void PianoController::ApplyLiveChannels(int channelMask)
 		ReleaseLiveChannels(removed);
 	}
 
-	if (added != 0 && m_liveSustainValue > 0)
+	if (added != 0)
 	{
-		for (int ch = 1; ch <= 17; ch++)
-		{
-			if (added & (1 << (ch - 1)))
-			{
-				SendLive(ch, MidiMessage::controllerEvent(1, 64, m_liveSustainValue));
-			}
-		}
-		m_liveSustainChannels |= added;
+		PressLivePedal(added);
 	}
 }
 
@@ -1386,6 +1379,7 @@ void PianoController::SuspendLive()
 	if (held != 0)
 	{
 		ReleaseLiveChannels(held);
+		(m_genericDevice ? m_liveSuspendedDevice : m_liveSuspendedPiano) |= held;
 	}
 }
 
@@ -1395,18 +1389,35 @@ void PianoController::SuspendLive()
 void PianoController::ResumeLivePedal()
 {
 	const ScopedLock lock(m_liveLock);
+	PressLivePedal(m_liveChannels);
+	m_liveSuspendedPiano = 0;
+	m_liveSuspendedDevice = 0;
+}
+
+// Sends the sustain pedal held down on the given Live Play channels (with m_liveLock
+// held). On a channel where the pedal was just released on the same output (e.g. the
+// same piano channel after a network <-> USB switch), the old notes would still be
+// sounding and would be held again, so they are silenced first (All Sound Off).
+void PianoController::PressLivePedal(int channelMask)
+{
 	if (m_liveSustainValue <= 0)
 	{
 		return;
 	}
+	const int sameOutput = channelMask &
+		(m_genericDevice ? m_liveSuspendedDevice : m_liveSuspendedPiano);
 	for (int ch = 1; ch <= 17; ch++)
 	{
-		if (m_liveChannels & (1 << (ch - 1)))
+		if (channelMask & (1 << (ch - 1)))
 		{
+			if (sameOutput & (1 << (ch - 1)))
+			{
+				SendLive(ch, MidiMessage::allSoundOff(1));
+			}
 			SendLive(ch, MidiMessage::controllerEvent(1, 64, m_liveSustainValue));
 		}
 	}
-	m_liveSustainChannels |= m_liveChannels;
+	m_liveSustainChannels |= channelMask;
 }
 
 // Releases the held notes and the pedal on the given channels (with m_liveLock held).
@@ -1741,6 +1752,10 @@ void PianoController::ApplySnapshot(const MixSnapshot& snapshot)
 
 bool PianoController::LoadSongInternal(const File& file)
 {
+	// the player releases the pedal on the channels of the song: the Live Play notes
+	// are released, and the pedal held down is sent again afterwards (ResumeLivePedal)
+	SuspendLive();
+
 	bool ok = false;
 	if (m_localPlayback)
 	{
@@ -1778,10 +1793,7 @@ bool PianoController::LoadSongInternal(const File& file)
 	{
 		m_pendingMeasure = 0;
 	}
-	if (ok)
-	{
-		ResumeLivePedal(); // loading the song released the pedal on its channels
-	}
+	ResumeLivePedal(); // also if the song could not be loaded
 	return ok;
 }
 
