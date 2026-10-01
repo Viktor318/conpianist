@@ -22,6 +22,7 @@
 //[Headers]     -- You can add your own extra header files here --
 #include "../JuceLibraryCode/JuceHeader.h"
 #include "PrBaseComponent.h"
+#include "GuiHelper.h"
 //[/Headers]
 
 
@@ -48,7 +49,7 @@ public:
     void PianoStateChanged(PianoController::Aspect ap, PianoController::Channel ch) override
 		{ if (ap == PianoController::apTouchCurve || ap == PianoController::apFixedCurve ||
 				ap == PianoController::apFixedVelocity || ap == PianoController::apConnection)
-			MessageManager::callAsync([=](){updatePianoState(ap);}); }
+			GuiHelper::CallAsync(this, [=](){updatePianoState(ap);}); }
 	void updatePianoState(PianoController::Aspect aspect);
     void setTouchCurve(PianoController::TouchCurve touchCurve);
     void mouseDoubleClick (const MouseEvent& e) override;

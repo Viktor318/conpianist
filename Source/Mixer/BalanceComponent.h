@@ -23,6 +23,7 @@
 #include <JuceHeader.h>
 #include "PianoController.h"
 #include "ChannelComponent.h"
+#include "GuiHelper.h"
 //[/Headers]
 
 #include "ChannelComponent.h"
@@ -54,7 +55,7 @@ public:
     //[UserMethods]     -- You can add your own custom methods in this section.
     void PianoStateChanged(PianoController::Aspect ap, PianoController::Channel ch) override
 		{ if (ap == PianoController::apConnection || ap == PianoController::apReverbEffect)
-			MessageManager::callAsync([=](){updateReverbEffectState();}); }
+			GuiHelper::CallAsync(this, [=](){updateReverbEffectState();}); }
 	void updateReverbEffectState();
 	static void showDialog(Settings& settings, PianoController& pianoController);
     //[/UserMethods]

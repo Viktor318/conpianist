@@ -436,11 +436,12 @@ void LomseScoreComponent::ChooseScoreFile()
 		TRANS("Please select the score for SONGNAME").replace("SONGNAME", songName);
 
 	GuiHelper::ShowFileOpenDialogAsync(title, m_settings.workingDirectory, "*.xml;*.musicxml",
-		[this](const URL& url)
+		[this, self = Component::SafePointer<Component>(this)](const URL& url)
 		{
+			if (self == nullptr) return; // deleted meanwhile
 			m_settings.workingDirectory = url.getLocalFile().getParentDirectory().getFullPathName();
 			m_settings.Save();
-			MessageManager::callAsync([=](){LoadScore(url);});
+			GuiHelper::CallAsync(this, [=](){LoadScore(url);});
     	});
 }
 
@@ -515,20 +516,20 @@ void LomseScoreComponent::PianoStateChanged(PianoController::Aspect aspect, Pian
 {
 	if (aspect == PianoController::apPosition || aspect == PianoController::apLoop)
 	{
-		MessageManager::callAsync([=](){UpdateSongState();});
+		GuiHelper::CallAsync(this, [=](){UpdateSongState();});
 	}
 	else if (aspect == PianoController::apSongLoaded ||
 		(aspect == PianoController::apSongName && m_firstSync))
 	{
 		m_firstSync = false;
-		MessageManager::callAsync([=](){LoadSong();});
+		GuiHelper::CallAsync(this, [=](){LoadSong();});
 	}
 	else if (aspect == PianoController::apPartChannel &&
 		m_settings.scorePart != Settings::spAll &&
 		(channel == m_pianoController.GetPartChannel(PianoController::paRight) ||
 		channel == m_pianoController.GetPartChannel(PianoController::paLeft)))
 	{
-		MessageManager::callAsync([=](){UpdateInstruments(false);});
+		GuiHelper::CallAsync(this, [=](){UpdateInstruments(false);});
 	}
 }
 
@@ -652,8 +653,9 @@ void LomseScoreComponent::ShowMenu()
 	menu.addItem(201, TRANS("Show MIDI-Channel"), true, m_settings.scoreShowMidiChannel);
 
 	GuiHelper::ShowMenuAsync(menu, menuButton.get(),
-		[this](int result)
+		[this, self = Component::SafePointer<Component>(this)](int result)
 		{
+			if (self == nullptr) return; // deleted meanwhile
 			const int group = result / 100;
 
 			if (result == 1)

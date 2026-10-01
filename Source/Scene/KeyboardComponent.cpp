@@ -18,6 +18,7 @@
 */
 
 //[Headers] You can add your own extra header files here...
+#include "GuiHelper.h"
 //[/Headers]
 
 #include "KeyboardComponent.h"
@@ -205,7 +206,7 @@ void KeyboardComponent::PianoStateChanged(PianoController::Aspect aspect, PianoC
 		(aspect == PianoController::apActive && channel == PianoController::chLeft) ||
 		aspect == PianoController::apSplitPoint)
 	{
-		MessageManager::callAsync([=](){updateKeyboardState();});
+		GuiHelper::CallAsync(this, [=](){updateKeyboardState();});
 	}
 }
 

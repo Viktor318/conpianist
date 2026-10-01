@@ -23,6 +23,7 @@
 #include <JuceHeader.h>
 #include "PianoController.h"
 #include "Settings.h"
+#include "GuiHelper.h"
 //[/Headers]
 
 
@@ -53,7 +54,7 @@ public:
 	void applySettings();
     void PianoStateChanged(PianoController::Aspect ap, PianoController::Channel ch) override
 		{ if (ch == channel || ap == PianoController::apConnection || ap == PianoController::apPlaybackSource)
-			MessageManager::callAsync([=](){updateChannelState(ap);}); }
+			GuiHelper::CallAsync(this, [=](){updateChannelState(ap);}); }
 	void updateChannelState(PianoController::Aspect aspect);
     void mouseDoubleClick(const MouseEvent& event) override;
     void mouseUp(const MouseEvent& event) override;

@@ -472,7 +472,7 @@ void VoiceComponent::PianoStateChanged(PianoController::Aspect aspect, PianoCont
 {
 	if (aspect == PianoController::apConnection || aspect == PianoController::apPlaybackSource)
 	{
-		MessageManager::callAsync([=](){updateEnabledControls();});
+		GuiHelper::CallAsync(this, [=](){updateEnabledControls();});
 	}
 	else if ((aspect == PianoController::apVoice ||
 		aspect == PianoController::apActive ||
@@ -481,7 +481,7 @@ void VoiceComponent::PianoStateChanged(PianoController::Aspect aspect, PianoCont
 		channel == PianoController::chLayer ||
 		channel == PianoController::chLeft))
 	{
-		MessageManager::callAsync([=](){updateVoiceState();});
+		GuiHelper::CallAsync(this, [=](){updateVoiceState();});
 	}
 }
 
@@ -627,8 +627,9 @@ void VoiceComponent::showMenu(Button* button, PianoController::Channel channel)
 	menu.addItem(100+2, "+2", true, pianoController.GetOctave(channel) == +2);
 
 	GuiHelper::ShowMenuAsync(menu, button,
-		[this, channel](int result)
+		[this, channel, self = Component::SafePointer<Component>(this)](int result)
 		{
+			if (self == nullptr) return; // deleted meanwhile
 			if (100-2 <= result && result <= 100+2)
 			{
 				int octave = result - 100;

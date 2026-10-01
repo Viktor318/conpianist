@@ -611,7 +611,7 @@ void PlaybackComponent::buttonClicked (Button* buttonThatWasClicked)
         {
             settings.playbackSource = "network"; // used again at the next start
             settings.Save();
-            MessageManager::callAsync([this](){pianoController.SetPlaybackSource(PianoController::psPiano);});
+            GuiHelper::CallAsync(this, [this](){pianoController.SetPlaybackSource(PianoController::psPiano);});
         }
         //[/UserButtonCode_networkPlaybackButton]
     }
@@ -622,7 +622,7 @@ void PlaybackComponent::buttonClicked (Button* buttonThatWasClicked)
         {
             settings.playbackSource = "usb";
             settings.Save();
-            MessageManager::callAsync([this](){pianoController.SetPlaybackSource(PianoController::psLocal);});
+            GuiHelper::CallAsync(this, [this](){pianoController.SetPlaybackSource(PianoController::psLocal);});
         }
         //[/UserButtonCode_usbPlaybackButton]
     }
@@ -633,7 +633,7 @@ void PlaybackComponent::buttonClicked (Button* buttonThatWasClicked)
         {
             settings.playbackSource = "device";
             settings.Save();
-            MessageManager::callAsync([this](){pianoController.SetPlaybackSource(PianoController::psMidiDevice);});
+            GuiHelper::CallAsync(this, [this](){pianoController.SetPlaybackSource(PianoController::psMidiDevice);});
         }
         //[/UserButtonCode_midiDevicePlaybackButton]
     }
@@ -658,12 +658,13 @@ void PlaybackComponent::chooseSong()
 {
 	GuiHelper::ShowFileOpenDialogAsync(TRANS("Please select the song you want to load..."),
 		settings.workingDirectory, "*.mid",
-		[this](const URL& url)
+		[this, self = Component::SafePointer<Component>(this)](const URL& url)
 		{
+			if (self == nullptr) return; // deleted meanwhile
 			settings.workingDirectory = url.getLocalFile().getParentDirectory().getFullPathName();
 			settings.Save();
 			songLabel->setText(TRANS("Loading..."), NotificationType::dontSendNotification);
-			MessageManager::callAsync([=](){loadSong(url);});
+			GuiHelper::CallAsync(this, [=](){loadSong(url);});
 		});
 }
 
@@ -698,28 +699,28 @@ void PlaybackComponent::PianoStateChanged(PianoController::Aspect aspect, PianoC
 		aspect == PianoController::apTranspose || aspect == PianoController::apLoop ||
 		aspect == PianoController::apSongName)
 	{
-		MessageManager::callAsync([=](){updatePlaybackState(aspect);});
+		GuiHelper::CallAsync(this, [=](){updatePlaybackState(aspect);});
 	}
 	else if (aspect == PianoController::apVolume && channel == PianoController::chMidiMaster)
 	{
 		if (inVolumeChange && inVolumeChange--) return;
-		MessageManager::callAsync([=](){updateChannelState();});
+		GuiHelper::CallAsync(this, [=](){updateChannelState();});
 	}
 	else if (aspect == PianoController::apGuide || aspect == PianoController::apStreamLights ||
 		aspect == PianoController::apPart)
 	{
-		MessageManager::callAsync([=](){updateSettingsState();});
+		GuiHelper::CallAsync(this, [=](){updateSettingsState();});
 	}
 
 	if (aspect == PianoController::apConnection || aspect == PianoController::apLength ||
 		aspect == PianoController::apPlaybackSource || aspect == PianoController::apSongLoaded)
 	{
-		MessageManager::callAsync([=](){updateEnabledControls();});
+		GuiHelper::CallAsync(this, [=](){updateEnabledControls();});
 	}
 
 	if (aspect == PianoController::apPlaybackSource)
 	{
-		MessageManager::callAsync([=](){updatePlaybackSourceState(); updateSettingsState();});
+		GuiHelper::CallAsync(this, [=](){updatePlaybackSourceState(); updateSettingsState();});
 	}
 
 	if (aspect == PianoController::apConnection)
@@ -978,8 +979,9 @@ void PlaybackComponent::showStreamLightsMenu()
 	menuShown = true;
 
 	GuiHelper::ShowMenuAsync(menu, lightsButton.get(),
-		[this](int result)
+		[this, self = Component::SafePointer<Component>(this)](int result)
 		{
+			if (self == nullptr) return; // deleted meanwhile
 			menuShown = false;
 
 			if (result > 0)
@@ -1002,8 +1004,9 @@ void PlaybackComponent::showGuideMenu()
 	menuShown = true;
 
 	GuiHelper::ShowMenuAsync(menu, guideButton.get(),
-		[this](int result)
+		[this, self = Component::SafePointer<Component>(this)](int result)
 		{
+			if (self == nullptr) return; // deleted meanwhile
 			menuShown = false;
 
 			if (result > 0)

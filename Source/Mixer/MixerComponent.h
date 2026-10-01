@@ -22,6 +22,7 @@
 //[Headers]     -- You can add your own extra header files here --
 #include <JuceHeader.h>
 #include "PianoController.h"
+#include "GuiHelper.h"
 //[/Headers]
 
 #include "ChannelComponent.h"
@@ -49,7 +50,7 @@ public:
     void PianoStateChanged(PianoController::Aspect ap, PianoController::Channel ch) override
 		{ if (ap == PianoController::apConnection || ap == PianoController::apReverbEffect ||
 			ap == PianoController::apPlaybackSource)
-			MessageManager::callAsync([=](){updateReverbEffectState();}); }
+			GuiHelper::CallAsync(this, [=](){updateReverbEffectState();}); }
 	void updateReverbEffectState();
     //[/UserMethods]
 

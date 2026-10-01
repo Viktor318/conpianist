@@ -22,6 +22,7 @@
 //[Headers]     -- You can add your own extra header files here --
 #include "../JuceLibraryCode/JuceHeader.h"
 #include "PrBaseComponent.h"
+#include "GuiHelper.h"
 //[/Headers]
 
 
@@ -46,7 +47,7 @@ public:
     //[UserMethods]     -- You can add your own custom methods in this section.
     void PianoStateChanged(PianoController::Aspect ap, PianoController::Channel ch) override
 		{ if (ap == PianoController::apBrightness || ap == PianoController::apConnection)
-			MessageManager::callAsync([=](){updatePianoState(ap);}); }
+			GuiHelper::CallAsync(this, [=](){updatePianoState(ap);}); }
 	void updatePianoState(PianoController::Aspect aspect);
     void mouseDoubleClick (const MouseEvent& e) override;
     //[/UserMethods]

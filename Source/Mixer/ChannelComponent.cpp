@@ -555,8 +555,9 @@ void ChannelComponent::showMenu(Button* button)
 	menu.addItem(202, TRANS("Backing"), true, !right && !left);
 
 	GuiHelper::ShowMenuAsync(menu, button,
-		[this](int result)
+		[this, self = Component::SafePointer<Component>(this)](int result)
 		{
+			if (self == nullptr) return; // deleted meanwhile
 			if (result >= VoiceMenuBase && pianoController.IsMidiDevicePlayback())
 			{
 				// General MIDI: bank 0, program number

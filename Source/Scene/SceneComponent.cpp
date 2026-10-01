@@ -439,11 +439,11 @@ void SceneComponent::PianoStateChanged(PianoController::Aspect aspect, PianoCont
 {
 	if (aspect == PianoController::apConnection || aspect == PianoController::apLocalControl)
 	{
-		MessageManager::callAsync([=](){updateSettingsState();});
+		GuiHelper::CallAsync(this, [=](){updateSettingsState();});
 	}
 	if (aspect == PianoController::apConnection && pianoController.IsConnected())
 	{
-		MessageManager::callAsync([=]()
+		GuiHelper::CallAsync(this, [=]()
 			{
 				pianoController.Sync();
 				connectedSince = Time::getCurrentTime();
@@ -454,20 +454,20 @@ void SceneComponent::PianoStateChanged(PianoController::Aspect aspect, PianoCont
 	}
 	else if (aspect == PianoController::apActive && channel == PianoController::chLeft)
 	{
-		MessageManager::callAsync([=](){updateKeyboard();});
+		GuiHelper::CallAsync(this, [=](){updateKeyboard();});
 	}
 	else if (aspect == PianoController::apSongLoaded)
 	{
-		MessageManager::callAsync([=](){loadSongState();});
+		GuiHelper::CallAsync(this, [=](){loadSongState();});
 	}
 	else if (aspect == PianoController::apPlaybackSource)
 	{
-		MessageManager::callAsync([=](){updateSettingsState();});
+		GuiHelper::CallAsync(this, [=](){updateSettingsState();});
 	}
 	else if (aspect == PianoController::apPlayback && !pianoController.GetPlaying())
 	{
 		// a switch back to the chosen player that waited for the end of playback
-		MessageManager::callAsync([=](){chooseDefaultPlaybackSource();});
+		GuiHelper::CallAsync(this, [=](){chooseDefaultPlaybackSource();});
 	}
 }
 
@@ -509,18 +509,19 @@ void SceneComponent::showMenu()
 	menu.addItem(997, TRANS("About ConPianist..."));
 
 	GuiHelper::ShowMenuAsync(menu, menuButton.get(),
-		[this](int result)
+		[this, self = Component::SafePointer<Component>(this)](int result)
 		{
+			if (self == nullptr) return; // deleted meanwhile
 			switch (result)
 			{
 				case 1:
 					ConnectionComponent::showDialog(settings);
 					break;
 				case 2:
-					MessageManager::callAsync([=](){pianoController.Sync();});
+					GuiHelper::CallAsync(this, [=](){pianoController.Sync();});
 					break;
 				case 3:
-					MessageManager::callAsync([=](){pianoController.Reset();});
+					GuiHelper::CallAsync(this, [=](){pianoController.Reset();});
 					break;
 				case 4:
 					resetConnection();
@@ -1316,11 +1317,12 @@ void SceneComponent::saveState()
 
 	GuiHelper::ShowFileSaveDialogAsync(TRANS("Please select the name for registration memory file..."),
 		initialLocation, "*.conmem",
-		[this](const URL& url)
+		[this, self = Component::SafePointer<Component>(this)](const URL& url)
 		{
+			if (self == nullptr) return; // deleted meanwhile
 			settings.workingDirectory = url.getLocalFile().getParentDirectory().getFullPathName();
 			settings.Save();
-			MessageManager::callAsync([=](){
+			GuiHelper::CallAsync(this, [=](){
 				// generate access token on sandboxed platforms (iOS)
 				std::unique_ptr<OutputStream> outp(url.createOutputStream());
 				outp.reset();
@@ -1336,11 +1338,12 @@ void SceneComponent::loadState()
 {
 	GuiHelper::ShowFileOpenDialogAsync(TRANS("Please select the registration memory file to load..."),
 		settings.workingDirectory, "*.conmem",
-		[this](const URL& url)
+		[this, self = Component::SafePointer<Component>(this)](const URL& url)
 		{
+			if (self == nullptr) return; // deleted meanwhile
 			settings.workingDirectory = url.getLocalFile().getParentDirectory().getFullPathName();
 			settings.Save();
-			MessageManager::callAsync([=](){
+			GuiHelper::CallAsync(this, [=](){
 				// generate access token on sandboxed platforms (iOS)
 				std::unique_ptr<InputStream> inp(url.createInputStream(false));
 

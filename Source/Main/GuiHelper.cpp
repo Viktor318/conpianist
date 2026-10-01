@@ -76,6 +76,18 @@ void GuiHelper::Final()
 	m_fileChooser.reset();
 }
 
+void GuiHelper::CallAsync(Component* component, std::function<void()> function)
+{
+	Component::SafePointer<Component> safeComponent(component);
+	MessageManager::callAsync([safeComponent, function]()
+		{
+			if (safeComponent != nullptr)
+			{
+				function();
+			}
+		});
+}
+
 void GuiHelper::ShowDialogAsync(Component* content, const String& title)
 {
 	AsyncDialogWindow* dialog = new AsyncDialogWindow(content, title);
