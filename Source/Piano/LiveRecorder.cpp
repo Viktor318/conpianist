@@ -411,7 +411,14 @@ bool LiveRecorder::Save(const File& file, int tempo, int beatNumerator, int beat
 
 	// conductor track: tempo, beat, reverb type
 	MidiMessageSequence conductor;
-	conductor.addEvent(MidiMessage::timeSignatureMetaEvent(beatNumerator, beatDenominator), 0);
+	{
+		// written by hand: 24 MIDI clocks per metronome click and 8 thirty-second notes
+		// per quarter note, the usual values (some programs do not accept others)
+		int power = 0;
+		while ((1 << (power + 1)) <= std::max(1, beatDenominator)) power++;
+		const uint8 data[] = {0xff, 0x58, 0x04, (uint8)jlimit(1, 127, beatNumerator), (uint8)power, 24, 8};
+		conductor.addEvent(MidiMessage(data, (int)sizeof(data), 0.0), 0);
+	}
 	conductor.addEvent(MidiMessage::tempoMetaEvent(60000000 / std::max(1, tempo)), 0);
 	if (reverbType != NoValue)
 	{
