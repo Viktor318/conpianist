@@ -30,11 +30,18 @@ bool LiveRecorder::IsRecordable(const MidiMessage& message)
 		message.isProgramChange() || message.isChannelPressure() || message.isAftertouch();
 }
 
-void LiveRecorder::Begin(double nowMs)
+// alignToDownbeat: if the beats are running (the last beat was a short time ago), the
+// recording begins at the last downbeat instead of now.
+void LiveRecorder::Begin(double nowMs, bool alignToDownbeat)
 {
 	m_events.clear();
 	m_noteCount = 0;
 	m_startMs = nowMs;
+	if (alignToDownbeat && m_lastDownbeatMs > 0 && nowMs - m_lastBeatMs < 2500 &&
+		nowMs - m_lastDownbeatMs < 15000)
+	{
+		m_startMs = m_lastDownbeatMs;
+	}
 	m_lastEventMs = nowMs;
 	m_endMs = nowMs;
 	for (auto& source : m_held)
@@ -56,7 +63,39 @@ void LiveRecorder::Arm()
 void LiveRecorder::Start()
 {
 	const ScopedLock lock(m_lock);
-	Begin(NowMs());
+	Begin(NowMs(), true);
+}
+
+void LiveRecorder::StartCountIn(int measures)
+{
+	const ScopedLock lock(m_lock);
+	m_events.clear();
+	m_noteCount = 0;
+	// the next downbeat begins the count-in; the recording starts after its measures
+	m_downbeatsLeft = std::max(0, measures) + 1;
+	m_state = stCountIn;
+}
+
+int LiveRecorder::GetCountInMeasuresLeft() const
+{
+	const ScopedLock lock(m_lock);
+	return m_state == stCountIn ? m_downbeatsLeft : 0;
+}
+
+void LiveRecorder::Beat(bool downbeat)
+{
+	const double nowMs = NowMs();
+	const ScopedLock lock(m_lock);
+	m_lastBeatMs = nowMs;
+	if (!downbeat || nowMs - m_lastDownbeatMs < 100)
+	{
+		return; // not a downbeat, or the same downbeat reported twice
+	}
+	m_lastDownbeatMs = nowMs;
+	if (m_state == stCountIn && --m_downbeatsLeft <= 0)
+	{
+		Begin(nowMs, false);
+	}
 }
 
 void LiveRecorder::Stop()
@@ -145,7 +184,7 @@ void LiveRecorder::Add(int source, const MidiMessage& message)
 
 	if (m_state == stArmed && message.isNoteOn())
 	{
-		Begin(nowMs); // the first note starts the recording
+		Begin(nowMs, true); // the first note starts the recording
 	}
 	if (m_state != stRecording)
 	{

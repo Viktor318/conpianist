@@ -145,6 +145,7 @@ public:
 		apDamperResonance,
 		apStringResonance,
 		apKeyOffSampling,
+		apMetronome,
 		apPlaybackSource
 	};
 
@@ -280,6 +281,19 @@ public:
 	// Passes the current voices and mixer settings to the recorder (message thread).
 	void UpdateRecorderSetups();
 	bool SaveRecording(const File& file, bool includeStyle, String& error);
+	// Manual recording with a count-in: starts on the downbeat after the given number
+	// of measures (counted by the metronome or the playing song).
+	void StartRecordingWithCountIn(int measures);
+
+	// Metronome: the piano's own metronome; ConPianist's own clicks on the MIDI device
+	// (drum channel) when the piano is not used for playing.
+	bool GetMetronome() const { return m_metronome; }
+	void SetMetronome(bool on);
+	int GetMetronomeBeatNumerator() const { return m_metronomeNumerator; }
+	int GetMetronomeBeatDenominator() const { return m_metronomeDenominator; }
+	void SetMetronomeBeat(int numerator, int denominator);
+	// true if the beats of the metronome or of a playing song are known now
+	bool HasBeats() const;
 	// Releases every note and the sustain pedal still held by Live Play, at once (not
 	// through the queue): on application exit the note-offs from MIDI In 2 or the
 	// virtual keyboard would never arrive, and the notes would sound on.
@@ -466,6 +480,19 @@ private:
 	void PressLivePedal(int channelMask);
 	void SendLive(int channel, const MidiMessage& message);
 	LiveRecorder m_recorder;
+	int m_recordedTempo = DefaultTempo;   // tempo and time signature when the recording started
+	int m_recordedNumerator = 4;
+	int m_recordedDenominator = 4;
+	std::atomic<bool> m_metronome{false};
+	std::atomic<int> m_metronomeNumerator{4};
+	std::atomic<int> m_metronomeDenominator{4};
+	std::atomic<uint32> m_lastBeatMs{0};
+	class SoftMetronome;
+	std::unique_ptr<HighResolutionTimer> m_softMetronome;
+	int m_softBeat = 0;
+	double m_softNextMs = 0;
+	void SoftMetronomeTick();
+	void OnBeat(int beat);
 	int m_recKeyboardSources[128] = {}; // keyboard parts a live note was recorded on (bits 0..2)
 	void RecordLiveKeyboard(const MidiMessage& message);
 	LiveRecorder::Setup RecorderSetup(Channel ch);

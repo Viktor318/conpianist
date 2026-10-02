@@ -73,6 +73,7 @@ void Settings::Save()
 	prop.setValue("Recorder.Automatic", recorderAutomatic);
 	prop.setValue("Recorder.Silence", recorderSilence);
 	prop.setValue("Recorder.Style", recorderStyle);
+	prop.setValue("Recorder.CountIn", recorderCountIn);
 
 	prop.save();
 	sendChangeMessage();
@@ -125,6 +126,7 @@ void Settings::Load()
 	recorderAutomatic = prop.getBoolValue("Recorder.Automatic", recorderAutomatic);
 	recorderSilence = jlimit(MinRecorderSilence, MaxRecorderSilence, prop.getIntValue("Recorder.Silence", recorderSilence));
 	recorderStyle = prop.getBoolValue("Recorder.Style", recorderStyle);
+	recorderCountIn = jlimit(0, 2, prop.getIntValue("Recorder.CountIn", recorderCountIn));
 }
 
 // The state of the piano and the playback when the program was closed (a registration

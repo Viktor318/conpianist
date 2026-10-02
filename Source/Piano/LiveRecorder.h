@@ -53,12 +53,18 @@ public:
 		int partMode = NoValue; // XG part mode (accompaniment: drum parts)
 	};
 
-	enum State { stIdle, stArmed, stRecording };
+	enum State { stIdle, stArmed, stCountIn, stRecording };
 
 	// Automatic start: armed, starts with the first played note.
 	void Arm();
 	// Starts at once (cancels a previous recording that was not saved).
 	void Start();
+	// Starts on a downbeat, after the given number of count-in measures (see Beat).
+	void StartCountIn(int measures);
+	int GetCountInMeasuresLeft() const;
+	// A beat of the metronome or of the playing song. A recording that starts while the
+	// beats are running begins at the last downbeat, so its measures match the beats.
+	void Beat(bool downbeat);
 	// Ends the recording: held notes and the pedal are released in the recording.
 	void Stop();
 	// Drops the recording.
@@ -97,6 +103,9 @@ private:
 	double m_startMs = 0;
 	double m_lastEventMs = 0;
 	double m_endMs = 0;
+	double m_lastBeatMs = 0;
+	double m_lastDownbeatMs = 0;
+	int m_downbeatsLeft = 0;
 	std::vector<Event> m_events;
 	Setup m_setup[NumSources + 1];
 	int m_noteCount = 0;
@@ -108,7 +117,7 @@ private:
 	int m_styleBankLsb[8] = {};
 	Setup m_styleSetup[8];
 
-	void Begin(double nowMs);
+	void Begin(double nowMs, bool alignToDownbeat);
 	void Store(int source, const MidiMessage& message, double nowMs);
 	static bool IsRecordable(const MidiMessage& message);
 };

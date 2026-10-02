@@ -57,6 +57,53 @@ RecorderComponent::RecorderComponent(Settings& settings, PianoController& pianoC
 	silenceSlider.onValueChange = [this]() { saveOptions(); };
 	addAndMakeVisible(silenceSlider);
 
+	initLabel(tempoLabel, TRANS("Tempo and beat:"));
+
+	tempoSlider.setSliderStyle(Slider::IncDecButtons);
+	tempoSlider.setTextBoxStyle(Slider::TextBoxLeft, false, 40, 24);
+	tempoSlider.setRange(PianoController::MinTempo, PianoController::MaxTempo, 1);
+	tempoSlider.onValueChange = [this]()
+		{
+			const int tempo = roundToInt(tempoSlider.getValue());
+			if (tempo != this->pianoController.GetTempo())
+			{
+				this->pianoController.SetTempo(tempo);
+			}
+		};
+	addAndMakeVisible(tempoSlider);
+
+	static const int beats[][2] = {{2, 4}, {3, 4}, {4, 4}, {5, 4}, {6, 4}, {3, 8}, {6, 8}, {9, 8}, {12, 8}};
+	for (const auto& beat : beats)
+	{
+		beatCombo.addItem(String(beat[0]) + "/" + String(beat[1]), beat[0] * 100 + beat[1]);
+	}
+	beatCombo.setTooltip(TRANS("Time signature of the metronome and of the recording"));
+	beatCombo.onChange = [this]()
+		{
+			const int id = beatCombo.getSelectedId();
+			if (id > 0)
+			{
+				this->pianoController.SetMetronomeBeat(id / 100, id % 100);
+			}
+		};
+	addAndMakeVisible(beatCombo);
+
+	metronomeButton.setButtonText(TRANS("Metronome"));
+	metronomeButton.setTooltip(TRANS("The metronome sounds on the piano, or on the MIDI device when that is used for playing; a recording made with it is aligned to the measures"));
+	metronomeButton.onClick = [this]()
+		{
+			metronomeStarted = false;
+			this->pianoController.SetMetronome(metronomeButton.getToggleState());
+		};
+	addAndMakeVisible(metronomeButton);
+
+	countInCombo.addItem(TRANS("No count-in"), 1);
+	countInCombo.addItem(TRANS("Count-in: 1 measure"), 2);
+	countInCombo.addItem(TRANS("Count-in: 2 measures"), 3);
+	countInCombo.setTooltip(TRANS("Manual recording starts after the count-in of the metronome"));
+	countInCombo.onChange = [this]() { saveOptions(); };
+	addAndMakeVisible(countInCombo);
+
 	styleButton.setButtonText(TRANS("Record accompaniment"));
 	styleButton.setTooltip(TRANS("The accompaniment (style) of the piano is saved into the file too"));
 	styleButton.addListener(this);
@@ -88,8 +135,11 @@ RecorderComponent::RecorderComponent(Settings& settings, PianoController& pianoC
 	manualButton.setToggleState(!settings.recorderAutomatic, dontSendNotification);
 	silenceSlider.setValue(settings.recorderSilence, dontSendNotification);
 	styleButton.setToggleState(settings.recorderStyle, dontSendNotification);
+	countInCombo.setSelectedId(settings.recorderCountIn + 1, dontSendNotification);
 
-	setSize(400, 262);
+	setSize(400, 334);
+
+	updateMetronome();
 
 	lastState = pianoController.GetRecorder().GetState();
 	updateControls();
@@ -114,13 +164,18 @@ void RecorderComponent::resized()
 	manualButton.setBounds(264, 16, 120, 24);
 	silenceLabel.setBounds(16, 52, 240, 24);
 	silenceSlider.setBounds(264, 52, 120, 24);
-	styleButton.setBounds(12, 88, 372, 24);
-	nameLabel.setBounds(16, 124, 100, 24);
-	nameEditor.setBounds(120, 124, 264, 24);
-	statusLabel.setBounds(16, 162, 368, 36);
-	recordButton.setBounds(16, 214, 112, 32);
-	stopButton.setBounds(144, 214, 112, 32);
-	saveButton.setBounds(272, 214, 112, 32);
+	tempoLabel.setBounds(16, 88, 120, 24);
+	tempoSlider.setBounds(140, 88, 112, 24);
+	beatCombo.setBounds(264, 88, 120, 24);
+	metronomeButton.setBounds(12, 124, 180, 24);
+	countInCombo.setBounds(200, 124, 184, 24);
+	styleButton.setBounds(12, 160, 372, 24);
+	nameLabel.setBounds(16, 196, 100, 24);
+	nameEditor.setBounds(120, 196, 264, 24);
+	statusLabel.setBounds(16, 234, 368, 36);
+	recordButton.setBounds(16, 286, 112, 32);
+	stopButton.setBounds(144, 286, 112, 32);
+	saveButton.setBounds(272, 286, 112, 32);
 }
 
 void RecorderComponent::buttonClicked(Button* button)
@@ -171,9 +226,11 @@ void RecorderComponent::saveOptions()
 	const bool automatic = autoButton.getToggleState();
 	const int silence = roundToInt(silenceSlider.getValue());
 	const bool style = styleButton.getToggleState();
+	const int countIn = jlimit(0, 2, countInCombo.getSelectedId() - 1);
 	if (automatic != settings.recorderAutomatic || silence != settings.recorderSilence ||
-		style != settings.recorderStyle)
+		style != settings.recorderStyle || countIn != settings.recorderCountIn)
 	{
+		settings.recorderCountIn = countIn;
 		settings.recorderAutomatic = automatic;
 		settings.recorderSilence = silence;
 		settings.recorderStyle = style;
@@ -192,7 +249,25 @@ void RecorderComponent::startRecording()
 	message = "";
 	// automatic file name with the date and time; it can be changed until it is saved
 	nameEditor.setText(TRANS("Recording") + " " + Time::getCurrentTime().formatted("%Y-%m-%d %H-%M-%S"), false);
-	pianoController.StartRecording(autoButton.getToggleState());
+	const int countIn = jlimit(0, 2, countInCombo.getSelectedId() - 1);
+	if (autoButton.getToggleState())
+	{
+		pianoController.StartRecording(true);
+	}
+	else if (countIn > 0)
+	{
+		// counted by the metronome, unless a song (or the metronome) is giving the beats
+		if (!pianoController.HasBeats() && !pianoController.GetMetronome())
+		{
+			pianoController.SetMetronome(true);
+			metronomeStarted = true;
+		}
+		pianoController.StartRecordingWithCountIn(countIn);
+	}
+	else
+	{
+		pianoController.StartRecording(false);
+	}
 	timerCallback();
 }
 
@@ -271,9 +346,10 @@ void RecorderComponent::timerCallback()
 	LiveRecorder& recorder = pianoController.GetRecorder();
 	const LiveRecorder::State state = recorder.GetState();
 
-	if (state == LiveRecorder::stRecording && lastState == LiveRecorder::stArmed)
+	if (state == LiveRecorder::stRecording &&
+		(lastState == LiveRecorder::stArmed || lastState == LiveRecorder::stCountIn))
 	{
-		// started by the first note: the voices as they are now
+		// started by the first note or after the count-in: the voices as they are now
 		pianoController.UpdateRecorderSetups();
 	}
 
@@ -288,9 +364,16 @@ void RecorderComponent::timerCallback()
 	const LiveRecorder::State newState = recorder.GetState();
 	if (newState != lastState)
 	{
+		if (newState == LiveRecorder::stIdle && metronomeStarted)
+		{
+			// switched on for the count-in only
+			metronomeStarted = false;
+			pianoController.SetMetronome(false);
+		}
 		lastState = newState;
 		updateControls();
 	}
+	updateMetronome();
 	updateStatus();
 }
 
@@ -308,6 +391,34 @@ void RecorderComponent::updateControls()
 	stopButton.setEnabled(!idle);
 	saveButton.setEnabled(hasData);
 	nameEditor.setEnabled(hasData);
+	countInCombo.setEnabled(idle && manualButton.getToggleState());
+}
+
+// Shows the tempo, the time signature and the state of the metronome as they are now
+// (they can change on the piano and with the song too).
+void RecorderComponent::updateMetronome()
+{
+	if (!tempoSlider.hasKeyboardFocus(true) && !tempoSlider.isMouseButtonDown(true))
+	{
+		tempoSlider.setValue(pianoController.GetTempo(), dontSendNotification);
+	}
+
+	if (!beatCombo.isPopupActive())
+	{
+		const int numerator = pianoController.GetMetronomeBeatNumerator();
+		const int denominator = pianoController.GetMetronomeBeatDenominator();
+		const int id = numerator * 100 + denominator;
+		if (beatCombo.indexOfItemId(id) >= 0)
+		{
+			beatCombo.setSelectedId(id, dontSendNotification);
+		}
+		else
+		{
+			beatCombo.setText(String(numerator) + "/" + String(denominator), dontSendNotification);
+		}
+	}
+
+	metronomeButton.setToggleState(pianoController.GetMetronome(), dontSendNotification);
 }
 
 String RecorderComponent::formatTime(double seconds)
@@ -329,6 +440,10 @@ void RecorderComponent::updateStatus()
 	{
 		case LiveRecorder::stArmed:
 			text = TRANS("Waiting for the first note...");
+			colour = Colours::orange;
+			break;
+		case LiveRecorder::stCountIn:
+			text = TRANS("Count-in...");
 			colour = Colours::orange;
 			break;
 		case LiveRecorder::stRecording:

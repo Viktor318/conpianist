@@ -196,6 +196,19 @@ struct Property
 	// Value: 0..0x40..0x50
 	const static Property KeyOffSampling;
 
+	// Metronome. Value: 0 - Off, 1 - On
+	const static Property Metronome;
+
+	// Read only; Value: 2 Bytes: the current beat of the measure (1..), sent on every beat
+	// while the metronome, a song or a style is playing
+	const static Property MetronomeCount;
+
+	// Value: 0..7f
+	const static Property MetronomeVolume;
+
+	// Value: 2 Bytes: numerator, denominator (e.g. 03 04)
+	const static Property MetronomeBeat;
+
 	static const std::vector<Property> AllProperties;
 };
 

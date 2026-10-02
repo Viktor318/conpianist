@@ -92,6 +92,9 @@ void PianoController::InitEvents()
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Events, Property::VoiceMidi));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Events, Property::SongName));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Events, Property::SplitPoint));
+	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Events, Property::Metronome));
+	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Events, Property::MetronomeCount));
+	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Events, Property::MetronomeBeat));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Events, Property::LidPosition));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Events, Property::Environment));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Events, Property::Brightness));
@@ -141,6 +144,8 @@ void PianoController::ResyncStateFromPiano()
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::StreamSpeed));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::ReverbEffect));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::Tempo));
+	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::Metronome));
+	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::MetronomeBeat));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::Transpose, 2, 0));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::Transpose, 1, 0));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::VoicePreset, chMain, 0));
@@ -577,6 +582,11 @@ void PianoController::SetTempo(int tempo)
 		if (m_localPlayer) m_localPlayer->SetTempo(tempo);
 		m_tempo = tempo;
 		NotifyChanged(apTempo);
+		if (!m_genericDevice && m_connected)
+		{
+			// the piano's metronome follows the tempo of the own player
+			m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::Tempo, tempo));
+		}
 		return;
 	}
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::Tempo, tempo));
@@ -1091,6 +1101,30 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 		m_tempo = intValue;
 		NotifyChanged(apTempo);
 	}
+	else if (property == Property::Metronome)
+	{
+		if (!m_genericDevice)
+		{
+			m_metronome = boolValue;
+			NotifyChanged(apMetronome);
+		}
+	}
+	else if (property == Property::MetronomeBeat && size == 2)
+	{
+		if (data[0] > 0 && data[1] > 0)
+		{
+			m_metronomeNumerator = data[0];
+			m_metronomeDenominator = data[1];
+			NotifyChanged(apMetronome);
+		}
+	}
+	else if (property == Property::MetronomeCount)
+	{
+		if (!m_genericDevice)
+		{
+			OnBeat(intValue);
+		}
+	}
 	else if (property == Property::Transpose && index == 1)
 	{
 		m_keyboardTranspose = intValue - TransposeBase;
@@ -1290,6 +1324,12 @@ void PianoController::ApplyPlaybackSource(PlaybackSource source)
 
 	m_playbackSource = source;
 	m_localPlayback = source != psPiano;
+	if (m_softMetronome)
+	{
+		// the own metronome sounds on the MIDI device only
+		m_softMetronome.reset();
+		m_metronome = false;
+	}
 	m_genericDevice = source == psMidiDevice;
 	UpdateLiveTarget(); // MIDI device playback: Live Play on the Mixer channels (MIDI Out)
 	const bool enabled = m_localPlayback;
@@ -1306,7 +1346,14 @@ void PianoController::ApplyPlaybackSource(PlaybackSource source)
 			};
 		m_localPlayer->onChanged = [this](bool positionChanged, bool playingChanged)
 			{
-				if (positionChanged) NotifyChanged(apPosition);
+				if (positionChanged)
+				{
+					NotifyChanged(apPosition);
+					if (m_localPlayer && m_localPlayer->IsPlaying())
+					{
+						OnBeat(m_localPlayer->GetPosition().beat);
+					}
+				}
 				if (playingChanged) NotifyChanged(apPlayback);
 			};
 	}
@@ -1780,6 +1827,11 @@ LiveRecorder::Setup PianoController::RecorderSetup(Channel ch)
 
 void PianoController::UpdateRecorderSetups()
 {
+	// the tempo and the time signature of the recording: as they are when it starts
+	m_recordedTempo = jlimit((int)MinTempo, (int)MaxTempo, m_tempo);
+	m_recordedNumerator = m_metronomeNumerator;
+	m_recordedDenominator = m_metronomeDenominator;
+
 	for (int i = 0; i < 16; i++)
 	{
 		m_recorder.SetSetup(LiveRecorder::srcMixer1 + i, RecorderSetup((Channel)(chMidi1 + i)));
@@ -1787,6 +1839,88 @@ void PianoController::UpdateRecorderSetups()
 	m_recorder.SetSetup(LiveRecorder::srcMain, RecorderSetup(chMain));
 	m_recorder.SetSetup(LiveRecorder::srcLayer, RecorderSetup(chLayer));
 	m_recorder.SetSetup(LiveRecorder::srcLeft, RecorderSetup(chLeft));
+}
+
+// The own metronome (on the MIDI device): a click on the drum channel on every beat.
+class PianoController::SoftMetronome : public HighResolutionTimer
+{
+public:
+	SoftMetronome(PianoController& owner) : owner(owner) {}
+	~SoftMetronome() override { stopTimer(); }
+	void hiResTimerCallback() override { owner.SoftMetronomeTick(); }
+private:
+	PianoController& owner;
+};
+
+void PianoController::SoftMetronomeTick()
+{
+	const double now = Time::getMillisecondCounterHiRes();
+	if (now < m_softNextMs)
+	{
+		return;
+	}
+	const int numerator = jmax(1, (int)m_metronomeNumerator);
+	const int denominator = jmax(1, (int)m_metronomeDenominator);
+	m_softBeat = m_softBeat % numerator + 1;
+	// a beat is one note of the denominator; the tempo counts quarter notes
+	const double beatMs = 60000.0 / jlimit((int)MinTempo, (int)MaxTempo, m_tempo) * 4.0 / denominator;
+	m_softNextMs = (m_softNextMs == 0 || now - m_softNextMs > beatMs ? now : m_softNextMs) + beatMs;
+
+	const int note = m_softBeat == 1 ? 76 : 77; // high and low wood block
+	SendToOutput(MidiMessage::noteOn(10, note, (uint8)(m_softBeat == 1 ? 120 : 90)));
+	SendToOutput(MidiMessage::noteOff(10, note));
+	OnBeat(m_softBeat);
+}
+
+// A beat of the metronome or of the playing song (any thread); beat 1 is the downbeat.
+void PianoController::OnBeat(int beat)
+{
+	m_lastBeatMs = Time::getMillisecondCounter();
+	m_recorder.Beat(beat == 1);
+}
+
+bool PianoController::HasBeats() const
+{
+	return m_lastBeatMs != 0 && Time::getMillisecondCounter() - m_lastBeatMs < 2500;
+}
+
+void PianoController::SetMetronome(bool on)
+{
+	if (m_genericDevice)
+	{
+		m_metronome = on;
+		m_softMetronome.reset();
+		if (on)
+		{
+			m_softBeat = 0;
+			m_softNextMs = 0;
+			m_softMetronome = std::make_unique<SoftMetronome>(*this);
+			m_softMetronome->startTimer(2);
+		}
+		NotifyChanged(apMetronome);
+		return;
+	}
+	m_softMetronome.reset();
+	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::Metronome, on ? 1 : 0));
+}
+
+void PianoController::SetMetronomeBeat(int numerator, int denominator)
+{
+	if (m_genericDevice)
+	{
+		m_metronomeNumerator = numerator;
+		m_metronomeDenominator = denominator;
+		NotifyChanged(apMetronome);
+		return;
+	}
+	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::MetronomeBeat,
+		(numerator << 7) + denominator));
+}
+
+void PianoController::StartRecordingWithCountIn(int measures)
+{
+	UpdateRecorderSetups();
+	m_recorder.StartCountIn(measures);
 }
 
 void PianoController::StartRecording(bool autoStart)
@@ -1811,7 +1945,8 @@ bool PianoController::SaveRecording(const File& file, bool includeStyle, String&
 {
 	// the reverb type of the piano as XG reverb type; not known on a general MIDI device
 	const int reverbType = m_genericDevice || m_reverbEffect <= 0 ? LiveRecorder::NoValue : m_reverbEffect;
-	return m_recorder.Save(file, m_tempo, 4, 4, includeStyle, reverbType, error);
+	return m_recorder.Save(file, m_recordedTempo, m_recordedNumerator, m_recordedDenominator,
+		includeStyle, reverbType, error);
 }
 
 void PianoController::ReleaseLive()
@@ -2294,6 +2429,7 @@ bool PianoController::LoadSongInternal(const File& file)
 // Stops the local player before the connectors are destroyed (on application exit).
 void PianoController::ShutdownLocalPlayer()
 {
+	m_softMetronome.reset();
 	if (m_localPlayer)
 	{
 		m_localPlayer->Unload();

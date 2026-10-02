@@ -47,6 +47,11 @@ private:
 	ToggleButton manualButton;
 	Label silenceLabel;
 	Slider silenceSlider;
+	Label tempoLabel;
+	Slider tempoSlider;
+	ComboBox beatCombo;
+	ToggleButton metronomeButton;
+	ComboBox countInCombo;
 	ToggleButton styleButton;
 	Label nameLabel;
 	TextEditor nameEditor;
@@ -60,6 +65,7 @@ private:
 	bool saved = false;      // the recording in the recorder has been saved
 	String savedName;        // ... under this name
 	String message;          // shown until the next recording (e.g. an error)
+	bool metronomeStarted = false; // the metronome was switched on for the count-in
 
 	void startRecording();
 	void stopRecording();
@@ -67,6 +73,7 @@ private:
 	void writeFile(const File& file);
 	void saveOptions();
 	void updateControls();
+	void updateMetronome();
 	void updateStatus();
 	static String formatTime(double seconds);
 };

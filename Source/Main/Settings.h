@@ -84,6 +84,7 @@ public:
 	bool recorderAutomatic = true;
 	int recorderSilence = 5;
 	bool recorderStyle = true;
+	int recorderCountIn = 1; // count-in measures of a manual recording (0: none)
 
 private:
 	PropertiesFile::Options opt;
