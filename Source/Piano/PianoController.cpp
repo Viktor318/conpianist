@@ -96,6 +96,7 @@ void PianoController::InitEvents()
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Events, Property::MetronomeCount));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Events, Property::MetronomeBeat));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Events, Property::MetronomeBell));
+	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Events, Property::MetronomeVolume));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Events, Property::LidPosition));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Events, Property::Environment));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Events, Property::Brightness));
@@ -148,6 +149,7 @@ void PianoController::ResyncStateFromPiano()
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::Metronome));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::MetronomeBeat));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::MetronomeBell));
+	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::MetronomeVolume));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::Transpose, 2, 0));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::Transpose, 1, 0));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::VoicePreset, chMain, 0));
@@ -1111,6 +1113,14 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 			NotifyChanged(apMetronome);
 		}
 	}
+	else if (property == Property::MetronomeVolume)
+	{
+		if (!m_genericDevice)
+		{
+			m_metronomeVolume = jlimit(0, 127, intValue);
+			NotifyChanged(apMetronome);
+		}
+	}
 	else if (property == Property::MetronomeBell)
 	{
 		if (!m_genericDevice)
@@ -1879,7 +1889,12 @@ void PianoController::SoftMetronomeTick()
 	// low wood block; with the bell the first beat is a triangle
 	const bool bell = m_softBeat == 1 && m_metronomeBell;
 	const int note = bell ? 81 : 77;
-	SendToOutput(MidiMessage::noteOn(10, note, (uint8)(bell ? 120 : 100)));
+	// the volume is the velocity of the click (the drum channel has no volume of its own here)
+	const int velocity = jlimit(1, 127, (int)m_metronomeVolume * (bell ? 127 : 105) / 127);
+	if (m_metronomeVolume > 0)
+	{
+		SendToOutput(MidiMessage::noteOn(10, note, (uint8)velocity));
+	}
 	SendToOutput(MidiMessage::noteOff(10, note));
 	OnBeat(m_softBeat);
 }
@@ -1914,6 +1929,18 @@ void PianoController::SetMetronome(bool on)
 	}
 	m_softMetronome.reset();
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::Metronome, on ? 1 : 0));
+}
+
+void PianoController::SetMetronomeVolume(int volume)
+{
+	volume = jlimit(0, 127, volume);
+	if (m_genericDevice)
+	{
+		m_metronomeVolume = volume;
+		NotifyChanged(apMetronome);
+		return;
+	}
+	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::MetronomeVolume, volume));
 }
 
 void PianoController::SetMetronomeBell(bool on)

@@ -52,6 +52,8 @@ private:
 	ComboBox beatCombo;
 	ToggleButton metronomeButton;
 	ToggleButton bellButton;
+	Label metronomeVolumeLabel;
+	Slider metronomeVolumeSlider;
 	ComboBox countInCombo;
 	ToggleButton styleButton;
 	Label nameLabel;

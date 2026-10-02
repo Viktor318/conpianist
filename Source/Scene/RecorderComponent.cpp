@@ -105,6 +105,21 @@ RecorderComponent::RecorderComponent(Settings& settings, PianoController& pianoC
 		};
 	addAndMakeVisible(bellButton);
 
+	initLabel(metronomeVolumeLabel, TRANS("Metronome volume:"));
+
+	metronomeVolumeSlider.setSliderStyle(Slider::LinearHorizontal);
+	metronomeVolumeSlider.setTextBoxStyle(Slider::TextBoxRight, false, 40, 24);
+	metronomeVolumeSlider.setRange(0, 127, 1);
+	metronomeVolumeSlider.onValueChange = [this]()
+		{
+			const int volume = roundToInt(metronomeVolumeSlider.getValue());
+			if (volume != this->pianoController.GetMetronomeVolume())
+			{
+				this->pianoController.SetMetronomeVolume(volume);
+			}
+		};
+	addAndMakeVisible(metronomeVolumeSlider);
+
 	countInCombo.addItem(TRANS("No count-in"), 1);
 	countInCombo.addItem(TRANS("Count-in: 1 measure"), 2);
 	countInCombo.addItem(TRANS("Count-in: 2 measures"), 3);
@@ -145,7 +160,7 @@ RecorderComponent::RecorderComponent(Settings& settings, PianoController& pianoC
 	styleButton.setToggleState(settings.recorderStyle, dontSendNotification);
 	countInCombo.setSelectedId(settings.recorderCountIn + 1, dontSendNotification);
 
-	setSize(400, 334);
+	setSize(400, 370);
 
 	updateMetronome();
 
@@ -178,13 +193,15 @@ void RecorderComponent::resized()
 	metronomeButton.setBounds(12, 124, 112, 24);
 	bellButton.setBounds(124, 124, 92, 24);
 	countInCombo.setBounds(220, 124, 164, 24);
-	styleButton.setBounds(12, 160, 372, 24);
-	nameLabel.setBounds(16, 196, 100, 24);
-	nameEditor.setBounds(120, 196, 264, 24);
-	statusLabel.setBounds(16, 234, 368, 36);
-	recordButton.setBounds(16, 286, 112, 32);
-	stopButton.setBounds(144, 286, 112, 32);
-	saveButton.setBounds(272, 286, 112, 32);
+	metronomeVolumeLabel.setBounds(16, 160, 170, 24);
+	metronomeVolumeSlider.setBounds(186, 160, 198, 24);
+	styleButton.setBounds(12, 196, 372, 24);
+	nameLabel.setBounds(16, 232, 100, 24);
+	nameEditor.setBounds(120, 232, 264, 24);
+	statusLabel.setBounds(16, 270, 368, 36);
+	recordButton.setBounds(16, 322, 112, 32);
+	stopButton.setBounds(144, 322, 112, 32);
+	saveButton.setBounds(272, 322, 112, 32);
 }
 
 void RecorderComponent::buttonClicked(Button* button)
@@ -429,6 +446,10 @@ void RecorderComponent::updateMetronome()
 
 	metronomeButton.setToggleState(pianoController.GetMetronome(), dontSendNotification);
 	bellButton.setToggleState(pianoController.GetMetronomeBell(), dontSendNotification);
+	if (!metronomeVolumeSlider.isMouseButtonDown(true) && !metronomeVolumeSlider.hasKeyboardFocus(true))
+	{
+		metronomeVolumeSlider.setValue(pianoController.GetMetronomeVolume(), dontSendNotification);
+	}
 }
 
 String RecorderComponent::formatTime(double seconds)

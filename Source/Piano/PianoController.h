@@ -292,6 +292,8 @@ public:
 	// bell on the first beat of the measure
 	bool GetMetronomeBell() const { return m_metronomeBell; }
 	void SetMetronomeBell(bool on);
+	int GetMetronomeVolume() const { return m_metronomeVolume; } // 0..127
+	void SetMetronomeVolume(int volume);
 	int GetMetronomeBeatNumerator() const { return m_metronomeNumerator; }
 	int GetMetronomeBeatDenominator() const { return m_metronomeDenominator; }
 	void SetMetronomeBeat(int numerator, int denominator);
@@ -488,6 +490,7 @@ private:
 	int m_recordedDenominator = 4;
 	std::atomic<bool> m_metronome{false};
 	std::atomic<bool> m_metronomeBell{false};
+	std::atomic<int> m_metronomeVolume{100};
 	std::atomic<int> m_metronomeNumerator{4};
 	std::atomic<int> m_metronomeDenominator{4};
 	std::atomic<uint32> m_lastBeatMs{0};

@@ -230,3 +230,4 @@ countries: hu
 "Count-in..." = "Beszámolás…"
 "Bell" = "Csengő"
 "A bell sounds on the first beat of every measure" = "Minden ütem első ütésén csengő szól"
+"Metronome volume:" = "Metronóm hangereje:"
