@@ -200,15 +200,40 @@ void LomseScoreComponent::LoadDocument(String filename)
 	if (filename.isNotEmpty())
 	{
 		// load from file
-		if (CharPointer_ASCII::isValidString(filename.toRawUTF8(), (int)filename.getNumBytesAsUTF8()))
+		// The file is read here and passed to Lomse as text (MusicXML) in two cases:
+		// - the path has non-ASCII characters (e.g. accented letters): Lomse cannot open
+		//   such a file on Windows;
+		// - the score has part groups (brackets joining the instruments, written e.g. by
+		//   Dorico): Lomse cannot draw them if an instrument of the group is not shown,
+		//   so the groups are left out.
+		String content = File(filename).loadFileAsString();
+		const bool asciiPath = CharPointer_ASCII::isValidString(filename.toRawUTF8(), (int)filename.getNumBytesAsUTF8());
+		const bool hasGroups = content.contains("<part-group");
+		if (asciiPath && !hasGroups)
 		{
 			m_presenter.reset(m_lomse.open_document(lomse::k_view_vertical_book, filename.toStdString()));
 		}
 		else
 		{
-			// Lomse cannot open a file whose path has non-ASCII characters (e.g. accented
-			// letters) on Windows: the file is read here and passed as text (MusicXML)
-			const String content = File(filename).loadFileAsString();
+			for (int start = content.indexOf("<part-group"); start >= 0; start = content.indexOf(start, "<part-group"))
+			{
+				const int tagEnd = content.indexOf(start, ">");
+				if (tagEnd < 0)
+				{
+					break;
+				}
+				int end = tagEnd + 1;
+				if (content[tagEnd - 1] != '/')
+				{
+					const int close = content.indexOf(tagEnd, "</part-group>");
+					if (close < 0)
+					{
+						break;
+					}
+					end = close + (int)strlen("</part-group>");
+				}
+				content = content.substring(0, start) + content.substring(end);
+			}
 			m_presenter.reset(m_lomse.new_document(lomse::k_view_vertical_book,
 				content.toStdString(), lomse::Document::k_format_mxl));
 		}
