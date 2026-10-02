@@ -92,10 +92,30 @@ void LiveRecorder::Beat(bool downbeat)
 		return; // not a downbeat, or the same downbeat reported twice
 	}
 	m_lastDownbeatMs = nowMs;
-	if (m_state == stCountIn && --m_downbeatsLeft <= 0)
+	if (m_state == stCountIn)
 	{
-		Begin(nowMs, false);
+		if (--m_downbeatsLeft <= 0)
+		{
+			Begin(nowMs, false);
+		}
 	}
+	else if (m_state == stRecording && m_noteCount == 0)
+	{
+		// nothing was played yet: the empty measures at the beginning are left out
+		MoveStart(nowMs);
+	}
+}
+
+// Moves the beginning of the recording later; what was recorded before it (e.g. the
+// pedal) is kept at the beginning.
+void LiveRecorder::MoveStart(double newStartMs)
+{
+	const double delta = newStartMs - m_startMs;
+	for (Event& event : m_events)
+	{
+		event.time = std::max(0.0, event.time - delta);
+	}
+	m_startMs = newStartMs;
 }
 
 void LiveRecorder::Stop()
@@ -154,6 +174,13 @@ void LiveRecorder::Store(int source, const MidiMessage& message, double nowMs)
 	MidiMessage copy(message);
 	copy.setChannel(1); // the channel is assigned when the file is written
 	copy.setTimeStamp(0);
+	if (message.isNoteOn() && m_noteCount == 0 &&
+		!(m_lastDownbeatMs > 0 && nowMs - m_lastBeatMs < 2500))
+	{
+		// no beats to keep in step with: the recording begins with its first note, the
+		// silence before it is left out
+		MoveStart(nowMs);
+	}
 	m_events.push_back({nowMs - m_startMs, source, copy});
 	m_lastEventMs = nowMs;
 

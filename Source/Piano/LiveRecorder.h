@@ -118,6 +118,7 @@ private:
 	Setup m_styleSetup[8];
 
 	void Begin(double nowMs, bool alignToDownbeat);
+	void MoveStart(double newStartMs);
 	void Store(int source, const MidiMessage& message, double nowMs);
 	static bool IsRecordable(const MidiMessage& message);
 };
