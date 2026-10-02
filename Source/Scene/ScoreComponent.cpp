@@ -200,7 +200,18 @@ void LomseScoreComponent::LoadDocument(String filename)
 	if (filename.isNotEmpty())
 	{
 		// load from file
-		m_presenter.reset(m_lomse.open_document(lomse::k_view_vertical_book, filename.toStdString()));
+		if (CharPointer_ASCII::isValidString(filename.toRawUTF8(), (int)filename.getNumBytesAsUTF8()))
+		{
+			m_presenter.reset(m_lomse.open_document(lomse::k_view_vertical_book, filename.toStdString()));
+		}
+		else
+		{
+			// Lomse cannot open a file whose path has non-ASCII characters (e.g. accented
+			// letters) on Windows: the file is read here and passed as text (MusicXML)
+			const String content = File(filename).loadFileAsString();
+			m_presenter.reset(m_lomse.new_document(lomse::k_view_vertical_book,
+				content.toStdString(), lomse::Document::k_format_mxl));
+		}
 	}
 	else
 	{
