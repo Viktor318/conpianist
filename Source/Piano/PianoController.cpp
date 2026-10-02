@@ -1135,6 +1135,7 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 		{
 			m_metronomeNumerator = data[0];
 			m_metronomeDenominator = data[1];
+			m_pianoCountPeriod = 0;
 			NotifyChanged(apMetronome);
 		}
 	}
@@ -1142,7 +1143,18 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 	{
 		if (!m_genericDevice)
 		{
-			OnBeat(intValue);
+			// The piano reports a beat when it ends, i.e. together with the click of the
+			// next beat: the count of the last beat of the measure arrives on the downbeat
+			// (on the bell). The length of the measure is learned from the wrap of the
+			// count; until then the beat setting of the metronome is used.
+			const uint32 now = Time::getMillisecondCounter();
+			if (intValue == 1 && m_pianoCount > 1 && now - m_lastBeatMs < 2500)
+			{
+				m_pianoCountPeriod = m_pianoCount;
+			}
+			m_pianoCount = intValue;
+			const int period = m_pianoCountPeriod > 0 ? m_pianoCountPeriod : jmax(1, (int)m_metronomeNumerator);
+			OnBeat(intValue >= period ? 1 : intValue + 1);
 		}
 	}
 	else if (property == Property::Transpose && index == 1)

@@ -497,6 +497,8 @@ private:
 	class SoftMetronome;
 	std::unique_ptr<HighResolutionTimer> m_softMetronome;
 	int m_softBeat = 0;
+	int m_pianoCount = 0;
+	int m_pianoCountPeriod = 0;
 	double m_softNextMs = 0;
 	void SoftMetronomeTick();
 	void OnBeat(int beat);
