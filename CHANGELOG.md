@@ -5,7 +5,7 @@ Ez a fájl a ConPianist változásait dokumentálja. Az 1.0–3.0 verziók az er
 ## Következő verzió (fejlesztés alatt)
 
 ### Új
-- **A zongora billentyűzetének külön transzponálása.** A Piano Room ablakban a Hangolás alatt új **Transzponálás** csúszka (−12…+12 félhang, dupla kattintásra 0): a zongora saját billentyűit és a „Zongora (Hangszín fül)” módban szóló élő játékot transzponálja, a dalt nem. A Lejátszás panel Transzponálás csúszkája ezentúl csak a dalra és a Keverő csatornáin szóló élő játékra hat. A beállítás a Piano Room többi beállításával együtt mentődik. A két csúszka felirata jelzi a különbséget: „Transzponálás (dal és Keverő)” a bal panelen, „Transzponálás (billentyűzet)” a Piano Roomban.
+- **A zongora billentyűzetének külön transzponálása.** A Piano Room ablakban a Hangolás alatt új **Transzponálás** csúszka (−12…+12 félhang, dupla kattintásra 0): csak a zongora saját billentyűit transzponálja, a dalt nem. A bal panel Transzponálás csúszkája változatlanul a dalt és az élő játékot (virtuális billentyűzet, MIDI In 2) transzponálja; a zongorán („Zongora (Hangszín fül)”) szóló élő játéknál a két érték összeadódik. A különbséget a csúszkák súgója írja le. A beállítás a Piano Room többi beállításával együtt mentődik.
 - A Piano Room Hangolás és Transzponálás csúszkája dupla kattintásra azonnal az alapértékre áll (440 Hz, illetve 0).
 
 ## 4.4 (fork) – 2026. október 1.

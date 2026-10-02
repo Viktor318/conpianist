@@ -372,8 +372,9 @@ public:
 	void SetFixedVelocity(int fixedVelocity);
 	int GetMasterTune() { return m_masterTune; }
 	void SetMasterTune(int masterTune);
-	// Transposition of the piano's own keyboard (and of Live Play on the piano's keyboard
-	// parts), in semitones; separate from the transposition of the song (SetTranspose).
+	// Transposition of the piano's own keyboard, in semitones (Piano Room). The piano
+	// adds it to Live Play on its keyboard parts, too. The transposition of the Playback
+	// panel (SetTranspose) is for the song and all Live Play, not for the piano's own keys.
 	int GetKeyboardTranspose() { return m_keyboardTranspose; }
 	void SetKeyboardTranspose(int transpose);
 	int GetVrm() { return m_vrm; }

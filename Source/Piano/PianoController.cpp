@@ -1786,8 +1786,7 @@ void PianoController::ReleaseLiveChannels(int removed)
 		const int channels = m_liveNoteChannels[note] & removed;
 		for (int ch = 1; ch <= 17; ch++)
 		{
-			// drum channel and the piano's keyboard parts (17): not transposed here
-			const int sounding = ch == 10 || ch == 17 ? note : note + m_liveNoteTranspose[note] + LiveOctaveShift(ch);
+			const int sounding = ch == 10 ? note : note + m_liveNoteTranspose[note] + LiveOctaveShift(ch);
 			if ((channels & (1 << (ch - 1))) && sounding >= 0 && sounding <= 127)
 			{
 				SendLive(ch, MidiMessage::noteOff(1, sounding));
@@ -1862,9 +1861,9 @@ void PianoController::PlayLive(const MidiMessage& message)
 		if (channels & (1 << (ch - 1)))
 		{
 			MidiMessage copy(message);
-			// not on the drum channel; the piano's keyboard parts (17) are transposed by
-			// the piano itself (keyboard transpose), like its own keys
-			if (hasNote && ch != 10 && ch != 17)
+			// not on the drum channel; on the piano's keyboard parts (17) the piano adds
+			// its own keyboard transpose (Piano Room) to this
+			if (hasNote && ch != 10)
 			{
 				const int sounding = note + transpose + LiveOctaveShift(ch);
 				if (sounding < 0 || sounding > 127)

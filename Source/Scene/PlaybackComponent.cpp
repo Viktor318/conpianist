@@ -350,9 +350,8 @@ PlaybackComponent::PlaybackComponent (Settings& settings, PianoController& piano
     tempoTitleLabel->addMouseListener(this, false);
     tempoLabel->addMouseListener(this, false);
     tempoSlider->addMouseListener(this, false);
-    // not the transposition of the piano's own keyboard (Piano Room)
-    transposeTitleLabel->setText(TRANS("Transpose (song and Mixer)"), NotificationType::dontSendNotification);
-    const String transposeTip = TRANS("Transposes the song and Live Play on the Mixer channels. The piano's own keyboard is transposed in Piano Room.");
+    // not the transposition of the piano's own keys (Piano Room)
+    const String transposeTip = TRANS("Transposes the song and Live Play (virtual keyboard, MIDI In 2). The piano's own keys are transposed in Piano Room.");
     transposeTitleLabel->setTooltip(transposeTip);
     transposeLabel->setTooltip(transposeTip);
     transposeSlider->setTooltip(transposeTip);
@@ -483,8 +482,6 @@ void PlaybackComponent::resized()
     usbPlaybackButton->setBounds (10, ((-8) + 70 - 8) + 230, 268, 24);
     midiDevicePlaybackButton->setBounds (10, ((-8) + 70 - 8) + 254, 268, 24);
     //[UserResized] Add your own custom resize handling here..
-    // the longer title needs the whole width up to the value on the right
-    transposeTitleLabel->setSize(transposeLabel->getX() - transposeTitleLabel->getX(), transposeTitleLabel->getHeight());
     const int liveTop = transposeSlider->getBottom() + 8;
     livePlayLabel->setBounds (8, liveTop, 136, 24);
     livePianoButton->setBounds (10, liveTop + 24, 268, 24);
