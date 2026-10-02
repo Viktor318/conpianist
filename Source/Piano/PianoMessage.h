@@ -206,6 +206,9 @@ struct Property
 	// Value: 0..7f
 	const static Property MetronomeVolume;
 
+	// Bell on the first beat of the measure. Value: 0 - Off, 1 - On
+	const static Property MetronomeBell;
+
 	// Value: 2 Bytes: numerator, denominator (e.g. 03 04)
 	const static Property MetronomeBeat;
 

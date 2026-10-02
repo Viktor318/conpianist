@@ -95,6 +95,7 @@ void PianoController::InitEvents()
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Events, Property::Metronome));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Events, Property::MetronomeCount));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Events, Property::MetronomeBeat));
+	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Events, Property::MetronomeBell));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Events, Property::LidPosition));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Events, Property::Environment));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Events, Property::Brightness));
@@ -146,6 +147,7 @@ void PianoController::ResyncStateFromPiano()
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::Tempo));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::Metronome));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::MetronomeBeat));
+	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::MetronomeBell));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::Transpose, 2, 0));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::Transpose, 1, 0));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::VoicePreset, chMain, 0));
@@ -1109,6 +1111,14 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 			NotifyChanged(apMetronome);
 		}
 	}
+	else if (property == Property::MetronomeBell)
+	{
+		if (!m_genericDevice)
+		{
+			m_metronomeBell = boolValue;
+			NotifyChanged(apMetronome);
+		}
+	}
 	else if (property == Property::MetronomeBeat && size == 2)
 	{
 		if (data[0] > 0 && data[1] > 0)
@@ -1866,8 +1876,10 @@ void PianoController::SoftMetronomeTick()
 	const double beatMs = 60000.0 / jlimit((int)MinTempo, (int)MaxTempo, m_tempo) * 4.0 / denominator;
 	m_softNextMs = (m_softNextMs == 0 || now - m_softNextMs > beatMs ? now : m_softNextMs) + beatMs;
 
-	const int note = m_softBeat == 1 ? 76 : 77; // high and low wood block
-	SendToOutput(MidiMessage::noteOn(10, note, (uint8)(m_softBeat == 1 ? 120 : 90)));
+	// low wood block; with the bell the first beat is a triangle
+	const bool bell = m_softBeat == 1 && m_metronomeBell;
+	const int note = bell ? 81 : 77;
+	SendToOutput(MidiMessage::noteOn(10, note, (uint8)(bell ? 120 : 100)));
 	SendToOutput(MidiMessage::noteOff(10, note));
 	OnBeat(m_softBeat);
 }
@@ -1902,6 +1914,17 @@ void PianoController::SetMetronome(bool on)
 	}
 	m_softMetronome.reset();
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::Metronome, on ? 1 : 0));
+}
+
+void PianoController::SetMetronomeBell(bool on)
+{
+	if (m_genericDevice)
+	{
+		m_metronomeBell = on;
+		NotifyChanged(apMetronome);
+		return;
+	}
+	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::MetronomeBell, on ? 1 : 0));
 }
 
 void PianoController::SetMetronomeBeat(int numerator, int denominator)

@@ -97,6 +97,14 @@ RecorderComponent::RecorderComponent(Settings& settings, PianoController& pianoC
 		};
 	addAndMakeVisible(metronomeButton);
 
+	bellButton.setButtonText(TRANS("Bell"));
+	bellButton.setTooltip(TRANS("A bell sounds on the first beat of every measure"));
+	bellButton.onClick = [this]()
+		{
+			this->pianoController.SetMetronomeBell(bellButton.getToggleState());
+		};
+	addAndMakeVisible(bellButton);
+
 	countInCombo.addItem(TRANS("No count-in"), 1);
 	countInCombo.addItem(TRANS("Count-in: 1 measure"), 2);
 	countInCombo.addItem(TRANS("Count-in: 2 measures"), 3);
@@ -167,8 +175,9 @@ void RecorderComponent::resized()
 	tempoLabel.setBounds(16, 88, 120, 24);
 	tempoSlider.setBounds(140, 88, 112, 24);
 	beatCombo.setBounds(264, 88, 120, 24);
-	metronomeButton.setBounds(12, 124, 180, 24);
-	countInCombo.setBounds(200, 124, 184, 24);
+	metronomeButton.setBounds(12, 124, 112, 24);
+	bellButton.setBounds(124, 124, 92, 24);
+	countInCombo.setBounds(220, 124, 164, 24);
 	styleButton.setBounds(12, 160, 372, 24);
 	nameLabel.setBounds(16, 196, 100, 24);
 	nameEditor.setBounds(120, 196, 264, 24);
@@ -419,6 +428,7 @@ void RecorderComponent::updateMetronome()
 	}
 
 	metronomeButton.setToggleState(pianoController.GetMetronome(), dontSendNotification);
+	bellButton.setToggleState(pianoController.GetMetronomeBell(), dontSendNotification);
 }
 
 String RecorderComponent::formatTime(double seconds)

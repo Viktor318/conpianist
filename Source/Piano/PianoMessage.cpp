@@ -191,6 +191,7 @@ const Property Property::KeyOffSampling = Property("02 02 06 01", 1, 200);
 const Property Property::Metronome = Property("07 00 00 01", 1, 200);
 const Property Property::MetronomeCount = Property("07 00 01 01", 2, 0);
 const Property Property::MetronomeVolume = Property("07 00 02 01", 1, 200);
+const Property Property::MetronomeBell = Property("07 00 03 01", 1, 200);
 const Property Property::MetronomeBeat = Property("07 00 04 01", 2, 200);
 
 const std::vector<Property> Property::AllProperties = {
@@ -199,7 +200,8 @@ const std::vector<Property> Property::AllProperties = {
 	Octave, Tempo, Transpose, ReverbEffect, Loop, VoicePreset, VoiceMidi, Active,
 	Present, SongReset, SplitPoint, LidPosition, Environment, Brightness, TouchCurve,
 	FixedCurve, FixedVelocity, MasterTune, Vrm, DamperResonance, StringResonance,
-	KeyOffSampling, Metronome, MetronomeCount, MetronomeVolume, MetronomeBeat
+	KeyOffSampling, Metronome, MetronomeCount, MetronomeVolume, MetronomeBell,
+	MetronomeBeat
 };
 
 constexpr char CharToCode(char ch)

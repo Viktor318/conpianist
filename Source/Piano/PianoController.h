@@ -289,6 +289,9 @@ public:
 	// (drum channel) when the piano is not used for playing.
 	bool GetMetronome() const { return m_metronome; }
 	void SetMetronome(bool on);
+	// bell on the first beat of the measure
+	bool GetMetronomeBell() const { return m_metronomeBell; }
+	void SetMetronomeBell(bool on);
 	int GetMetronomeBeatNumerator() const { return m_metronomeNumerator; }
 	int GetMetronomeBeatDenominator() const { return m_metronomeDenominator; }
 	void SetMetronomeBeat(int numerator, int denominator);
@@ -484,6 +487,7 @@ private:
 	int m_recordedNumerator = 4;
 	int m_recordedDenominator = 4;
 	std::atomic<bool> m_metronome{false};
+	std::atomic<bool> m_metronomeBell{false};
 	std::atomic<int> m_metronomeNumerator{4};
 	std::atomic<int> m_metronomeDenominator{4};
 	std::atomic<uint32> m_lastBeatMs{0};

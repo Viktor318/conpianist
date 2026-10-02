@@ -51,6 +51,7 @@ private:
 	Slider tempoSlider;
 	ComboBox beatCombo;
 	ToggleButton metronomeButton;
+	ToggleButton bellButton;
 	ComboBox countInCombo;
 	ToggleButton styleButton;
 	Label nameLabel;
