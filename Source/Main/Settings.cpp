@@ -70,6 +70,9 @@ void Settings::Save()
 	prop.setValue("MidiIn2", midiIn2);
 	prop.setValue("MidiOut", midiOut);
 	prop.setValue("PlaybackSource", playbackSource);
+	prop.setValue("Recorder.Automatic", recorderAutomatic);
+	prop.setValue("Recorder.Silence", recorderSilence);
+	prop.setValue("Recorder.Style", recorderStyle);
 
 	prop.save();
 	sendChangeMessage();
@@ -119,6 +122,9 @@ void Settings::Load()
 	midiIn2 = prop.getValue("MidiIn2", midiIn2);
 	midiOut = prop.getValue("MidiOut", midiOut);
 	playbackSource = prop.getValue("PlaybackSource", playbackSource);
+	recorderAutomatic = prop.getBoolValue("Recorder.Automatic", recorderAutomatic);
+	recorderSilence = jlimit(MinRecorderSilence, MaxRecorderSilence, prop.getIntValue("Recorder.Silence", recorderSilence));
+	recorderStyle = prop.getBoolValue("Recorder.Style", recorderStyle);
 }
 
 // The state of the piano and the playback when the program was closed (a registration

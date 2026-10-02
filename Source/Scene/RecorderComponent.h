@@ -1,0 +1,82 @@
+/*
+ *  This file is part of ConPianist. See <https://github.com/Viktor318/conpianist>.
+ *
+ *  Copyright (C) 2026 Viktor Oszkó <oszko.viktor@gmail.com>
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#pragma once
+
+#include "../JuceLibraryCode/JuceHeader.h"
+#include "PianoController.h"
+#include "Settings.h"
+
+// The content of the Recording window: records what is played live (see LiveRecorder)
+// and saves it into a MIDI file in the songs folder.
+class RecorderComponent : public Component,
+                          public Button::Listener,
+                          public Timer
+{
+public:
+	RecorderComponent(Settings& settings, PianoController& pianoController);
+	~RecorderComponent() override;
+
+	void paint(Graphics& g) override;
+	void resized() override;
+	void buttonClicked(Button* button) override;
+	void timerCallback() override;
+
+private:
+	Settings& settings;
+	PianoController& pianoController;
+
+	Label modeLabel;
+	ToggleButton autoButton;
+	ToggleButton manualButton;
+	Label silenceLabel;
+	Slider silenceSlider;
+	ToggleButton styleButton;
+	Label nameLabel;
+	TextEditor nameEditor;
+	Label statusLabel;
+	TextButton recordButton;
+	TextButton stopButton;
+	TextButton saveButton;
+	TooltipWindow tooltipWindow{this};
+
+	LiveRecorder::State lastState = LiveRecorder::stIdle;
+	bool saved = false;      // the recording in the recorder has been saved
+	String savedName;        // ... under this name
+	String message;          // shown until the next recording (e.g. an error)
+
+	void startRecording();
+	void stopRecording();
+	void save();
+	void writeFile(const File& file);
+	void saveOptions();
+	void updateControls();
+	void updateStatus();
+	static String formatTime(double seconds);
+};
+
+// The Recording window: not modal and always on top, so the program can be used (e.g.
+// the virtual keyboard played) while it is open. Closing only hides it: a recording
+// goes on, and the recorded music is kept until the program exits.
+class RecorderWindow : public DocumentWindow
+{
+public:
+	RecorderWindow(Settings& settings, PianoController& pianoController);
+	void closeButtonPressed() override;
+};

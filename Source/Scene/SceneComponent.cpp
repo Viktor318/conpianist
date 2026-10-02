@@ -263,6 +263,7 @@ SceneComponent::SceneComponent (Settings& settings)
 SceneComponent::~SceneComponent()
 {
     //[Destructor_pre]. You can add your own custom destruction code here..
+    recorderWindow = nullptr;
     saveLastState(); // restored at the next start
     // MIDI In 2 is closed first (the output stays open), so no more notes arrive;
     // then the notes still held there or on the virtual keyboard are released
@@ -504,6 +505,8 @@ void SceneComponent::showMenu()
 	menu.addSectionHeader(TRANS("REGISTRATION MEMORY"));
 	menu.addItem(101, TRANS("Load Piano State"));
 	menu.addItem(102, TRANS("Save Piano State"));
+	menu.addSectionHeader(TRANS("LIVE PLAY"));
+	menu.addItem(301, TRANS("Recording..."));
 	menu.addSectionHeader(TRANS("LANGUAGE"));
 	// language names are intentionally not translated: each is shown in its own language
 	menu.addItem(201, "English", true, settings.GetEffectiveLanguage() == "en");
@@ -540,6 +543,9 @@ void SceneComponent::showMenu()
 				case 201:
 				case 202:
 					changeLanguage(result == 202 ? "hu" : "en");
+					break;
+				case 301:
+					showRecorder();
 					break;
 				case 997:
 					showAbout();
@@ -1394,6 +1400,18 @@ void SceneComponent::showAbout()
 		"Control app for Yamaha Clavinova CSP digital pianos (developed and tested with the CSP-170), a desktop alternative to Yamaha's Smart Pianist app.\n\nWHAT IS IT FOR?\nManaging the piano's voices, mixer and Piano Room settings; playing MIDI songs with scores for practice (parts, tempo, transpose, loop).\n\nPLAYBACK MODES\n- Via network: the song is played by the piano's own player (Stream Lights, Guide).\n- Via USB: ConPianist plays the song itself, without Wi-Fi.\n- Via MIDI device: the song is played on another MIDI device (e.g. a software instrument), even without the piano.\n\nLIVE PLAY\nThe virtual keyboard and MIDI In 2 sound with the piano's own voices or on the Mixer channels.\n\nAUTHORS\nOriginal program: Andrey Prygunkov (hugbug/conpianist)\nFork and further development: Viktor Oszk\xc3\xb3"
 		" (Viktor318/conpianist)\n\nLICENSE\nGNU General Public License v3. Libraries used: JUCE, Lomse, Arduino AppleMIDI Library."));
 	AlertWindow::showMessageBoxAsync(MessageBoxIconType::NoIcon, "ConPianist " + version, text);
+}
+
+// The Recording window is not modal: it stays open (on top) while the program is used.
+void SceneComponent::showRecorder()
+{
+	if (!recorderWindow)
+	{
+		recorderWindow = std::make_unique<RecorderWindow>(settings, pianoController);
+		recorderWindow->centreAroundComponent(this, recorderWindow->getWidth(), recorderWindow->getHeight());
+	}
+	recorderWindow->setVisible(true);
+	recorderWindow->toFront(true);
 }
 
 void SceneComponent::changeLanguage(const String& language)

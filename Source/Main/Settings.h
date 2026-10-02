@@ -77,6 +77,13 @@ public:
 	// the playback output chosen by the user, used again at the next start:
 	// "network" (the piano's own player), "usb" (own player over USB) or "device" (MIDI Out)
 	String playbackSource = "network";
+	// Recording window: automatic start and stop (first note, silence) or by the buttons;
+	// the silence that stops an automatic recording (seconds); the accompaniment is saved too
+	static const int MinRecorderSilence = 2;
+	static const int MaxRecorderSilence = 60;
+	bool recorderAutomatic = true;
+	int recorderSilence = 5;
+	bool recorderStyle = true;
 
 private:
 	PropertiesFile::Options opt;

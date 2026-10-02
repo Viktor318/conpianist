@@ -1,0 +1,427 @@
+/*
+ *  This file is part of ConPianist. See <https://github.com/Viktor318/conpianist>.
+ *
+ *  Copyright (C) 2026 Viktor Oszkó <oszko.viktor@gmail.com>
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include "LiveRecorder.h"
+
+static double NowMs()
+{
+	return Time::getMillisecondCounterHiRes();
+}
+
+bool LiveRecorder::IsRecordable(const MidiMessage& message)
+{
+	return message.isNoteOnOrOff() || message.isController() || message.isPitchWheel() ||
+		message.isProgramChange() || message.isChannelPressure() || message.isAftertouch();
+}
+
+void LiveRecorder::Begin(double nowMs)
+{
+	m_events.clear();
+	m_noteCount = 0;
+	m_startMs = nowMs;
+	m_lastEventMs = nowMs;
+	m_endMs = nowMs;
+	for (auto& source : m_held)
+	{
+		std::fill(std::begin(source), std::end(source), 0);
+	}
+	std::fill(std::begin(m_pedal), std::end(m_pedal), 0);
+	m_state = stRecording;
+}
+
+void LiveRecorder::Arm()
+{
+	const ScopedLock lock(m_lock);
+	m_events.clear();
+	m_noteCount = 0;
+	m_state = stArmed;
+}
+
+void LiveRecorder::Start()
+{
+	const ScopedLock lock(m_lock);
+	Begin(NowMs());
+}
+
+void LiveRecorder::Stop()
+{
+	const ScopedLock lock(m_lock);
+	if (m_state == stRecording)
+	{
+		// the end is the last played event, not the moment of stopping
+		const double endMs = m_lastEventMs;
+		for (int source = 1; source <= NumSources; source++)
+		{
+			for (int note = 0; note < 128; note++)
+			{
+				if (m_held[source][note] > 0)
+				{
+					m_events.push_back({endMs - m_startMs, source, MidiMessage::noteOff(1, note)});
+					m_held[source][note] = 0;
+				}
+			}
+			if (m_pedal[source] > 0)
+			{
+				m_events.push_back({endMs - m_startMs, source, MidiMessage::controllerEvent(1, 64, 0)});
+				m_pedal[source] = 0;
+			}
+		}
+		m_endMs = endMs;
+	}
+	m_state = stIdle;
+}
+
+void LiveRecorder::Clear()
+{
+	const ScopedLock lock(m_lock);
+	m_events.clear();
+	m_noteCount = 0;
+	m_state = stIdle;
+}
+
+LiveRecorder::State LiveRecorder::GetState() const
+{
+	const ScopedLock lock(m_lock);
+	return m_state;
+}
+
+void LiveRecorder::SetSetup(int source, const Setup& setup)
+{
+	if (source >= 1 && source <= NumSources)
+	{
+		const ScopedLock lock(m_lock);
+		m_setup[source] = setup;
+	}
+}
+
+void LiveRecorder::Store(int source, const MidiMessage& message, double nowMs)
+{
+	MidiMessage copy(message);
+	copy.setChannel(1); // the channel is assigned when the file is written
+	m_events.push_back({nowMs - m_startMs, source, copy});
+	m_lastEventMs = nowMs;
+
+	if (message.isNoteOn())
+	{
+		m_held[source][message.getNoteNumber()]++;
+		m_noteCount++;
+	}
+	else if (message.isNoteOff())
+	{
+		int& held = m_held[source][message.getNoteNumber()];
+		held = std::max(0, held - 1);
+	}
+	else if (message.isControllerOfType(64))
+	{
+		m_pedal[source] = message.getControllerValue();
+	}
+}
+
+void LiveRecorder::Add(int source, const MidiMessage& message)
+{
+	if (source < 1 || source > NumSources || !IsRecordable(message))
+	{
+		return;
+	}
+
+	const double nowMs = NowMs();
+	const ScopedLock lock(m_lock);
+
+	if (m_state == stArmed && message.isNoteOn())
+	{
+		Begin(nowMs); // the first note starts the recording
+	}
+	if (m_state != stRecording)
+	{
+		if (message.isControllerOfType(64))
+		{
+			m_pedal[source] = 0; // not recorded
+		}
+		return;
+	}
+	if (message.isNoteOff() && m_held[source][message.getNoteNumber()] == 0)
+	{
+		return; // the note was started before the recording
+	}
+	Store(source, message, nowMs);
+}
+
+void LiveRecorder::AddStyle(const MidiMessage& message)
+{
+	if (message.isSysEx())
+	{
+		// XG part mode of an accompaniment channel: F0 43 1n 4C 08 pp 07 mm F7
+		const uint8* data = message.getSysExData();
+		if (message.getSysExDataSize() == 7 && data[0] == 0x43 && (data[1] & 0xf0) == 0x10 &&
+			data[2] == 0x4c && data[3] == 0x08 && data[4] >= 8 && data[4] <= 15 && data[5] == 0x07)
+		{
+			const ScopedLock lock(m_lock);
+			m_styleSetup[data[4] - 8].partMode = data[6];
+		}
+		return;
+	}
+
+	const int channel = message.getChannel();
+	if (channel < 9 || channel > 16 || !IsRecordable(message))
+	{
+		return;
+	}
+	const int index = channel - 9;
+	const double nowMs = NowMs();
+	const ScopedLock lock(m_lock);
+
+	// the settings of the channel: remembered, not recorded
+	if (message.isProgramChange())
+	{
+		m_styleSetup[index].voice = (m_styleBankMsb[index] << 16) | (m_styleBankLsb[index] << 8) |
+			message.getProgramChangeNumber();
+		return;
+	}
+	if (message.isController())
+	{
+		const int value = message.getControllerValue();
+		switch (message.getControllerNumber())
+		{
+			case 0: m_styleBankMsb[index] = value; return;
+			case 32: m_styleBankLsb[index] = value; return;
+			case 7: m_styleSetup[index].volume = value; return;
+			case 10: m_styleSetup[index].pan = value; return;
+			case 91: m_styleSetup[index].reverb = value; return;
+		}
+	}
+
+	// the accompaniment does not start the recording, it is only recorded with it
+	if (m_state != stRecording)
+	{
+		return;
+	}
+	const int source = srcStyle9 + index;
+	if (message.isNoteOff() && m_held[source][message.getNoteNumber()] == 0)
+	{
+		return;
+	}
+	const double lastEventMs = m_lastEventMs;
+	Store(source, message, nowMs);
+	m_lastEventMs = lastEventMs; // the automatic stop waits for the player, not for the style
+}
+
+bool LiveRecorder::HasData() const
+{
+	const ScopedLock lock(m_lock);
+	return m_state == stIdle && m_noteCount > 0;
+}
+
+int LiveRecorder::GetNoteCount() const
+{
+	const ScopedLock lock(m_lock);
+	return m_noteCount;
+}
+
+double LiveRecorder::GetLengthSeconds() const
+{
+	const ScopedLock lock(m_lock);
+	if (m_state == stRecording)
+	{
+		return (NowMs() - m_startMs) / 1000.0;
+	}
+	return m_noteCount > 0 ? (m_endMs - m_startMs) / 1000.0 : 0.0;
+}
+
+double LiveRecorder::GetSecondsSinceLastEvent() const
+{
+	const ScopedLock lock(m_lock);
+	return m_state == stRecording ? (NowMs() - m_lastEventMs) / 1000.0 : 0.0;
+}
+
+int LiveRecorder::GetHeldNoteCount() const
+{
+	const ScopedLock lock(m_lock);
+	int count = 0;
+	for (int source = 1; source < srcStyle9; source++) // not the accompaniment
+	{
+		for (int note = 0; note < 128; note++)
+		{
+			count += m_held[source][note] > 0 ? 1 : 0;
+		}
+		count += m_pedal[source] > 0 ? 1 : 0;
+	}
+	return count;
+}
+
+bool LiveRecorder::Save(const File& file, int tempo, int beatNumerator, int beatDenominator,
+	bool includeStyle, int reverbType, String& error) const
+{
+	const ScopedLock lock(m_lock);
+	if (m_noteCount == 0)
+	{
+		error = "Nothing was recorded";
+		return false;
+	}
+
+	const int ticksPerQuarter = 480;
+	const double ticksPerMs = tempo * ticksPerQuarter / 60000.0;
+
+	// the sources that played notes
+	bool used[NumSources + 1] = {};
+	for (const Event& event : m_events)
+	{
+		if (event.message.isNoteOn())
+		{
+			used[event.source] = true;
+		}
+	}
+	if (!includeStyle)
+	{
+		for (int source = srcStyle9; source <= NumSources; source++)
+		{
+			used[source] = false;
+		}
+	}
+
+	// MIDI channel of each source: the accompaniment keeps its channels (9..16); a Mixer
+	// channel keeps its number if it is free; the keyboard parts take the first free
+	// channels (channel 10 is the drum channel)
+	int channelOf[NumSources + 1] = {};
+	bool taken[17] = {};
+	for (int source = srcStyle9; source <= NumSources; source++)
+	{
+		if (used[source])
+		{
+			channelOf[source] = 9 + (source - srcStyle9);
+			taken[channelOf[source]] = true;
+		}
+	}
+	auto freeChannel = [&taken]()
+		{
+			for (int channel = 1; channel <= 16; channel++)
+			{
+				if (!taken[channel] && channel != 10)
+				{
+					return channel;
+				}
+			}
+			return 0;
+		};
+	for (int source = srcMixer1; source < srcMain; source++)
+	{
+		if (used[source])
+		{
+			const int own = source - srcMixer1 + 1;
+			const int channel = !taken[own] ? own : freeChannel();
+			channelOf[source] = channel;
+			taken[channel] = true;
+		}
+	}
+	for (int source = srcMain; source <= srcLeft; source++)
+	{
+		if (used[source])
+		{
+			const int channel = freeChannel();
+			channelOf[source] = channel;
+			taken[channel] = true;
+		}
+	}
+	taken[0] = false;
+
+	MidiFile midiFile;
+	midiFile.setTicksPerQuarterNote(ticksPerQuarter);
+
+	// conductor track: tempo, beat, reverb type
+	MidiMessageSequence conductor;
+	conductor.addEvent(MidiMessage::timeSignatureMetaEvent(beatNumerator, beatDenominator), 0);
+	conductor.addEvent(MidiMessage::tempoMetaEvent(60000000 / std::max(1, tempo)), 0);
+	if (reverbType != NoValue)
+	{
+		const uint8 data[] = {0x43, 0x10, 0x4c, 0x02, 0x01, 0x00,
+			(uint8)((reverbType >> 8) & 0x7f), (uint8)(reverbType & 0x7f)};
+		conductor.addEvent(MidiMessage::createSysExMessage(data, sizeof(data)), 0);
+	}
+	midiFile.addTrack(conductor);
+
+	static const char* names[] = {"", "", "", "Main", "Layer", "Left"};
+	int skipped = 0;
+	for (int source = 1; source <= NumSources; source++)
+	{
+		if (!used[source])
+		{
+			continue;
+		}
+		const int channel = channelOf[source];
+		if (channel == 0)
+		{
+			skipped++; // no free channel
+			continue;
+		}
+
+		MidiMessageSequence track;
+		const String name = source < srcMain ? "Mixer " + String(source) :
+			source < srcStyle9 ? String(names[source - srcMain + 3]) :
+			"Style " + String(source - srcStyle9 + 9);
+		track.addEvent(MidiMessage::textMetaEvent(3, name), 0);
+
+		// voice and mixer settings
+		const Setup& setup = source >= srcStyle9 ? m_styleSetup[source - srcStyle9] : m_setup[source];
+		if (setup.partMode != NoValue)
+		{
+			const uint8 data[] = {0x43, 0x10, 0x4c, 0x08, (uint8)(channel - 1), 0x07, (uint8)setup.partMode};
+			track.addEvent(MidiMessage::createSysExMessage(data, sizeof(data)), 0);
+		}
+		if (setup.voice != NoValue)
+		{
+			track.addEvent(MidiMessage::controllerEvent(channel, 0, (setup.voice >> 16) & 0x7f), 0);
+			track.addEvent(MidiMessage::controllerEvent(channel, 32, (setup.voice >> 8) & 0x7f), 0);
+			track.addEvent(MidiMessage::programChange(channel, setup.voice & 0x7f), 0);
+		}
+		if (setup.volume != NoValue) track.addEvent(MidiMessage::controllerEvent(channel, 7, jlimit(0, 127, setup.volume)), 0);
+		if (setup.pan != NoValue) track.addEvent(MidiMessage::controllerEvent(channel, 10, jlimit(0, 127, setup.pan)), 0);
+		if (setup.reverb != NoValue) track.addEvent(MidiMessage::controllerEvent(channel, 91, jlimit(0, 127, setup.reverb)), 0);
+
+		double lastTick = 0;
+		for (const Event& event : m_events)
+		{
+			if (event.source != source)
+			{
+				continue;
+			}
+			MidiMessage message(event.message);
+			message.setChannel(channel);
+			const double tick = std::floor(std::max(0.0, event.time) * ticksPerMs + 0.5);
+			track.addEvent(message, tick);
+			lastTick = std::max(lastTick, tick);
+		}
+		track.addEvent(MidiMessage::endOfTrack(), lastTick + 1);
+		track.updateMatchedPairs();
+		midiFile.addTrack(track);
+	}
+
+	file.getParentDirectory().createDirectory();
+	file.deleteFile();
+	FileOutputStream stream(file);
+	if (!stream.openedOk() || !midiFile.writeTo(stream, 1))
+	{
+		error = "Cannot write the file";
+		return false;
+	}
+	stream.flush();
+	if (skipped > 0)
+	{
+		error = "Not all parts fit into the 16 MIDI channels";
+	}
+	return true;
+}

@@ -7,6 +7,7 @@ Ez a fájl a ConPianist változásait dokumentálja. Az 1.0–3.0 verziók az er
 ### Új
 - **A zongora billentyűzetének külön transzponálása.** A Piano Room ablakban a Hangolás alatt új **Transzponálás** csúszka (−12…+12 félhang, dupla kattintásra 0): csak a zongora saját billentyűit transzponálja, a dalt nem. A bal panel Transzponálás csúszkája változatlanul a dalt és az élő játékot (virtuális billentyűzet, MIDI In 2) transzponálja; a zongorán („Zongora (Hangszín fül)”) szóló élő játéknál a két érték összeadódik. A különbséget a csúszkák súgója írja le. A beállítás a Piano Room többi beállításával együtt mentődik.
 - A Piano Room Hangolás és Transzponálás csúszkája dupla kattintásra azonnal az alapértékre áll (440 Hz, illetve 0).
+- **Élő játék felvétele.** A főmenü új **Felvétel…** pontja külön ablakot nyit, amely nyitva maradhat a program használata közben. Felveszi mindazt, ami élőben megszólal: a virtuális billentyűzetet, a MIDI In 2-t, a zongora saját billentyűit, és – ha szól – a zongora kíséretét (stílus) is; a kíséret a **Kíséret felvétele** jelölővel kihagyható. Automatikus módban a felvétel az első leütött hangra indul, és a megadott hosszú csend (alapból 5 másodperc) után magától leáll; kézi módban gombbal indul és áll le. A felvétel a dalok mappájába, önálló MIDI-fájlba menthető, amely a hangszíneket és a keverő beállításait (hangerő, panoráma, zengetés) is tartalmazza; a fájlnév automatikusan a dátumot és az időt kapja, de mentés előtt átírható.
 
 ## 4.4 (fork) – 2026. október 1.
 

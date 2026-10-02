@@ -871,6 +871,25 @@ void PianoController::IncomingMidiMessage(const MidiMessage& message)
 	{
 		NotifyNoteMessage(message);
 	}
+
+	// recording: the piano sends its own keys on channel 1 (Main), 2 (Layer) and 3 (Left),
+	// and its accompaniment on channel 9..16 (with XG system exclusive messages)
+	if (message.isSysEx())
+	{
+		m_recorder.AddStyle(message);
+	}
+	else
+	{
+		const int channel = message.getChannel();
+		if (channel >= 1 && channel <= 3)
+		{
+			m_recorder.Add(LiveRecorder::srcMain + (channel - 1), message);
+		}
+		else if (channel >= 9 && channel <= 16)
+		{
+			m_recorder.AddStyle(message);
+		}
+	}
 }
 
 void PianoController::IncomingPianoMessage(const PianoMessage& message)
@@ -1667,6 +1686,7 @@ void PianoController::SendLive(int channel, const MidiMessage& message)
 	MidiMessage copy(message);
 	if (channel == 17)
 	{
+		RecordLiveKeyboard(message);
 		copy.setChannel(1);
 		if (sendToPianoKeyboard)
 		{
@@ -1674,6 +1694,7 @@ void PianoController::SendLive(int channel, const MidiMessage& message)
 		}
 		return;
 	}
+	m_recorder.Add(LiveRecorder::srcMixer1 + (channel - 1), message);
 	copy.setChannel(channel);
 	if (m_liveSendNow && !m_genericDevice)
 	{
@@ -1681,6 +1702,116 @@ void PianoController::SendLive(int channel, const MidiMessage& message)
 		return;
 	}
 	SendMidiMessage(copy);
+}
+
+// Recording of the notes played on the piano's keyboard parts from here (the piano does
+// not send them back): they sound on the parts that are switched on, like the piano's
+// own keys - Left below the split point, Main and Layer above it - and the piano adds
+// its keyboard transpose and the octave of the part.
+void PianoController::RecordLiveKeyboard(const MidiMessage& message)
+{
+	static const Channel parts[3] = {chMain, chLayer, chLeft};
+
+	if (!message.isNoteOnOrOff())
+	{
+		for (int i = 0; i < 3; i++)
+		{
+			m_recorder.Add(LiveRecorder::srcMain + i, message);
+		}
+		return;
+	}
+
+	const int note = message.getNoteNumber();
+	int sources = 0;
+	if (message.isNoteOn())
+	{
+		const bool leftSide = m_channels[chLeft].active && note <= m_splitPoint;
+		if (leftSide)
+		{
+			sources = 1 << 2;
+		}
+		else
+		{
+			if (m_channels[chMain].active) sources |= 1 << 0;
+			if (m_channels[chLayer].active) sources |= 1 << 1;
+		}
+		m_recKeyboardSources[note] |= sources;
+	}
+	else
+	{
+		// released on the parts it was started on
+		sources = m_recKeyboardSources[note];
+		m_recKeyboardSources[note] = 0;
+	}
+
+	for (int i = 0; i < 3; i++)
+	{
+		if (sources & (1 << i))
+		{
+			const int sounding = note + m_keyboardTranspose + m_channels[parts[i]].octave * 12;
+			if (sounding >= 0 && sounding <= 127)
+			{
+				MidiMessage copy(message);
+				copy.setNoteNumber(sounding);
+				m_recorder.Add(LiveRecorder::srcMain + i, copy);
+			}
+		}
+	}
+}
+
+LiveRecorder::Setup PianoController::RecorderSetup(Channel ch)
+{
+	LiveRecorder::Setup setup;
+	const ChannelInfo& info = m_channels[ch];
+	if (info.voice.startsWith("PRESET:"))
+	{
+		Voice* preset = Presets::FindVoice(info.voice);
+		if (preset) setup.voice = preset->num;
+	}
+	else if (info.voice.isNotEmpty())
+	{
+		setup.voice = info.voice.getIntValue();
+	}
+	setup.volume = jlimit(0, 127, info.volume);
+	setup.pan = jlimit(0, 127, info.pan + PanBase);
+	setup.reverb = jlimit(0, 127, info.reverb);
+	return setup;
+}
+
+void PianoController::UpdateRecorderSetups()
+{
+	for (int i = 0; i < 16; i++)
+	{
+		m_recorder.SetSetup(LiveRecorder::srcMixer1 + i, RecorderSetup((Channel)(chMidi1 + i)));
+	}
+	m_recorder.SetSetup(LiveRecorder::srcMain, RecorderSetup(chMain));
+	m_recorder.SetSetup(LiveRecorder::srcLayer, RecorderSetup(chLayer));
+	m_recorder.SetSetup(LiveRecorder::srcLeft, RecorderSetup(chLeft));
+}
+
+void PianoController::StartRecording(bool autoStart)
+{
+	UpdateRecorderSetups();
+	if (autoStart)
+	{
+		m_recorder.Arm();
+	}
+	else
+	{
+		m_recorder.Start();
+	}
+}
+
+void PianoController::StopRecording()
+{
+	m_recorder.Stop();
+}
+
+bool PianoController::SaveRecording(const File& file, bool includeStyle, String& error)
+{
+	// the reverb type of the piano as XG reverb type; not known on a general MIDI device
+	const int reverbType = m_genericDevice || m_reverbEffect <= 0 ? LiveRecorder::NoValue : m_reverbEffect;
+	return m_recorder.Save(file, m_tempo, 4, 4, includeStyle, reverbType, error);
 }
 
 void PianoController::ReleaseLive()

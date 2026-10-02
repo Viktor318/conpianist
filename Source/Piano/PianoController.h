@@ -25,6 +25,7 @@
 
 #include "PianoConnector.h"
 #include "LocalSongPlayer.h"
+#include "LiveRecorder.h"
 
 #include <atomic>
 
@@ -271,6 +272,14 @@ public:
 	// a live-only channel. On/off, the part and the Live Play selection are kept.
 	void ResetChannelSettings(Channel ch);
 	void PlayLive(const MidiMessage& message);
+	// Recording of what is played live (Live Play, the piano's own keys and the piano's
+	// accompaniment). autoStart: the recording starts with the first played note.
+	LiveRecorder& GetRecorder() { return m_recorder; }
+	void StartRecording(bool autoStart);
+	void StopRecording();
+	// Passes the current voices and mixer settings to the recorder (message thread).
+	void UpdateRecorderSetups();
+	bool SaveRecording(const File& file, bool includeStyle, String& error);
 	// Releases every note and the sustain pedal still held by Live Play, at once (not
 	// through the queue): on application exit the note-offs from MIDI In 2 or the
 	// virtual keyboard would never arrive, and the notes would sound on.
@@ -456,6 +465,10 @@ private:
 	void ResumeLivePedal();
 	void PressLivePedal(int channelMask);
 	void SendLive(int channel, const MidiMessage& message);
+	LiveRecorder m_recorder;
+	int m_recKeyboardSources[128] = {}; // keyboard parts a live note was recorded on (bits 0..2)
+	void RecordLiveKeyboard(const MidiMessage& message);
+	LiveRecorder::Setup RecorderSetup(Channel ch);
 	int m_liveNoteChannels[128] = {}; // channels on which each held note was started
 	int m_liveNoteTranspose[128] = {}; // transposition used when each held note was started
 	int m_liveSustainChannels = 0;    // channels on which the sustain pedal is down

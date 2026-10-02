@@ -103,6 +103,10 @@
               file="Source/Piano/PianoController.cpp"/>
         <FILE id="VJtqTF" name="PianoController.h" compile="0" resource="0"
               file="Source/Piano/PianoController.h"/>
+        <FILE id="Lr4WcB" name="LiveRecorder.cpp" compile="1" resource="0"
+              file="Source/Piano/LiveRecorder.cpp"/>
+        <FILE id="Lr8HdK" name="LiveRecorder.h" compile="0" resource="0"
+              file="Source/Piano/LiveRecorder.h"/>
         <FILE id="ySUacG" name="PianoMessage.cpp" compile="1" resource="0"
               file="Source/Piano/PianoMessage.cpp"/>
         <FILE id="jTSWtJ" name="PianoMessage.h" compile="0" resource="0" file="Source/Piano/PianoMessage.h"/>
@@ -188,6 +192,10 @@
               file="Source/Scene/SceneComponent.cpp"/>
         <FILE id="IBY1Ob" name="SceneComponent.h" compile="0" resource="0"
               file="Source/Scene/SceneComponent.h"/>
+        <FILE id="Rc2PnV" name="RecorderComponent.cpp" compile="1" resource="0"
+              file="Source/Scene/RecorderComponent.cpp"/>
+        <FILE id="Rc6TfJ" name="RecorderComponent.h" compile="0" resource="0"
+              file="Source/Scene/RecorderComponent.h"/>
         <FILE id="D6Rr0S" name="ScoreComponent.cpp" compile="1" resource="0"
               file="Source/Scene/ScoreComponent.cpp"/>
         <FILE id="OgwLWJ" name="ScoreComponent.h" compile="0" resource="0"
