@@ -486,7 +486,9 @@ vector<UPoint> SlurEngraver::find_contour_reference_points()
         size_t iPrev = 0;
         size_t iCur = 1;
         iMax = data.size();
-        for (size_t i=2; i < iMax; ++i)
+        //ConPianist fork: the points are removed inside the loop, so the limit is the
+        //current size (the size before the loop was read past the end of the vector)
+        for (size_t i=2; i < data.size(); ++i)
         {
             if (m_fSlurBelow)
             {
