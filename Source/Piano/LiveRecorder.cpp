@@ -153,6 +153,7 @@ void LiveRecorder::Store(int source, const MidiMessage& message, double nowMs)
 {
 	MidiMessage copy(message);
 	copy.setChannel(1); // the channel is assigned when the file is written
+	copy.setTimeStamp(0);
 	m_events.push_back({nowMs - m_startMs, source, copy});
 	m_lastEventMs = nowMs;
 
@@ -440,6 +441,9 @@ bool LiveRecorder::Save(const File& file, int tempo, int beatNumerator, int beat
 			}
 			MidiMessage message(event.message);
 			message.setChannel(channel);
+			// addEvent adds its time to the time stamp of the message: messages coming from a
+			// MIDI input carry the time of their arrival, which must not be added
+			message.setTimeStamp(0);
 			const double tick = std::floor(std::max(0.0, event.time) * ticksPerMs + 0.5);
 			track.addEvent(message, tick);
 			lastTick = std::max(lastTick, tick);
