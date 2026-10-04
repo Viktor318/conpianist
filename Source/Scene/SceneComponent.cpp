@@ -1416,6 +1416,7 @@ void SceneComponent::showRecorder()
 		recorderWindow->centreAroundComponent(this, recorderWindow->getWidth(), recorderWindow->getHeight());
 	}
 	recorderWindow->setVisible(true);
+	recorderWindow->setMinimised(false); // opened from the menu while it is minimised
 	recorderWindow->toFront(true);
 }
 
@@ -1429,6 +1430,7 @@ void SceneComponent::showAccompaniment()
 		accompanimentWindow->centreAroundComponent(this, accompanimentWindow->getWidth(), accompanimentWindow->getHeight());
 	}
 	accompanimentWindow->setVisible(true);
+	accompanimentWindow->setMinimised(false); // opened from the menu while it is minimised
 	accompanimentWindow->toFront(true);
 	if (Component* content = accompanimentWindow->getContentComponent())
 	{

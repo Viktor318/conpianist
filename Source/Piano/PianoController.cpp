@@ -345,6 +345,7 @@ bool PianoController::UploadSong(const File& file)
 	const int messageSize = (int)message.getSize();
 
 	m_songLoading = true;
+	ClearSentSongVoices(); // the new song sets its own voices
 	char response[16];
 	StreamingSocket socket;
 	bool ok = socket.connect(m_remoteIp, UploadPort, ConnectTimeoutMs) &&
@@ -401,6 +402,7 @@ void PianoController::ResetSong()
 
 void PianoController::Play()
 {
+	SuspendStyleSyncStart(); // the notes of the song must not start the accompaniment
 	if (m_localPlayback)
 	{
 		if (m_localPlayer) m_localPlayer->Play();
@@ -726,6 +728,25 @@ void PianoController::SetVoice(Channel ch, const String& voice)
 // MIDI channel. The piano rejects both the VoicePreset (status 02 02) and the
 // VoiceMidi (status 02 05) properties for song channels.
 // voiceNum has the format 0x00MMLLPP (MSB, LSB, program), as in Presets::Voices().
+int PianoController::RealSongVoice(int voiceNum)
+{
+	if (((voiceNum >> 16) & 0x7f) != ReportedSongBank)
+	{
+		return voiceNum;
+	}
+	int bankMsb = (voiceNum >> 8) & 0x7f;
+	if (bankMsb == ReportedSongBank)
+	{
+		bankMsb = 0; // the answer of the piano to a reported number that was sent back
+	}
+	return (bankMsb << 16) | (voiceNum & 0x7f);
+}
+
+void PianoController::ClearSentSongVoices()
+{
+	std::fill(std::begin(m_sentSongVoice), std::end(m_sentSongVoice), -1);
+}
+
 void PianoController::SetSongChannelVoice(Channel ch, int voiceNum)
 {
 	const int midiChannel = ch - chMidi0; // 1..16
@@ -733,6 +754,11 @@ void PianoController::SetSongChannelVoice(Channel ch, int voiceNum)
 	{
 		return;
 	}
+
+	// a number reported by the piano (from a saved state) is not sent back as a bank
+	voiceNum = RealSongVoice(voiceNum);
+	// remembered: the piano answers with its own form of the number (see RealSongVoice)
+	m_sentSongVoice[midiChannel - 1] = m_genericDevice ? -1 : voiceNum;
 
 	if (IsLiveOnlyChannel(ch))
 	{
@@ -1029,6 +1055,10 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 	{
 		const bool wasPlaying = m_playing;
 		m_playing = boolValue;
+		if (wasPlaying && !m_playing)
+		{
+			ResumeStyleSyncStartLater();
+		}
 		if (m_playing && !wasPlaying)
 		{
 			m_stopRequested = false;
@@ -1140,7 +1170,24 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 	}
 	else if (property == Property::VoiceMidi && size == 4)
 	{
-		m_channels[ch].voice = String((data[0] << 7 * 3) + (data[1] << 7 * 2) + (data[2] << 7) + data[3]);
+		int voice = (data[0] << 7 * 3) + (data[1] << 7 * 2) + (data[2] << 7) + data[3];
+		if (ch >= chMidi1 && ch <= chMidi16)
+		{
+			// The piano reports a voice sent to a song channel as 119 / bank MSB / program
+			// (without the bank LSB): the voice that was sent is kept, it has a name and
+			// can be saved. Any other answer is a voice set by the song itself.
+			int& sent = m_sentSongVoice[ch - chMidi1];
+			const int reported = (ReportedSongBank << 16) | (((sent >> 16) & 0x7f) << 8) | (sent & 0x7f);
+			if (sent >= 0 && (voice == sent || voice == reported))
+			{
+				voice = sent;
+			}
+			else
+			{
+				sent = -1;
+			}
+		}
+		m_channels[ch].voice = String(voice);
 		NotifyChanged(apVoice, ch);
 	}
 	else if (property == Property::Tempo)
@@ -1169,7 +1216,7 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 		const bool stopped = m_stylePlaying && !boolValue;
 		m_stylePlaying = boolValue;
 		NotifyChanged(apStyle);
-		if (stopped && m_styleSyncWanted)
+		if (stopped && m_styleSyncWanted && !m_styleSyncSuspended)
 		{
 			// Sync Start was on before the accompaniment started: on again, a moment
 			// later, when the piano has finished stopping
@@ -1178,7 +1225,7 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 				{
 					Timer::callAfterDelay(300, [this, alive]()
 						{
-							if (alive.lock() && m_connected && m_styleSyncWanted &&
+							if (alive.lock() && m_connected && m_styleSyncWanted && !m_styleSyncSuspended &&
 								!m_stylePlaying && !m_styleSyncStart)
 							{
 								m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::StyleSyncStart, 0, 1));
@@ -1516,7 +1563,14 @@ void PianoController::ApplyPlaybackSource(PlaybackSource source)
 						OnBeat(m_localPlayer->GetPosition().beat);
 					}
 				}
-				if (playingChanged) NotifyChanged(apPlayback);
+				if (playingChanged)
+				{
+					NotifyChanged(apPlayback);
+					if (m_localPlayer && !m_localPlayer->IsPlaying())
+					{
+						ResumeStyleSyncStartLater();
+					}
+				}
 			};
 	}
 
@@ -1979,7 +2033,7 @@ LiveRecorder::Setup PianoController::RecorderSetup(Channel ch)
 	}
 	else if (info.voice.isNotEmpty())
 	{
-		setup.voice = info.voice.getIntValue();
+		setup.voice = RealSongVoice(info.voice.getIntValue());
 	}
 	setup.volume = jlimit(0, 127, info.volume);
 	setup.pan = jlimit(0, 127, info.pan + PanBase);
@@ -2171,9 +2225,50 @@ void PianoController::SetStylePlaying(bool playing)
 	}
 }
 
+// With Sync Start on, the piano does not load a song into its player, and the notes of a
+// song played by ConPianist would start the accompaniment. So Sync Start is switched off
+// while a song is loaded or played, and on again afterwards.
+void PianoController::SuspendStyleSyncStart()
+{
+	if (m_connected && !IsMidiDevicePlayback() && (m_styleSyncStart || m_styleSyncWanted))
+	{
+		m_styleSyncSuspended = true;
+		if (m_styleSyncStart)
+		{
+			m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::StyleSyncStart, 0, 0));
+		}
+	}
+}
+
+// Called from any thread, when a song was loaded or the playback has stopped.
+void PianoController::ResumeStyleSyncStartLater()
+{
+	if (!m_styleSyncSuspended)
+	{
+		return;
+	}
+	std::weak_ptr<bool> alive = m_alive;
+	MessageManager::callAsync([this, alive]()
+		{
+			Timer::callAfterDelay(2000, [this, alive]()
+				{
+					if (!alive.lock() || !m_styleSyncSuspended || GetPlaying())
+					{
+						return; // playing (again): the next stop brings Sync Start back
+					}
+					m_styleSyncSuspended = false;
+					if (m_connected && m_styleSyncWanted && !m_stylePlaying && !m_styleSyncStart)
+					{
+						m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::StyleSyncStart, 0, 1));
+					}
+				});
+		});
+}
+
 void PianoController::SetStyleSyncStart(bool on)
 {
 	m_styleSyncWanted = on;
+	m_styleSyncSuspended = false; // set by the user: as it was asked for
 	if (m_connected)
 	{
 		m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::StyleSyncStart, 0, on ? 1 : 0));
@@ -2740,6 +2835,8 @@ bool PianoController::LoadSongInternal(const File& file)
 	// the player releases the pedal on the channels of the song: the Live Play notes
 	// are released, and the pedal held down is sent again afterwards (ResumeLivePedal)
 	SuspendLive();
+	// the piano does not load a song while Sync Start is on
+	SuspendStyleSyncStart();
 
 	bool ok = false;
 	if (m_localPlayback)
@@ -2779,6 +2876,7 @@ bool PianoController::LoadSongInternal(const File& file)
 		m_pendingMeasure = 0;
 	}
 	ResumeLivePedal(); // also if the song could not be loaded
+	ResumeStyleSyncStartLater(); // on again, if the song is not played
 	return ok;
 }
 
@@ -2796,6 +2894,7 @@ void PianoController::ShutdownLocalPlayer()
 
 bool PianoController::LoadLocalSong(const File& file)
 {
+	ClearSentSongVoices(); // the new song sets its own voices
 	if (m_genericDevice)
 	{
 		// General MIDI default voice (program 0) until the song selects another one

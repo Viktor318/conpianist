@@ -329,6 +329,7 @@ public:
 	void UpdateRecorderSetups();
 	void UpdateRecorderStyleSetups();
 	static const int NumStyleParts = 8;
+	static const int ReportedSongBank = 119; // bank MSB in the voice numbers reported for song channels
 	// keep: the recording counts as saved (false for the temporary file of listening back)
 	// quantizeTicks, quantizeEnds, tripletTicks, fillGaps: see LiveRecorder::Save
 	bool SaveRecording(const File& file, bool includeStyle, String& error, bool keep = true,
@@ -428,6 +429,9 @@ public:
 	const String& GetVoice(Channel ch) { return m_channels[ch].voice; }
 	void SetVoice(Channel ch, const String& voice);
 	void SetSongChannelVoice(Channel ch, int voiceNum);
+	// The piano reports the voice of a song channel also as 119 / bank MSB / program.
+	// Such a number is not a voice that can be sent: returns the real one (bank LSB 0).
+	static int RealSongVoice(int voiceNum);
 	// sets a song channel voice from a saved state: a Yamaha voice ("gmVoice" false) or a
 	// General MIDI voice, converted to the kind of voices of the current player
 	void SetSavedSongChannelVoice(Channel ch, int voiceNum, bool gmVoice);
@@ -556,6 +560,9 @@ private:
 	std::atomic<bool> m_stylePlaying{false};
 	std::atomic<bool> m_styleSyncStart{false};
 	std::atomic<bool> m_styleSyncWanted{false}; // switched on again when the style stops
+	std::atomic<bool> m_styleSyncSuspended{false}; // switched off while a song is loaded or played
+	void SuspendStyleSyncStart();
+	void ResumeStyleSyncStartLater();
 	std::atomic<int> m_styleSection{ssNone};
 	std::atomic<int> m_styleNextSection{ssNone};
 	std::atomic<int> m_stylePosition{0}; // measure << 16 | beat
@@ -624,6 +631,8 @@ private:
 	// Yamaha voices converted to General MIDI voices (per song channel, -1: none): when
 	// switching back to the piano, the original voice is used if it was not changed
 	int m_originalVoice[16];
+	int m_sentSongVoice[16] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1}; // voice sent to each song channel
+	void ClearSentSongVoices();
 	int m_convertedVoice[16];
 	int ConvertSongChannelVoice(Channel ch, int voiceNum, bool fromGm, bool toGm);
 	void ClearConvertedVoices();

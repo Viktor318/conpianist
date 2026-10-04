@@ -841,7 +841,8 @@ String AccompanimentComponent::styleTitle(const String& path)
 //==============================================================================
 
 AccompanimentWindow::AccompanimentWindow(Settings& settings, PianoController& pianoController) :
-	DocumentWindow(TRANS("Accompaniment"), Colour(0xff323e44), DocumentWindow::closeButton)
+	DocumentWindow(TRANS("Accompaniment"), Colour(0xff323e44),
+		DocumentWindow::minimiseButton | DocumentWindow::closeButton)
 {
 	const bool usingNativeTitleBar = (SystemStats::getOperatingSystemType() & SystemStats::Windows) ||
 		(SystemStats::getOperatingSystemType() & SystemStats::MacOSX);

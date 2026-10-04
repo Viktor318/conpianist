@@ -814,7 +814,8 @@ void RecorderComponent::updateStatus()
 //==============================================================================
 
 RecorderWindow::RecorderWindow(Settings& settings, PianoController& pianoController) :
-	DocumentWindow(TRANS("Recording"), Colour(0xff323e44), DocumentWindow::closeButton)
+	DocumentWindow(TRANS("Recording"), Colour(0xff323e44),
+		DocumentWindow::minimiseButton | DocumentWindow::closeButton)
 {
 	const bool usingNativeTitleBar = (SystemStats::getOperatingSystemType() & SystemStats::Windows) ||
 		(SystemStats::getOperatingSystemType() & SystemStats::MacOSX);

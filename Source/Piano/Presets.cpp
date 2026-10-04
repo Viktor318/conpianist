@@ -2851,6 +2851,13 @@ String Presets::VoiceTitle(String voice)
 			}
 		}
 
+		if ((num >> 16 & 0x7f) == 119)
+		{
+			// the form the piano reports for song channels (119 / bank MSB / program),
+			// set by another program: the General MIDI name of the program
+			return GmVoiceNames()[num & 0x7f];
+		}
+
 		// unknown num voice, format as "MSB LSB PC"
 		return String(num >> 16 & 0x7f) + " " + String(num >> 8 & 0x7f) + " " + String(num & 0x7f);
 	}
