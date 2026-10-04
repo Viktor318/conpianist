@@ -597,9 +597,10 @@ void PianoController::SetTempo(int tempo)
 		if (m_localPlayer) m_localPlayer->SetTempo(tempo);
 		m_tempo = tempo;
 		NotifyChanged(apTempo);
-		if (!m_genericDevice && m_connected)
+		if (m_connected)
 		{
-			// the piano's metronome follows the tempo of the own player
+			// the piano's metronome and accompaniment follow the tempo of the own player
+			m_tempoSentMs = Time::getMillisecondCounter();
 			m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::Tempo, tempo));
 		}
 		return;
@@ -951,8 +952,31 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 	{
 		// the tempo of the piano itself (index 1 is the tempo of its song): the
 		// accompaniment follows it, also when ConPianist plays a song itself
-		m_pianoTempo = pm->GetIntValue();
+		const int pianoTempo = pm->GetIntValue();
+		const bool changed = m_pianoTempoKnown && pianoTempo != m_pianoTempo;
+		m_pianoTempo = pianoTempo;
+		m_pianoTempoKnown = true;
 		NotifyChanged(apStyle);
+
+		// ConPianist plays the song itself: its player follows a change of the piano's
+		// tempo (e.g. a new style, or the tempo set on the piano). Not the first report
+		// (the song keeps its tempo when the piano connects), and not the echo of a
+		// tempo that was just sent to the piano.
+		if (changed && m_localPlayback && pianoTempo != m_tempo &&
+			Time::getMillisecondCounter() - m_tempoSentMs > 700)
+		{
+			std::weak_ptr<bool> alive = m_alive;
+			MessageManager::callAsync([this, alive, pianoTempo]()
+				{
+					if (alive.lock() && m_localPlayback && m_tempo != pianoTempo &&
+						Time::getMillisecondCounter() - m_tempoSentMs > 700)
+					{
+						if (m_localPlayer) m_localPlayer->SetTempo(pianoTempo);
+						m_tempo = pianoTempo;
+						NotifyChanged(apTempo);
+					}
+				});
+		}
 	}
 
 	if (m_localPlayback &&
@@ -2195,15 +2219,8 @@ PianoController::StyleChord PianoController::GetStyleChord() const
 
 void PianoController::SetStyleTempo(int tempo)
 {
-	tempo = jlimit((int)MinTempo, (int)MaxTempo, tempo);
-	if (!m_localPlayback)
-	{
-		SetTempo(tempo); // the same tempo as the song player of the piano
-	}
-	else if (m_connected)
-	{
-		m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::Tempo, tempo));
-	}
+	// one tempo: the song player (of the piano or of ConPianist) and the accompaniment
+	SetTempo(jlimit((int)MinTempo, (int)MaxTempo, tempo));
 }
 
 void PianoController::StartRecordingWithCountIn(int measures)

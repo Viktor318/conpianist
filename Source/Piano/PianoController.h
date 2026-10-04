@@ -315,7 +315,9 @@ public:
 	void ChangeStyleMainWithFill(int main);
 	Position GetStylePosition() const;
 	StyleChord GetStyleChord() const;
-	// The tempo of the piano (also when ConPianist plays a song itself).
+	// The tempo of the piano. There is one tempo in every playback mode: when ConPianist
+	// plays a song itself, the tempo of its player and the tempo of the piano (the
+	// accompaniment, the metronome) follow each other.
 	int GetStyleTempo() const { return m_pianoTempo; }
 	void SetStyleTempo(int tempo);
 
@@ -556,6 +558,8 @@ private:
 	std::atomic<int> m_stylePosition{0}; // measure << 16 | beat
 	std::atomic<int> m_styleChord{0x7f7f7f7f}; // root, type, bass root, bass type
 	std::atomic<int> m_pianoTempo{DefaultTempo};
+	std::atomic<bool> m_pianoTempoKnown{false};  // the piano has reported its tempo
+	std::atomic<uint32> m_tempoSentMs{0};        // when the own player's tempo was sent to the piano
 	void SendStyleSection(int section, bool on);
 	std::atomic<int> m_styleFillTarget{ssNone}; // main section to go on with after the fill in
 	std::atomic<uint32> m_styleFillTargetMs{0}; // when it was asked for
