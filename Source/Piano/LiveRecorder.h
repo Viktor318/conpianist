@@ -91,8 +91,15 @@ public:
 
 	// Writes the recording; tempo in quarter notes per minute. The accompaniment is left
 	// out if includeStyle is false. reverbType: XG reverb type (MSB << 8 | LSB) or NoValue.
+	// quantizeTicks: if not 0, the beginning of every played note is moved to the nearest
+	// multiple of this many ticks (see TicksPerQuarter), keeping the length of the note;
+	// with quantizeEnds the end of the note is moved to the grid too. The accompaniment,
+	// the pedal and the other controllers are not changed; the recording itself is not
+	// changed either.
+	static const int TicksPerQuarter = 480;
 	bool Save(const File& file, int tempo, int beatNumerator, int beatDenominator,
-		bool includeStyle, int reverbType, String& error) const;
+		bool includeStyle, int reverbType, String& error,
+		int quantizeTicks = 0, bool quantizeEnds = false) const;
 
 private:
 	struct Event
@@ -125,5 +132,7 @@ private:
 	void Begin(double nowMs, bool alignToDownbeat);
 	void MoveStart(double newStartMs);
 	void Store(int source, const MidiMessage& message, double nowMs);
+	double AddQuantized(MidiMessageSequence& track, int source, int channel,
+		double ticksPerMs, int grid, bool quantizeEnds) const;
 	static bool IsRecordable(const MidiMessage& message);
 };

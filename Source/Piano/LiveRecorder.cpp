@@ -347,8 +347,122 @@ int LiveRecorder::GetHeldNoteCount() const
 	return count;
 }
 
+// Writes the events of a source into the track with the notes moved to the grid.
+// Returns the time of the last event (ticks).
+double LiveRecorder::AddQuantized(MidiMessageSequence& track, int source, int channel,
+	double ticksPerMs, int grid, bool quantizeEnds) const
+{
+	struct Note
+	{
+		double on;
+		double off;
+		MidiMessage onMessage;
+		MidiMessage offMessage;
+		bool dropped;
+	};
+	struct Out
+	{
+		double tick;
+		int kind; // at the same time: note offs, then the other messages, then note ons
+		MidiMessage message;
+	};
+
+	std::vector<Note> notes;
+	std::vector<Out> out;
+	std::vector<size_t> open[128]; // notes not ended yet, by note number
+
+	for (const Event& event : m_events)
+	{
+		if (event.source != source)
+		{
+			continue;
+		}
+		MidiMessage message(event.message);
+		message.setChannel(channel);
+		message.setTimeStamp(0); // see Save
+		const double tick = std::floor(std::max(0.0, event.time) * ticksPerMs + 0.5);
+		if (message.isNoteOn())
+		{
+			const int number = message.getNoteNumber();
+			open[number].push_back(notes.size());
+			notes.push_back({tick, tick + grid, message, MidiMessage::noteOff(channel, number), false});
+		}
+		else if (message.isNoteOff())
+		{
+			std::vector<size_t>& list = open[message.getNoteNumber()];
+			if (!list.empty())
+			{
+				Note& note = notes[list.front()];
+				note.off = tick;
+				note.offMessage = message;
+				list.erase(list.begin());
+			}
+		}
+		else
+		{
+			out.push_back({tick, 1, message});
+		}
+	}
+
+	auto toGrid = [grid](double tick) { return std::floor(tick / grid + 0.5) * grid; };
+	for (Note& note : notes)
+	{
+		const double length = std::max(1.0, note.off - note.on);
+		note.on = toGrid(note.on);
+		// a note is at least one grid step long if its end is moved to the grid too
+		note.off = quantizeEnds ? std::max(note.on + grid, toGrid(note.off)) : note.on + length;
+	}
+
+	// notes of the same pitch must not overlap: two notes moved to the same time become
+	// one note, and a note ends when the next one of the same pitch begins
+	size_t last[128];
+	bool hasLast[128] = {};
+	for (size_t i = 0; i < notes.size(); i++)
+	{
+		Note& note = notes[i];
+		const int number = note.onMessage.getNoteNumber();
+		if (hasLast[number])
+		{
+			Note& previous = notes[last[number]];
+			if (note.on <= previous.on)
+			{
+				previous.off = std::max(previous.off, note.off);
+				note.dropped = true;
+				continue;
+			}
+			if (previous.off > note.on)
+			{
+				previous.off = note.on;
+			}
+		}
+		last[number] = i;
+		hasLast[number] = true;
+	}
+
+	for (const Note& note : notes)
+	{
+		if (!note.dropped)
+		{
+			out.push_back({note.on, 2, note.onMessage});
+			out.push_back({note.off, 0, note.offMessage});
+		}
+	}
+	std::stable_sort(out.begin(), out.end(), [](const Out& a, const Out& b)
+		{
+			return a.tick < b.tick || (a.tick == b.tick && a.kind < b.kind);
+		});
+
+	double lastTick = 0;
+	for (const Out& item : out)
+	{
+		track.addEvent(item.message, item.tick);
+		lastTick = std::max(lastTick, item.tick);
+	}
+	return lastTick;
+}
+
 bool LiveRecorder::Save(const File& file, int tempo, int beatNumerator, int beatDenominator,
-	bool includeStyle, int reverbType, String& error) const
+	bool includeStyle, int reverbType, String& error, int quantizeTicks, bool quantizeEnds) const
 {
 	const ScopedLock lock(m_lock);
 	if (m_noteCount == 0)
@@ -357,7 +471,7 @@ bool LiveRecorder::Save(const File& file, int tempo, int beatNumerator, int beat
 		return false;
 	}
 
-	const int ticksPerQuarter = 480;
+	const int ticksPerQuarter = TicksPerQuarter;
 	const double ticksPerMs = tempo * ticksPerQuarter / 60000.0;
 
 	// the sources that played notes
@@ -483,20 +597,27 @@ bool LiveRecorder::Save(const File& file, int tempo, int beatNumerator, int beat
 		if (setup.reverb != NoValue) track.addEvent(MidiMessage::controllerEvent(channel, 91, jlimit(0, 127, setup.reverb)), 0);
 
 		double lastTick = 0;
-		for (const Event& event : m_events)
+		if (quantizeTicks > 0 && source < srcStyle9)
 		{
-			if (event.source != source)
+			lastTick = AddQuantized(track, source, channel, ticksPerMs, quantizeTicks, quantizeEnds);
+		}
+		else
+		{
+			for (const Event& event : m_events)
 			{
-				continue;
+				if (event.source != source)
+				{
+					continue;
+				}
+				MidiMessage message(event.message);
+				message.setChannel(channel);
+				// addEvent adds its time to the time stamp of the message: messages coming from a
+				// MIDI input carry the time of their arrival, which must not be added
+				message.setTimeStamp(0);
+				const double tick = std::floor(std::max(0.0, event.time) * ticksPerMs + 0.5);
+				track.addEvent(message, tick);
+				lastTick = std::max(lastTick, tick);
 			}
-			MidiMessage message(event.message);
-			message.setChannel(channel);
-			// addEvent adds its time to the time stamp of the message: messages coming from a
-			// MIDI input carry the time of their arrival, which must not be added
-			message.setTimeStamp(0);
-			const double tick = std::floor(std::max(0.0, event.time) * ticksPerMs + 0.5);
-			track.addEvent(message, tick);
-			lastTick = std::max(lastTick, tick);
 		}
 		track.addEvent(MidiMessage::endOfTrack(), lastTick + 1);
 		track.updateMatchedPairs();

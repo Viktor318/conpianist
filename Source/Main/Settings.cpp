@@ -74,6 +74,9 @@ void Settings::Save()
 	prop.setValue("Recorder.Silence", recorderSilence);
 	prop.setValue("Recorder.Style", recorderStyle);
 	prop.setValue("Recorder.CountIn", recorderCountIn);
+	prop.setValue("Recorder.Quantize", recorderQuantize);
+	prop.setValue("Recorder.QuantizeTicks", recorderQuantizeTicks);
+	prop.setValue("Recorder.QuantizeEnds", recorderQuantizeEnds);
 
 	prop.save();
 	sendChangeMessage();
@@ -127,6 +130,9 @@ void Settings::Load()
 	recorderSilence = jlimit(MinRecorderSilence, MaxRecorderSilence, prop.getIntValue("Recorder.Silence", recorderSilence));
 	recorderStyle = prop.getBoolValue("Recorder.Style", recorderStyle);
 	recorderCountIn = jlimit(0, 2, prop.getIntValue("Recorder.CountIn", recorderCountIn));
+	recorderQuantize = prop.getBoolValue("Recorder.Quantize", recorderQuantize);
+	recorderQuantizeTicks = jlimit(1, 1920, prop.getIntValue("Recorder.QuantizeTicks", recorderQuantizeTicks));
+	recorderQuantizeEnds = prop.getBoolValue("Recorder.QuantizeEnds", recorderQuantizeEnds);
 }
 
 // The state of the piano and the playback when the program was closed (a registration

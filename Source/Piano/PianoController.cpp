@@ -2003,12 +2003,13 @@ void PianoController::StopRecording()
 	m_recorder.Stop();
 }
 
-bool PianoController::SaveRecording(const File& file, bool includeStyle, String& error, bool keep)
+bool PianoController::SaveRecording(const File& file, bool includeStyle, String& error, bool keep,
+	int quantizeTicks, bool quantizeEnds)
 {
 	// the reverb type of the piano as XG reverb type; not known on a general MIDI device
 	const int reverbType = m_genericDevice || m_reverbEffect <= 0 ? LiveRecorder::NoValue : m_reverbEffect;
 	const bool ok = m_recorder.Save(file, m_recordedTempo, m_recordedNumerator, m_recordedDenominator,
-		includeStyle, reverbType, error);
+		includeStyle, reverbType, error, quantizeTicks, quantizeEnds);
 	if (ok && keep)
 	{
 		m_recorder.MarkSaved();

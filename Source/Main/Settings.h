@@ -85,6 +85,11 @@ public:
 	int recorderSilence = 5;
 	bool recorderStyle = true;
 	int recorderCountIn = 1; // count-in measures of a manual recording (0: none)
+	// quantization of the saved recording: the grid in ticks (480 per quarter note), and
+	// whether the ends of the notes are moved to the grid too
+	bool recorderQuantize = false;
+	int recorderQuantizeTicks = 120;
+	bool recorderQuantizeEnds = false;
 
 private:
 	PropertiesFile::Options opt;

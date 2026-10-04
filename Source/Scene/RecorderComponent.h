@@ -59,6 +59,9 @@ private:
 	Slider metronomeVolumeSlider;
 	ComboBox countInCombo;
 	ToggleButton styleButton;
+	ToggleButton quantizeButton;
+	ComboBox quantizeCombo;      // the grid; the item ids are ticks
+	ToggleButton quantizeEndsButton;
 	Label nameLabel;
 	TextEditor nameEditor;
 	Label statusLabel;
@@ -72,7 +75,6 @@ private:
 	LiveRecorder::State lastState = LiveRecorder::stIdle;
 	bool saved = false;      // the recording in the recorder has been saved
 	String savedName;        // ... under this name
-	File savedFile;          // ... into this file
 	std::atomic<bool> playPending{false}; // the recording is being loaded for listening back
 	std::atomic<bool> listenLoaded{false}; // the song in the player is the recording
 	bool lastListening = false;
@@ -83,6 +85,7 @@ private:
 	void stopRecording();
 	void save();
 	void listen();
+	int quantizeTicks() const; // 0: not quantized
 	bool isListening() const; // the recording is being played back
 	void writeFile(const File& file);
 	void saveOptions();
