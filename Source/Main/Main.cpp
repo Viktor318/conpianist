@@ -23,7 +23,7 @@ public:
     const String getApplicationName() override       { return ProjectInfo::projectName; }
     const String getApplicationVersion() override    { return ProjectInfo::versionString; }
     bool moreThanOneInstanceAllowed() override       { return true; }
-    TooltipWindow tooltipWindow{nullptr, 1500};
+    TooltipWindow tooltipWindow{nullptr, 700}; // the only tooltip window, for every window of the program
     ::LookAndFeel lookAndFeel;
 
     //==============================================================================
