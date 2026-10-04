@@ -141,9 +141,10 @@ RecorderComponent::RecorderComponent(Settings& settings, PianoController& pianoC
 	quantizeCombo.addItem(TRANS("Quarter note"), 480);
 	quantizeCombo.addItem(TRANS("Eighth note"), 240);
 	quantizeCombo.addItem(TRANS("Sixteenth note"), 120);
-	quantizeCombo.addItem(TRANS("Eighth-note triplet"), 160);
-	quantizeCombo.addItem(TRANS("Sixteenth-note triplet"), 80);
-	quantizeCombo.setTooltip(TRANS("The smallest note value: the beginnings of the notes are moved to this grid"));
+	quantizeCombo.addItem(TRANS("Quarter note and triplet (automatic)"), TripletId + 480);
+	quantizeCombo.addItem(TRANS("Eighth note and triplet (automatic)"), TripletId + 240);
+	quantizeCombo.addItem(TRANS("Sixteenth note and triplet (automatic)"), TripletId + 120);
+	quantizeCombo.setTooltip(TRANS("The smallest note value: the beginnings of the notes are moved to this grid. Automatic: the program decides for every part of the measure whether it was played in this note value or in triplets"));
 	quantizeCombo.onChange = [this]() { saveOptions(); };
 	addAndMakeVisible(quantizeCombo);
 
@@ -198,7 +199,7 @@ RecorderComponent::RecorderComponent(Settings& settings, PianoController& pianoC
 	styleButton.setToggleState(settings.recorderStyle, dontSendNotification);
 	countInCombo.setSelectedId(settings.recorderCountIn + 1, dontSendNotification);
 	quantizeButton.setToggleState(settings.recorderQuantize, dontSendNotification);
-	quantizeCombo.setSelectedId(settings.recorderQuantizeTicks, dontSendNotification);
+	quantizeCombo.setSelectedId(settings.recorderQuantizeTicks + (settings.recorderQuantizeTriplets ? TripletId : 0), dontSendNotification);
 	if (quantizeCombo.getSelectedId() == 0)
 	{
 		quantizeCombo.setSelectedId(120, dontSendNotification);
@@ -322,15 +323,18 @@ void RecorderComponent::saveOptions()
 	const bool style = styleButton.getToggleState();
 	const int countIn = jlimit(0, 2, countInCombo.getSelectedId() - 1);
 	const bool quantize = quantizeButton.getToggleState();
-	const int ticks = quantizeCombo.getSelectedId() > 0 ? quantizeCombo.getSelectedId() : settings.recorderQuantizeTicks;
+	const int gridId = quantizeCombo.getSelectedId();
+	const int ticks = gridId > 0 ? gridId % TripletId : settings.recorderQuantizeTicks;
+	const bool triplets = gridId > 0 ? gridId >= TripletId : settings.recorderQuantizeTriplets;
 	const bool ends = quantizeEndsButton.getToggleState();
 	if (automatic != settings.recorderAutomatic || silence != settings.recorderSilence ||
 		style != settings.recorderStyle || countIn != settings.recorderCountIn ||
 		quantize != settings.recorderQuantize || ticks != settings.recorderQuantizeTicks ||
-		ends != settings.recorderQuantizeEnds)
+		triplets != settings.recorderQuantizeTriplets || ends != settings.recorderQuantizeEnds)
 	{
 		settings.recorderQuantize = quantize;
 		settings.recorderQuantizeTicks = ticks;
+		settings.recorderQuantizeTriplets = triplets;
 		settings.recorderQuantizeEnds = ends;
 		settings.recorderCountIn = countIn;
 		settings.recorderAutomatic = automatic;
@@ -435,7 +439,7 @@ void RecorderComponent::writeFile(const File& file)
 {
 	String error;
 	if (pianoController.SaveRecording(file, styleButton.getToggleState(), error, true,
-		quantizeTicks(), quantizeEndsButton.getToggleState()))
+		quantizeTicks(), quantizeEndsButton.getToggleState(), quantizeTriplets()))
 	{
 		saved = true;
 		savedName = file.getFileName();
@@ -465,7 +469,7 @@ void RecorderComponent::listen()
 	const File file = directory.getChildFile(File::createLegalFileName(TRANS("Recording (listening)")) + ".mid");
 	String error;
 	if (!pianoController.SaveRecording(file, styleButton.getToggleState(), error, false,
-		quantizeTicks(), quantizeEndsButton.getToggleState()))
+		quantizeTicks(), quantizeEndsButton.getToggleState(), quantizeTriplets()))
 	{
 		message = TRANS("The recording could not be played.");
 		updateStatus();
@@ -491,7 +495,12 @@ void RecorderComponent::listen()
 
 int RecorderComponent::quantizeTicks() const
 {
-	return quantizeButton.getToggleState() ? jmax(0, quantizeCombo.getSelectedId()) : 0;
+	return quantizeButton.getToggleState() ? jmax(0, quantizeCombo.getSelectedId()) % TripletId : 0;
+}
+
+bool RecorderComponent::quantizeTriplets() const
+{
+	return quantizeCombo.getSelectedId() >= TripletId;
 }
 
 bool RecorderComponent::isListening() const

@@ -60,7 +60,7 @@ private:
 	ComboBox countInCombo;
 	ToggleButton styleButton;
 	ToggleButton quantizeButton;
-	ComboBox quantizeCombo;      // the grid; the item ids are ticks
+	ComboBox quantizeCombo;      // the grid; the item ids are ticks (+ TripletId: with triplets)
 	ToggleButton quantizeEndsButton;
 	Label nameLabel;
 	TextEditor nameEditor;
@@ -85,7 +85,9 @@ private:
 	void stopRecording();
 	void save();
 	void listen();
+	static const int TripletId = 10000;
 	int quantizeTicks() const; // 0: not quantized
+	bool quantizeTriplets() const;
 	bool isListening() const; // the recording is being played back
 	void writeFile(const File& file);
 	void saveOptions();

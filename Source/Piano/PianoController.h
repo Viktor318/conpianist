@@ -281,9 +281,9 @@ public:
 	// Passes the current voices and mixer settings to the recorder (message thread).
 	void UpdateRecorderSetups();
 	// keep: the recording counts as saved (false for the temporary file of listening back)
-	// quantizeTicks, quantizeEnds: see LiveRecorder::Save
+	// quantizeTicks, quantizeEnds, quantizeTriplets: see LiveRecorder::Save
 	bool SaveRecording(const File& file, bool includeStyle, String& error, bool keep = true,
-		int quantizeTicks = 0, bool quantizeEnds = false);
+		int quantizeTicks = 0, bool quantizeEnds = false, bool quantizeTriplets = false);
 	// Manual recording with a count-in: starts on the downbeat after the given number
 	// of measures (counted by the metronome or the playing song).
 	void StartRecordingWithCountIn(int measures);

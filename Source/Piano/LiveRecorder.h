@@ -93,13 +93,16 @@ public:
 	// out if includeStyle is false. reverbType: XG reverb type (MSB << 8 | LSB) or NoValue.
 	// quantizeTicks: if not 0, the beginning of every played note is moved to the nearest
 	// multiple of this many ticks (see TicksPerQuarter), keeping the length of the note;
-	// with quantizeEnds the end of the note is moved to the grid too. The accompaniment,
-	// the pedal and the other controllers are not changed; the recording itself is not
+	// with quantizeEnds the end of the note is moved to the grid too. With quantizeTriplets
+	// the grid is chosen for every two grid steps of the measure (e.g. for every quarter
+	// note if the grid is an eighth note): the given grid or its triplets (three notes in
+	// the place of two), whichever fits the played notes better. The accompaniment, the
+	// pedal and the other controllers are not changed; the recording itself is not
 	// changed either.
 	static const int TicksPerQuarter = 480;
 	bool Save(const File& file, int tempo, int beatNumerator, int beatDenominator,
 		bool includeStyle, int reverbType, String& error,
-		int quantizeTicks = 0, bool quantizeEnds = false) const;
+		int quantizeTicks = 0, bool quantizeEnds = false, bool quantizeTriplets = false) const;
 
 private:
 	struct Event
@@ -133,6 +136,6 @@ private:
 	void MoveStart(double newStartMs);
 	void Store(int source, const MidiMessage& message, double nowMs);
 	double AddQuantized(MidiMessageSequence& track, int source, int channel,
-		double ticksPerMs, int grid, bool quantizeEnds) const;
+		double ticksPerMs, int grid, bool quantizeEnds, bool triplets, double measureTicks) const;
 	static bool IsRecordable(const MidiMessage& message);
 };
