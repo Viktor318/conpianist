@@ -73,7 +73,7 @@ private:
 	Label positionLabel;     // time and measure of the listening back
 	Slider positionSlider;   // position in the recording while it is listened back (measures)
 	TextButton saveButton;
-	TooltipWindow tooltipWindow{this};
+	// (the tooltips are shown by the tooltip window of the application, see Main.cpp)
 
 	LiveRecorder::State lastState = LiveRecorder::stIdle;
 	bool saved = false;      // the recording in the recorder has been saved
