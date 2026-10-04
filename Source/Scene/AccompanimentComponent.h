@@ -61,9 +61,14 @@ private:
 	Label introLabel;
 	Label mainLabel;
 	Label endingLabel;
-	TextButton introButtons[4];
-	TextButton mainButtons[4];
-	TextButton endingButtons[4];
+	// Three intros and endings, as on Yamaha arranger keyboards. The style format knows a
+	// fourth one of each, but the piano does not play them (tested on the CSP-170).
+	static const int NumIntros = 3;
+	static const int NumMains = 4;
+	static const int NumEndings = 3;
+	TextButton introButtons[NumIntros];
+	TextButton mainButtons[NumMains];
+	TextButton endingButtons[NumEndings];
 	TextButton fillInButton;
 	TextButton breakButton;
 	Label volumeLabel;

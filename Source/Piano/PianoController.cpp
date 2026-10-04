@@ -1142,12 +1142,36 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 	}
 	else if (property == Property::StylePlay)
 	{
+		const bool stopped = m_stylePlaying && !boolValue;
 		m_stylePlaying = boolValue;
 		NotifyChanged(apStyle);
+		if (stopped && m_styleSyncWanted)
+		{
+			// Sync Start was on before the accompaniment started: on again, a moment
+			// later, when the piano has finished stopping
+			std::weak_ptr<bool> alive = m_alive;
+			MessageManager::callAsync([this, alive]()
+				{
+					Timer::callAfterDelay(300, [this, alive]()
+						{
+							if (alive.lock() && m_connected && m_styleSyncWanted &&
+								!m_stylePlaying && !m_styleSyncStart)
+							{
+								m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::StyleSyncStart, 0, 1));
+							}
+						});
+				});
+		}
 	}
 	else if (property == Property::StyleSyncStart)
 	{
 		m_styleSyncStart = boolValue;
+		if (boolValue)
+		{
+			// also when it was switched on at the piano; switching off is remembered only
+			// from the program (the piano switches it off itself when the style starts)
+			m_styleSyncWanted = true;
+		}
 		NotifyChanged(apStyle);
 	}
 	else if (property == Property::StyleSection)
@@ -2063,6 +2087,7 @@ void PianoController::SetStylePlaying(bool playing)
 
 void PianoController::SetStyleSyncStart(bool on)
 {
+	m_styleSyncWanted = on;
 	if (m_connected)
 	{
 		m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::StyleSyncStart, 0, on ? 1 : 0));

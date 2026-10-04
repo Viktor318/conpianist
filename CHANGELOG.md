@@ -5,7 +5,7 @@ Ez a fájl a ConPianist változásait dokumentálja. Az 1.0–3.0 verziók az er
 ## Következő verzió (fejlesztés alatt)
 
 ### Új
-- **Kíséret ablak.** A főmenü új **Kíséret…** pontja külön, nyitva tartható ablakot nyit a zongora kíséretének (stílus) vezérléséhez: indítás és leállítás, Sync Start, a szakaszok (Intro 1–4, Main A–D, Fill In, Break, Ending 1–4) az éppen szóló és a következő szakasz jelzésével, tempó, a kíséret hangereje, a felismert akkord és a stílus neve, üteme. Az Intro 2–4 és az Ending 2–4 a Smart Pianist alkalmazásból nem érhető el. Billentyűk, amíg az ablak van elöl: szóköz – indítás és leállítás, 1–4 – Main A–D, F – Fill In, B – Break. A kíséretet a zongora játssza, ezért az ablakhoz csatlakoztatott zongora kell.
+- **Kíséret ablak.** A főmenü új **Kíséret…** pontja külön, nyitva tartható ablakot nyit a zongora kíséretének (stílus) vezérléséhez: indítás és leállítás, Sync Start (bekapcsolva megmarad: a kíséret leállása vagy befejeződése után a program újra bekapcsolja), a szakaszok (Intro 1–3, Main A–D, Fill In, Break, Ending 1–3) az éppen szóló és a következő szakasz jelzésével, tempó, a kíséret hangereje, a felismert akkord és a stílus neve, üteme. Az Intro 2–3 és az Ending 2–3 a Smart Pianist alkalmazásból nem érhető el. Billentyűk, amíg az ablak van elöl: szóköz – indítás és leállítás, 1–4 – Main A–D, F – Fill In, B – Break. A kíséretet a zongora játssza, ezért az ablakhoz csatlakoztatott zongora kell.
 
 ## 4.5 (fork) – 2026. október 4.
 

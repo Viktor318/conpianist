@@ -74,11 +74,17 @@ AccompanimentComponent::AccompanimentComponent(Settings& settings, PianoControll
 	initLabel(introLabel, TRANS("Intro"));
 	initLabel(mainLabel, TRANS("Main"));
 	initLabel(endingLabel, TRANS("Ending"));
-	for (int i = 0; i < 4; i++)
+	for (int i = 0; i < NumIntros; i++)
 	{
 		initButton(introButtons[i], String(i + 1));
+	}
+	for (int i = 0; i < NumMains; i++)
+	{
 		initButton(mainButtons[i], String::charToString((juce_wchar)('A' + i)));
 		mainButtons[i].setTooltip(TRANS("Main section (key NUMBER)").replace("NUMBER", String(i + 1)));
+	}
+	for (int i = 0; i < NumEndings; i++)
+	{
 		initButton(endingButtons[i], String(i + 1));
 	}
 	initButton(fillInButton, TRANS("Fill In"));
@@ -146,12 +152,17 @@ void AccompanimentComponent::resized()
 	introLabel.setBounds(16, 148, 70, 32);
 	mainLabel.setBounds(16, 188, 70, 32);
 	endingLabel.setBounds(16, 228, 70, 32);
-	for (int i = 0; i < 4; i++)
+	for (int i = 0; i < NumIntros; i++)
 	{
-		const int x = 90 + i * 48;
-		introButtons[i].setBounds(x, 148, 44, 32);
-		mainButtons[i].setBounds(x, 188, 44, 32);
-		endingButtons[i].setBounds(x, 228, 44, 32);
+		introButtons[i].setBounds(90 + i * 48, 148, 44, 32);
+	}
+	for (int i = 0; i < NumMains; i++)
+	{
+		mainButtons[i].setBounds(90 + i * 48, 188, 44, 32);
+	}
+	for (int i = 0; i < NumEndings; i++)
+	{
+		endingButtons[i].setBounds(90 + i * 48, 228, 44, 32);
 	}
 	fillInButton.setBounds(290, 188, 64, 32);
 	breakButton.setBounds(360, 188, 64, 32);
@@ -181,17 +192,23 @@ void AccompanimentComponent::buttonClicked(Button* button)
 	}
 	else
 	{
-		for (int i = 0; i < 4; i++)
+		for (int i = 0; i < NumIntros; i++)
 		{
 			if (button == &introButtons[i])
 			{
 				pianoController.SetStyleSection(PianoController::ssIntro1 + i);
 			}
-			else if (button == &mainButtons[i])
+		}
+		for (int i = 0; i < NumMains; i++)
+		{
+			if (button == &mainButtons[i])
 			{
 				pianoController.SetStyleSection(PianoController::ssMainA + i);
 			}
-			else if (button == &endingButtons[i])
+		}
+		for (int i = 0; i < NumEndings; i++)
+		{
+			if (button == &endingButtons[i])
 			{
 				pianoController.SetStyleSection(PianoController::ssEnding1 + i);
 			}
@@ -310,10 +327,16 @@ void AccompanimentComponent::update()
 
 	const int current = connected ? pianoController.GetStyleSection() : (int)PianoController::ssNone;
 	const int next = connected ? pianoController.GetStyleNextSection() : (int)PianoController::ssNone;
-	for (int i = 0; i < 4; i++)
+	for (int i = 0; i < NumIntros; i++)
 	{
 		markButton(introButtons[i], current == PianoController::ssIntro1 + i, next == PianoController::ssIntro1 + i);
+	}
+	for (int i = 0; i < NumMains; i++)
+	{
 		markButton(mainButtons[i], current == PianoController::ssMainA + i, next == PianoController::ssMainA + i);
+	}
+	for (int i = 0; i < NumEndings; i++)
+	{
 		markButton(endingButtons[i], current == PianoController::ssEnding1 + i, next == PianoController::ssEnding1 + i);
 	}
 	const bool fill = current >= PianoController::ssFillInAA && current < PianoController::ssFillInAA + 4;

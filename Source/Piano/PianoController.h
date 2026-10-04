@@ -299,6 +299,8 @@ public:
 	void SetStyle(const String& path);
 	bool GetStylePlaying() const { return m_stylePlaying; }
 	void SetStylePlaying(bool playing);
+	// Sync Start is kept: the piano switches it off when the accompaniment starts; if it
+	// was on, it is switched on again when the accompaniment stops (or ends).
 	bool GetStyleSyncStart() const { return m_styleSyncStart; }
 	void SetStyleSyncStart(bool on);
 	int GetStyleSection() const { return m_styleSection; }         // playing now
@@ -541,6 +543,7 @@ private:
 	int m_softBeat = 0;
 	std::atomic<bool> m_stylePlaying{false};
 	std::atomic<bool> m_styleSyncStart{false};
+	std::atomic<bool> m_styleSyncWanted{false}; // switched on again when the style stops
 	std::atomic<int> m_styleSection{ssNone};
 	std::atomic<int> m_styleNextSection{ssNone};
 	std::atomic<int> m_stylePosition{0}; // measure << 16 | beat
