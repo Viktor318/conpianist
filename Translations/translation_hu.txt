@@ -228,6 +228,7 @@ countries: hu
 "Count-in: 2 measures" = "Beszámolás: 2 ütem"
 "Manual recording starts after the count-in of the metronome" = "A kézi felvétel a metronóm beszámolása után indul"
 "Count-in..." = "Beszámolás…"
+"The count-in begins with the next measure..." = "A beszámolás a következő ütem elején indul…"
 "Bell" = "Csengő"
 "A bell sounds on the first beat of every measure" = "Minden ütem első ütésén csengő szól"
 "Metronome volume:" = "Metronóm hangereje:"

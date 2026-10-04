@@ -582,7 +582,9 @@ void RecorderComponent::updateStatus()
 			colour = Colours::orange;
 			break;
 		case LiveRecorder::stCountIn:
-			text = TRANS("Count-in...");
+			// the count-in begins on the next downbeat (the metronome may be running already)
+			text = recorder.GetCountInMeasuresLeft() > jlimit(0, 2, countInCombo.getSelectedId() - 1) ?
+				TRANS("The count-in begins with the next measure...") : TRANS("Count-in...");
 			colour = Colours::orange;
 			break;
 		case LiveRecorder::stRecording:

@@ -211,9 +211,12 @@ void LiveRecorder::Add(int source, const MidiMessage& message)
 	const double nowMs = NowMs();
 	const ScopedLock lock(m_lock);
 
-	if (m_state == stArmed && message.isNoteOn())
+	if ((m_state == stArmed || m_state == stCountIn) && message.isNoteOn())
 	{
-		Begin(nowMs, true); // the first note starts the recording
+		// The first note starts the recording. Also during the count-in: a note played
+		// before its end is not lost, the recording begins with the measure of the note
+		// (e.g. the metronome was already running and the player starts on the next bell).
+		Begin(nowMs, true);
 	}
 	if (m_state != stRecording)
 	{

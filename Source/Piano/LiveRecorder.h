@@ -59,7 +59,8 @@ public:
 	void Arm();
 	// Starts at once (cancels a previous recording that was not saved).
 	void Start();
-	// Starts on a downbeat, after the given number of count-in measures (see Beat).
+	// Starts on a downbeat, after the given number of count-in measures (see Beat), or
+	// earlier, with the first note played during the count-in.
 	void StartCountIn(int measures);
 	int GetCountInMeasuresLeft() const;
 	// A beat of the metronome or of the playing song. A recording that starts while the
