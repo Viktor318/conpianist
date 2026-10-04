@@ -45,27 +45,24 @@ AccompanimentComponent::AccompanimentComponent(Settings& settings, PianoControll
 	// the lists do not take the keyboard focus either
 	categoryCombo.setWantsKeyboardFocus(false);
 	categoryCombo.setTooltip(TRANS("Category of the style"));
-	categoryCombo.onChange = [this]()
-		{
-			const int index = categoryCombo.getSelectedId() - 1;
-			if (index >= 0 && index < categories.size())
-			{
-				fillStyleCombo(categories[index]);
-			}
-		};
+	categoryCombo.onChange = [this]() { fillGroupCombo(); };
 	addAndMakeVisible(categoryCombo);
 
+	groupCombo.setWantsKeyboardFocus(false);
+	groupCombo.setTooltip(TRANS("Subcategory of the style"));
+	groupCombo.onChange = [this]() { fillStyleCombo(); };
+	addAndMakeVisible(groupCombo);
+
 	styleCombo.setWantsKeyboardFocus(false);
-	styleCombo.onChange = [this]()
-		{
-			const int index = styleCombo.getSelectedId() - 1;
-			if (index >= 0 && index < (int)styles.size() &&
-				styles[index].path != this->pianoController.GetStyleName())
-			{
-				this->pianoController.SetStyle(styles[index].path);
-			}
-		};
+	styleCombo.onChange = [this]() { update(); };
 	addAndMakeVisible(styleCombo);
+
+	initButton(applyButton, TRANS("Apply"));
+	applyButton.setTooltip(TRANS("Loads the chosen style on the piano (Enter)"));
+
+	initLabel(currentLabel, TRANS("Current style:"));
+	initLabel(currentNameLabel, "");
+	currentNameLabel.setMinimumHorizontalScale(0.7f);
 
 	loadStyles();
 
@@ -83,9 +80,12 @@ AccompanimentComponent::AccompanimentComponent(Settings& settings, PianoControll
 		};
 	addAndMakeVisible(tempoSlider);
 
-	initLabel(chordLabel, TRANS("Chord:"));
+	initButton(tapTempoButton, TRANS("Tap Tempo"));
+	tapTempoButton.setTooltip(TRANS("Press it several times in the tempo you want: the tempo is set from the presses (T)"));
+
 	initLabel(chordNameLabel, "");
-	chordNameLabel.setFont(Font(FontOptions(18.00f, Font::bold)));
+	chordNameLabel.setFont(Font(FontOptions(26.00f, Font::bold)));
+	chordNameLabel.setJustificationType(Justification::centred);
 	chordNameLabel.setTooltip(TRANS("The chord recognized by the piano"));
 
 	initButton(startButton, TRANS("Start"));
@@ -138,7 +138,7 @@ AccompanimentComponent::AccompanimentComponent(Settings& settings, PianoControll
 	hintLabel.setMinimumHorizontalScale(0.7f);
 
 	setWantsKeyboardFocus(true);
-	setSize(440, 364);
+	setSize(440, 472);
 
 	pianoController.AddListener(this);
 	update();
@@ -150,7 +150,7 @@ AccompanimentComponent::~AccompanimentComponent()
 }
 
 // vertical positions of the lines between the groups of the controls
-static const int AccompanimentSeparatorY[] = {86, 138, 270, 314};
+static const int AccompanimentSeparatorY[] = {194, 246, 378, 422};
 
 void AccompanimentComponent::paint(Graphics& g)
 {
@@ -164,41 +164,50 @@ void AccompanimentComponent::paint(Graphics& g)
 
 void AccompanimentComponent::resized()
 {
-	// style, tempo, chord
+	// style: lists and Apply, the current style, tempo, chord
 	styleLabel.setBounds(16, 16, 70, 24);
-	categoryCombo.setBounds(90, 16, 150, 24);
-	styleCombo.setBounds(246, 16, 178, 24);
-	tempoLabel.setBounds(16, 52, 70, 24);
-	tempoSlider.setBounds(90, 52, 120, 24);
-	chordLabel.setBounds(234, 52, 66, 24);
-	chordNameLabel.setBounds(300, 52, 124, 24);
+	categoryCombo.setBounds(90, 16, 164, 24);
+	groupCombo.setBounds(260, 16, 164, 24);
+	styleCombo.setBounds(90, 52, 220, 24);
+	applyButton.setBounds(316, 50, 108, 28);
+	{
+		// the name right after the text of the label
+		const int textWidth = GlyphArrangement::getStringWidthInt(currentLabel.getFont(), currentLabel.getText());
+		const int labelWidth = jlimit(60, 200, textWidth + 10);
+		currentLabel.setBounds(16, 88, labelWidth, 24);
+		currentNameLabel.setBounds(16 + labelWidth, 88, 408 - labelWidth, 24);
+	}
+	chordNameLabel.setBounds(16, 116, 408, 36);
+	tempoLabel.setBounds(16, 160, 70, 24);
+	tempoSlider.setBounds(90, 160, 120, 24);
+	tapTempoButton.setBounds(316, 158, 108, 28);
 	// start and stop
-	startButton.setBounds(16, 96, 128, 32);
-	syncStartButton.setBounds(156, 96, 128, 32);
-	positionLabel.setBounds(296, 96, 128, 32);
+	startButton.setBounds(16, 204, 128, 32);
+	syncStartButton.setBounds(156, 204, 128, 32);
+	positionLabel.setBounds(296, 204, 128, 32);
 	// sections
-	introLabel.setBounds(16, 148, 70, 32);
-	mainLabel.setBounds(16, 188, 70, 32);
-	endingLabel.setBounds(16, 228, 70, 32);
+	introLabel.setBounds(16, 256, 70, 32);
+	mainLabel.setBounds(16, 296, 70, 32);
+	endingLabel.setBounds(16, 336, 70, 32);
 	for (int i = 0; i < NumIntros; i++)
 	{
-		introButtons[i].setBounds(90 + i * 48, 148, 44, 32);
+		introButtons[i].setBounds(90 + i * 48, 256, 44, 32);
 	}
 	for (int i = 0; i < NumMains; i++)
 	{
-		mainButtons[i].setBounds(90 + i * 48, 188, 44, 32);
+		mainButtons[i].setBounds(90 + i * 48, 296, 44, 32);
 	}
 	for (int i = 0; i < NumEndings; i++)
 	{
-		endingButtons[i].setBounds(90 + i * 48, 228, 44, 32);
+		endingButtons[i].setBounds(90 + i * 48, 336, 44, 32);
 	}
-	autoFillButton.setBounds(290, 148, 134, 32);
-	fillInButton.setBounds(290, 188, 64, 32);
-	breakButton.setBounds(360, 188, 64, 32);
+	autoFillButton.setBounds(290, 256, 134, 32);
+	fillInButton.setBounds(290, 296, 64, 32);
+	breakButton.setBounds(360, 296, 64, 32);
 	// volume
-	volumeLabel.setBounds(16, 280, 170, 24);
-	volumeSlider.setBounds(186, 280, 238, 24);
-	hintLabel.setBounds(16, 326, 408, 24);
+	volumeLabel.setBounds(16, 388, 170, 24);
+	volumeSlider.setBounds(186, 388, 238, 24);
+	hintLabel.setBounds(16, 434, 408, 24);
 }
 
 void AccompanimentComponent::buttonClicked(Button* button)
@@ -222,6 +231,14 @@ void AccompanimentComponent::buttonClicked(Button* button)
 	else if (button == &autoFillButton)
 	{
 		toggleAutoFill();
+	}
+	else if (button == &applyButton)
+	{
+		applyStyle();
+	}
+	else if (button == &tapTempoButton)
+	{
+		tapTempo();
 	}
 	else
 	{
@@ -279,6 +296,30 @@ void AccompanimentComponent::changeMain(int index)
 	}
 }
 
+// The tempo from the times between the presses: the average of the last (at most four)
+// intervals; a pause of more than two seconds begins a new series.
+void AccompanimentComponent::tapTempo()
+{
+	const double now = Time::getMillisecondCounterHiRes();
+	if (!taps.empty() && now - taps.back() > 2000.0)
+	{
+		taps.clear();
+	}
+	taps.push_back(now);
+	if (taps.size() > 5)
+	{
+		taps.erase(taps.begin());
+	}
+	if (taps.size() >= 2)
+	{
+		const double interval = (taps.back() - taps.front()) / (double)(taps.size() - 1);
+		if (interval > 0)
+		{
+			pianoController.SetStyleTempo(roundToInt(60000.0 / interval));
+		}
+	}
+}
+
 void AccompanimentComponent::toggleAutoFill()
 {
 	settings.accompanimentAutoFill = !settings.accompanimentAutoFill;
@@ -308,6 +349,16 @@ bool AccompanimentComponent::keyPressed(const KeyPress& key)
 	if (character == 'a')
 	{
 		toggleAutoFill();
+		return true;
+	}
+	if (key == KeyPress::returnKey)
+	{
+		applyStyle();
+		return true;
+	}
+	if (character == 't')
+	{
+		tapTempo();
 		return true;
 	}
 	if (character == 'f')
@@ -365,38 +416,22 @@ void AccompanimentComponent::update()
 	const bool connected = pianoController.IsConnected();
 	const bool playing = connected && pianoController.GetStylePlaying();
 
-	// the style of the piano in the lists; a style that is not in the list file (or
-	// without the file) is shown by its name only
-	// (only when the style of the piano changes, so another category can be looked at
-	// in the lists meanwhile)
+	// The lists show the style of the piano when it changes (at the start, after Apply,
+	// or when it is changed on the piano); otherwise they can be browsed freely.
 	const String path = pianoController.GetStyleName();
-	if (path != shownStyle && !categoryCombo.isPopupActive() && !styleCombo.isPopupActive())
+	const String title = styleTitle(path);
+	currentNameLabel.setText(title.isEmpty() ? String("-") : title, dontSendNotification);
+	if (path != shownStyle && !categoryCombo.isPopupActive() && !groupCombo.isPopupActive() &&
+		!styleCombo.isPopupActive())
 	{
 		shownStyle = path;
-		int found = -1;
 		for (int i = 0; i < (int)styles.size(); i++)
 		{
 			if (styles[i].path == path)
 			{
-				found = i;
+				showStyleInLists(i);
 				break;
 			}
-		}
-		if (found >= 0)
-		{
-			const int category = categories.indexOf(styles[found].category);
-			if (categoryCombo.getSelectedId() != category + 1)
-			{
-				categoryCombo.setSelectedId(category + 1, dontSendNotification);
-				fillStyleCombo(styles[found].category);
-			}
-			styleCombo.setSelectedId(found + 1, dontSendNotification);
-		}
-		else
-		{
-			const String title = styleTitle(path);
-			styleCombo.setTextWhenNothingSelected(title.isEmpty() ? String("-") : title);
-			styleCombo.setSelectedId(0, dontSendNotification);
 		}
 	}
 
@@ -451,11 +486,18 @@ void AccompanimentComponent::update()
 			child->setEnabled(connected);
 		}
 	}
-	categoryCombo.setEnabled(connected && !styles.empty());
-	styleCombo.setEnabled(connected && !styles.empty());
+	const bool hasList = connected && !styles.empty();
+	categoryCombo.setEnabled(hasList);
+	groupCombo.setEnabled(hasList);
+	styleCombo.setEnabled(hasList);
+	// Apply is marked while the chosen style is not the style of the piano
+	const int chosen = styleCombo.getSelectedId() - 1;
+	const bool pending = hasList && chosen >= 0 && chosen < (int)styles.size() && styles[chosen].path != path;
+	applyButton.setEnabled(pending);
+	markButton(applyButton, false, pending);
 
 	hintLabel.setText(connected ?
-		TRANS("Keys: Space - start and stop, 1-4 - Main A-D, F - Fill In, A - Auto Fill, B - Break") :
+		TRANS("Keys: Space - start/stop, 1-4 - Main A-D, F - Fill In, A - Auto Fill, B - Break, T - Tap Tempo, Enter - Apply") :
 		TRANS("The accompaniment is played by the piano: the piano is not connected."),
 		dontSendNotification);
 	hintLabel.setColour(Label::textColourId, connected ? Colours::white.withAlpha(0.6f) : Colours::orange);
@@ -500,34 +542,84 @@ void AccompanimentComponent::loadStyles()
 	{
 		categoryCombo.addItem(categories[i], i + 1);
 	}
+	groupCombo.clear(dontSendNotification);
 	styleCombo.clear(dontSendNotification);
 	if (styles.empty())
 	{
 		const String tip = TRANS("The list of the styles (styles.csv) was not found in the data folder of the program");
 		categoryCombo.setTooltip(tip);
+		groupCombo.setTooltip(tip);
 		styleCombo.setTooltip(tip);
+	}
+	else
+	{
+		categoryCombo.setSelectedId(1, dontSendNotification);
+		fillGroupCombo();
 	}
 }
 
-// The styles of a category, under the headings of their groups.
-void AccompanimentComponent::fillStyleCombo(const String& category)
+// The groups (subcategories) of the chosen category; the first one becomes chosen, and
+// the style list shows its styles.
+void AccompanimentComponent::fillGroupCombo()
 {
+	groups.clear();
+	const String category = categories[categoryCombo.getSelectedId() - 1];
+	for (const StyleEntry& style : styles)
+	{
+		if (style.category == category)
+		{
+			groups.addIfNotAlreadyThere(style.group);
+		}
+	}
+	groupCombo.clear(dontSendNotification);
+	for (int i = 0; i < groups.size(); i++)
+	{
+		groupCombo.addItem(groups[i].isEmpty() ? String("-") : groups[i], i + 1);
+	}
+	groupCombo.setSelectedId(groups.isEmpty() ? 0 : 1, dontSendNotification);
+	fillStyleCombo();
+}
+
+// The styles of the chosen group; the first one becomes chosen.
+void AccompanimentComponent::fillStyleCombo()
+{
+	const String category = categories[categoryCombo.getSelectedId() - 1];
+	const String group = groups[groupCombo.getSelectedId() - 1];
 	styleCombo.clear(dontSendNotification);
-	String group;
+	int first = 0;
 	for (int i = 0; i < (int)styles.size(); i++)
 	{
-		if (styles[i].category == category)
+		if (styles[i].category == category && styles[i].group == group)
 		{
-			if (styles[i].group != group)
-			{
-				group = styles[i].group;
-				if (group.isNotEmpty())
-				{
-					styleCombo.addSectionHeading(group);
-				}
-			}
 			styleCombo.addItem(styles[i].title, i + 1);
+			if (first == 0)
+			{
+				first = i + 1;
+			}
 		}
+	}
+	styleCombo.setSelectedId(first, dontSendNotification);
+	update();
+}
+
+// Chooses the style (index in styles) in the three lists.
+void AccompanimentComponent::showStyleInLists(int index)
+{
+	const StyleEntry& style = styles[index];
+	categoryCombo.setSelectedId(categories.indexOf(style.category) + 1, dontSendNotification);
+	fillGroupCombo();
+	groupCombo.setSelectedId(groups.indexOf(style.group) + 1, dontSendNotification);
+	fillStyleCombo();
+	styleCombo.setSelectedId(index + 1, dontSendNotification);
+}
+
+// Loads the style chosen in the lists on the piano.
+void AccompanimentComponent::applyStyle()
+{
+	const int index = styleCombo.getSelectedId() - 1;
+	if (index >= 0 && index < (int)styles.size())
+	{
+		pianoController.SetStyle(styles[index].path);
 	}
 }
 

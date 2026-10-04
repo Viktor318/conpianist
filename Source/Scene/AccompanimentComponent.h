@@ -62,13 +62,21 @@ private:
 	StringArray categories;
 	String shownStyle = "?"; // the style of the piano that the lists show
 
+	// The lists can be browsed freely; the chosen style is loaded with the Apply button
+	// (or the Enter key), like on an arranger keyboard.
 	Label styleLabel;
 	ComboBox categoryCombo; // item id: index in categories + 1
-	ComboBox styleCombo;    // item id: index in styles + 1
+	ComboBox groupCombo;    // groups of the category; item id: index in groups + 1
+	ComboBox styleCombo;    // styles of the group; item id: index in styles + 1
+	TextButton applyButton;
+	Label currentLabel;
+	Label currentNameLabel; // the style of the piano
+	StringArray groups;     // of the chosen category
 	Label tempoLabel;
 	Slider tempoSlider;
-	Label chordLabel;
-	Label chordNameLabel;
+	TextButton tapTempoButton;
+	Label chordNameLabel; // the recognized chord, large, in the middle
+	std::vector<double> taps; // times of the last presses of Tap Tempo (ms)
 	TextButton startButton;
 	TextButton syncStartButton;
 	Label positionLabel;
@@ -92,10 +100,14 @@ private:
 
 	void update();
 	void loadStyles();
-	void fillStyleCombo(const String& category);
+	void fillGroupCombo();  // the groups of the chosen category, the first one chosen
+	void fillStyleCombo();  // the styles of the chosen group, the first one chosen
+	void applyStyle();
+	void showStyleInLists(int index);
 	void fillIn();
 	void changeMain(int index);
 	void toggleAutoFill();
+	void tapTempo();
 	// current: the section is playing; next: it is played after the current one
 	static void markButton(TextButton& button, bool current, bool next);
 };
