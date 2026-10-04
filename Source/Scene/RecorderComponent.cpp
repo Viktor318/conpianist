@@ -177,7 +177,7 @@ RecorderComponent::RecorderComponent(Settings& settings, PianoController& pianoC
 	addAndMakeVisible(stopButton);
 
 	listenButton.setButtonText(TRANS("Listen"));
-	listenButton.setTooltip(TRANS("Loads the recording into the player and plays it (it replaces the loaded song)"));
+	listenButton.setTooltip(TRANS("Loads the recording into the player and plays it (it replaces the loaded song); pressed again, it stops the playing and then continues it"));
 	listenButton.addListener(this);
 	addAndMakeVisible(listenButton);
 
@@ -218,7 +218,7 @@ RecorderComponent::RecorderComponent(Settings& settings, PianoController& pianoC
 	}
 	quantizeEndsButton.setToggleState(settings.recorderQuantizeEnds, dontSendNotification);
 
-	setSize(440, 546);
+	setSize(440, 544);
 
 	pianoController.AddListener(this);
 	updateMetronome();
@@ -236,7 +236,7 @@ RecorderComponent::~RecorderComponent()
 }
 
 // vertical positions of the lines between the groups of the controls
-static const int SeparatorY[] = {122, 238, 318, 410};
+static const int SeparatorY[] = {122, 238, 318, 452};
 
 void RecorderComponent::paint(Graphics& g)
 {
@@ -254,8 +254,13 @@ void RecorderComponent::resized()
 	modeLabel.setBounds(16, 16, 150, 24);
 	autoButton.setBounds(170, 16, 124, 24);
 	manualButton.setBounds(300, 16, 124, 24);
-	silenceLabel.setBounds(16, 52, 280, 24);
-	silenceSlider.setBounds(304, 52, 120, 24);
+	{
+		// the value right after the text of the label
+		const int textWidth = GlyphArrangement::getStringWidthInt(silenceLabel.getFont(), silenceLabel.getText());
+		const int labelWidth = jlimit(100, 288, textWidth + 14);
+		silenceLabel.setBounds(16, 52, labelWidth, 24);
+		silenceSlider.setBounds(16 + labelWidth, 52, 120, 24);
+	}
 	styleButton.setBounds(12, 88, 412, 24);
 	// metronome
 	metronomeButton.setBounds(12, 132, 120, 24);
@@ -276,12 +281,12 @@ void RecorderComponent::resized()
 	nameEditor.setBounds(120, 328, 304, 24);
 	statusLabel.setBounds(16, 364, 408, 36);
 	// buttons, listening back
-	recordButton.setBounds(16, 420, 128, 32);
-	stopButton.setBounds(156, 420, 128, 32);
-	saveButton.setBounds(296, 420, 128, 32);
+	recordButton.setBounds(16, 408, 128, 32);
+	stopButton.setBounds(156, 408, 128, 32);
+	saveButton.setBounds(296, 408, 128, 32);
 	listenButton.setBounds(16, 464, 160, 32);
 	positionLabel.setBounds(188, 464, 236, 32);
-	positionSlider.setBounds(12, 506, 416, 24);
+	positionSlider.setBounds(12, 504, 416, 24);
 }
 
 void RecorderComponent::buttonClicked(Button* button)
@@ -329,7 +334,15 @@ void RecorderComponent::buttonClicked(Button* button)
 	}
 	else if (button == &listenButton)
 	{
-		listen();
+		if (isListening())
+		{
+			// the same button stops the listening back; the position is kept
+			pianoController.Pause();
+		}
+		else
+		{
+			listen();
+		}
 	}
 	else if (button == &saveButton)
 	{
@@ -381,6 +394,7 @@ void RecorderComponent::startRecording()
 		// the recording played back would be recorded again as a song
 		pianoController.Stop();
 	}
+	listenSettings = ""; // the recording in the player is the previous one
 	saved = false;
 	savedName = "";
 	message = "";
@@ -490,6 +504,18 @@ void RecorderComponent::listen()
 		return;
 	}
 
+	if (listenLoaded && listenSettings == listenKey() && !pianoController.GetPlaying())
+	{
+		// the recording is in the player as it would be written now: continues where it
+		// was stopped (from the beginning if it was played to the end)
+		if (pianoController.GetPosition().measure >= pianoController.GetLength().measure)
+		{
+			pianoController.SetPosition({1, 1});
+		}
+		pianoController.Play();
+		return;
+	}
+
 	const File directory = File::getSpecialLocation(File::tempDirectory).getChildFile("ConPianist");
 	directory.createDirectory();
 	const File file = directory.getChildFile(File::createLegalFileName(TRANS("Recording (listening)")) + ".mid");
@@ -509,14 +535,22 @@ void RecorderComponent::listen()
 
 	message = "";
 	listenLoaded = false;
+	listenSettings = listenKey();
 	playPending = true; // played when the player reports that the song is loaded
 	if (!pianoController.LoadSong(file))
 	{
 		playPending = false;
+		listenSettings = "";
 		message = TRANS("The recording could not be played.");
 	}
 	updateControls();
 	updateStatus();
+}
+
+String RecorderComponent::listenKey() const
+{
+	return String(quantizeTicks()) + "/" + String(tripletTicks()) + "/" +
+		String((int)quantizeEndsButton.getToggleState()) + "/" + String((int)styleButton.getToggleState());
 }
 
 int RecorderComponent::quantizeTicks() const
@@ -651,7 +685,8 @@ void RecorderComponent::updateControls()
 	const bool listening = isListening();
 	recordButton.setEnabled(idle);
 	stopButton.setEnabled(!idle || listening);
-	listenButton.setEnabled(hasData && !listening);
+	listenButton.setEnabled(hasData);
+	listenButton.setButtonText(listening ? TRANS("Stop listening") : TRANS("Listen"));
 	positionSlider.setEnabled(listenLoaded);
 	if (!listenLoaded)
 	{

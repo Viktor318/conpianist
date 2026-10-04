@@ -80,6 +80,7 @@ private:
 	std::atomic<bool> playPending{false}; // the recording is being loaded for listening back
 	std::atomic<bool> listenLoaded{false}; // the song in the player is the recording
 	bool lastListening = false;
+	String listenSettings;   // how the recording in the player was written (see listenKey)
 	String message;          // shown until the next recording (e.g. an error)
 	bool metronomeStarted = false; // the metronome was switched on for the count-in
 
@@ -87,6 +88,7 @@ private:
 	void stopRecording();
 	void save();
 	void listen();
+	String listenKey() const; // the settings that change what is listened back
 	static const int NoTripletId = 1;
 	int quantizeTicks() const; // 0: not quantized
 	int tripletTicks() const;  // 0: no triplets
