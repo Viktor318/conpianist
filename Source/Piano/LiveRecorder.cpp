@@ -173,6 +173,40 @@ void LiveRecorder::SetSetup(int source, const Setup& setup)
 	}
 }
 
+void LiveRecorder::SetStyleSetup(int index, const Setup& setup)
+{
+	if (index < 0 || index >= numElementsInArray(m_styleSetup))
+	{
+		return;
+	}
+	const ScopedLock lock(m_lock);
+	Setup& target = m_styleSetup[index];
+	if (setup.voice != NoValue) target.voice = setup.voice;
+	if (setup.volume != NoValue) target.volume = setup.volume;
+	if (setup.pan != NoValue) target.pan = setup.pan;
+	if (setup.reverb != NoValue) target.reverb = setup.reverb;
+
+	// The rhythm parts are XG drum parts. The piano sends this on MIDI only when the
+	// style is started for the first time, so it is also derived from the voice: the
+	// bank MSB of a drum kit is 127, of an SFX kit 126.
+	const int bankMsb = target.voice == NoValue ? 0 : (target.voice >> 16) & 0x7f;
+	if (setup.partMode != NoValue)
+	{
+		target.partMode = setup.partMode;
+	}
+	else if (bankMsb >= 126)
+	{
+		if (target.partMode == NoValue || target.partMode == 0)
+		{
+			target.partMode = index == 0 ? 3 : 2; // drum setup 2 on channel 9, 1 otherwise
+		}
+	}
+	else if (target.voice != NoValue)
+	{
+		target.partMode = NoValue; // a normal voice
+	}
+}
+
 void LiveRecorder::Store(int source, const MidiMessage& message, double nowMs)
 {
 	MidiMessage copy(message);

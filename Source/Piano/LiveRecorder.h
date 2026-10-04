@@ -73,6 +73,9 @@ public:
 	State GetState() const;
 
 	void SetSetup(int source, const Setup& setup);
+	// The settings of an accompaniment part (index 0..7: MIDI channel 9..16) as the piano
+	// reports them; the values that are not known (NoValue) keep what was heard on MIDI.
+	void SetStyleSetup(int index, const Setup& setup);
 
 	// A played message of a source (the channel of the message is ignored); thread safe.
 	void Add(int source, const MidiMessage& message);

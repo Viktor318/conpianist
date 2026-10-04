@@ -56,6 +56,7 @@ public:
 		chMidi2, chMidi3, chMidi4, chMidi5, chMidi6, chMidi7, chMidi8,
 		chMidi9, chMidi10, chMidi11, chMidi12, chMidi13, chMidi14, chMidi15,
 		chMidi16 = 0x1F,
+		chStylePart1 = 0x20, // the parts of the accompaniment: 0x20..0x27 (MIDI channel 9..16)
 		chMic = 0x40,
 		chAuxIn = 0x41,
 		chWave = 0x44,
@@ -326,6 +327,8 @@ public:
 	void StopRecording();
 	// Passes the current voices and mixer settings to the recorder (message thread).
 	void UpdateRecorderSetups();
+	void UpdateRecorderStyleSetups();
+	static const int NumStyleParts = 8;
 	// keep: the recording counts as saved (false for the temporary file of listening back)
 	// quantizeTicks, quantizeEnds, tripletTicks, fillGaps: see LiveRecorder::Save
 	bool SaveRecording(const File& file, bool includeStyle, String& error, bool keep = true,

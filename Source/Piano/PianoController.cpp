@@ -2001,6 +2001,46 @@ void PianoController::UpdateRecorderSetups()
 	m_recorder.SetSetup(LiveRecorder::srcMain, RecorderSetup(chMain));
 	m_recorder.SetSetup(LiveRecorder::srcLayer, RecorderSetup(chLayer));
 	m_recorder.SetSetup(LiveRecorder::srcLeft, RecorderSetup(chLeft));
+
+	// The voices of the accompaniment parts: the piano sends them on MIDI only when a
+	// style is started for the first time after it was selected, so they are asked for
+	// (the answers are used when the recording is saved).
+	if (!m_genericDevice && m_connected)
+	{
+		for (int i = 0; i < NumStyleParts; i++)
+		{
+			const int ch = chStylePart1 + i;
+			m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::VoiceMidi, ch, 0));
+			m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::Volume, ch, 0));
+			m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::Pan, ch, 0));
+			m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::Reverb, ch, 0));
+		}
+	}
+}
+
+// The settings of the accompaniment parts (MIDI channel 9..16), as the piano reported
+// them, for the file of the recording.
+void PianoController::UpdateRecorderStyleSetups()
+{
+	if (m_genericDevice)
+	{
+		return;
+	}
+	for (int i = 0; i < NumStyleParts; i++)
+	{
+		const ChannelInfo& info = m_channels[chStylePart1 + i];
+		if (info.voice.isEmpty() || info.voice.startsWith("PRESET:"))
+		{
+			continue; // not known: what was heard on MIDI is used
+		}
+		LiveRecorder::Setup setup;
+		setup.voice = info.voice.getIntValue();
+		// the volume of a part on MIDI: scaled by the volume of the whole accompaniment
+		setup.volume = jlimit(0, 127, roundToInt(info.volume * jlimit(0, 127, m_channels[chStyle].volume) / 127.0));
+		setup.pan = jlimit(0, 127, info.pan + PanBase);
+		setup.reverb = jlimit(0, 127, info.reverb);
+		m_recorder.SetStyleSetup(i, setup);
+	}
 }
 
 // The own metronome (on the MIDI device): a click on the drum channel on every beat.
@@ -2252,6 +2292,10 @@ bool PianoController::SaveRecording(const File& file, bool includeStyle, String&
 {
 	// the reverb type of the piano as XG reverb type; not known on a general MIDI device
 	const int reverbType = m_genericDevice || m_reverbEffect <= 0 ? LiveRecorder::NoValue : m_reverbEffect;
+	if (includeStyle)
+	{
+		UpdateRecorderStyleSetups();
+	}
 	const bool ok = m_recorder.Save(file, m_recordedTempo, m_recordedNumerator, m_recordedDenominator,
 		includeStyle, reverbType, error, quantizeTicks, quantizeEnds, tripletTicks, fillGaps);
 	if (ok && keep)
