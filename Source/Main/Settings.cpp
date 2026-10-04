@@ -80,6 +80,7 @@ void Settings::Save()
 	prop.setValue("Recorder.QuantizeEnds", recorderQuantizeEnds);
 	prop.setValue("Recorder.QuantizeFill", recorderQuantizeFill);
 	prop.setValue("Accompaniment.AutoFill", accompanimentAutoFill);
+	prop.setValue("Accompaniment.Key", accompanimentKey);
 
 	prop.save();
 	sendChangeMessage();
@@ -139,6 +140,7 @@ void Settings::Load()
 	recorderQuantizeEnds = prop.getBoolValue("Recorder.QuantizeEnds", recorderQuantizeEnds);
 	recorderQuantizeFill = prop.getBoolValue("Recorder.QuantizeFill", recorderQuantizeFill);
 	accompanimentAutoFill = prop.getBoolValue("Accompaniment.AutoFill", accompanimentAutoFill);
+	accompanimentKey = prop.getValue("Accompaniment.Key", accompanimentKey);
 }
 
 // The state of the piano and the playback when the program was closed (a registration

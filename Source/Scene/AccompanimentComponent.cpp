@@ -80,12 +80,41 @@ AccompanimentComponent::AccompanimentComponent(Settings& settings, PianoControll
 		};
 	addAndMakeVisible(tempoSlider);
 
+	// major keys: first the ones with sharps, then the ones with flats
+	static const char* const keys[] = {"C", "G", "D", "A", "E", "B", "F#", "F", "Bb", "Eb", "Ab", "Db", "Gb"};
+	keyCombo.setWantsKeyboardFocus(false);
+	keyCombo.addItem(TRANS("Key: -"), 1);
+	for (int i = 0; i < numElementsInArray(keys); i++)
+	{
+		keyCombo.addItem(keys[i], i + 2);
+	}
+	keyCombo.setTooltip(TRANS("The (major) key of the music: the chords are named with the sharps or the flats of the key; without a key, as the piano names them"));
+	keyCombo.setSelectedId(1, dontSendNotification);
+	for (int i = 0; i < numElementsInArray(keys); i++)
+	{
+		if (settings.accompanimentKey == keys[i])
+		{
+			keyCombo.setSelectedId(i + 2, dontSendNotification);
+		}
+	}
+	keyCombo.onChange = [this]()
+		{
+			this->settings.accompanimentKey = keyCombo.getSelectedId() > 1 ? keyCombo.getText() : String();
+			this->settings.Save();
+			update();
+		};
+	addAndMakeVisible(keyCombo);
+
+	initButton(resetTempoButton, TRANS("Reset"));
+	resetTempoButton.setTooltip(TRANS("Back to the default tempo of the style (R)"));
 	initButton(tapTempoButton, TRANS("Tap Tempo"));
 	tapTempoButton.setTooltip(TRANS("Press it several times in the tempo you want: the tempo is set from the presses (T)"));
 
 	initLabel(chordNameLabel, "");
 	chordNameLabel.setFont(Font(FontOptions(26.00f, Font::bold)));
 	chordNameLabel.setJustificationType(Justification::centred);
+	chordNameLabel.setMinimumHorizontalScale(0.5f);
+	chordNameLabel.setColour(Label::textColourId, Colour(0xffee6c0a)); // the colour of the buttons that are on
 	chordNameLabel.setTooltip(TRANS("The chord recognized by the piano"));
 
 	initButton(startButton, TRANS("Start"));
@@ -177,10 +206,21 @@ void AccompanimentComponent::resized()
 		currentLabel.setBounds(16, 88, labelWidth, 24);
 		currentNameLabel.setBounds(16 + labelWidth, 88, 408 - labelWidth, 24);
 	}
-	chordNameLabel.setBounds(16, 116, 408, 36);
-	tempoLabel.setBounds(16, 160, 70, 24);
-	tempoSlider.setBounds(90, 160, 120, 24);
-	tapTempoButton.setBounds(316, 158, 108, 28);
+	keyCombo.setBounds(16, 122, 92, 24);
+	chordNameLabel.setBounds(112, 116, 216, 36); // in the middle of the window
+	{
+		// the tempo right after its label; the two buttons spread evenly in the rest
+		const int textWidth = GlyphArrangement::getStringWidthInt(tempoLabel.getFont(), tempoLabel.getText());
+		const int labelWidth = jlimit(40, 120, textWidth + 10);
+		tempoLabel.setBounds(16, 160, labelWidth, 24);
+		tempoSlider.setBounds(16 + labelWidth, 160, 120, 24);
+		const int left = 16 + labelWidth + 120;
+		const int right = 424;
+		const int buttonWidth = jmin(100, (right - left - 16) / 2);
+		const int gap = (right - left - 2 * buttonWidth) / 2;
+		resetTempoButton.setBounds(left + gap, 158, buttonWidth, 28);
+		tapTempoButton.setBounds(right - buttonWidth, 158, buttonWidth, 28);
+	}
 	// start and stop
 	startButton.setBounds(16, 204, 128, 32);
 	syncStartButton.setBounds(156, 204, 128, 32);
@@ -239,6 +279,10 @@ void AccompanimentComponent::buttonClicked(Button* button)
 	else if (button == &tapTempoButton)
 	{
 		tapTempo();
+	}
+	else if (button == &resetTempoButton)
+	{
+		resetTempo();
 	}
 	else
 	{
@@ -320,6 +364,29 @@ void AccompanimentComponent::tapTempo()
 	}
 }
 
+int AccompanimentComponent::defaultTempo() const
+{
+	const String path = pianoController.GetStyleName();
+	for (const StyleEntry& style : styles)
+	{
+		if (style.path == path)
+		{
+			return style.tempo;
+		}
+	}
+	return 0;
+}
+
+void AccompanimentComponent::resetTempo()
+{
+	const int tempo = defaultTempo();
+	if (tempo > 0)
+	{
+		taps.clear();
+		pianoController.SetStyleTempo(tempo);
+	}
+}
+
 void AccompanimentComponent::toggleAutoFill()
 {
 	settings.accompanimentAutoFill = !settings.accompanimentAutoFill;
@@ -359,6 +426,11 @@ bool AccompanimentComponent::keyPressed(const KeyPress& key)
 	if (character == 't')
 	{
 		tapTempo();
+		return true;
+	}
+	if (character == 'r')
+	{
+		resetTempo();
 		return true;
 	}
 	if (character == 'f')
@@ -439,7 +511,7 @@ void AccompanimentComponent::update()
 	{
 		tempoSlider.setValue(pianoController.GetStyleTempo(), dontSendNotification);
 	}
-	chordNameLabel.setText(connected ? chordName(pianoController.GetStyleChord()) : String(), dontSendNotification);
+	chordNameLabel.setText(connected ? chordName(pianoController.GetStyleChord(), keyAccidentals()) : String(), dontSendNotification);
 
 	startButton.setButtonText(playing ? TRANS("Stop") : TRANS("Start"));
 	markButton(startButton, playing, false);
@@ -494,10 +566,12 @@ void AccompanimentComponent::update()
 	const int chosen = styleCombo.getSelectedId() - 1;
 	const bool pending = hasList && chosen >= 0 && chosen < (int)styles.size() && styles[chosen].path != path;
 	applyButton.setEnabled(pending);
+	const int styleTempo = defaultTempo();
+	resetTempoButton.setEnabled(connected && styleTempo > 0 && styleTempo != pianoController.GetStyleTempo());
 	markButton(applyButton, false, pending);
 
 	hintLabel.setText(connected ?
-		TRANS("Keys: Space - start/stop, 1-4 - Main A-D, F - Fill In, A - Auto Fill, B - Break, T - Tap Tempo, Enter - Apply") :
+		TRANS("Keys: Space, 1-4, F - Fill In, A - Auto Fill, B - Break, T - Tap Tempo, R - Reset, Enter - Apply") :
 		TRANS("The accompaniment is played by the piano: the piano is not connected."),
 		dontSendNotification);
 	hintLabel.setColour(Label::textColourId, connected ? Colours::white.withAlpha(0.6f) : Colours::orange);
@@ -528,6 +602,7 @@ void AccompanimentComponent::loadStyles()
 			entry.title = fields[2].trim();
 			entry.category = fields[3].trim();
 			entry.group = fields[4].trim();
+			entry.tempo = fields.size() > 6 ? fields[6].getIntValue() : 0;
 			if (entry.title.isEmpty())
 			{
 				entry.title = styleTitle(entry.path);
@@ -623,24 +698,45 @@ void AccompanimentComponent::applyStyle()
 	}
 }
 
-String AccompanimentComponent::chordName(const PianoController::StyleChord& chord)
+// Sharps or flats of the chosen key: the keys with sharps come first in the list.
+int AccompanimentComponent::keyAccidentals() const
+{
+	const String key = settings.accompanimentKey;
+	if (key.isEmpty() || key == "C")
+	{
+		return 0;
+	}
+	return key == "F" || key.endsWithChar('b') ? -1 : +1;
+}
+
+String AccompanimentComponent::chordName(const PianoController::StyleChord& chord, int accidentals)
 {
 	static const char* const notes[] = {"", "C", "D", "E", "F", "G", "A", "B"};
-	static const char* const accidentals[] = {"bbb", "bb", "b", "", "#", "##", "###", ""};
+	static const int semitones[] = {0, 0, 2, 4, 5, 7, 9, 11};
+	static const char* const marks[] = {"bbb", "bb", "b", "", "#", "##", "###", ""};
+	static const char* const withSharps[] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
+	static const char* const withFlats[] = {"C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"};
 	static const char* const types[] = {
 		"", "6", "maj7", "maj7(#11)", "(9)", "maj7(9)", "6(9)", "aug",
 		"m", "m6", "m7", "m7b5", "m(9)", "m7(9)", "m7(11)", "mMaj7",
 		"mMaj7(9)", "dim", "dim7", "7", "7sus4", "7b5", "7(9)", "7(#11)",
 		"7(13)", "7(b9)", "7(b13)", "7(#9)", "maj7aug", "7aug", "1+8", "1+5",
 		"sus4", "1+2+5", ""};
-	auto noteName = [](int value)
+	// value: 0fffnnnn - nnnn: 1 C .. 7 B; fff: 0 bbb, 1 bb, 2 b, 3 natural, 4 #, 5 ##, 6 ###
+	auto noteName = [accidentals](int value)
 		{
 			const int note = value & 0x0f;
+			const int mark = (value >> 4) & 0x07;
 			if (value >= 0x7f || note < 1 || note > 7)
 			{
 				return String();
 			}
-			return String(notes[note]) + accidentals[(value >> 4) & 0x07];
+			if (accidentals == 0 || mark > 6)
+			{
+				return String(notes[note]) + marks[mark];
+			}
+			const int pitch = ((semitones[note] + (mark - 3)) % 12 + 12) % 12;
+			return String(accidentals > 0 ? withSharps[pitch] : withFlats[pitch]);
 		};
 
 	const String root = noteName(chord.root);

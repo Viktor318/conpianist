@@ -41,7 +41,9 @@ public:
 	void PianoStateChanged(PianoController::Aspect aspect, PianoController::Channel channel) override;
 
 	// Name of a chord as the piano reports it (e.g. "Cmaj7/E"); empty if there is none.
-	static String chordName(const PianoController::StyleChord& chord);
+	// accidentals: 0 - the notes as the piano names them, +1 - the black keys with
+	// sharps (C#), -1 - with flats (Db).
+	static String chordName(const PianoController::StyleChord& chord, int accidentals = 0);
 	// Name and category of a style from its preset path, e.g. "Contemp Gtr Pop (Pop & Rock)".
 	static String styleTitle(const String& path);
 
@@ -57,6 +59,7 @@ private:
 		String title;
 		String category; // e.g. Pop & Rock
 		String group;    // e.g. Pop
+		int tempo = 0;   // default tempo of the style (0: not known)
 	};
 	std::vector<StyleEntry> styles;
 	StringArray categories;
@@ -74,8 +77,10 @@ private:
 	StringArray groups;     // of the chosen category
 	Label tempoLabel;
 	Slider tempoSlider;
+	TextButton resetTempoButton; // back to the default tempo of the style
 	TextButton tapTempoButton;
 	Label chordNameLabel; // the recognized chord, large, in the middle
+	ComboBox keyCombo;    // the key of the music: the chords are named with its sharps or flats
 	std::vector<double> taps; // times of the last presses of Tap Tempo (ms)
 	TextButton startButton;
 	TextButton syncStartButton;
@@ -108,6 +113,9 @@ private:
 	void changeMain(int index);
 	void toggleAutoFill();
 	void tapTempo();
+	void resetTempo();
+	int keyAccidentals() const; // of the chosen key: 0, +1 (sharps) or -1 (flats)
+	int defaultTempo() const; // of the style of the piano; 0 if it is not in the list
 	// current: the section is playing; next: it is played after the current one
 	static void markButton(TextButton& button, bool current, bool next);
 };

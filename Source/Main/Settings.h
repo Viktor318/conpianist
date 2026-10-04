@@ -94,6 +94,9 @@ public:
 	bool recorderQuantizeFill = false; // notes are lengthened to the next note
 	// Accompaniment window: a fill in is played when the main section is changed
 	bool accompanimentAutoFill = false;
+	// the (major) key of the music, for the names of the chords: empty - as the piano
+	// sends them; a key with sharps (e.g. "E") or with flats (e.g. "Eb")
+	String accompanimentKey;
 	bool recorderQuantizeEnds = false;
 
 private:
