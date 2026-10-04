@@ -97,12 +97,15 @@ public:
 	// not 0, it is a second grid (320: quarter-note triplets, 160: eighth-note triplets,
 	// 80: sixteenth-note triplets): the measure is divided into the shortest parts that
 	// both grids fit into, and each part uses the grid that fits its played notes better.
-	// The accompaniment, the pedal and the other controllers are not changed; the
-	// recording itself is not changed either.
+	// With fillGaps a note is lengthened to the beginning of the next note if it was held
+	// for at least half of the time between them (no short rests in the score; notes
+	// played short stay short). The accompaniment, the pedal and the other controllers
+	// are not changed; the recording itself is not changed either.
 	static const int TicksPerQuarter = 480;
 	bool Save(const File& file, int tempo, int beatNumerator, int beatDenominator,
 		bool includeStyle, int reverbType, String& error,
-		int quantizeTicks = 0, bool quantizeEnds = false, int tripletTicks = 0) const;
+		int quantizeTicks = 0, bool quantizeEnds = false, int tripletTicks = 0,
+		bool fillGaps = false) const;
 
 private:
 	struct Event
@@ -136,6 +139,7 @@ private:
 	void MoveStart(double newStartMs);
 	void Store(int source, const MidiMessage& message, double nowMs);
 	double AddQuantized(MidiMessageSequence& track, int source, int channel,
-		double ticksPerMs, int grid, bool quantizeEnds, int tripletTicks, double measureTicks) const;
+		double ticksPerMs, int grid, bool quantizeEnds, int tripletTicks, bool fillGaps,
+		double measureTicks) const;
 	static bool IsRecordable(const MidiMessage& message);
 };

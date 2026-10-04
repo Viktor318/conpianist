@@ -255,3 +255,5 @@ countries: hu
 "Measure NUMBER" = "NUMBER. ütem"
 "Align the ends of the notes too" = "Hangok végének igazítása"
 "The ends of the notes are moved to the grid too (cleaner score); otherwise the notes keep their length" = "A hangok vége is a rácsra kerül (tisztább kotta); különben a hangok hossza megmarad"
+"Fill the gaps" = "Szünetek kitöltése"
+"A note lasts until the next note if it was held for at least half of the time between them (no short rests in the score); notes played short stay short" = "A hang a következő hangig tart, ha a kettő közti idő legalább feléig ki volt tartva (nem lesznek apró szünetek a kottában); a rövidre játszott hangok rövidek maradnak"

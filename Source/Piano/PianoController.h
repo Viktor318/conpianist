@@ -281,9 +281,9 @@ public:
 	// Passes the current voices and mixer settings to the recorder (message thread).
 	void UpdateRecorderSetups();
 	// keep: the recording counts as saved (false for the temporary file of listening back)
-	// quantizeTicks, quantizeEnds, tripletTicks: see LiveRecorder::Save
+	// quantizeTicks, quantizeEnds, tripletTicks, fillGaps: see LiveRecorder::Save
 	bool SaveRecording(const File& file, bool includeStyle, String& error, bool keep = true,
-		int quantizeTicks = 0, bool quantizeEnds = false, int tripletTicks = 0);
+		int quantizeTicks = 0, bool quantizeEnds = false, int tripletTicks = 0, bool fillGaps = false);
 	// tempo (quarter notes per minute) and time signature of the recording
 	int GetRecordedTempo() const { return m_recordedTempo; }
 	int GetRecordedNumerator() const { return m_recordedNumerator; }

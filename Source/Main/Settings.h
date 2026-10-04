@@ -91,6 +91,7 @@ public:
 	bool recorderQuantize = false;
 	int recorderQuantizeTicks = 120;
 	int recorderQuantizeTripletTicks = 0;
+	bool recorderQuantizeFill = false; // notes are lengthened to the next note
 	bool recorderQuantizeEnds = false;
 
 private:

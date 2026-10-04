@@ -18,6 +18,7 @@
  */
 
 #include "LiveRecorder.h"
+#include <algorithm>
 #include <map>
 #include <numeric>
 
@@ -352,7 +353,8 @@ int LiveRecorder::GetHeldNoteCount() const
 // Writes the events of a source into the track with the notes moved to the grid.
 // Returns the time of the last event (ticks).
 double LiveRecorder::AddQuantized(MidiMessageSequence& track, int source, int channel,
-	double ticksPerMs, int grid, bool quantizeEnds, int tripletTicks, double measureTicks) const
+	double ticksPerMs, int grid, bool quantizeEnds, int tripletTicks, bool fillGaps,
+	double measureTicks) const
 {
 	struct Note
 	{
@@ -465,21 +467,42 @@ double LiveRecorder::AddQuantized(MidiMessageSequence& track, int source, int ch
 			return found != tripletWindows.end() && found->second ? tripletGrid : (double)grid;
 		};
 
+	std::vector<double> lengths;  // as played
+	std::vector<double> steps;    // the grid step where the note begins
+	std::vector<double> rawEnds;
+	std::vector<double> begins;   // the beginnings on the grid, sorted
 	for (Note& note : notes)
 	{
-		const double length = std::max(1.0, note.off - note.on);
+		lengths.push_back(std::max(1.0, note.off - note.on));
+		rawEnds.push_back(note.off);
 		const Place onPlace = placeOf(note.on);
-		const double onStep = stepOf(onPlace);
-		note.on = std::max(0.0, snap(onPlace, onStep));
+		steps.push_back(stepOf(onPlace));
+		note.on = std::max(0.0, snap(onPlace, steps.back()));
+		begins.push_back(note.on);
+	}
+	std::sort(begins.begin(), begins.end());
+
+	for (size_t i = 0; i < notes.size(); i++)
+	{
+		Note& note = notes[i];
 		if (quantizeEnds)
 		{
 			// a note is at least one grid step long if its end is moved to the grid too
-			const Place offPlace = placeOf(note.off);
-			note.off = std::max(note.on + onStep, snap(offPlace, stepOf(offPlace)));
+			const Place offPlace = placeOf(rawEnds[i]);
+			note.off = std::max(note.on + steps[i], snap(offPlace, stepOf(offPlace)));
 		}
 		else
 		{
-			note.off = note.on + length;
+			note.off = note.on + lengths[i];
+		}
+		if (fillGaps)
+		{
+			// up to the next note, if the note was held for at least half of the way
+			const auto next = std::upper_bound(begins.begin(), begins.end(), note.on);
+			if (next != begins.end() && note.off < *next && lengths[i] >= (*next - note.on) * 0.5)
+			{
+				note.off = *next;
+			}
 		}
 	}
 
@@ -533,7 +556,7 @@ double LiveRecorder::AddQuantized(MidiMessageSequence& track, int source, int ch
 
 bool LiveRecorder::Save(const File& file, int tempo, int beatNumerator, int beatDenominator,
 	bool includeStyle, int reverbType, String& error, int quantizeTicks, bool quantizeEnds,
-	int tripletTicks) const
+	int tripletTicks, bool fillGaps) const
 {
 	const ScopedLock lock(m_lock);
 	if (m_noteCount == 0)
@@ -673,7 +696,7 @@ bool LiveRecorder::Save(const File& file, int tempo, int beatNumerator, int beat
 			// the length of a measure: the quarter note is ticksPerQuarter ticks long
 			const double measureTicks = std::max(1, beatNumerator) * 4.0 * ticksPerQuarter / std::max(1, beatDenominator);
 			lastTick = AddQuantized(track, source, channel, ticksPerMs, quantizeTicks, quantizeEnds,
-				tripletTicks, measureTicks);
+				tripletTicks, fillGaps, measureTicks);
 		}
 		else
 		{

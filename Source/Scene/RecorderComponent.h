@@ -63,6 +63,7 @@ private:
 	ComboBox quantizeCombo;      // the grid; the item ids are ticks
 	ComboBox tripletCombo;       // the triplet grid; the item ids are ticks, NoTripletId: none
 	ToggleButton quantizeEndsButton;
+	ToggleButton quantizeFillButton;
 	Label nameLabel;
 	TextEditor nameEditor;
 	Label statusLabel;

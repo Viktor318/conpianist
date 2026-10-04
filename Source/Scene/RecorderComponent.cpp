@@ -158,6 +158,11 @@ RecorderComponent::RecorderComponent(Settings& settings, PianoController& pianoC
 	quantizeEndsButton.addListener(this);
 	addAndMakeVisible(quantizeEndsButton);
 
+	quantizeFillButton.setButtonText(TRANS("Fill the gaps"));
+	quantizeFillButton.setTooltip(TRANS("A note lasts until the next note if it was held for at least half of the time between them (no short rests in the score); notes played short stay short"));
+	quantizeFillButton.addListener(this);
+	addAndMakeVisible(quantizeFillButton);
+
 	initLabel(nameLabel, TRANS("File name:"));
 
 	nameEditor.setMultiLine(false);
@@ -217,6 +222,7 @@ RecorderComponent::RecorderComponent(Settings& settings, PianoController& pianoC
 		quantizeCombo.setSelectedId(120, dontSendNotification);
 	}
 	quantizeEndsButton.setToggleState(settings.recorderQuantizeEnds, dontSendNotification);
+	quantizeFillButton.setToggleState(settings.recorderQuantizeFill, dontSendNotification);
 
 	setSize(440, 544);
 
@@ -275,7 +281,8 @@ void RecorderComponent::resized()
 	quantizeButton.setBounds(12, 248, 124, 24);
 	quantizeCombo.setBounds(140, 248, 126, 24);
 	tripletCombo.setBounds(274, 248, 150, 24);
-	quantizeEndsButton.setBounds(12, 284, 412, 24);
+	quantizeEndsButton.setBounds(12, 284, 222, 24);
+	quantizeFillButton.setBounds(240, 284, 184, 24);
 	// file and state
 	nameLabel.setBounds(16, 328, 100, 24);
 	nameEditor.setBounds(120, 328, 304, 24);
@@ -349,7 +356,7 @@ void RecorderComponent::buttonClicked(Button* button)
 		save();
 	}
 	else if (button == &autoButton || button == &manualButton || button == &styleButton ||
-		button == &quantizeButton || button == &quantizeEndsButton)
+		button == &quantizeButton || button == &quantizeEndsButton || button == &quantizeFillButton)
 	{
 		saveOptions();
 		updateControls();
@@ -366,14 +373,17 @@ void RecorderComponent::saveOptions()
 	const int ticks = quantizeCombo.getSelectedId() > 0 ? quantizeCombo.getSelectedId() : settings.recorderQuantizeTicks;
 	const int triplets = tripletTicks();
 	const bool ends = quantizeEndsButton.getToggleState();
+	const bool fill = quantizeFillButton.getToggleState();
 	if (automatic != settings.recorderAutomatic || silence != settings.recorderSilence ||
 		style != settings.recorderStyle || countIn != settings.recorderCountIn ||
 		quantize != settings.recorderQuantize || ticks != settings.recorderQuantizeTicks ||
-		triplets != settings.recorderQuantizeTripletTicks || ends != settings.recorderQuantizeEnds)
+		triplets != settings.recorderQuantizeTripletTicks || ends != settings.recorderQuantizeEnds ||
+		fill != settings.recorderQuantizeFill)
 	{
 		settings.recorderQuantize = quantize;
 		settings.recorderQuantizeTicks = ticks;
 		settings.recorderQuantizeTripletTicks = triplets;
+		settings.recorderQuantizeFill = fill;
 		settings.recorderQuantizeEnds = ends;
 		settings.recorderCountIn = countIn;
 		settings.recorderAutomatic = automatic;
@@ -479,7 +489,8 @@ void RecorderComponent::writeFile(const File& file)
 {
 	String error;
 	if (pianoController.SaveRecording(file, styleButton.getToggleState(), error, true,
-		quantizeTicks(), quantizeEndsButton.getToggleState(), tripletTicks()))
+		quantizeTicks(), quantizeEndsButton.getToggleState(), tripletTicks(),
+		quantizeFillButton.getToggleState()))
 	{
 		saved = true;
 		savedName = file.getFileName();
@@ -521,7 +532,8 @@ void RecorderComponent::listen()
 	const File file = directory.getChildFile(File::createLegalFileName(TRANS("Recording (listening)")) + ".mid");
 	String error;
 	if (!pianoController.SaveRecording(file, styleButton.getToggleState(), error, false,
-		quantizeTicks(), quantizeEndsButton.getToggleState(), tripletTicks()))
+		quantizeTicks(), quantizeEndsButton.getToggleState(), tripletTicks(),
+		quantizeFillButton.getToggleState()))
 	{
 		message = TRANS("The recording could not be played.");
 		updateStatus();
@@ -550,7 +562,8 @@ void RecorderComponent::listen()
 String RecorderComponent::listenKey() const
 {
 	return String(quantizeTicks()) + "/" + String(tripletTicks()) + "/" +
-		String((int)quantizeEndsButton.getToggleState()) + "/" + String((int)styleButton.getToggleState());
+		String((int)quantizeEndsButton.getToggleState()) + "/" + String((int)quantizeFillButton.getToggleState()) +
+		"/" + String((int)styleButton.getToggleState());
 }
 
 int RecorderComponent::quantizeTicks() const
@@ -698,6 +711,7 @@ void RecorderComponent::updateControls()
 	quantizeCombo.setEnabled(quantizeButton.getToggleState());
 	tripletCombo.setEnabled(quantizeButton.getToggleState());
 	quantizeEndsButton.setEnabled(quantizeButton.getToggleState());
+	quantizeFillButton.setEnabled(quantizeButton.getToggleState());
 }
 
 // Shows the tempo, the time signature and the state of the metronome as they are now
