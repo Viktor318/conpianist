@@ -1176,8 +1176,30 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 	}
 	else if (property == Property::StyleSection)
 	{
+		const int previous = m_styleSection;
 		(index == 1 ? m_styleNextSection : m_styleSection) = intValue;
 		NotifyChanged(apStyle);
+
+		// the fill in of a change of the main section has ended: if the piano went back
+		// to the old main section, the new one is chosen again
+		const int target = m_styleFillTarget;
+		const bool wasFill = previous >= ssFillInAA && previous < ssFillInAA + 4;
+		const bool isFill = intValue >= ssFillInAA && intValue < ssFillInAA + 4;
+		if (index == 0 && target != ssNone && wasFill && !isFill)
+		{
+			m_styleFillTarget = ssNone;
+			if (intValue != target && Time::getMillisecondCounter() - m_styleFillTargetMs < 20000)
+			{
+				std::weak_ptr<bool> alive = m_alive;
+				MessageManager::callAsync([this, alive, target]()
+					{
+						if (alive.lock() && m_stylePlaying)
+						{
+							SendStyleSection(target, true);
+						}
+					});
+			}
+		}
 	}
 	else if (property == Property::StylePosition && size == 4)
 	{
@@ -2108,26 +2130,48 @@ void PianoController::SendStyleSection(int section, bool on)
 
 void PianoController::SetStyleSection(int section)
 {
+	m_styleFillTarget = ssNone; // chosen by hand: nothing is waiting for a fill in
 	SendStyleSection(section, true);
 }
 
 // A section that stays switched on is repeated (a fill in or the break again and again,
 // like holding its button on an arranger keyboard): it is switched off a moment later,
 // so it is played once. Called on the message thread.
-void PianoController::PlayStyleSection(int section, int thenMain)
+void PianoController::PlayStyleSection(int section)
 {
 	static const int ReleaseMs = 150;
 	SendStyleSection(section, true);
 	std::weak_ptr<bool> alive = m_alive;
-	Timer::callAfterDelay(ReleaseMs, [this, alive, section, thenMain]()
+	Timer::callAfterDelay(ReleaseMs, [this, alive, section]()
 		{
 			if (alive.lock())
 			{
 				SendStyleSection(section, false);
-				if (thenMain >= ssMainA && thenMain < ssMainA + 4)
-				{
-					SendStyleSection(thenMain, true);
-				}
+			}
+		});
+}
+
+// The new main section is chosen first (it becomes the next section), then its fill in
+// is played once: a main section chosen while the fill in is playing would cut the fill
+// in. If the piano goes back to the old main section after the fill in, the new one is
+// chosen again then (see StyleSection in IncomingPianoMessage). Called on the message
+// thread.
+void PianoController::ChangeStyleMainWithFill(int main)
+{
+	if (main < ssMainA || main >= ssMainA + 4)
+	{
+		return;
+	}
+	static const int FillDelayMs = 60;
+	m_styleFillTarget = main;
+	m_styleFillTargetMs = Time::getMillisecondCounter();
+	SendStyleSection(main, true);
+	std::weak_ptr<bool> alive = m_alive;
+	Timer::callAfterDelay(FillDelayMs, [this, alive, main]()
+		{
+			if (alive.lock() && m_styleFillTarget == main)
+			{
+				PlayStyleSection(ssFillInAA + (main - ssMainA));
 			}
 		});
 }

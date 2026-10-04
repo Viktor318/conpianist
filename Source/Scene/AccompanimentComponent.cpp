@@ -245,7 +245,7 @@ void AccompanimentComponent::changeMain(int index)
 	if (settings.accompanimentAutoFill && pianoController.GetStylePlaying() &&
 		pianoController.GetStyleSection() != main)
 	{
-		pianoController.PlayStyleSection(PianoController::ssFillInAA + index, main);
+		pianoController.ChangeStyleMainWithFill(main);
 	}
 	else
 	{
