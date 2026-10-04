@@ -114,7 +114,7 @@ AccompanimentComponent::AccompanimentComponent(Settings& settings, PianoControll
 
 	initLabel(chordNameLabel, "");
 	chordNameLabel.setFont(Font(FontOptions(26.00f, Font::bold)));
-	chordNameLabel.setJustificationType(Justification::centredLeft);
+	chordNameLabel.setJustificationType(Justification::centred);
 	chordNameLabel.setMinimumHorizontalScale(0.5f);
 	chordNameLabel.setColour(Label::textColourId, Colour(0xffee6c0a)); // the colour of the buttons that are on
 	chordNameLabel.setTooltip(TRANS("The chord recognized by the piano"));
@@ -170,7 +170,7 @@ AccompanimentComponent::AccompanimentComponent(Settings& settings, PianoControll
 	hintLabel.setMinimumHorizontalScale(0.7f);
 
 	setWantsKeyboardFocus(true);
-	setSize(440, 472);
+	setSize(440, 482);
 
 	pianoController.AddListener(this);
 	update();
@@ -182,7 +182,7 @@ AccompanimentComponent::~AccompanimentComponent()
 }
 
 // vertical positions of the lines between the groups of the controls
-static const int AccompanimentSeparatorY[] = {194, 246, 378, 422};
+static const int AccompanimentSeparatorY[] = {204, 256, 388, 432};
 
 void AccompanimentComponent::paint(Graphics& g)
 {
@@ -192,6 +192,9 @@ void AccompanimentComponent::paint(Graphics& g)
 	{
 		g.fillRect(12, y, getWidth() - 24, 1);
 	}
+	// the frame of the chord
+	g.setColour(Colours::white.withAlpha(0.7f));
+	g.drawRoundedRectangle(chordFrame.toFloat().reduced(0.75f), 5.0f, 1.5f);
 }
 
 void AccompanimentComponent::resized()
@@ -210,60 +213,62 @@ void AccompanimentComponent::resized()
 		currentNameLabel.setBounds(16 + labelWidth, 88, 408 - labelWidth, 24);
 	}
 	{
-		// the key list right after its label, then the label of the chord and the chord
-		// right after it
+		// The key list right after its label, then the label of the chord; the chord is
+		// in a frame that takes the rest of the row, in the middle of it, with the same
+		// distance from the row above and from the row below.
 		auto widthOf = [](const Label& label)
 			{
 				return GlyphArrangement::getStringWidthInt(label.getFont(), label.getText()) + 10;
 			};
 		const int keyWidth = jlimit(30, 90, widthOf(keyLabel));
 		const int chordWidth = jlimit(30, 90, widthOf(chordLabel));
-		keyLabel.setBounds(16, 122, keyWidth, 24);
-		keyCombo.setBounds(16 + keyWidth, 122, 60, 24);
+		keyLabel.setBounds(16, 128, keyWidth, 24);
+		keyCombo.setBounds(16 + keyWidth, 128, 60, 24);
 		const int chordX = 16 + keyWidth + 60 + 16;
-		chordLabel.setBounds(chordX, 122, chordWidth, 24);
-		chordNameLabel.setBounds(chordX + chordWidth, 116, 424 - (chordX + chordWidth), 36);
+		chordLabel.setBounds(chordX, 128, chordWidth, 24);
+		chordFrame = Rectangle<int>(chordX + chordWidth, 121, 424 - (chordX + chordWidth), 38);
+		chordNameLabel.setBounds(chordFrame.reduced(4, 1));
 	}
 	{
 		// the tempo right after its label; the two buttons spread evenly in the rest
 		const int textWidth = GlyphArrangement::getStringWidthInt(tempoLabel.getFont(), tempoLabel.getText());
 		const int labelWidth = jlimit(40, 120, textWidth + 10);
-		tempoLabel.setBounds(16, 160, labelWidth, 24);
-		tempoSlider.setBounds(16 + labelWidth, 160, 120, 24);
+		tempoLabel.setBounds(16, 170, labelWidth, 24);
+		tempoSlider.setBounds(16 + labelWidth, 170, 120, 24);
 		const int left = 16 + labelWidth + 120;
 		const int right = 424;
 		const int buttonWidth = jmin(100, (right - left - 16) / 2);
 		const int gap = (right - left - 2 * buttonWidth) / 2;
-		resetTempoButton.setBounds(left + gap, 158, buttonWidth, 28);
-		tapTempoButton.setBounds(right - buttonWidth, 158, buttonWidth, 28);
+		resetTempoButton.setBounds(left + gap, 168, buttonWidth, 28);
+		tapTempoButton.setBounds(right - buttonWidth, 168, buttonWidth, 28);
 	}
 	// start and stop
-	startButton.setBounds(16, 204, 128, 32);
-	syncStartButton.setBounds(156, 204, 128, 32);
-	positionLabel.setBounds(296, 204, 128, 32);
+	startButton.setBounds(16, 214, 128, 32);
+	syncStartButton.setBounds(156, 214, 128, 32);
+	positionLabel.setBounds(296, 214, 128, 32);
 	// sections
-	introLabel.setBounds(16, 256, 70, 32);
-	mainLabel.setBounds(16, 296, 70, 32);
-	endingLabel.setBounds(16, 336, 70, 32);
+	introLabel.setBounds(16, 266, 70, 32);
+	mainLabel.setBounds(16, 306, 70, 32);
+	endingLabel.setBounds(16, 346, 70, 32);
 	for (int i = 0; i < NumIntros; i++)
 	{
-		introButtons[i].setBounds(90 + i * 48, 256, 44, 32);
+		introButtons[i].setBounds(90 + i * 48, 266, 44, 32);
 	}
 	for (int i = 0; i < NumMains; i++)
 	{
-		mainButtons[i].setBounds(90 + i * 48, 296, 44, 32);
+		mainButtons[i].setBounds(90 + i * 48, 306, 44, 32);
 	}
 	for (int i = 0; i < NumEndings; i++)
 	{
-		endingButtons[i].setBounds(90 + i * 48, 336, 44, 32);
+		endingButtons[i].setBounds(90 + i * 48, 346, 44, 32);
 	}
-	autoFillButton.setBounds(290, 256, 134, 32);
-	fillInButton.setBounds(290, 296, 64, 32);
-	breakButton.setBounds(360, 296, 64, 32);
+	autoFillButton.setBounds(290, 266, 134, 32);
+	fillInButton.setBounds(290, 306, 64, 32);
+	breakButton.setBounds(360, 306, 64, 32);
 	// volume
-	volumeLabel.setBounds(16, 388, 170, 24);
-	volumeSlider.setBounds(186, 388, 238, 24);
-	hintLabel.setBounds(16, 434, 408, 24);
+	volumeLabel.setBounds(16, 398, 170, 24);
+	volumeSlider.setBounds(186, 398, 238, 24);
+	hintLabel.setBounds(16, 444, 408, 24);
 }
 
 void AccompanimentComponent::buttonClicked(Button* button)
