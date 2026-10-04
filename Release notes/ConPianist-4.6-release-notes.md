@@ -11,7 +11,7 @@ Fő újdonságok: Kíséret ablak a zongora kíséretének (stílus) vezérlés�
 - **Gyorsbillentyűk** a Kíséret ablakban (szóköz, 1–4, F, A, B, T, R, Enter); a listát a Gyorsbillentyűk súgója gomb mutatja.
 - **XG, GM2 és GS hangszínek:** a Keverő csatornamenüjének **Hangszín módosítása** almenüjében új XG, GM2 és GS csoport, kategóriánként (480 XG, 256 GM2, 226 GS hang). A Keverőn, a mentett állapotban és a felvételben a hang saját neve jelenik meg.
 - A **Hangszín átadása** almenü kiírja, melyik panel hang kerül a billentyűzet szólamára, ha a csatornán XG, GM2 vagy GS hang szól.
-- A **Felvétel** és a **Kíséret** ablak kis méretre állítható; a felvétel, a visszahallgatás és a kíséret közben megy tovább. A program megjegyzi a két ablak helyét, és újraindítás után is ott nyitja meg őket.
+- A **Felvétel** és a **Kíséret** ablak kis méretre állítható; a felvétel, a visszahallgatás és a kíséret közben megy tovább.
 
 ### Javítva
 - A kísérettel készült felvétel a kíséret hangszíneivel szól: eddig a kíséretsávokból többnyire hiányoztak a hangszínek, így lejátszva minden szólam zongorahangon szólt.
@@ -40,7 +40,7 @@ Highlights: an Accompaniment window to control the piano's accompaniment (style)
 - **Keyboard shortcuts** in the Accompaniment window (space, 1–4, F, A, B, T, R, Enter); the Keyboard shortcuts button lists them.
 - **XG, GM2 and GS voices:** new XG, GM2 and GS groups in the **Change Voice** submenu of the mixer channel menu, by category (480 XG, 256 GM2, 226 GS voices). The mixer, the saved state and the recording show the voice's own name.
 - The **Use Voice for** submenu shows which panel voice goes to the keyboard part when the channel has an XG, GM2 or GS voice.
-- The **Recording** and **Accompaniment** windows can be minimised; recording, listening back and the accompaniment go on meanwhile. The program remembers the position of both windows and opens them there after a restart too.
+- The **Recording** and **Accompaniment** windows can be minimised; recording, listening back and the accompaniment go on meanwhile.
 
 ### Fixed
 - A recording made with the accompaniment plays with the voices of the accompaniment: the voices were mostly missing from the accompaniment tracks, so every part played with a piano voice.
