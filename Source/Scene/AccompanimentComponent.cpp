@@ -83,6 +83,7 @@ AccompanimentComponent::AccompanimentComponent(Settings& settings, PianoControll
 	// major keys: first the ones with sharps, then the ones with flats
 	static const char* const keys[] = {"C", "G", "D", "A", "E", "B", "F#", "F", "Bb", "Eb", "Ab", "Db", "Gb"};
 	initLabel(keyLabel, TRANS("Key:"));
+	initLabel(chordLabel, TRANS("Chord:"));
 	keyCombo.setWantsKeyboardFocus(false);
 	keyCombo.addItem("-", 1);
 	for (int i = 0; i < numElementsInArray(keys); i++)
@@ -208,13 +209,19 @@ void AccompanimentComponent::resized()
 		currentNameLabel.setBounds(16 + labelWidth, 88, 408 - labelWidth, 24);
 	}
 	{
-		// the list right after its label; the chord in the middle of the window
-		const int textWidth = GlyphArrangement::getStringWidthInt(keyLabel.getFont(), keyLabel.getText());
-		const int labelWidth = jlimit(30, 80, textWidth + 10);
-		keyLabel.setBounds(16, 122, labelWidth, 24);
-		keyCombo.setBounds(16 + labelWidth, 122, 60, 24);
-		const int left = 16 + labelWidth + 60 + 6;
-		chordNameLabel.setBounds(left, 116, getWidth() - 2 * left, 36);
+		// the key list right after its label, then the label of the chord; the chord in
+		// the middle of the rest of the row
+		auto widthOf = [](const Label& label)
+			{
+				return GlyphArrangement::getStringWidthInt(label.getFont(), label.getText()) + 10;
+			};
+		const int keyWidth = jlimit(30, 90, widthOf(keyLabel));
+		const int chordWidth = jlimit(30, 90, widthOf(chordLabel));
+		keyLabel.setBounds(16, 122, keyWidth, 24);
+		keyCombo.setBounds(16 + keyWidth, 122, 60, 24);
+		const int chordX = 16 + keyWidth + 60 + 16;
+		chordLabel.setBounds(chordX, 122, chordWidth, 24);
+		chordNameLabel.setBounds(chordX + chordWidth, 116, 424 - (chordX + chordWidth), 36);
 	}
 	{
 		// the tempo right after its label; the two buttons spread evenly in the rest
