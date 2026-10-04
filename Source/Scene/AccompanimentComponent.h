@@ -49,8 +49,22 @@ private:
 	Settings& settings;
 	PianoController& pianoController;
 
+	// A style of the piano, from the list file (styles.csv in the data folder of the
+	// program; it is not part of the program, the lists stay empty without it).
+	struct StyleEntry
+	{
+		String path;     // preset path, e.g. PRESET:/STYLE/Pop & Rock/Pop/Contemp Gtr Pop.T308.prs
+		String title;
+		String category; // e.g. Pop & Rock
+		String group;    // e.g. Pop
+	};
+	std::vector<StyleEntry> styles;
+	StringArray categories;
+	String shownStyle = "?"; // the style of the piano that the lists show
+
 	Label styleLabel;
-	Label styleNameLabel;
+	ComboBox categoryCombo; // item id: index in categories + 1
+	ComboBox styleCombo;    // item id: index in styles + 1
 	Label tempoLabel;
 	Slider tempoSlider;
 	Label chordLabel;
@@ -77,6 +91,8 @@ private:
 	Label hintLabel;
 
 	void update();
+	void loadStyles();
+	void fillStyleCombo(const String& category);
 	void fillIn();
 	void changeMain(int index);
 	void toggleAutoFill();

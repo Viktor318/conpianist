@@ -41,8 +41,33 @@ AccompanimentComponent::AccompanimentComponent(Settings& settings, PianoControll
 		};
 
 	initLabel(styleLabel, TRANS("Style:"));
-	initLabel(styleNameLabel, "");
-	styleNameLabel.setMinimumHorizontalScale(0.7f);
+
+	// the lists do not take the keyboard focus either
+	categoryCombo.setWantsKeyboardFocus(false);
+	categoryCombo.setTooltip(TRANS("Category of the style"));
+	categoryCombo.onChange = [this]()
+		{
+			const int index = categoryCombo.getSelectedId() - 1;
+			if (index >= 0 && index < categories.size())
+			{
+				fillStyleCombo(categories[index]);
+			}
+		};
+	addAndMakeVisible(categoryCombo);
+
+	styleCombo.setWantsKeyboardFocus(false);
+	styleCombo.onChange = [this]()
+		{
+			const int index = styleCombo.getSelectedId() - 1;
+			if (index >= 0 && index < (int)styles.size() &&
+				styles[index].path != this->pianoController.GetStyleName())
+			{
+				this->pianoController.SetStyle(styles[index].path);
+			}
+		};
+	addAndMakeVisible(styleCombo);
+
+	loadStyles();
 
 	initLabel(tempoLabel, TRANS("Tempo:"));
 	tempoSlider.setSliderStyle(Slider::IncDecButtons);
@@ -141,7 +166,8 @@ void AccompanimentComponent::resized()
 {
 	// style, tempo, chord
 	styleLabel.setBounds(16, 16, 70, 24);
-	styleNameLabel.setBounds(90, 16, 334, 24);
+	categoryCombo.setBounds(90, 16, 150, 24);
+	styleCombo.setBounds(246, 16, 178, 24);
 	tempoLabel.setBounds(16, 52, 70, 24);
 	tempoSlider.setBounds(90, 52, 120, 24);
 	chordLabel.setBounds(234, 52, 66, 24);
@@ -339,8 +365,40 @@ void AccompanimentComponent::update()
 	const bool connected = pianoController.IsConnected();
 	const bool playing = connected && pianoController.GetStylePlaying();
 
-	const String title = styleTitle(pianoController.GetStyleName());
-	styleNameLabel.setText(title.isEmpty() ? String("-") : title, dontSendNotification);
+	// the style of the piano in the lists; a style that is not in the list file (or
+	// without the file) is shown by its name only
+	// (only when the style of the piano changes, so another category can be looked at
+	// in the lists meanwhile)
+	const String path = pianoController.GetStyleName();
+	if (path != shownStyle && !categoryCombo.isPopupActive() && !styleCombo.isPopupActive())
+	{
+		shownStyle = path;
+		int found = -1;
+		for (int i = 0; i < (int)styles.size(); i++)
+		{
+			if (styles[i].path == path)
+			{
+				found = i;
+				break;
+			}
+		}
+		if (found >= 0)
+		{
+			const int category = categories.indexOf(styles[found].category);
+			if (categoryCombo.getSelectedId() != category + 1)
+			{
+				categoryCombo.setSelectedId(category + 1, dontSendNotification);
+				fillStyleCombo(styles[found].category);
+			}
+			styleCombo.setSelectedId(found + 1, dontSendNotification);
+		}
+		else
+		{
+			const String title = styleTitle(path);
+			styleCombo.setTextWhenNothingSelected(title.isEmpty() ? String("-") : title);
+			styleCombo.setSelectedId(0, dontSendNotification);
+		}
+	}
 
 	if (!tempoSlider.hasKeyboardFocus(true) && !tempoSlider.isMouseButtonDown(true))
 	{
@@ -393,12 +451,84 @@ void AccompanimentComponent::update()
 			child->setEnabled(connected);
 		}
 	}
+	categoryCombo.setEnabled(connected && !styles.empty());
+	styleCombo.setEnabled(connected && !styles.empty());
 
 	hintLabel.setText(connected ?
 		TRANS("Keys: Space - start and stop, 1-4 - Main A-D, F - Fill In, A - Auto Fill, B - Break") :
 		TRANS("The accompaniment is played by the piano: the piano is not connected."),
 		dontSendNotification);
 	hintLabel.setColour(Label::textColourId, connected ? Colours::white.withAlpha(0.6f) : Colours::orange);
+}
+
+// The list file: text, one style in a line, the fields separated by semicolons:
+// id;path;title;category;group;... (the first line is the header).
+void AccompanimentComponent::loadStyles()
+{
+	styles.clear();
+	categories.clear();
+
+	const File file = settings.GetLastStateFile().getSiblingFile("styles.csv");
+	if (file.existsAsFile())
+	{
+		StringArray lines;
+		lines.addLines(file.loadFileAsString());
+		for (const String& line : lines)
+		{
+			StringArray fields;
+			fields.addTokens(line, ";", "");
+			if (fields.size() < 5 || !fields[1].trim().startsWith("PRESET:"))
+			{
+				continue; // header or not a style
+			}
+			StyleEntry entry;
+			entry.path = fields[1].trim();
+			entry.title = fields[2].trim();
+			entry.category = fields[3].trim();
+			entry.group = fields[4].trim();
+			if (entry.title.isEmpty())
+			{
+				entry.title = styleTitle(entry.path);
+			}
+			styles.push_back(entry);
+			categories.addIfNotAlreadyThere(entry.category);
+		}
+	}
+
+	categoryCombo.clear(dontSendNotification);
+	for (int i = 0; i < categories.size(); i++)
+	{
+		categoryCombo.addItem(categories[i], i + 1);
+	}
+	styleCombo.clear(dontSendNotification);
+	if (styles.empty())
+	{
+		const String tip = TRANS("The list of the styles (styles.csv) was not found in the data folder of the program");
+		categoryCombo.setTooltip(tip);
+		styleCombo.setTooltip(tip);
+	}
+}
+
+// The styles of a category, under the headings of their groups.
+void AccompanimentComponent::fillStyleCombo(const String& category)
+{
+	styleCombo.clear(dontSendNotification);
+	String group;
+	for (int i = 0; i < (int)styles.size(); i++)
+	{
+		if (styles[i].category == category)
+		{
+			if (styles[i].group != group)
+			{
+				group = styles[i].group;
+				if (group.isNotEmpty())
+				{
+					styleCombo.addSectionHeading(group);
+				}
+			}
+			styleCombo.addItem(styles[i].title, i + 1);
+		}
+	}
 }
 
 String AccompanimentComponent::chordName(const PianoController::StyleChord& chord)
