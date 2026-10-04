@@ -99,6 +99,8 @@ public:
     void paint (Graphics& g) override;
     void resized() override;
     void buttonClicked (Button* buttonThatWasClicked) override;
+    // Quits the program; asks first if there is a recording that has not been saved.
+    void requestExit();
 
 
 

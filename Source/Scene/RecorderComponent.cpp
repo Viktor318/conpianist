@@ -18,6 +18,7 @@
  */
 
 #include "RecorderComponent.h"
+#include "GuiHelper.h"
 
 static const int RecorderTimerMs = 100;
 
@@ -150,6 +151,11 @@ RecorderComponent::RecorderComponent(Settings& settings, PianoController& pianoC
 	stopButton.addListener(this);
 	addAndMakeVisible(stopButton);
 
+	listenButton.setButtonText(TRANS("Listen"));
+	listenButton.setTooltip(TRANS("Loads the recording into the player and plays it (it replaces the loaded song)"));
+	listenButton.addListener(this);
+	addAndMakeVisible(listenButton);
+
 	saveButton.setButtonText(TRANS("Save"));
 	saveButton.addListener(this);
 	addAndMakeVisible(saveButton);
@@ -160,8 +166,9 @@ RecorderComponent::RecorderComponent(Settings& settings, PianoController& pianoC
 	styleButton.setToggleState(settings.recorderStyle, dontSendNotification);
 	countInCombo.setSelectedId(settings.recorderCountIn + 1, dontSendNotification);
 
-	setSize(400, 370);
+	setSize(440, 370);
 
+	pianoController.AddListener(this);
 	updateMetronome();
 
 	lastState = pianoController.GetRecorder().GetState();
@@ -173,6 +180,7 @@ RecorderComponent::RecorderComponent(Settings& settings, PianoController& pianoC
 RecorderComponent::~RecorderComponent()
 {
 	stopTimer();
+	pianoController.RemoveListener(this);
 }
 
 void RecorderComponent::paint(Graphics& g)
@@ -182,26 +190,27 @@ void RecorderComponent::paint(Graphics& g)
 
 void RecorderComponent::resized()
 {
-	modeLabel.setBounds(16, 16, 120, 24);
-	autoButton.setBounds(140, 16, 120, 24);
-	manualButton.setBounds(264, 16, 120, 24);
-	silenceLabel.setBounds(16, 52, 240, 24);
-	silenceSlider.setBounds(264, 52, 120, 24);
-	tempoLabel.setBounds(16, 88, 120, 24);
-	tempoSlider.setBounds(140, 88, 112, 24);
-	beatCombo.setBounds(264, 88, 120, 24);
-	metronomeButton.setBounds(12, 124, 112, 24);
-	bellButton.setBounds(124, 124, 92, 24);
-	countInCombo.setBounds(220, 124, 164, 24);
+	modeLabel.setBounds(16, 16, 150, 24);
+	autoButton.setBounds(170, 16, 124, 24);
+	manualButton.setBounds(300, 16, 124, 24);
+	silenceLabel.setBounds(16, 52, 280, 24);
+	silenceSlider.setBounds(304, 52, 120, 24);
+	tempoLabel.setBounds(16, 88, 150, 24);
+	tempoSlider.setBounds(170, 88, 120, 24);
+	beatCombo.setBounds(304, 88, 120, 24);
+	metronomeButton.setBounds(12, 124, 120, 24);
+	bellButton.setBounds(136, 124, 100, 24);
+	countInCombo.setBounds(240, 124, 184, 24);
 	metronomeVolumeLabel.setBounds(16, 160, 170, 24);
-	metronomeVolumeSlider.setBounds(186, 160, 198, 24);
-	styleButton.setBounds(12, 196, 372, 24);
+	metronomeVolumeSlider.setBounds(186, 160, 238, 24);
+	styleButton.setBounds(12, 196, 412, 24);
 	nameLabel.setBounds(16, 232, 100, 24);
-	nameEditor.setBounds(120, 232, 264, 24);
-	statusLabel.setBounds(16, 270, 368, 36);
-	recordButton.setBounds(16, 322, 112, 32);
-	stopButton.setBounds(144, 322, 112, 32);
-	saveButton.setBounds(272, 322, 112, 32);
+	nameEditor.setBounds(120, 232, 304, 24);
+	statusLabel.setBounds(16, 270, 408, 36);
+	recordButton.setBounds(16, 322, 96, 32);
+	stopButton.setBounds(120, 322, 96, 32);
+	listenButton.setBounds(224, 322, 96, 32);
+	saveButton.setBounds(328, 322, 96, 32);
 }
 
 void RecorderComponent::buttonClicked(Button* button)
@@ -234,7 +243,22 @@ void RecorderComponent::buttonClicked(Button* button)
 	}
 	else if (button == &stopButton)
 	{
-		stopRecording();
+		if (pianoController.GetRecorder().GetState() == LiveRecorder::stIdle)
+		{
+			// nothing is being recorded: the button stops the listening back
+			if (isListening())
+			{
+				pianoController.Stop();
+			}
+		}
+		else
+		{
+			stopRecording();
+		}
+	}
+	else if (button == &listenButton)
+	{
+		listen();
 	}
 	else if (button == &saveButton)
 	{
@@ -270,8 +294,14 @@ void RecorderComponent::startRecording()
 	{
 		return;
 	}
+	if (isListening())
+	{
+		// the recording played back would be recorded again as a song
+		pianoController.Stop();
+	}
 	saved = false;
 	savedName = "";
+	savedFile = File();
 	message = "";
 	// automatic file name with the date and time; it can be changed until it is saved
 	nameEditor.setText(TRANS("Recording") + " " + Time::getCurrentTime().formatted("%Y-%m-%d %H-%M-%S"), false);
@@ -357,6 +387,7 @@ void RecorderComponent::writeFile(const File& file)
 	{
 		saved = true;
 		savedName = file.getFileName();
+		savedFile = file;
 		message = "";
 	}
 	else
@@ -365,6 +396,75 @@ void RecorderComponent::writeFile(const File& file)
 	}
 	updateControls();
 	updateStatus();
+}
+
+// Listening back: the recording is loaded into the player as a song and played. A saved
+// recording is loaded from its file, a recording not saved yet from a temporary file
+// (this does not count as saving).
+void RecorderComponent::listen()
+{
+	LiveRecorder& recorder = pianoController.GetRecorder();
+	if (recorder.GetState() != LiveRecorder::stIdle || !recorder.HasData())
+	{
+		return;
+	}
+
+	File file = savedFile;
+	if (!saved || !file.existsAsFile())
+	{
+		const File directory = File::getSpecialLocation(File::tempDirectory).getChildFile("ConPianist");
+		directory.createDirectory();
+		file = directory.getChildFile(File::createLegalFileName(TRANS("Recording (listening)")) + ".mid");
+		String error;
+		if (!pianoController.SaveRecording(file, styleButton.getToggleState(), error, false))
+		{
+			message = TRANS("The recording could not be played.");
+			updateStatus();
+			return;
+		}
+	}
+
+	if (pianoController.GetPlaying())
+	{
+		pianoController.Stop();
+	}
+
+	message = "";
+	listenLoaded = false;
+	playPending = true; // played when the player reports that the song is loaded
+	if (!pianoController.LoadSong(file))
+	{
+		playPending = false;
+		message = TRANS("The recording could not be played.");
+	}
+	updateControls();
+	updateStatus();
+}
+
+bool RecorderComponent::isListening() const
+{
+	return listenLoaded && pianoController.GetPlaying();
+}
+
+// Called from any thread.
+void RecorderComponent::PianoStateChanged(PianoController::Aspect aspect, PianoController::Channel channel)
+{
+	if (aspect == PianoController::apSongLoaded)
+	{
+		// the song loaded for listening back, or another song that replaces it
+		const bool mine = playPending.exchange(false);
+		listenLoaded = mine;
+		if (mine)
+		{
+			GuiHelper::CallAsync(this, [this]()
+				{
+					if (listenLoaded)
+					{
+						pianoController.Play();
+					}
+				});
+		}
+	}
 }
 
 void RecorderComponent::timerCallback()
@@ -399,6 +499,12 @@ void RecorderComponent::timerCallback()
 		lastState = newState;
 		updateControls();
 	}
+	const bool listening = isListening();
+	if (listening != lastListening)
+	{
+		lastListening = listening;
+		updateControls();
+	}
 	updateMetronome();
 	updateStatus();
 }
@@ -413,8 +519,10 @@ void RecorderComponent::updateControls()
 	manualButton.setEnabled(idle);
 	silenceLabel.setEnabled(autoButton.getToggleState());
 	silenceSlider.setEnabled(autoButton.getToggleState());
+	const bool listening = isListening();
 	recordButton.setEnabled(idle);
-	stopButton.setEnabled(!idle);
+	stopButton.setEnabled(!idle || listening);
+	listenButton.setEnabled(hasData && !listening);
 	saveButton.setEnabled(hasData);
 	nameEditor.setEnabled(hasData);
 	countInCombo.setEnabled(idle && manualButton.getToggleState());
@@ -490,6 +598,11 @@ void RecorderComponent::updateStatus()
 			else if (!recorder.HasData())
 			{
 				text = TRANS("Press Record to start a recording.");
+			}
+			else if (isListening())
+			{
+				text = TRANS("Playing the recording:") + " " + info;
+				colour = Colours::lightblue;
 			}
 			else if (saved)
 			{

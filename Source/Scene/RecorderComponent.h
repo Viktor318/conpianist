@@ -24,10 +24,12 @@
 #include "Settings.h"
 
 // The content of the Recording window: records what is played live (see LiveRecorder)
-// and saves it into a MIDI file in the songs folder.
+// and saves it into a MIDI file in the songs folder. The recording can be listened back:
+// it is loaded into the player as a song (from the saved file, or from a temporary one).
 class RecorderComponent : public Component,
                           public Button::Listener,
-                          public Timer
+                          public Timer,
+                          public PianoController::Listener
 {
 public:
 	RecorderComponent(Settings& settings, PianoController& pianoController);
@@ -37,6 +39,7 @@ public:
 	void resized() override;
 	void buttonClicked(Button* button) override;
 	void timerCallback() override;
+	void PianoStateChanged(PianoController::Aspect aspect, PianoController::Channel channel) override;
 
 private:
 	Settings& settings;
@@ -61,18 +64,25 @@ private:
 	Label statusLabel;
 	TextButton recordButton;
 	TextButton stopButton;
+	TextButton listenButton;
 	TextButton saveButton;
 	TooltipWindow tooltipWindow{this};
 
 	LiveRecorder::State lastState = LiveRecorder::stIdle;
 	bool saved = false;      // the recording in the recorder has been saved
 	String savedName;        // ... under this name
+	File savedFile;          // ... into this file
+	std::atomic<bool> playPending{false}; // the recording is being loaded for listening back
+	std::atomic<bool> listenLoaded{false}; // the song in the player is the recording
+	bool lastListening = false;
 	String message;          // shown until the next recording (e.g. an error)
 	bool metronomeStarted = false; // the metronome was switched on for the count-in
 
 	void startRecording();
 	void stopRecording();
 	void save();
+	void listen();
+	bool isListening() const; // the recording is being played back
 	void writeFile(const File& file);
 	void saveOptions();
 	void updateControls();

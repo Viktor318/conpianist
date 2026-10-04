@@ -1414,6 +1414,38 @@ void SceneComponent::showRecorder()
 	recorderWindow->toFront(true);
 }
 
+void SceneComponent::requestExit()
+{
+	if (!pianoController.GetRecorder().IsUnsaved())
+	{
+		JUCEApplication::quit();
+		return;
+	}
+
+	AlertWindow::showAsync(MessageBoxOptions()
+			.withIconType(MessageBoxIconType::WarningIcon)
+			.withTitle("ConPianist")
+			.withMessage(TRANS("There is a recording that has not been saved. Exit without saving it?"))
+			.withButton(TRANS("Exit"))
+			.withButton(TRANS("Cancel"))
+			.withAssociatedComponent(this),
+		[this, self = Component::SafePointer<Component>(this)](int result)
+		{
+			if (self == nullptr)
+			{
+				return;
+			}
+			if (result == 1)
+			{
+				JUCEApplication::quit();
+			}
+			else
+			{
+				showRecorder(); // to save it
+			}
+		});
+}
+
 void SceneComponent::changeLanguage(const String& language)
 {
 	if (language == settings.GetEffectiveLanguage())

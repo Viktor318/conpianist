@@ -80,6 +80,9 @@ public:
 	void AddStyle(const MidiMessage& message);
 
 	bool HasData() const;
+	// A recording is going on, or the finished recording has not been saved yet.
+	bool IsUnsaved() const;
+	void MarkSaved();
 	int GetNoteCount() const;
 	double GetLengthSeconds() const;         // from the start to now (recording) or to the end
 	double GetSecondsSinceLastEvent() const; // while recording
@@ -109,6 +112,7 @@ private:
 	std::vector<Event> m_events;
 	Setup m_setup[NumSources + 1];
 	int m_noteCount = 0;
+	bool m_saved = false;
 	int m_held[NumSources + 1][128] = {}; // held notes of each source
 	int m_pedal[NumSources + 1] = {};     // sustain pedal value of each source
 

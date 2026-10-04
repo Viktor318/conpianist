@@ -280,7 +280,8 @@ public:
 	void StopRecording();
 	// Passes the current voices and mixer settings to the recorder (message thread).
 	void UpdateRecorderSetups();
-	bool SaveRecording(const File& file, bool includeStyle, String& error);
+	// keep: the recording counts as saved (false for the temporary file of listening back)
+	bool SaveRecording(const File& file, bool includeStyle, String& error, bool keep = true);
 	// Manual recording with a count-in: starts on the downbeat after the given number
 	// of measures (counted by the metronome or the playing song).
 	void StartRecordingWithCountIn(int measures);

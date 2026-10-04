@@ -36,6 +36,7 @@ void LiveRecorder::Begin(double nowMs, bool alignToDownbeat)
 {
 	m_events.clear();
 	m_noteCount = 0;
+	m_saved = false;
 	m_startMs = nowMs;
 	if (alignToDownbeat && m_lastDownbeatMs > 0 && nowMs - m_lastBeatMs < 2500 &&
 		nowMs - m_lastDownbeatMs < 15000)
@@ -292,6 +293,18 @@ bool LiveRecorder::HasData() const
 {
 	const ScopedLock lock(m_lock);
 	return m_state == stIdle && m_noteCount > 0;
+}
+
+bool LiveRecorder::IsUnsaved() const
+{
+	const ScopedLock lock(m_lock);
+	return m_state == stRecording || (m_state == stIdle && m_noteCount > 0 && !m_saved);
+}
+
+void LiveRecorder::MarkSaved()
+{
+	const ScopedLock lock(m_lock);
+	m_saved = true;
 }
 
 int LiveRecorder::GetNoteCount() const
