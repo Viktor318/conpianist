@@ -104,7 +104,8 @@ private:
 	TextButton breakButton;
 	Label volumeLabel;
 	Slider volumeSlider;
-	Label hintLabel;
+	TextButton shortcutsButton; // shows the list of the keyboard shortcuts
+	Label hintLabel;            // a message, e.g. that the piano is not connected
 
 	void update();
 	void loadStyles();
@@ -117,6 +118,7 @@ private:
 	void toggleAutoFill();
 	void tapTempo();
 	void resetTempo();
+	void showShortcuts();
 	int keyAccidentals() const; // of the chosen key: 0, +1 (sharps) or -1 (flats)
 	int defaultTempo() const; // of the style of the piano; 0 if it is not in the list
 	// current: the section is playing; next: it is played after the current one

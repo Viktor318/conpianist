@@ -165,8 +165,11 @@ AccompanimentComponent::AccompanimentComponent(Settings& settings, PianoControll
 		};
 	addAndMakeVisible(volumeSlider);
 
+	initButton(shortcutsButton, TRANS("Keyboard shortcuts"));
+	shortcutsButton.setTooltip(TRANS("Shows the keys that control the accompaniment while this window is active (H)"));
+
 	initLabel(hintLabel, "");
-	hintLabel.setJustificationType(Justification::centred);
+	hintLabel.setJustificationType(Justification::centredRight);
 	hintLabel.setMinimumHorizontalScale(0.7f);
 
 	setWantsKeyboardFocus(true);
@@ -268,7 +271,8 @@ void AccompanimentComponent::resized()
 	// volume
 	volumeLabel.setBounds(16, 398, 170, 24);
 	volumeSlider.setBounds(186, 398, 238, 24);
-	hintLabel.setBounds(16, 444, 408, 24);
+	shortcutsButton.setBounds(16, 442, 190, 28);
+	hintLabel.setBounds(214, 444, 210, 24);
 }
 
 void AccompanimentComponent::buttonClicked(Button* button)
@@ -304,6 +308,10 @@ void AccompanimentComponent::buttonClicked(Button* button)
 	else if (button == &resetTempoButton)
 	{
 		resetTempo();
+	}
+	else if (button == &shortcutsButton)
+	{
+		showShortcuts();
 	}
 	else
 	{
@@ -385,6 +393,35 @@ void AccompanimentComponent::tapTempo()
 	}
 }
 
+void AccompanimentComponent::showShortcuts()
+{
+	const String dash = " " + String(CharPointer_UTF8("\xe2\x80\x93")) + " ";
+	String text;
+	text << TRANS("Space") << dash << TRANS("Start / Stop") << "\n"
+		<< "1, 2, 3, 4" << dash << "Main A, B, C, D" << "\n"
+		<< "F" << dash << TRANS("Fill In") << "\n"
+		<< "A" << dash << TRANS("Auto Fill on / off") << "\n"
+		<< "B" << dash << TRANS("Break") << "\n"
+		<< "T" << dash << TRANS("Tap Tempo") << "\n"
+		<< "R" << dash << TRANS("Default tempo of the style (Reset)") << "\n"
+		<< "Enter" << dash << TRANS("Apply: loads the chosen style") << "\n"
+		<< "H" << dash << TRANS("This list") << "\n\n"
+		<< TRANS("The keys work while the Accompaniment window is the active window.");
+	AlertWindow::showAsync(MessageBoxOptions()
+			.withIconType(MessageBoxIconType::NoIcon)
+			.withTitle(TRANS("Keyboard shortcuts"))
+			.withMessage(text)
+			.withButton(TRANS("OK"))
+			.withAssociatedComponent(this),
+		[self = Component::SafePointer<Component>(this)](int)
+		{
+			if (self != nullptr)
+			{
+				self->grabKeyboardFocus(); // the shortcuts work again at once
+			}
+		});
+}
+
 int AccompanimentComponent::defaultTempo() const
 {
 	const String path = pianoController.GetStyleName();
@@ -419,11 +456,20 @@ void AccompanimentComponent::toggleAutoFill()
 // F - fill in, B - break.
 bool AccompanimentComponent::keyPressed(const KeyPress& key)
 {
-	if (!pianoController.IsConnected() || key.getModifiers().isAnyModifierKeyDown())
+	if (key.getModifiers().isAnyModifierKeyDown())
 	{
 		return false;
 	}
 	const juce_wchar character = CharacterFunctions::toLowerCase(key.getTextCharacter());
+	if (character == 'h')
+	{
+		showShortcuts();
+		return true;
+	}
+	if (!pianoController.IsConnected())
+	{
+		return false;
+	}
 	if (key == KeyPress::spaceKey)
 	{
 		pianoController.SetStylePlaying(!pianoController.GetStylePlaying());
@@ -591,11 +637,9 @@ void AccompanimentComponent::update()
 	resetTempoButton.setEnabled(connected && styleTempo > 0 && styleTempo != pianoController.GetStyleTempo());
 	markButton(applyButton, false, pending);
 
-	hintLabel.setText(connected ?
-		TRANS("Keys: Space, 1-4, F - Fill In, A - Auto Fill, B - Break, T - Tap Tempo, R - Reset, Enter - Apply") :
-		TRANS("The accompaniment is played by the piano: the piano is not connected."),
-		dontSendNotification);
-	hintLabel.setColour(Label::textColourId, connected ? Colours::white.withAlpha(0.6f) : Colours::orange);
+	shortcutsButton.setEnabled(true); // the list can be read without the piano too
+	hintLabel.setText(connected ? String() : TRANS("The piano is not connected."), dontSendNotification);
+	hintLabel.setColour(Label::textColourId, Colours::orange);
 }
 
 // The list file: text, one style in a line, the fields separated by semicolons:
