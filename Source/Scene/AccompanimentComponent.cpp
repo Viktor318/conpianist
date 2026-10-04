@@ -114,7 +114,7 @@ AccompanimentComponent::AccompanimentComponent(Settings& settings, PianoControll
 
 	initLabel(chordNameLabel, "");
 	chordNameLabel.setFont(Font(FontOptions(26.00f, Font::bold)));
-	chordNameLabel.setJustificationType(Justification::centred);
+	chordNameLabel.setJustificationType(Justification::centredLeft);
 	chordNameLabel.setMinimumHorizontalScale(0.5f);
 	chordNameLabel.setColour(Label::textColourId, Colour(0xffee6c0a)); // the colour of the buttons that are on
 	chordNameLabel.setTooltip(TRANS("The chord recognized by the piano"));
@@ -154,6 +154,7 @@ AccompanimentComponent::AccompanimentComponent(Settings& settings, PianoControll
 	volumeSlider.setSliderStyle(Slider::LinearHorizontal);
 	volumeSlider.setTextBoxStyle(Slider::TextBoxRight, false, 40, 24);
 	volumeSlider.setRange(PianoController::MinVolume, PianoController::MaxVolume, 1);
+	volumeSlider.setDoubleClickReturnValue(true, PianoController::DefaultVolume); // 100
 	volumeSlider.onValueChange = [this]()
 		{
 			const int volume = roundToInt(volumeSlider.getValue());
@@ -209,8 +210,8 @@ void AccompanimentComponent::resized()
 		currentNameLabel.setBounds(16 + labelWidth, 88, 408 - labelWidth, 24);
 	}
 	{
-		// the key list right after its label, then the label of the chord; the chord in
-		// the middle of the rest of the row
+		// the key list right after its label, then the label of the chord and the chord
+		// right after it
 		auto widthOf = [](const Label& label)
 			{
 				return GlyphArrangement::getStringWidthInt(label.getFont(), label.getText()) + 10;

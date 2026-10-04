@@ -80,7 +80,7 @@ private:
 	TextButton resetTempoButton; // back to the default tempo of the style
 	TextButton tapTempoButton;
 	Label chordLabel;
-	Label chordNameLabel; // the recognized chord, large, in the middle of the rest of its row
+	Label chordNameLabel; // the recognized chord, large, right after its label
 	Label keyLabel;
 	ComboBox keyCombo;    // the key of the music: the chords are named with its sharps or flats
 	std::vector<double> taps; // times of the last presses of Tap Tempo (ms)
