@@ -3835,6 +3835,23 @@ const ExtraVoice* Presets::FindExtraVoice(int num)
 	return it != byNum.end() ? it->second : nullptr;
 }
 
+String Presets::VoiceName(int num)
+{
+	for (Voice& vc : voices)
+	{
+		if (vc.num == num)
+		{
+			return vc.title;
+		}
+	}
+	if (const ExtraVoice* extra = FindExtraVoice(num))
+	{
+		return extra->title;
+	}
+	Voice* nearest = FindVoice(String(num));
+	return nearest ? nearest->category2 : String();
+}
+
 VoiceList& Presets::Voices()
 {
 	return voices;

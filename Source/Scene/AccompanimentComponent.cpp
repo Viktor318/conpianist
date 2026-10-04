@@ -80,32 +80,39 @@ AccompanimentComponent::AccompanimentComponent(Settings& settings, PianoControll
 		};
 	addAndMakeVisible(tempoSlider);
 
-	// major keys: first the ones with sharps, then the ones with flats
-	static const char* const keys[] = {"C", "G", "D", "A", "E", "B", "F#", "F", "Bb", "Eb", "Ab", "Db", "Gb"};
+	// the key of the music: its note (first the keys with sharps, then the ones with
+	// flats) and major or minor
 	initLabel(keyLabel, TRANS("Key:"));
 	initLabel(chordLabel, TRANS("Chord:"));
 	keyCombo.setWantsKeyboardFocus(false);
-	keyCombo.addItem("-", 1);
-	for (int i = 0; i < numElementsInArray(keys); i++)
-	{
-		keyCombo.addItem(keys[i], i + 2);
-	}
-	keyCombo.setTooltip(TRANS("The (major) key of the music: the chords are named with the sharps or the flats of the key; without a key, as the piano names them"));
-	keyCombo.setSelectedId(1, dontSendNotification);
-	for (int i = 0; i < numElementsInArray(keys); i++)
-	{
-		if (settings.accompanimentKey == keys[i])
-		{
-			keyCombo.setSelectedId(i + 2, dontSendNotification);
-		}
-	}
+	keyCombo.setTooltip(TRANS("The key of the music: the chords are named with the sharps or the flats of the key (without a key, as the piano names them), and the key is written into the recording"));
+	keyModeCombo.setWantsKeyboardFocus(false);
+	keyModeCombo.addItem(TRANS("major"), 1);
+	keyModeCombo.addItem(TRANS("minor"), 2);
+	keyModeCombo.setTooltip(TRANS("Major or minor key; changing it keeps the key signature (C major - A minor)"));
+	keyModeCombo.setSelectedId(settings.accompanimentMinor ? 2 : 1, dontSendNotification);
+	fillKeyCombo();
 	keyCombo.onChange = [this]()
 		{
 			this->settings.accompanimentKey = keyCombo.getSelectedId() > 1 ? keyCombo.getText() : String();
 			this->settings.Save();
+			keyModeCombo.setEnabled(keyCombo.getSelectedId() > 1);
+			update();
+		};
+	keyModeCombo.onChange = [this]()
+		{
+			// the key with the same key signature in the other mode (the same place in
+			// the list)
+			const int selected = keyCombo.getSelectedId();
+			this->settings.accompanimentMinor = keyModeCombo.getSelectedId() == 2;
+			this->settings.accompanimentKey = selected > 1 ?
+				String(Settings::KeyName(selected - 2, this->settings.accompanimentMinor)) : String();
+			this->settings.Save();
+			fillKeyCombo();
 			update();
 		};
 	addAndMakeVisible(keyCombo);
+	addAndMakeVisible(keyModeCombo);
 
 	initButton(resetTempoButton, TRANS("Reset"));
 	resetTempoButton.setTooltip(TRANS("Back to the default tempo of the style (R)"));
@@ -226,8 +233,9 @@ void AccompanimentComponent::resized()
 		const int keyWidth = jlimit(30, 90, widthOf(keyLabel));
 		const int chordWidth = jlimit(30, 90, widthOf(chordLabel));
 		keyLabel.setBounds(16, 128, keyWidth, 24);
-		keyCombo.setBounds(16 + keyWidth, 128, 60, 24);
-		const int chordX = 16 + keyWidth + 60 + 16;
+		keyCombo.setBounds(16 + keyWidth, 128, 54, 24);
+		keyModeCombo.setBounds(16 + keyWidth + 54 + 4, 128, 66, 24);
+		const int chordX = 16 + keyWidth + 54 + 4 + 66 + 10;
 		chordLabel.setBounds(chordX, 128, chordWidth, 24);
 		chordFrame = Rectangle<int>(chordX + chordWidth, 121, 424 - (chordX + chordWidth), 38);
 		chordNameLabel.setBounds(chordFrame.reduced(4, 1));
@@ -763,15 +771,35 @@ void AccompanimentComponent::applyStyle()
 	}
 }
 
-// Sharps or flats of the chosen key: the keys with sharps come first in the list.
+// The notes of the key list in the chosen mode (major or minor); the chosen key stays
+// selected.
+void AccompanimentComponent::fillKeyCombo()
+{
+	keyCombo.clear(dontSendNotification);
+	keyCombo.addItem("-", 1);
+	int selected = 1;
+	for (int i = 0; i < Settings::NumKeys; i++)
+	{
+		const String name = Settings::KeyName(i, settings.accompanimentMinor);
+		keyCombo.addItem(name, i + 2);
+		if (settings.accompanimentKey == name)
+		{
+			selected = i + 2;
+		}
+	}
+	keyCombo.setSelectedId(selected, dontSendNotification);
+	keyModeCombo.setEnabled(selected > 1);
+}
+
+// Sharps or flats of the chosen key (0: no key, or a key without accidentals).
 int AccompanimentComponent::keyAccidentals() const
 {
-	const String key = settings.accompanimentKey;
-	if (key.isEmpty() || key == "C")
+	int sharps = 0;
+	if (!settings.GetKeySignature(sharps))
 	{
 		return 0;
 	}
-	return key == "F" || key.endsWithChar('b') ? -1 : +1;
+	return sharps > 0 ? +1 : sharps < 0 ? -1 : 0;
 }
 
 String AccompanimentComponent::chordName(const PianoController::StyleChord& chord, int accidentals)

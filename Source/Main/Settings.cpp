@@ -81,6 +81,7 @@ void Settings::Save()
 	prop.setValue("Recorder.QuantizeFill", recorderQuantizeFill);
 	prop.setValue("Accompaniment.AutoFill", accompanimentAutoFill);
 	prop.setValue("Accompaniment.Key", accompanimentKey);
+	prop.setValue("Accompaniment.KeyMinor", accompanimentMinor);
 	prop.setValue("Recorder.Window.X", recorderWindowPos.x);
 	prop.setValue("Recorder.Window.Y", recorderWindowPos.y);
 	prop.setValue("Accompaniment.Window.X", accompanimentWindowPos.x);
@@ -145,10 +146,31 @@ void Settings::Load()
 	recorderQuantizeFill = prop.getBoolValue("Recorder.QuantizeFill", recorderQuantizeFill);
 	accompanimentAutoFill = prop.getBoolValue("Accompaniment.AutoFill", accompanimentAutoFill);
 	accompanimentKey = prop.getValue("Accompaniment.Key", accompanimentKey);
+	accompanimentMinor = prop.getBoolValue("Accompaniment.KeyMinor", accompanimentMinor);
 	recorderWindowPos.x = prop.getIntValue("Recorder.Window.X", recorderWindowPos.x);
 	recorderWindowPos.y = prop.getIntValue("Recorder.Window.Y", recorderWindowPos.y);
 	accompanimentWindowPos.x = prop.getIntValue("Accompaniment.Window.X", accompanimentWindowPos.x);
 	accompanimentWindowPos.y = prop.getIntValue("Accompaniment.Window.Y", accompanimentWindowPos.y);
+}
+
+const char* Settings::KeyName(int index, bool minor)
+{
+	static const char* const majorKeys[NumKeys] = {"C", "G", "D", "A", "E", "B", "F#", "F", "Bb", "Eb", "Ab", "Db", "Gb"};
+	static const char* const minorKeys[NumKeys] = {"A", "E", "B", "F#", "C#", "G#", "D#", "D", "G", "C", "F", "Bb", "Eb"};
+	return index >= 0 && index < NumKeys ? (minor ? minorKeys : majorKeys)[index] : "";
+}
+
+bool Settings::GetKeySignature(int& sharps) const
+{
+	for (int index = 0; index < NumKeys; index++)
+	{
+		if (accompanimentKey == KeyName(index, accompanimentMinor))
+		{
+			sharps = index <= 6 ? index : -(index - 6);
+			return true;
+		}
+	}
+	return false;
 }
 
 // The saved position is used only if the title bar of the window is on a screen (the

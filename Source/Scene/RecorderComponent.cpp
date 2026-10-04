@@ -488,6 +488,7 @@ void RecorderComponent::save()
 void RecorderComponent::writeFile(const File& file)
 {
 	String error;
+	applyKeySignature();
 	if (pianoController.SaveRecording(file, styleButton.getToggleState(), error, true,
 		quantizeTicks(), quantizeEndsButton.getToggleState(), tripletTicks(),
 		quantizeFillButton.getToggleState()))
@@ -531,6 +532,7 @@ void RecorderComponent::listen()
 	directory.createDirectory();
 	const File file = directory.getChildFile(File::createLegalFileName(TRANS("Recording (listening)")) + ".mid");
 	String error;
+	applyKeySignature();
 	if (!pianoController.SaveRecording(file, styleButton.getToggleState(), error, false,
 		quantizeTicks(), quantizeEndsButton.getToggleState(), tripletTicks(),
 		quantizeFillButton.getToggleState()))
@@ -563,7 +565,23 @@ String RecorderComponent::listenKey() const
 {
 	return String(quantizeTicks()) + "/" + String(tripletTicks()) + "/" +
 		String((int)quantizeEndsButton.getToggleState()) + "/" + String((int)quantizeFillButton.getToggleState()) +
-		"/" + String((int)styleButton.getToggleState());
+		"/" + String((int)styleButton.getToggleState()) + "/" + settings.accompanimentKey +
+		(settings.accompanimentMinor ? "m" : "");
+}
+
+// The key chosen in the Accompaniment window is written into the file as its key
+// signature (none, if no key is chosen).
+void RecorderComponent::applyKeySignature()
+{
+	int sharps = 0;
+	if (settings.GetKeySignature(sharps))
+	{
+		pianoController.GetRecorder().SetKeySignature(sharps, settings.accompanimentMinor);
+	}
+	else
+	{
+		pianoController.GetRecorder().SetNoKeySignature();
+	}
 }
 
 int RecorderComponent::quantizeTicks() const

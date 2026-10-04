@@ -70,6 +70,9 @@ public:
 	static Voice* FindVoice(String voice);
 	static const std::vector<ExtraVoice>& ExtraVoices();
 	static const ExtraVoice* FindExtraVoice(int num);
+	// The name of a voice by its number, for the track names of a recording: its own name,
+	// or the category of the nearest panel voice; empty if the voice is not known.
+	static String VoiceName(int num);
 	static ReverbEffectList& ReverbEffects();
 	static String ReverbEffectTitle(int num);
 

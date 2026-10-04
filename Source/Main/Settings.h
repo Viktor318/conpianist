@@ -104,6 +104,15 @@ public:
 	// the (major) key of the music, for the names of the chords: empty - as the piano
 	// sends them; a key with sharps (e.g. "E") or with flats (e.g. "Eb")
 	String accompanimentKey;
+	bool accompanimentMinor = false; // the key is a minor key (e.g. "A" is A minor)
+	// The keys that can be chosen, by the number of their sharps (0..6) and then of their
+	// flats (1..6); the major and the minor key at the same index have the same key
+	// signature (C major and A minor etc.).
+	static const int NumKeys = 13;
+	static const char* KeyName(int index, bool minor);
+	// The key signature of the chosen key: the number of sharps (positive) or flats
+	// (negative); false if no key is chosen.
+	bool GetKeySignature(int& sharps) const;
 	bool recorderQuantizeEnds = false;
 
 private:

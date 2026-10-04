@@ -90,6 +90,7 @@ private:
 	void save();
 	void listen();
 	String listenKey() const; // the settings that change what is listened back
+	void applyKeySignature();
 	static const int NoTripletId = 1;
 	int quantizeTicks() const; // 0: not quantized
 	int tripletTicks() const;  // 0: no triplets

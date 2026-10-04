@@ -76,6 +76,10 @@ public:
 	// The settings of an accompaniment part (index 0..7: MIDI channel 9..16) as the piano
 	// reports them; the values that are not known (NoValue) keep what was heard on MIDI.
 	void SetStyleSetup(int index, const Setup& setup);
+	// The key signature written into the file: the number of sharps (positive) or flats
+	// (negative), major or minor; SetNoKeySignature: none is written.
+	void SetKeySignature(int sharps, bool minor) { const ScopedLock lock(m_lock); m_keySharps = jlimit(-7, 7, sharps); m_keyMinor = minor; }
+	void SetNoKeySignature() { const ScopedLock lock(m_lock); m_keySharps = NoValue; }
 
 	// A played message of a source (the channel of the message is ignored); thread safe.
 	void Add(int source, const MidiMessage& message);
@@ -130,6 +134,8 @@ private:
 	Setup m_setup[NumSources + 1];
 	int m_noteCount = 0;
 	bool m_saved = false;
+	int m_keySharps = NoValue;
+	bool m_keyMinor = false;
 	int m_held[NumSources + 1][128] = {}; // held notes of each source
 	int m_pedal[NumSources + 1] = {};     // sustain pedal value of each source
 

@@ -18,6 +18,7 @@
  */
 
 #include "LiveRecorder.h"
+#include "Presets.h"
 #include <algorithm>
 #include <map>
 #include <numeric>
@@ -678,6 +679,10 @@ bool LiveRecorder::Save(const File& file, int tempo, int beatNumerator, int beat
 		conductor.addEvent(MidiMessage(data, (int)sizeof(data), 0.0), 0);
 	}
 	conductor.addEvent(MidiMessage::tempoMetaEvent(60000000 / std::max(1, tempo)), 0);
+	if (m_keySharps != NoValue)
+	{
+		conductor.addEvent(MidiMessage::keySignatureMetaEvent(m_keySharps, m_keyMinor), 0);
+	}
 	if (reverbType != NoValue)
 	{
 		const uint8 data[] = {0x43, 0x10, 0x4c, 0x02, 0x01, 0x00,
@@ -687,6 +692,8 @@ bool LiveRecorder::Save(const File& file, int tempo, int beatNumerator, int beat
 	midiFile.addTrack(conductor);
 
 	static const char* names[] = {"", "", "", "Main", "Layer", "Left"};
+	// the parts of the accompaniment on MIDI channel 9..16, as Yamaha names them
+	static const char* styleNames[] = {"Rhythm 1", "Rhythm 2", "Bass", "Chord 1", "Chord 2", "Pad", "Phrase 1", "Phrase 2"};
 	int skipped = 0;
 	for (int source = 1; source <= NumSources; source++)
 	{
@@ -702,13 +709,24 @@ bool LiveRecorder::Save(const File& file, int tempo, int beatNumerator, int beat
 		}
 
 		MidiMessageSequence track;
-		const String name = source < srcMain ? "Mixer " + String(source) :
-			source < srcStyle9 ? String(names[source - srcMain + 3]) :
-			"Style " + String(source - srcStyle9 + 9);
-		track.addEvent(MidiMessage::textMetaEvent(3, name), 0);
-
 		// voice and mixer settings
 		const Setup& setup = source >= srcStyle9 ? m_styleSetup[source - srcStyle9] : m_setup[source];
+
+		// the name of the track: the part and its voice (e.g. "Main: Pop Grand"); the
+		// voice also as the instrument name of the track
+		String name = source < srcMain ? "Mixer " + String(source) :
+			source < srcStyle9 ? String(names[source - srcMain + 3]) :
+			String(styleNames[jlimit(0, 7, source - srcStyle9)]);
+		const String voiceName = setup.voice != NoValue ? Presets::VoiceName(setup.voice) : String();
+		if (voiceName.isNotEmpty())
+		{
+			name += ": " + voiceName;
+		}
+		track.addEvent(MidiMessage::textMetaEvent(3, name), 0);
+		if (voiceName.isNotEmpty())
+		{
+			track.addEvent(MidiMessage::textMetaEvent(4, voiceName), 0);
+		}
 		if (setup.partMode != NoValue)
 		{
 			const uint8 data[] = {0x43, 0x10, 0x4c, 0x08, (uint8)(channel - 1), 0x07, (uint8)setup.partMode};

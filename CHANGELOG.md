@@ -6,6 +6,9 @@ Ez a fájl a ConPianist változásait dokumentálja. Az 1.0–3.0 verziók az er
 
 ### Új
 - A program megjegyzi a **Felvétel** és a **Kíséret** ablak helyét, és újraindítás után a menüből megnyitva ugyanott jelennek meg (a főablak helye és mérete eddig is megmaradt). Ha a mentett hely már nincs a képernyőn, az ablak a főablak közepére kerül.
+- **Dúr vagy moll hangnem.** A Kíséret ablak Hangnem listája mellett új lista választja ki, hogy a hangnem dúr vagy moll; mollban a lista a moll hangnemek alaphangjait kínálja (A, E, B, F#, C#, G#, D#, D, G, C, F, Bb, Eb). Váltáskor az előjegyzés megmarad (C-dúr ↔ a-moll), az akkordok neve pedig a tényleges hangnem keresztjeivel vagy béivel jelenik meg.
+- **A hangnem bekerül a felvételbe.** Ha a Kíséret ablakban van hangnem beállítva, a felvett MIDI-fájlba előjegyzés kerül (dúr vagy moll), így a kottaszerkesztő a helyes előjegyzéssel nyitja meg. A mentéskor beállított hangnem számít; hangnem nélkül („-”) a fájlba nem kerül előjegyzés. A lejátszást nem érinti.
+- **Hangszínnevek a felvétel sávjain.** A sávok neve a szólam és a hangszín neve, például „Main: Pop Grand”, „Left: Sweet DX”, „Mixer 1: CFX Grand”. A kíséret sávjai a „Style 9…16” helyett a szólamok szokásos nevét kapják (Rhythm 1, Rhythm 2, Bass, Chord 1, Chord 2, Pad, Phrase 1, Phrase 2), szintén a hangszín nevével, például „Bass: Acoustic Bass”. A hangszín neve a sáv hangszernév bejegyzésébe is bekerül. Ismeretlen hangszínnél a sáv neve csak a szólam neve.
 
 ## 4.6 (fork) – 2026. október 4.
 

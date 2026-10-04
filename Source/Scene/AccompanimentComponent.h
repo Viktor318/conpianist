@@ -84,6 +84,8 @@ private:
 	Rectangle<int> chordFrame; // the frame around the chord: the rest of the row
 	Label keyLabel;
 	ComboBox keyCombo;    // the key of the music: the chords are named with its sharps or flats
+	ComboBox keyModeCombo; // major or minor
+	void fillKeyCombo();
 	std::vector<double> taps; // times of the last presses of Tap Tempo (ms)
 	TextButton startButton;
 	TextButton syncStartButton;
