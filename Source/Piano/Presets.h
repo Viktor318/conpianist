@@ -37,6 +37,19 @@ struct Voice
 
 using VoiceList = std::vector<Voice>;
 
+// A voice of the piano that is not on its panel (not in the voice tree): the XG, GM2 and
+// GS voices and the Mega Voices of the styles, as in the Data List of the piano.
+struct ExtraVoice
+{
+	int num;              // 0x00MMLLPP, as Voice::num
+	const char* set;      // "XG", "GM2", "GS" or "Mega Voice"
+	const char* category;
+	const char* title;
+
+	// a drum kit (GM2: bank MSB 120, GS: 118): only for the drum channel
+	bool IsKit() const { const int msb = (num >> 16) & 0x7f; return msb == 120 || msb == 118; }
+};
+
 struct ReverbEffect
 {
 	ReverbEffect(String title, String description, int msb, int lsb) :
@@ -55,6 +68,8 @@ public:
 	static VoiceList& Voices();
 	static String VoiceTitle(String voice);
 	static Voice* FindVoice(String voice);
+	static const std::vector<ExtraVoice>& ExtraVoices();
+	static const ExtraVoice* FindExtraVoice(int num);
 	static ReverbEffectList& ReverbEffects();
 	static String ReverbEffectTitle(int num);
 

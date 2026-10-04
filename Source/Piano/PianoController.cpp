@@ -730,16 +730,14 @@ void PianoController::SetVoice(Channel ch, const String& voice)
 // voiceNum has the format 0x00MMLLPP (MSB, LSB, program), as in Presets::Voices().
 int PianoController::RealSongVoice(int voiceNum)
 {
-	if (((voiceNum >> 16) & 0x7f) != ReportedSongBank)
+	// 119 / 119 / program is not a voice: it is the answer of the piano to a GS voice
+	// that was sent to it in GS mode (saved by an earlier version). The GS voice of the
+	// program (variation 0) is used instead.
+	if (((voiceNum >> 16) & 0x7f) == GsBank && ((voiceNum >> 8) & 0x7f) == GsBank)
 	{
-		return voiceNum;
+		return (GsBank << 16) | (voiceNum & 0x7f);
 	}
-	int bankMsb = (voiceNum >> 8) & 0x7f;
-	if (bankMsb == ReportedSongBank)
-	{
-		bankMsb = 0; // the answer of the piano to a reported number that was sent back
-	}
-	return (bankMsb << 16) | (voiceNum & 0x7f);
+	return voiceNum;
 }
 
 void PianoController::ClearSentSongVoices()
@@ -755,7 +753,6 @@ void PianoController::SetSongChannelVoice(Channel ch, int voiceNum)
 		return;
 	}
 
-	// a number reported by the piano (from a saved state) is not sent back as a bank
 	voiceNum = RealSongVoice(voiceNum);
 	// remembered: the piano answers with its own form of the number (see RealSongVoice)
 	m_sentSongVoice[midiChannel - 1] = m_genericDevice ? -1 : voiceNum;
@@ -1173,11 +1170,12 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 		int voice = (data[0] << 7 * 3) + (data[1] << 7 * 2) + (data[2] << 7) + data[3];
 		if (ch >= chMidi1 && ch <= chMidi16)
 		{
-			// The piano reports a voice sent to a song channel as 119 / bank MSB / program
-			// (without the bank LSB): the voice that was sent is kept, it has a name and
-			// can be saved. Any other answer is a voice set by the song itself.
+			// In GS mode (after a GS reset, e.g. of a song or another program) the bank MSB
+			// is the variation of a GS voice: the piano reports a voice sent to the channel
+			// as 119 / bank MSB / program. The voice that was sent is kept, it has a name
+			// and can be saved. Any other answer is a voice set by the song itself.
 			int& sent = m_sentSongVoice[ch - chMidi1];
-			const int reported = (ReportedSongBank << 16) | (((sent >> 16) & 0x7f) << 8) | (sent & 0x7f);
+			const int reported = (GsBank << 16) | (((sent >> 16) & 0x7f) << 8) | (sent & 0x7f);
 			if (sent >= 0 && (voice == sent || voice == reported))
 			{
 				voice = sent;

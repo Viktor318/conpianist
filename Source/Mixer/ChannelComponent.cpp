@@ -583,6 +583,77 @@ static PopupMenu buildDrumKitsMenu(Voice* currentVoice)
 	return kitsMenu;
 }
 
+// Menu item ids of the voices that are not on the panel: ExtraVoiceMenuBase + index in
+// Presets::ExtraVoices()
+static const int ExtraVoiceMenuBase = 3000;
+
+// Adds the XG, GM2 and GS voices of the piano to the voices menu, each set as a submenu
+// grouped by category (drums: the drum kits of the sets instead of their voices). The
+// Mega Voices (made for the styles) are not offered.
+static void addExtraVoicesMenus(PopupMenu& voicesMenu, int currentNum, bool drums)
+{
+	const std::vector<ExtraVoice>& voices = Presets::ExtraVoices();
+	bool separator = false;
+	for (const char* set : {"XG", "GM2", "GS"})
+	{
+		PopupMenu setMenu;
+		PopupMenu categoryMenu;
+		String category;
+		bool setTicked = false;
+		bool categoryTicked = false;
+
+		auto flushCategory = [&]()
+		{
+			if (categoryMenu.getNumItems() > 0)
+			{
+				setMenu.addSubMenu(category, categoryMenu, true, Image(), categoryTicked);
+			}
+			categoryMenu.clear();
+			categoryTicked = false;
+		};
+
+		for (int i = 0; i < (int)voices.size(); i++)
+		{
+			const ExtraVoice& vc = voices[i];
+			if (String(vc.set) != set || vc.IsKit() != drums)
+			{
+				continue;
+			}
+			if (category != vc.category)
+			{
+				flushCategory();
+				category = vc.category;
+			}
+			const bool ticked = vc.num == currentNum;
+			categoryTicked = categoryTicked || ticked;
+			setTicked = setTicked || ticked;
+			categoryMenu.addItem(ExtraVoiceMenuBase + i, vc.title, true, ticked);
+		}
+
+		if (drums)
+		{
+			// a few kits: directly in the menu of the set
+			if (categoryMenu.getNumItems() > 0)
+			{
+				setMenu = categoryMenu;
+			}
+		}
+		else
+		{
+			flushCategory();
+		}
+		if (setMenu.getNumItems() > 0)
+		{
+			if (!separator)
+			{
+				voicesMenu.addSeparator();
+				separator = true;
+			}
+			voicesMenu.addSubMenu(set, setMenu, true, Image(), setTicked);
+		}
+	}
+}
+
 // General MIDI voices (for devices that are not Yamaha pianos), grouped by families;
 // on the drum channel the drum kits.
 static PopupMenu buildGmVoicesMenu(int currentProgram, bool drums)
@@ -685,9 +756,20 @@ void ChannelComponent::showMenu(Button* button)
 	else
 	{
 		// change the voice of this song channel on the piano
-		Voice* currentVoice = Presets::FindVoice(pianoController.GetVoice(channel));
-		menu.addSubMenu(TRANS("Change Voice"), channel == PianoController::chMidi10 ?
-			buildDrumKitsMenu(currentVoice) : buildVoicesMenu(currentVoice));
+		const String voice = pianoController.GetVoice(channel);
+		const int currentNum = voice.isEmpty() || voice.startsWith("PRESET:") ? -1 : voice.getIntValue();
+		// a voice that is not on the panel is ticked in its own set, not at the panel
+		// voice that is the nearest to it
+		Voice* currentVoice = Presets::FindExtraVoice(currentNum) ? nullptr : Presets::FindVoice(voice);
+		const bool drums = channel == PianoController::chMidi10;
+		PopupMenu voicesMenu = drums ? buildDrumKitsMenu(currentVoice) : buildVoicesMenu(currentVoice);
+		if (!drums)
+		{
+			// On the drum channel the piano replaces the bank of the GM2 and GS kits (MSB 120,
+			// 118) with 127 and plays its own kit of that program, so they are not offered.
+			addExtraVoicesMenus(voicesMenu, currentNum, false);
+		}
+		menu.addSubMenu(TRANS("Change Voice"), voicesMenu);
 	}
 
 	const PianoController::Channel parts[] = {PianoController::chMain, PianoController::chLayer, PianoController::chLeft};
@@ -733,6 +815,16 @@ void ChannelComponent::showMenu(Button* button)
 			{
 				// General MIDI: bank 0, program number
 				pianoController.SetSongChannelVoice(channel, (result - VoiceMenuBase) & 0x7f);
+				return;
+			}
+			if (result >= ExtraVoiceMenuBase)
+			{
+				const std::vector<ExtraVoice>& voices = Presets::ExtraVoices();
+				const int index = result - ExtraVoiceMenuBase;
+				if (index < (int)voices.size())
+				{
+					pianoController.SetSongChannelVoice(channel, voices[index].num);
+				}
 				return;
 			}
 			if (result >= VoiceMenuBase)

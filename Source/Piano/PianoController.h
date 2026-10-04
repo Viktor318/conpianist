@@ -329,7 +329,7 @@ public:
 	void UpdateRecorderSetups();
 	void UpdateRecorderStyleSetups();
 	static const int NumStyleParts = 8;
-	static const int ReportedSongBank = 119; // bank MSB in the voice numbers reported for song channels
+	static const int GsBank = 119; // bank MSB of the GS voices
 	// keep: the recording counts as saved (false for the temporary file of listening back)
 	// quantizeTicks, quantizeEnds, tripletTicks, fillGaps: see LiveRecorder::Save
 	bool SaveRecording(const File& file, bool includeStyle, String& error, bool keep = true,
@@ -429,8 +429,7 @@ public:
 	const String& GetVoice(Channel ch) { return m_channels[ch].voice; }
 	void SetVoice(Channel ch, const String& voice);
 	void SetSongChannelVoice(Channel ch, int voiceNum);
-	// The piano reports the voice of a song channel also as 119 / bank MSB / program.
-	// Such a number is not a voice that can be sent: returns the real one (bank LSB 0).
+	// The voice to send for a saved voice number (see the function).
 	static int RealSongVoice(int voiceNum);
 	// sets a song channel voice from a saved state: a Yamaha voice ("gmVoice" false) or a
 	// General MIDI voice, converted to the kind of voices of the current player
