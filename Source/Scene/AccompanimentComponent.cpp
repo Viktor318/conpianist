@@ -82,8 +82,9 @@ AccompanimentComponent::AccompanimentComponent(Settings& settings, PianoControll
 
 	// major keys: first the ones with sharps, then the ones with flats
 	static const char* const keys[] = {"C", "G", "D", "A", "E", "B", "F#", "F", "Bb", "Eb", "Ab", "Db", "Gb"};
+	initLabel(keyLabel, TRANS("Key:"));
 	keyCombo.setWantsKeyboardFocus(false);
-	keyCombo.addItem(TRANS("Key: -"), 1);
+	keyCombo.addItem("-", 1);
 	for (int i = 0; i < numElementsInArray(keys); i++)
 	{
 		keyCombo.addItem(keys[i], i + 2);
@@ -206,8 +207,15 @@ void AccompanimentComponent::resized()
 		currentLabel.setBounds(16, 88, labelWidth, 24);
 		currentNameLabel.setBounds(16 + labelWidth, 88, 408 - labelWidth, 24);
 	}
-	keyCombo.setBounds(16, 122, 92, 24);
-	chordNameLabel.setBounds(112, 116, 216, 36); // in the middle of the window
+	{
+		// the list right after its label; the chord in the middle of the window
+		const int textWidth = GlyphArrangement::getStringWidthInt(keyLabel.getFont(), keyLabel.getText());
+		const int labelWidth = jlimit(30, 80, textWidth + 10);
+		keyLabel.setBounds(16, 122, labelWidth, 24);
+		keyCombo.setBounds(16 + labelWidth, 122, 60, 24);
+		const int left = 16 + labelWidth + 60 + 6;
+		chordNameLabel.setBounds(left, 116, getWidth() - 2 * left, 36);
+	}
 	{
 		// the tempo right after its label; the two buttons spread evenly in the rest
 		const int textWidth = GlyphArrangement::getStringWidthInt(tempoLabel.getFont(), tempoLabel.getText());
