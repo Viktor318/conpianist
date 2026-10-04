@@ -10,6 +10,8 @@
 > - the played notes are shown on the virtual keyboard, which can be resized;
 > - Live Play with the virtual keyboard and MIDI In 2, with the transposition applied: either on the piano's own keyboard parts (the Voice tab settings: Main, Layer, Left with the split point) or on one or more (layered) mixer channels – also on channels not used in the song, with their own voice, volume, pan, reverb and a per-channel octave;
 > - recording of Live Play in a separate window that can stay open (main menu → Recording...): the virtual keyboard, MIDI In 2, the piano's own keys and the piano's accompaniment (style), started automatically (on the first note, stopped after silence) or manually, with metronome, bell and count-in; the recording can be listened back, optionally quantized, and saved as a standalone MIDI file with its voices and mixer settings (the piano's own keys are not recorded while Smart Pianist is connected too, because the piano does not send them over USB then);
+> - an Accompaniment window (main menu → Accompaniment...) to control the piano's accompaniment (style): start and stop, Sync Start, the sections (Intro 1–3, Main A–D, Fill In, Break, Ending 1–3, Auto Fill), tempo with Tap Tempo, accompaniment volume, the recognised chord spelled in the key of the piece, keyboard shortcuts; the style is chosen by category if the style list (`styles.csv`, not part of the program) is in the program's data folder;
+> - the XG, GM2 and GS voices of the piano can be chosen in the mixer channel menu, with their exact names;
 > - a separate transpose setting for the piano's keyboard in Piano Room;
 > - in the mixer channel menu: take the voice and settings of a keyboard part (Main / Layer / Left) from the Voice tab, and reset a channel;
 > - switching the player keeps the mixer and left-panel settings; between the piano and a MIDI device, voices are mapped to their Yamaha ↔ General MIDI equivalents;
@@ -20,7 +22,7 @@
 >
 > A ready-to-run Windows (64-bit) build is available on the [Releases](https://github.com/Viktor318/conpianist/releases) page: unzip it to any folder and start `ConPianist.exe` (the `Resources` folder and the `.dll` files must stay next to the `.exe`). The default folder for songs, scores and `.conmem` files is `%APPDATA%\ConPianist\Demo Midi Songs`; it is worth copying the contents of the included `Demo Midi Songs` folder there.
 >
-> **Planned:** following repeat signs in the score; choosing the piano's built-in songs and styles; saving a MIDI file with the sound set in the program (voice, volume, tempo, pan, reverb), also updating the sound data of an existing MusicXML score; Guide mode with ConPianist's own player.
+> **Planned:** a registration memory in the Accompaniment window (8 buttons) and the keyboard parts handled there; following repeat signs in the score; choosing the piano's built-in songs; saving a MIDI file with the sound set in the program (voice, volume, tempo, pan, reverb), also updating the sound data of an existing MusicXML score; Guide mode with ConPianist's own player.
 
 **ConPianist** or **Connected Pianist** is an app to control Yamaha digital pianos of CSP (Clavinova Smart Piano) series. This is an alternative to Yamaha's own app "Smart Pianist". Unlike Smart Pianist, which works on iOS and Android, Connected Pianist is designed for desktop systems - macOS, Windows and Linux. It works on iPad too though.
 

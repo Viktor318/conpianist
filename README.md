@@ -28,10 +28,11 @@ A program egyelőre nem teljes értékű helyettesítője a hivatalos alkalmazá
 - oktáveltolás és osztáspont (fő/bal) beállítása;
 - keverő az összes klasszikus funkcióval: MIDI-csatornák ki/be kapcsolása, hangerő, pan, zengetés, zengetéstípus;
 - extra funkciók a keverőben: rész-kiválasztás MIDI-csatornánként, hangszín kiválasztása közvetlenül a MIDI-csatornákból;
-- **a zenedarab csatornáinak hangszínét módosítani a keverőben** (pl. a jobb és bal kéz szólamát más hangszínen hallgatni);
+- **a zenedarab csatornáinak hangszínét módosítani a keverőben** (pl. a jobb és bal kéz szólamát más hangszínen hallgatni): a panel hangokon kívül a zongora **XG, GM2 és GS hangszínei** is választhatók, pontos névvel;
 - **virtuális billentyűzet**: átméretezhető (a felette lévő vonal húzásával), USB-s és MIDI-eszközös lejátszásnál mutatja a jobb és bal kéz szólamának lejátszott hangjait;
 - **élő játék** a virtuális billentyűzettel és egy második MIDI-bemenettel (MIDI In 2), a beállított transzponálással: vagy a zongora saját hangján (a Hangszín fül beállításaival: Fő, Réteg, Bal kéz az osztásponttal), vagy a Keverőben kiválasztott egy vagy több csatornán (rétegezve) – a dalban nem használt csatornákon is, saját hangszínnel, hangerővel, pannal, zengetéssel és csatornánkénti oktávval; a Hangszín fül szólamainak beállításai egy kattintással átvehetők a Keverő csatornáira;
 - **élő játék felvétele** külön, nyitva tartható ablakban (Főmenü → Felvétel…): felveszi a virtuális billentyűzetet, a MIDI In 2-t, a zongora saját billentyűit és a zongora kíséretét (stílus), automatikus (első hangra induló, csend után leálló) vagy kézi indítással, metronómmal, csengővel és beszámolással; a felvétel visszahallgatható, mentéskor kvantálható, és a hangszínekkel, keverőbeállításokkal együtt önálló MIDI-fájlba menthető, amelyből kottaszerkesztővel (pl. Dorico, MuseScore) kotta készíthető. Amíg a Smart Pianist is csatlakozik a zongorához, a zongora saját billentyűi nem kerülnek a felvételbe, mert a zongora ilyenkor nem küldi őket USB-n;
+- **a zongora kíséretének (stílus) vezérlése** külön, nyitva tartható ablakban (Főmenü → Kíséret…): indítás és leállítás, Sync Start, a szakaszok (Intro 1–3, Main A–D, Fill In, Break, Ending 1–3, Auto Fill), tempó Tap Tempóval, a kíséret hangereje, a felismert akkord kijelzése a darab hangneme szerint, gyorsbillentyűk; a stílus kategóriák szerint választható, ha a program adatmappájában megvan a stíluslista (`styles.csv`, nem része a programnak);
 - hangerőegyensúly (balansz) beállítása a fő/bal/réteg/dal/mikrofon/aux in csatornákra: hangerő, pan, zengetés, zengetéstípus;
 - **Piano Room**: a zongora hangzásának finomhangolása — fedél helyzete, fényesség, környezet (zengetés), billentés érzékenysége, hangolás, virtuális rezonanciamodellezés (VRM), tompító- és húrrezonancia, billentyűfelengedési hang;
 - kották megjelenítése a lejátszási pozícióval szinkronban: a kottákat külön MusicXML-fájlban kell megadni (közvetlenül a MIDI-fájlból nem jeleníthető meg kotta);
@@ -63,6 +64,8 @@ Ez a változat saját, magáncélú felhasználásra készül egy Yamaha CSP-170
 - élő játék a virtuális billentyűzettel és a MIDI In 2-vel, transzponálással: a zongora saját hangján (Hangszín fül) vagy a Keverő csatornáin (rétegezve, a dalban nem használt csatornákon is, csatornánkénti oktávval);
 - a Keverő csatornamenüjében hangszín átvétele a Hangszín fülről, és Alaphelyzet csatornánként;
 - élő játék felvétele MIDI-fájlba metronómmal, beszámolással, visszahallgatással és kvantálással;
+- Kíséret ablak a zongora kíséretének (stílus) vezérléséhez, a Smart Pianistből el nem érhető Intro 2–3 és Ending 2–3 szakaszokkal;
+- a zongora XG, GM2 és GS hangszínei a Keverő menüjében, pontos névvel;
 - a zongora billentyűzetének külön transzponálása a Piano Roomban;
 - indulás a bezáráskori állapotban (lejátszási mód, hangszínek, Keverő, dal, pozíció), a lejátszó váltásakor pedig a beállítások megmaradnak;
 - ugrás a dal elejére és végére a tekerőgombok hosszan nyomásával;
@@ -72,4 +75,4 @@ Ez a változat saját, magáncélú felhasználásra készül egy Yamaha CSP-170
 
 A részletes változáslista a [CHANGELOG.md](CHANGELOG.md) fájlban található.
 
-**Tervezett fejlesztés:** ismétlőjelek követése a kottában; a zongora beépített dalainak és stílusainak kiválasztása; MIDI-fájl mentése a programban beállított hangzással (hangszín, hangerő, tempó, pan, zengetés), a meglévő MusicXML-kotta hangzásadatainak frissítésével; a Segéd mód a ConPianist saját lejátszójával is.
+**Tervezett fejlesztés:** regisztrációs memória a Kíséret ablakban (8 gomb) és a billentyűzet szólamainak kezelése ugyanott; ismétlőjelek követése a kottában; a zongora beépített dalainak kiválasztása; MIDI-fájl mentése a programban beállított hangzással (hangszín, hangerő, tempó, pan, zengetés), a meglévő MusicXML-kotta hangzásadatainak frissítésével; a Segéd mód a ConPianist saját lejátszójával is.
