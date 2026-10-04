@@ -156,6 +156,19 @@ RecorderComponent::RecorderComponent(Settings& settings, PianoController& pianoC
 	listenButton.addListener(this);
 	addAndMakeVisible(listenButton);
 
+	positionSlider.setSliderStyle(Slider::LinearHorizontal);
+	positionSlider.setTextBoxStyle(Slider::NoTextBox, true, 0, 0);
+	positionSlider.setRange(1, 2, 1);
+	positionSlider.setTooltip(TRANS("Position in the recording while listening"));
+	positionSlider.onValueChange = [this]()
+		{
+			if (listenLoaded)
+			{
+				this->pianoController.SetPosition({roundToInt(positionSlider.getValue()), 1});
+			}
+		};
+	addAndMakeVisible(positionSlider);
+
 	saveButton.setButtonText(TRANS("Save"));
 	saveButton.addListener(this);
 	addAndMakeVisible(saveButton);
@@ -166,7 +179,7 @@ RecorderComponent::RecorderComponent(Settings& settings, PianoController& pianoC
 	styleButton.setToggleState(settings.recorderStyle, dontSendNotification);
 	countInCombo.setSelectedId(settings.recorderCountIn + 1, dontSendNotification);
 
-	setSize(440, 370);
+	setSize(400, 414);
 
 	pianoController.AddListener(this);
 	updateMetronome();
@@ -190,27 +203,28 @@ void RecorderComponent::paint(Graphics& g)
 
 void RecorderComponent::resized()
 {
-	modeLabel.setBounds(16, 16, 150, 24);
-	autoButton.setBounds(170, 16, 124, 24);
-	manualButton.setBounds(300, 16, 124, 24);
-	silenceLabel.setBounds(16, 52, 280, 24);
-	silenceSlider.setBounds(304, 52, 120, 24);
-	tempoLabel.setBounds(16, 88, 150, 24);
-	tempoSlider.setBounds(170, 88, 120, 24);
-	beatCombo.setBounds(304, 88, 120, 24);
-	metronomeButton.setBounds(12, 124, 120, 24);
-	bellButton.setBounds(136, 124, 100, 24);
-	countInCombo.setBounds(240, 124, 184, 24);
+	modeLabel.setBounds(16, 16, 120, 24);
+	autoButton.setBounds(140, 16, 120, 24);
+	manualButton.setBounds(264, 16, 120, 24);
+	silenceLabel.setBounds(16, 52, 240, 24);
+	silenceSlider.setBounds(264, 52, 120, 24);
+	tempoLabel.setBounds(16, 88, 120, 24);
+	tempoSlider.setBounds(140, 88, 112, 24);
+	beatCombo.setBounds(264, 88, 120, 24);
+	metronomeButton.setBounds(12, 124, 112, 24);
+	bellButton.setBounds(124, 124, 92, 24);
+	countInCombo.setBounds(220, 124, 164, 24);
 	metronomeVolumeLabel.setBounds(16, 160, 170, 24);
-	metronomeVolumeSlider.setBounds(186, 160, 238, 24);
-	styleButton.setBounds(12, 196, 412, 24);
+	metronomeVolumeSlider.setBounds(186, 160, 198, 24);
+	styleButton.setBounds(12, 196, 372, 24);
 	nameLabel.setBounds(16, 232, 100, 24);
-	nameEditor.setBounds(120, 232, 304, 24);
-	statusLabel.setBounds(16, 270, 408, 36);
-	recordButton.setBounds(16, 322, 96, 32);
-	stopButton.setBounds(120, 322, 96, 32);
-	listenButton.setBounds(224, 322, 96, 32);
-	saveButton.setBounds(328, 322, 96, 32);
+	nameEditor.setBounds(120, 232, 264, 24);
+	statusLabel.setBounds(16, 270, 368, 36);
+	recordButton.setBounds(16, 322, 112, 32);
+	stopButton.setBounds(144, 322, 112, 32);
+	saveButton.setBounds(272, 322, 112, 32);
+	listenButton.setBounds(16, 366, 112, 32);
+	positionSlider.setBounds(140, 370, 248, 24);
 }
 
 void RecorderComponent::buttonClicked(Button* button)
@@ -500,10 +514,20 @@ void RecorderComponent::timerCallback()
 		updateControls();
 	}
 	const bool listening = isListening();
-	if (listening != lastListening)
+	if (listening != lastListening || positionSlider.isEnabled() != (bool)listenLoaded)
 	{
 		lastListening = listening;
 		updateControls();
+	}
+	if (listenLoaded && !positionSlider.isMouseButtonDown())
+	{
+		// the position of the player in the recording
+		const int length = jmax(2, pianoController.GetLength().measure);
+		if (roundToInt(positionSlider.getMaximum()) != length)
+		{
+			positionSlider.setRange(1, length, 1);
+		}
+		positionSlider.setValue(pianoController.GetPosition().measure, dontSendNotification);
 	}
 	updateMetronome();
 	updateStatus();
@@ -523,6 +547,11 @@ void RecorderComponent::updateControls()
 	recordButton.setEnabled(idle);
 	stopButton.setEnabled(!idle || listening);
 	listenButton.setEnabled(hasData && !listening);
+	positionSlider.setEnabled(listenLoaded);
+	if (!listenLoaded)
+	{
+		positionSlider.setValue(1, dontSendNotification);
+	}
 	saveButton.setEnabled(hasData);
 	nameEditor.setEnabled(hasData);
 	countInCombo.setEnabled(idle && manualButton.getToggleState());

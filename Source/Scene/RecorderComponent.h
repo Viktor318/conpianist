@@ -65,6 +65,7 @@ private:
 	TextButton recordButton;
 	TextButton stopButton;
 	TextButton listenButton;
+	Slider positionSlider;   // position in the recording while it is listened back (measures)
 	TextButton saveButton;
 	TooltipWindow tooltipWindow{this};
 
