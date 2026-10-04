@@ -815,7 +815,8 @@ void RecorderComponent::updateStatus()
 
 RecorderWindow::RecorderWindow(Settings& settings, PianoController& pianoController) :
 	DocumentWindow(TRANS("Recording"), Colour(0xff323e44),
-		DocumentWindow::minimiseButton | DocumentWindow::closeButton)
+		DocumentWindow::minimiseButton | DocumentWindow::closeButton),
+	settings(settings)
 {
 	const bool usingNativeTitleBar = (SystemStats::getOperatingSystemType() & SystemStats::Windows) ||
 		(SystemStats::getOperatingSystemType() & SystemStats::MacOSX);
@@ -828,4 +829,24 @@ RecorderWindow::RecorderWindow(Settings& settings, PianoController& pianoControl
 void RecorderWindow::closeButtonPressed()
 {
 	setVisible(false);
+}
+
+// The position is remembered (saved with the settings when the program exits).
+void RecorderWindow::moved()
+{
+	DocumentWindow::moved();
+	if (isShowing() && !isMinimised() && getX() > -10000 && getY() > -10000)
+	{
+		settings.recorderWindowPos = getPosition();
+	}
+}
+
+bool RecorderWindow::RestorePosition()
+{
+	if (!Settings::IsWindowPosUsable(settings.recorderWindowPos, getWidth()))
+	{
+		return false;
+	}
+	setTopLeftPosition(settings.recorderWindowPos);
+	return true;
 }

@@ -111,4 +111,11 @@ class RecorderWindow : public DocumentWindow
 public:
 	RecorderWindow(Settings& settings, PianoController& pianoController);
 	void closeButtonPressed() override;
+	void moved() override;
+	// Moves the window where it was the last time; false if that is not known (or not
+	// on a screen any more).
+	bool RestorePosition();
+
+private:
+	Settings& settings;
 };

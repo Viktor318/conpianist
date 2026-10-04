@@ -54,6 +54,13 @@ public:
 	String midiPort;
 	float zoomUi = 1.0;
 	Rectangle<int> windowPos;
+	// the position of the Recording and the Accompaniment window (NoWindowPos: not known,
+	// the window is centred on the main window)
+	static const int NoWindowPos = -100000;
+	Point<int> recorderWindowPos{NoWindowPos, NoWindowPos};
+	Point<int> accompanimentWindowPos{NoWindowPos, NoWindowPos};
+	// true if a window of this size at this (saved) position can be reached on a screen
+	static bool IsWindowPosUsable(Point<int> pos, int width);
 	bool keyboardVisible = false;
 	// Live Play channels (virtual keyboard, MIDI In 2): bit 0 = MIDI channel 1 etc.
 	int keyboardChannels = 1;

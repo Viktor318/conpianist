@@ -81,6 +81,10 @@ void Settings::Save()
 	prop.setValue("Recorder.QuantizeFill", recorderQuantizeFill);
 	prop.setValue("Accompaniment.AutoFill", accompanimentAutoFill);
 	prop.setValue("Accompaniment.Key", accompanimentKey);
+	prop.setValue("Recorder.Window.X", recorderWindowPos.x);
+	prop.setValue("Recorder.Window.Y", recorderWindowPos.y);
+	prop.setValue("Accompaniment.Window.X", accompanimentWindowPos.x);
+	prop.setValue("Accompaniment.Window.Y", accompanimentWindowPos.y);
 
 	prop.save();
 	sendChangeMessage();
@@ -141,6 +145,29 @@ void Settings::Load()
 	recorderQuantizeFill = prop.getBoolValue("Recorder.QuantizeFill", recorderQuantizeFill);
 	accompanimentAutoFill = prop.getBoolValue("Accompaniment.AutoFill", accompanimentAutoFill);
 	accompanimentKey = prop.getValue("Accompaniment.Key", accompanimentKey);
+	recorderWindowPos.x = prop.getIntValue("Recorder.Window.X", recorderWindowPos.x);
+	recorderWindowPos.y = prop.getIntValue("Recorder.Window.Y", recorderWindowPos.y);
+	accompanimentWindowPos.x = prop.getIntValue("Accompaniment.Window.X", accompanimentWindowPos.x);
+	accompanimentWindowPos.y = prop.getIntValue("Accompaniment.Window.Y", accompanimentWindowPos.y);
+}
+
+// The saved position is used only if the title bar of the window is on a screen (the
+// screens may have changed since it was saved).
+bool Settings::IsWindowPosUsable(Point<int> pos, int width)
+{
+	if (pos.x == NoWindowPos || pos.y == NoWindowPos)
+	{
+		return false;
+	}
+	const Rectangle<int> titleBar(pos.x + 20, pos.y, jmax(40, width - 40), 20);
+	for (const auto& display : Desktop::getInstance().getDisplays().displays)
+	{
+		if (display.userArea.intersects(titleBar))
+		{
+			return true;
+		}
+	}
+	return false;
 }
 
 // The state of the piano and the playback when the program was closed (a registration

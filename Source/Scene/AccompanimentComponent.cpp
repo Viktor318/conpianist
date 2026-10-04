@@ -842,7 +842,8 @@ String AccompanimentComponent::styleTitle(const String& path)
 
 AccompanimentWindow::AccompanimentWindow(Settings& settings, PianoController& pianoController) :
 	DocumentWindow(TRANS("Accompaniment"), Colour(0xff323e44),
-		DocumentWindow::minimiseButton | DocumentWindow::closeButton)
+		DocumentWindow::minimiseButton | DocumentWindow::closeButton),
+	settings(settings)
 {
 	const bool usingNativeTitleBar = (SystemStats::getOperatingSystemType() & SystemStats::Windows) ||
 		(SystemStats::getOperatingSystemType() & SystemStats::MacOSX);
@@ -855,4 +856,24 @@ AccompanimentWindow::AccompanimentWindow(Settings& settings, PianoController& pi
 void AccompanimentWindow::closeButtonPressed()
 {
 	setVisible(false);
+}
+
+// The position is remembered (saved with the settings when the program exits).
+void AccompanimentWindow::moved()
+{
+	DocumentWindow::moved();
+	if (isShowing() && !isMinimised() && getX() > -10000 && getY() > -10000)
+	{
+		settings.accompanimentWindowPos = getPosition();
+	}
+}
+
+bool AccompanimentWindow::RestorePosition()
+{
+	if (!Settings::IsWindowPosUsable(settings.accompanimentWindowPos, getWidth()))
+	{
+		return false;
+	}
+	setTopLeftPosition(settings.accompanimentWindowPos);
+	return true;
 }

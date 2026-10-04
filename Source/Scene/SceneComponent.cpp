@@ -1413,7 +1413,10 @@ void SceneComponent::showRecorder()
 	if (!recorderWindow)
 	{
 		recorderWindow = std::make_unique<RecorderWindow>(settings, pianoController);
-		recorderWindow->centreAroundComponent(this, recorderWindow->getWidth(), recorderWindow->getHeight());
+		if (!recorderWindow->RestorePosition())
+		{
+			recorderWindow->centreAroundComponent(this, recorderWindow->getWidth(), recorderWindow->getHeight());
+		}
 	}
 	recorderWindow->setVisible(true);
 	recorderWindow->setMinimised(false); // opened from the menu while it is minimised
@@ -1427,7 +1430,10 @@ void SceneComponent::showAccompaniment()
 	if (!accompanimentWindow)
 	{
 		accompanimentWindow = std::make_unique<AccompanimentWindow>(settings, pianoController);
-		accompanimentWindow->centreAroundComponent(this, accompanimentWindow->getWidth(), accompanimentWindow->getHeight());
+		if (!accompanimentWindow->RestorePosition())
+		{
+			accompanimentWindow->centreAroundComponent(this, accompanimentWindow->getWidth(), accompanimentWindow->getHeight());
+		}
 	}
 	accompanimentWindow->setVisible(true);
 	accompanimentWindow->setMinimised(false); // opened from the menu while it is minimised
