@@ -60,7 +60,8 @@ private:
 	ComboBox countInCombo;
 	ToggleButton styleButton;
 	ToggleButton quantizeButton;
-	ComboBox quantizeCombo;      // the grid; the item ids are ticks (+ TripletId: with triplets)
+	ComboBox quantizeCombo;      // the grid; the item ids are ticks
+	ComboBox tripletCombo;       // the triplet grid; the item ids are ticks, NoTripletId: none
 	ToggleButton quantizeEndsButton;
 	Label nameLabel;
 	TextEditor nameEditor;
@@ -68,6 +69,7 @@ private:
 	TextButton recordButton;
 	TextButton stopButton;
 	TextButton listenButton;
+	Label positionLabel;     // time and measure of the listening back
 	Slider positionSlider;   // position in the recording while it is listened back (measures)
 	TextButton saveButton;
 	TooltipWindow tooltipWindow{this};
@@ -85,9 +87,10 @@ private:
 	void stopRecording();
 	void save();
 	void listen();
-	static const int TripletId = 10000;
+	static const int NoTripletId = 1;
 	int quantizeTicks() const; // 0: not quantized
-	bool quantizeTriplets() const;
+	int tripletTicks() const;  // 0: no triplets
+	void updatePosition();
 	bool isListening() const; // the recording is being played back
 	void writeFile(const File& file);
 	void saveOptions();

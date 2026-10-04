@@ -85,11 +85,12 @@ public:
 	int recorderSilence = 5;
 	bool recorderStyle = true;
 	int recorderCountIn = 1; // count-in measures of a manual recording (0: none)
-	// quantization of the saved recording: the grid in ticks (480 per quarter note), whether
-	// triplets are recognized too, and whether the ends of the notes are moved to the grid
+	// quantization of the saved recording: the grid in ticks (480 per quarter note), the
+	// triplet grid recognized too (ticks, 0: none), and whether the ends of the notes are
+	// moved to the grid
 	bool recorderQuantize = false;
 	int recorderQuantizeTicks = 120;
-	bool recorderQuantizeTriplets = false;
+	int recorderQuantizeTripletTicks = 0;
 	bool recorderQuantizeEnds = false;
 
 private:

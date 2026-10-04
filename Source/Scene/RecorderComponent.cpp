@@ -141,12 +141,17 @@ RecorderComponent::RecorderComponent(Settings& settings, PianoController& pianoC
 	quantizeCombo.addItem(TRANS("Quarter note"), 480);
 	quantizeCombo.addItem(TRANS("Eighth note"), 240);
 	quantizeCombo.addItem(TRANS("Sixteenth note"), 120);
-	quantizeCombo.addItem(TRANS("Quarter note and triplet (automatic)"), TripletId + 480);
-	quantizeCombo.addItem(TRANS("Eighth note and triplet (automatic)"), TripletId + 240);
-	quantizeCombo.addItem(TRANS("Sixteenth note and triplet (automatic)"), TripletId + 120);
-	quantizeCombo.setTooltip(TRANS("The smallest note value: the beginnings of the notes are moved to this grid. Automatic: the program decides for every part of the measure whether it was played in this note value or in triplets"));
+	quantizeCombo.setTooltip(TRANS("The smallest note value: the beginnings of the notes are moved to this grid"));
 	quantizeCombo.onChange = [this]() { saveOptions(); };
 	addAndMakeVisible(quantizeCombo);
+
+	tripletCombo.addItem(TRANS("No triplets"), NoTripletId);
+	tripletCombo.addItem(TRANS("Quarter-note triplet"), 320);
+	tripletCombo.addItem(TRANS("Eighth-note triplet"), 160);
+	tripletCombo.addItem(TRANS("Sixteenth-note triplet"), 80);
+	tripletCombo.setTooltip(TRANS("Triplets recognized too: the program decides for every part of the measure whether it was played in the chosen note value or in these triplets. Usual pairs: eighth note with eighth-note triplet, sixteenth note with eighth-note triplet"));
+	tripletCombo.onChange = [this]() { saveOptions(); };
+	addAndMakeVisible(tripletCombo);
 
 	quantizeEndsButton.setButtonText(TRANS("Align the ends of the notes too"));
 	quantizeEndsButton.setTooltip(TRANS("The ends of the notes are moved to the grid too (cleaner score); otherwise the notes keep their length"));
@@ -176,6 +181,8 @@ RecorderComponent::RecorderComponent(Settings& settings, PianoController& pianoC
 	listenButton.addListener(this);
 	addAndMakeVisible(listenButton);
 
+	initLabel(positionLabel, "");
+
 	positionSlider.setSliderStyle(Slider::LinearHorizontal);
 	positionSlider.setTextBoxStyle(Slider::NoTextBox, true, 0, 0);
 	positionSlider.setRange(1, 2, 1);
@@ -199,14 +206,19 @@ RecorderComponent::RecorderComponent(Settings& settings, PianoController& pianoC
 	styleButton.setToggleState(settings.recorderStyle, dontSendNotification);
 	countInCombo.setSelectedId(settings.recorderCountIn + 1, dontSendNotification);
 	quantizeButton.setToggleState(settings.recorderQuantize, dontSendNotification);
-	quantizeCombo.setSelectedId(settings.recorderQuantizeTicks + (settings.recorderQuantizeTriplets ? TripletId : 0), dontSendNotification);
+	quantizeCombo.setSelectedId(settings.recorderQuantizeTicks, dontSendNotification);
+	tripletCombo.setSelectedId(settings.recorderQuantizeTripletTicks > 0 ? settings.recorderQuantizeTripletTicks : NoTripletId, dontSendNotification);
+	if (tripletCombo.getSelectedId() == 0)
+	{
+		tripletCombo.setSelectedId(NoTripletId, dontSendNotification);
+	}
 	if (quantizeCombo.getSelectedId() == 0)
 	{
 		quantizeCombo.setSelectedId(120, dontSendNotification);
 	}
 	quantizeEndsButton.setToggleState(settings.recorderQuantizeEnds, dontSendNotification);
 
-	setSize(400, 486);
+	setSize(440, 546);
 
 	pianoController.AddListener(this);
 	updateMetronome();
@@ -223,38 +235,53 @@ RecorderComponent::~RecorderComponent()
 	pianoController.RemoveListener(this);
 }
 
+// vertical positions of the lines between the groups of the controls
+static const int SeparatorY[] = {122, 238, 318, 410};
+
 void RecorderComponent::paint(Graphics& g)
 {
 	g.fillAll(Colour(0xff323e44));
+	g.setColour(Colours::white.withAlpha(0.25f));
+	for (int y : SeparatorY)
+	{
+		g.fillRect(12, y, getWidth() - 24, 1);
+	}
 }
 
 void RecorderComponent::resized()
 {
-	modeLabel.setBounds(16, 16, 120, 24);
-	autoButton.setBounds(140, 16, 120, 24);
-	manualButton.setBounds(264, 16, 120, 24);
-	silenceLabel.setBounds(16, 52, 240, 24);
-	silenceSlider.setBounds(264, 52, 120, 24);
-	tempoLabel.setBounds(16, 88, 120, 24);
-	tempoSlider.setBounds(140, 88, 112, 24);
-	beatCombo.setBounds(264, 88, 120, 24);
-	metronomeButton.setBounds(12, 124, 112, 24);
-	bellButton.setBounds(124, 124, 92, 24);
-	countInCombo.setBounds(220, 124, 164, 24);
-	metronomeVolumeLabel.setBounds(16, 160, 170, 24);
-	metronomeVolumeSlider.setBounds(186, 160, 198, 24);
-	styleButton.setBounds(12, 196, 372, 24);
-	quantizeButton.setBounds(12, 232, 140, 24);
-	quantizeCombo.setBounds(160, 232, 224, 24);
-	quantizeEndsButton.setBounds(36, 268, 348, 24);
-	nameLabel.setBounds(16, 304, 100, 24);
-	nameEditor.setBounds(120, 304, 264, 24);
-	statusLabel.setBounds(16, 342, 368, 36);
-	recordButton.setBounds(16, 394, 112, 32);
-	stopButton.setBounds(144, 394, 112, 32);
-	saveButton.setBounds(272, 394, 112, 32);
-	listenButton.setBounds(16, 438, 112, 32);
-	positionSlider.setBounds(140, 442, 248, 24);
+	// start and stop, what is recorded
+	modeLabel.setBounds(16, 16, 150, 24);
+	autoButton.setBounds(170, 16, 124, 24);
+	manualButton.setBounds(300, 16, 124, 24);
+	silenceLabel.setBounds(16, 52, 280, 24);
+	silenceSlider.setBounds(304, 52, 120, 24);
+	styleButton.setBounds(12, 88, 412, 24);
+	// metronome
+	metronomeButton.setBounds(12, 132, 120, 24);
+	bellButton.setBounds(136, 132, 100, 24);
+	countInCombo.setBounds(240, 132, 184, 24);
+	tempoLabel.setBounds(16, 168, 150, 24);
+	tempoSlider.setBounds(170, 168, 120, 24);
+	beatCombo.setBounds(304, 168, 120, 24);
+	metronomeVolumeLabel.setBounds(16, 204, 170, 24);
+	metronomeVolumeSlider.setBounds(186, 204, 238, 24);
+	// quantization
+	quantizeButton.setBounds(12, 248, 124, 24);
+	quantizeCombo.setBounds(140, 248, 126, 24);
+	tripletCombo.setBounds(274, 248, 150, 24);
+	quantizeEndsButton.setBounds(12, 284, 412, 24);
+	// file and state
+	nameLabel.setBounds(16, 328, 100, 24);
+	nameEditor.setBounds(120, 328, 304, 24);
+	statusLabel.setBounds(16, 364, 408, 36);
+	// buttons, listening back
+	recordButton.setBounds(16, 420, 128, 32);
+	stopButton.setBounds(156, 420, 128, 32);
+	saveButton.setBounds(296, 420, 128, 32);
+	listenButton.setBounds(16, 464, 160, 32);
+	positionLabel.setBounds(188, 464, 236, 32);
+	positionSlider.setBounds(12, 506, 416, 24);
 }
 
 void RecorderComponent::buttonClicked(Button* button)
@@ -323,18 +350,17 @@ void RecorderComponent::saveOptions()
 	const bool style = styleButton.getToggleState();
 	const int countIn = jlimit(0, 2, countInCombo.getSelectedId() - 1);
 	const bool quantize = quantizeButton.getToggleState();
-	const int gridId = quantizeCombo.getSelectedId();
-	const int ticks = gridId > 0 ? gridId % TripletId : settings.recorderQuantizeTicks;
-	const bool triplets = gridId > 0 ? gridId >= TripletId : settings.recorderQuantizeTriplets;
+	const int ticks = quantizeCombo.getSelectedId() > 0 ? quantizeCombo.getSelectedId() : settings.recorderQuantizeTicks;
+	const int triplets = tripletTicks();
 	const bool ends = quantizeEndsButton.getToggleState();
 	if (automatic != settings.recorderAutomatic || silence != settings.recorderSilence ||
 		style != settings.recorderStyle || countIn != settings.recorderCountIn ||
 		quantize != settings.recorderQuantize || ticks != settings.recorderQuantizeTicks ||
-		triplets != settings.recorderQuantizeTriplets || ends != settings.recorderQuantizeEnds)
+		triplets != settings.recorderQuantizeTripletTicks || ends != settings.recorderQuantizeEnds)
 	{
 		settings.recorderQuantize = quantize;
 		settings.recorderQuantizeTicks = ticks;
-		settings.recorderQuantizeTriplets = triplets;
+		settings.recorderQuantizeTripletTicks = triplets;
 		settings.recorderQuantizeEnds = ends;
 		settings.recorderCountIn = countIn;
 		settings.recorderAutomatic = automatic;
@@ -439,7 +465,7 @@ void RecorderComponent::writeFile(const File& file)
 {
 	String error;
 	if (pianoController.SaveRecording(file, styleButton.getToggleState(), error, true,
-		quantizeTicks(), quantizeEndsButton.getToggleState(), quantizeTriplets()))
+		quantizeTicks(), quantizeEndsButton.getToggleState(), tripletTicks()))
 	{
 		saved = true;
 		savedName = file.getFileName();
@@ -469,7 +495,7 @@ void RecorderComponent::listen()
 	const File file = directory.getChildFile(File::createLegalFileName(TRANS("Recording (listening)")) + ".mid");
 	String error;
 	if (!pianoController.SaveRecording(file, styleButton.getToggleState(), error, false,
-		quantizeTicks(), quantizeEndsButton.getToggleState(), quantizeTriplets()))
+		quantizeTicks(), quantizeEndsButton.getToggleState(), tripletTicks()))
 	{
 		message = TRANS("The recording could not be played.");
 		updateStatus();
@@ -495,12 +521,42 @@ void RecorderComponent::listen()
 
 int RecorderComponent::quantizeTicks() const
 {
-	return quantizeButton.getToggleState() ? jmax(0, quantizeCombo.getSelectedId()) % TripletId : 0;
+	return quantizeButton.getToggleState() ? jmax(0, quantizeCombo.getSelectedId()) : 0;
 }
 
-bool RecorderComponent::quantizeTriplets() const
+int RecorderComponent::tripletTicks() const
 {
-	return quantizeCombo.getSelectedId() >= TripletId;
+	const int id = tripletCombo.getSelectedId();
+	return id > NoTripletId ? id : 0;
+}
+
+// The time and the measure where the listening back is (the beginning, if the recording
+// is not in the player), and the length of the recording.
+void RecorderComponent::updatePosition()
+{
+	LiveRecorder& recorder = pianoController.GetRecorder();
+	String text;
+	if (recorder.HasData())
+	{
+		PianoController::Position position = {1, 1};
+		if (listenLoaded)
+		{
+			position = pianoController.GetPosition();
+		}
+		const int measure = jmax(1, position.measure);
+		const int beat = jmax(1, position.beat);
+		// the tempo counts quarter notes; a beat is one note of the denominator
+		const double beats = (measure - 1) * (double)jmax(1, pianoController.GetRecordedNumerator()) + (beat - 1);
+		const double seconds = beats * 4.0 / jmax(1, pianoController.GetRecordedDenominator()) *
+			60.0 / jmax(1, pianoController.GetRecordedTempo());
+		const String bullet = " " + String(CharPointer_UTF8("\xe2\x80\xa2")) + " ";
+		text = formatTime(seconds) + " / " + formatTime(recorder.GetLengthSeconds()) + bullet +
+			TRANS("Measure NUMBER").replace("NUMBER", String(measure));
+	}
+	if (positionLabel.getText() != text)
+	{
+		positionLabel.setText(text, dontSendNotification);
+	}
 }
 
 bool RecorderComponent::isListening() const
@@ -577,6 +633,7 @@ void RecorderComponent::timerCallback()
 		}
 		positionSlider.setValue(pianoController.GetPosition().measure, dontSendNotification);
 	}
+	updatePosition();
 	updateMetronome();
 	updateStatus();
 }
@@ -604,6 +661,7 @@ void RecorderComponent::updateControls()
 	nameEditor.setEnabled(hasData);
 	countInCombo.setEnabled(idle && manualButton.getToggleState());
 	quantizeCombo.setEnabled(quantizeButton.getToggleState());
+	tripletCombo.setEnabled(quantizeButton.getToggleState());
 	quantizeEndsButton.setEnabled(quantizeButton.getToggleState());
 }
 

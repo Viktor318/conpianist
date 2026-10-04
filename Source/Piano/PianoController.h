@@ -281,9 +281,13 @@ public:
 	// Passes the current voices and mixer settings to the recorder (message thread).
 	void UpdateRecorderSetups();
 	// keep: the recording counts as saved (false for the temporary file of listening back)
-	// quantizeTicks, quantizeEnds, quantizeTriplets: see LiveRecorder::Save
+	// quantizeTicks, quantizeEnds, tripletTicks: see LiveRecorder::Save
 	bool SaveRecording(const File& file, bool includeStyle, String& error, bool keep = true,
-		int quantizeTicks = 0, bool quantizeEnds = false, bool quantizeTriplets = false);
+		int quantizeTicks = 0, bool quantizeEnds = false, int tripletTicks = 0);
+	// tempo (quarter notes per minute) and time signature of the recording
+	int GetRecordedTempo() const { return m_recordedTempo; }
+	int GetRecordedNumerator() const { return m_recordedNumerator; }
+	int GetRecordedDenominator() const { return m_recordedDenominator; }
 	// Manual recording with a count-in: starts on the downbeat after the given number
 	// of measures (counted by the metronome or the playing song).
 	void StartRecordingWithCountIn(int measures);

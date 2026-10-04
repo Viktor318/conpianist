@@ -19,6 +19,7 @@
 
 #include "LiveRecorder.h"
 #include <map>
+#include <numeric>
 
 static double NowMs()
 {
@@ -351,7 +352,7 @@ int LiveRecorder::GetHeldNoteCount() const
 // Writes the events of a source into the track with the notes moved to the grid.
 // Returns the time of the last event (ticks).
 double LiveRecorder::AddQuantized(MidiMessageSequence& track, int source, int channel,
-	double ticksPerMs, int grid, bool quantizeEnds, bool triplets, double measureTicks) const
+	double ticksPerMs, int grid, bool quantizeEnds, int tripletTicks, double measureTicks) const
 {
 	struct Note
 	{
@@ -405,12 +406,13 @@ double LiveRecorder::AddQuantized(MidiMessageSequence& track, int source, int ch
 		}
 	}
 
-	// The measure is divided into windows of two grid steps; in a window the notes are
-	// moved either to the grid or to its triplets (three steps in the window). A note
-	// played a little before a window belongs to that window.
-	const double window = grid * 2.0;
-	const double tripletGrid = window / 3.0;
-	const double early = tripletGrid / 2.0;
+	// The measure is divided into windows: the shortest length that the grid and a group
+	// of three triplet steps both fit into. In a window the notes are moved either to the
+	// grid or to the triplet grid. A note played a little before a window belongs to it.
+	const bool triplets = tripletTicks > 0;
+	const double window = triplets ? (double)std::lcm(grid, tripletTicks * 3) : grid * 2.0;
+	const double tripletGrid = triplets ? tripletTicks : grid;
+	const double early = std::min((double)grid, tripletGrid) / 2.0;
 	struct Place
 	{
 		long long key;  // identifies the window
@@ -531,7 +533,7 @@ double LiveRecorder::AddQuantized(MidiMessageSequence& track, int source, int ch
 
 bool LiveRecorder::Save(const File& file, int tempo, int beatNumerator, int beatDenominator,
 	bool includeStyle, int reverbType, String& error, int quantizeTicks, bool quantizeEnds,
-	bool quantizeTriplets) const
+	int tripletTicks) const
 {
 	const ScopedLock lock(m_lock);
 	if (m_noteCount == 0)
@@ -671,7 +673,7 @@ bool LiveRecorder::Save(const File& file, int tempo, int beatNumerator, int beat
 			// the length of a measure: the quarter note is ticksPerQuarter ticks long
 			const double measureTicks = std::max(1, beatNumerator) * 4.0 * ticksPerQuarter / std::max(1, beatDenominator);
 			lastTick = AddQuantized(track, source, channel, ticksPerMs, quantizeTicks, quantizeEnds,
-				quantizeTriplets, measureTicks);
+				tripletTicks, measureTicks);
 		}
 		else
 		{

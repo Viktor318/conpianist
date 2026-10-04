@@ -76,7 +76,7 @@ void Settings::Save()
 	prop.setValue("Recorder.CountIn", recorderCountIn);
 	prop.setValue("Recorder.Quantize", recorderQuantize);
 	prop.setValue("Recorder.QuantizeTicks", recorderQuantizeTicks);
-	prop.setValue("Recorder.QuantizeTriplets", recorderQuantizeTriplets);
+	prop.setValue("Recorder.QuantizeTripletTicks", recorderQuantizeTripletTicks);
 	prop.setValue("Recorder.QuantizeEnds", recorderQuantizeEnds);
 
 	prop.save();
@@ -133,7 +133,7 @@ void Settings::Load()
 	recorderCountIn = jlimit(0, 2, prop.getIntValue("Recorder.CountIn", recorderCountIn));
 	recorderQuantize = prop.getBoolValue("Recorder.Quantize", recorderQuantize);
 	recorderQuantizeTicks = jlimit(1, 1920, prop.getIntValue("Recorder.QuantizeTicks", recorderQuantizeTicks));
-	recorderQuantizeTriplets = prop.getBoolValue("Recorder.QuantizeTriplets", recorderQuantizeTriplets);
+	recorderQuantizeTripletTicks = jlimit(0, 1920, prop.getIntValue("Recorder.QuantizeTripletTicks", recorderQuantizeTripletTicks));
 	recorderQuantizeEnds = prop.getBoolValue("Recorder.QuantizeEnds", recorderQuantizeEnds);
 }
 
