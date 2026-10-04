@@ -146,7 +146,8 @@ public:
 		apStringResonance,
 		apKeyOffSampling,
 		apMetronome,
-		apPlaybackSource
+		apPlaybackSource,
+		apStyle
 	};
 
 	static const int MinVolume = 0;
@@ -275,6 +276,40 @@ public:
 	void PlayLive(const MidiMessage& message);
 	// Recording of what is played live (Live Play, the piano's own keys and the piano's
 	// accompaniment). autoStart: the recording starts with the first played note.
+	// Accompaniment (style) of the piano. It needs the piano: nothing happens without it.
+	enum StyleSection
+	{
+		ssIntro1 = 0x00,    // .. Intro 4 = 0x03
+		ssMainA = 0x08,     // .. Main D = 0x0b
+		ssFillInAA = 0x10,  // .. Fill In DD = 0x13
+		ssBreak = 0x18,
+		ssEnding1 = 0x20,   // .. Ending 4 = 0x23
+		ssNone = 0x7f
+	};
+	struct StyleChord
+	{
+		int root = 0x7f;     // 0fffnnnn: fff - 0 bbb, 1 bb, 2 b, 3 natural, 4 #, 5 ##, 6 ###;
+		                     // nnnn - 1 C, 2 D, 3 E, 4 F, 5 G, 6 A, 7 B; 0x7f - no chord
+		int type = 0x7f;     // 0 Maj, 8 min, 19 7th, ... (Yamaha chord types)
+		int bassRoot = 0x7f; // bass note, like the root
+		int bassType = 0x7f;
+	};
+	// Preset path of the style, e.g. PRESET:/STYLE/Pop & Rock/Pop/Contemp Gtr Pop.T308.prs
+	String GetStyleName();
+	void SetStyle(const String& path);
+	bool GetStylePlaying() const { return m_stylePlaying; }
+	void SetStylePlaying(bool playing);
+	bool GetStyleSyncStart() const { return m_styleSyncStart; }
+	void SetStyleSyncStart(bool on);
+	int GetStyleSection() const { return m_styleSection; }         // playing now
+	int GetStyleNextSection() const { return m_styleNextSection; } // played after it
+	void SetStyleSection(int section);
+	Position GetStylePosition() const;
+	StyleChord GetStyleChord() const;
+	// The tempo of the piano (also when ConPianist plays a song itself).
+	int GetStyleTempo() const { return m_pianoTempo; }
+	void SetStyleTempo(int tempo);
+
 	LiveRecorder& GetRecorder() { return m_recorder; }
 	void StartRecording(bool autoStart);
 	void StopRecording();
@@ -504,6 +539,15 @@ private:
 	class SoftMetronome;
 	std::unique_ptr<HighResolutionTimer> m_softMetronome;
 	int m_softBeat = 0;
+	std::atomic<bool> m_stylePlaying{false};
+	std::atomic<bool> m_styleSyncStart{false};
+	std::atomic<int> m_styleSection{ssNone};
+	std::atomic<int> m_styleNextSection{ssNone};
+	std::atomic<int> m_stylePosition{0}; // measure << 16 | beat
+	std::atomic<int> m_styleChord{0x7f7f7f7f}; // root, type, bass root, bass type
+	std::atomic<int> m_pianoTempo{DefaultTempo};
+	CriticalSection m_styleLock; // guards m_styleName
+	String m_styleName;
 	int m_pianoCount = 0;
 	int m_pianoCountPeriod = 0;
 	double m_softNextMs = 0;

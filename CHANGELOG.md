@@ -2,6 +2,11 @@
 
 Ez a fájl a ConPianist változásait dokumentálja. Az 1.0–3.0 verziók az eredeti [hugbug/conpianist](https://github.com/hugbug/conpianist) projekt kiadásai (lásd az [eredeti release-eket](https://github.com/hugbug/conpianist/releases)); az ez utáni bejegyzések ennek a fork-nak ([Viktor318/conpianist](https://github.com/Viktor318/conpianist)) a saját, magáncélú fejlesztései.
 
+## Következő verzió (fejlesztés alatt)
+
+### Új
+- **Kíséret ablak.** A főmenü új **Kíséret…** pontja külön, nyitva tartható ablakot nyit a zongora kíséretének (stílus) vezérléséhez: indítás és leállítás, Sync Start, a szakaszok (Intro 1–4, Main A–D, Fill In, Break, Ending 1–4) az éppen szóló és a következő szakasz jelzésével, tempó, a kíséret hangereje, a felismert akkord és a stílus neve, üteme. Az Intro 2–4 és az Ending 2–4 a Smart Pianist alkalmazásból nem érhető el. Billentyűk, amíg az ablak van elöl: szóköz – indítás és leállítás, 1–4 – Main A–D, F – Fill In, B – Break. A kíséretet a zongora játssza, ezért az ablakhoz csatlakoztatott zongora kell.
+
 ## 4.5 (fork) – 2026. október 4.
 
 Fő újdonságok: élő játék felvétele MIDI-fájlba külön ablakban (metronóm, beszámolás, kíséret, visszahallgatás, kvantálás); a zongora billentyűzetének külön transzponálása a Piano Roomban; a Doricóból exportált és az ékezetes nevű kották megjelenítése.

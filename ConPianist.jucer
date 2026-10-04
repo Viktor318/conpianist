@@ -196,6 +196,10 @@
               file="Source/Scene/RecorderComponent.cpp"/>
         <FILE id="Rc6TfJ" name="RecorderComponent.h" compile="0" resource="0"
               file="Source/Scene/RecorderComponent.h"/>
+        <FILE id="Ac3KmX" name="AccompanimentComponent.cpp" compile="1" resource="0"
+              file="Source/Scene/AccompanimentComponent.cpp"/>
+        <FILE id="Ac7WqD" name="AccompanimentComponent.h" compile="0" resource="0"
+              file="Source/Scene/AccompanimentComponent.h"/>
         <FILE id="D6Rr0S" name="ScoreComponent.cpp" compile="1" resource="0"
               file="Source/Scene/ScoreComponent.cpp"/>
         <FILE id="OgwLWJ" name="ScoreComponent.h" compile="0" resource="0"

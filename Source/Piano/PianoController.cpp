@@ -92,6 +92,12 @@ void PianoController::InitEvents()
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Events, Property::VoiceMidi));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Events, Property::SongName));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Events, Property::SplitPoint));
+	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Events, Property::StyleName));
+	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Events, Property::StylePlay));
+	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Events, Property::StylePosition));
+	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Events, Property::StyleSyncStart));
+	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Events, Property::StyleSection));
+	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Events, Property::StyleChord));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Events, Property::Metronome));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Events, Property::MetronomeCount));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Events, Property::MetronomeBeat));
@@ -146,6 +152,11 @@ void PianoController::ResyncStateFromPiano()
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::StreamSpeed));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::ReverbEffect));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::Tempo));
+	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::StyleName));
+	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::StylePlay));
+	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::StyleSyncStart));
+	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::StyleSection, 0, 0));
+	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::StyleSection, 1, 0));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::Metronome));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::MetronomeBeat));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::MetronomeBell));
@@ -936,6 +947,14 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 		return;
 	}
 
+	if (property == Property::Tempo && pm->GetIndex() != 1)
+	{
+		// the tempo of the piano itself (index 1 is the tempo of its song): the
+		// accompaniment follows it, also when ConPianist plays a song itself
+		m_pianoTempo = pm->GetIntValue();
+		NotifyChanged(apStyle);
+	}
+
 	if (m_localPlayback &&
 		(property == Property::Position || property == Property::Length ||
 		property == Property::Play || property == Property::SongName ||
@@ -1104,6 +1123,47 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 	{
 		m_tempo = intValue;
 		NotifyChanged(apTempo);
+	}
+	else if (property == Property::StyleName)
+	{
+		// the path as it is, in UTF-8
+		const String raw = pm->GetStrValue();
+		std::vector<char> utf8(raw.length() + 1);
+		for (int i = 0; i < raw.length(); i++)
+		{
+			utf8[i] = (char)raw[i];
+		}
+		utf8[raw.length()] = 0;
+		{
+			const ScopedLock lock(m_styleLock);
+			m_styleName = String::fromUTF8(utf8.data());
+		}
+		NotifyChanged(apStyle);
+	}
+	else if (property == Property::StylePlay)
+	{
+		m_stylePlaying = boolValue;
+		NotifyChanged(apStyle);
+	}
+	else if (property == Property::StyleSyncStart)
+	{
+		m_styleSyncStart = boolValue;
+		NotifyChanged(apStyle);
+	}
+	else if (property == Property::StyleSection)
+	{
+		(index == 1 ? m_styleNextSection : m_styleSection) = intValue;
+		NotifyChanged(apStyle);
+	}
+	else if (property == Property::StylePosition && size == 4)
+	{
+		m_stylePosition = (((data[0] << 7) + data[1]) << 16) | ((data[2] << 7) + data[3]);
+		NotifyChanged(apStyle);
+	}
+	else if (property == Property::StyleChord && size == 4)
+	{
+		m_styleChord = (data[0] << 24) | (data[1] << 16) | (data[2] << 8) | data[3];
+		NotifyChanged(apStyle);
 	}
 	else if (property == Property::Metronome)
 	{
@@ -1977,6 +2037,78 @@ void PianoController::SetMetronomeBeat(int numerator, int denominator)
 	}
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::MetronomeBeat,
 		(numerator << 7) + denominator));
+}
+
+String PianoController::GetStyleName()
+{
+	const ScopedLock lock(m_styleLock);
+	return m_styleName;
+}
+
+void PianoController::SetStyle(const String& path)
+{
+	if (m_connected && path.isNotEmpty())
+	{
+		m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::StyleName, 0, path));
+	}
+}
+
+void PianoController::SetStylePlaying(bool playing)
+{
+	if (m_connected)
+	{
+		m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::StylePlay, 0, playing ? 1 : 0));
+	}
+}
+
+void PianoController::SetStyleSyncStart(bool on)
+{
+	if (m_connected)
+	{
+		m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::StyleSyncStart, 0, on ? 1 : 0));
+	}
+}
+
+// The piano rejects setting the section property; the section is changed with the
+// Section Control system exclusive message of the Yamaha style format, as an arranger
+// keyboard connected to the piano does it.
+void PianoController::SetStyleSection(int section)
+{
+	if (m_connected && section >= 0 && section < 0x7f)
+	{
+		const uint8 data[] = {0x43, 0x7e, 0x00, (uint8)section, 0x7f};
+		m_pianoConnector->SendMidiMessage(MidiMessage::createSysExMessage(data, sizeof(data)));
+	}
+}
+
+PianoController::Position PianoController::GetStylePosition() const
+{
+	const int value = m_stylePosition;
+	return {value >> 16, value & 0xffff};
+}
+
+PianoController::StyleChord PianoController::GetStyleChord() const
+{
+	const int value = m_styleChord;
+	StyleChord chord;
+	chord.root = (value >> 24) & 0x7f;
+	chord.type = (value >> 16) & 0x7f;
+	chord.bassRoot = (value >> 8) & 0x7f;
+	chord.bassType = value & 0x7f;
+	return chord;
+}
+
+void PianoController::SetStyleTempo(int tempo)
+{
+	tempo = jlimit((int)MinTempo, (int)MaxTempo, tempo);
+	if (!m_localPlayback)
+	{
+		SetTempo(tempo); // the same tempo as the song player of the piano
+	}
+	else if (m_connected)
+	{
+		m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::Tempo, tempo));
+	}
 }
 
 void PianoController::StartRecordingWithCountIn(int measures)

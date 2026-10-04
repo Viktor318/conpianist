@@ -196,6 +196,24 @@ struct Property
 	// Value: 0..0x40..0x50
 	const static Property KeyOffSampling;
 
+	// Accompaniment (style)
+	// Value: Style Name as preset path (variable length),
+	// e.g. PRESET:/STYLE/Pop & Rock/Pop/Contemp Gtr Pop.T308.prs
+	const static Property StyleName;
+	// Value: 0 - Stopped, 1 - Playing
+	const static Property StylePlay;
+	// Value (4 Bytes, read only): 2 Bytes for Measure, 2 Bytes for Beat
+	const static Property StylePosition;
+	// Value: 0 - Off, 1 - On (the style starts with the first chord played)
+	const static Property StyleSyncStart;
+	// Index: 0 - Current Section, 1 - Next Section (read only; the section is changed with
+	// the Section Control system exclusive message)
+	// Value: 00..03 Intro 1..4, 08..0b Main A..D, 10..13 Fill In AA..DD, 18 Break,
+	// 20..23 Ending 1..4
+	const static Property StyleSection;
+	// Value (4 Bytes, read only): Chord Root, Chord Type, Bass Root, Bass Type (7f - none)
+	const static Property StyleChord;
+
 	// Metronome. Value: 0 - Off, 1 - On
 	const static Property Metronome;
 

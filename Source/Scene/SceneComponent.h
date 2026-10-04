@@ -32,6 +32,7 @@
 #include "SeqPianoConnector.h"
 #include "Settings.h"
 #include "RecorderComponent.h"
+#include "AccompanimentComponent.h"
 //[/Headers]
 
 
@@ -74,6 +75,7 @@ public:
 	void changeLanguage(const String& language);
 	void showAbout();
 	void showRecorder();
+	void showAccompaniment();
 	void resetMidiConnector();
 	void updatePlaybackSource();
 	void checkNetworkPlayback();
@@ -116,6 +118,7 @@ private:
     std::unique_ptr<MixerComponent> mixerComponent;
     std::unique_ptr<KeyboardComponent> keyboardComponent;
     std::unique_ptr<RecorderWindow> recorderWindow; // Recording window, created when first opened
+    std::unique_ptr<AccompanimentWindow> accompanimentWindow; // likewise
 	std::unique_ptr<LocalMidiConnector> localMidiConnector;
 	std::unique_ptr<RtpMidiConnector> rtpMidiConnector;
 	MidiConnector* midiConnector = nullptr;

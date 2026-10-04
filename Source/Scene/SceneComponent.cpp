@@ -264,6 +264,7 @@ SceneComponent::~SceneComponent()
 {
     //[Destructor_pre]. You can add your own custom destruction code here..
     recorderWindow = nullptr;
+    accompanimentWindow = nullptr;
     saveLastState(); // restored at the next start
     // MIDI In 2 is closed first (the output stays open), so no more notes arrive;
     // then the notes still held there or on the virtual keyboard are released
@@ -507,6 +508,7 @@ void SceneComponent::showMenu()
 	menu.addItem(102, TRANS("Save Piano State"));
 	menu.addSectionHeader(TRANS("LIVE PLAY"));
 	menu.addItem(301, TRANS("Recording..."));
+	menu.addItem(302, TRANS("Accompaniment..."));
 	menu.addSectionHeader(TRANS("LANGUAGE"));
 	// language names are intentionally not translated: each is shown in its own language
 	menu.addItem(201, "English", true, settings.GetEffectiveLanguage() == "en");
@@ -546,6 +548,9 @@ void SceneComponent::showMenu()
 					break;
 				case 301:
 					showRecorder();
+					break;
+				case 302:
+					showAccompaniment();
 					break;
 				case 997:
 					showAbout();
@@ -1412,6 +1417,23 @@ void SceneComponent::showRecorder()
 	}
 	recorderWindow->setVisible(true);
 	recorderWindow->toFront(true);
+}
+
+// The Accompaniment window is not modal either; its keyboard shortcuts work while it is
+// the active window.
+void SceneComponent::showAccompaniment()
+{
+	if (!accompanimentWindow)
+	{
+		accompanimentWindow = std::make_unique<AccompanimentWindow>(settings, pianoController);
+		accompanimentWindow->centreAroundComponent(this, accompanimentWindow->getWidth(), accompanimentWindow->getHeight());
+	}
+	accompanimentWindow->setVisible(true);
+	accompanimentWindow->toFront(true);
+	if (Component* content = accompanimentWindow->getContentComponent())
+	{
+		content->grabKeyboardFocus();
+	}
 }
 
 void SceneComponent::requestExit()
