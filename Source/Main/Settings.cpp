@@ -79,6 +79,7 @@ void Settings::Save()
 	prop.setValue("Recorder.QuantizeTripletTicks", recorderQuantizeTripletTicks);
 	prop.setValue("Recorder.QuantizeEnds", recorderQuantizeEnds);
 	prop.setValue("Recorder.QuantizeFill", recorderQuantizeFill);
+	prop.setValue("Accompaniment.AutoFill", accompanimentAutoFill);
 
 	prop.save();
 	sendChangeMessage();
@@ -137,6 +138,7 @@ void Settings::Load()
 	recorderQuantizeTripletTicks = jlimit(0, 1920, prop.getIntValue("Recorder.QuantizeTripletTicks", recorderQuantizeTripletTicks));
 	recorderQuantizeEnds = prop.getBoolValue("Recorder.QuantizeEnds", recorderQuantizeEnds);
 	recorderQuantizeFill = prop.getBoolValue("Recorder.QuantizeFill", recorderQuantizeFill);
+	accompanimentAutoFill = prop.getBoolValue("Accompaniment.AutoFill", accompanimentAutoFill);
 }
 
 // The state of the piano and the playback when the program was closed (a registration

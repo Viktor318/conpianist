@@ -2097,13 +2097,39 @@ void PianoController::SetStyleSyncStart(bool on)
 // The piano rejects setting the section property; the section is changed with the
 // Section Control system exclusive message of the Yamaha style format, as an arranger
 // keyboard connected to the piano does it.
-void PianoController::SetStyleSection(int section)
+void PianoController::SendStyleSection(int section, bool on)
 {
 	if (m_connected && section >= 0 && section < 0x7f)
 	{
-		const uint8 data[] = {0x43, 0x7e, 0x00, (uint8)section, 0x7f};
+		const uint8 data[] = {0x43, 0x7e, 0x00, (uint8)section, (uint8)(on ? 0x7f : 0x00)};
 		m_pianoConnector->SendMidiMessage(MidiMessage::createSysExMessage(data, sizeof(data)));
 	}
+}
+
+void PianoController::SetStyleSection(int section)
+{
+	SendStyleSection(section, true);
+}
+
+// A section that stays switched on is repeated (a fill in or the break again and again,
+// like holding its button on an arranger keyboard): it is switched off a moment later,
+// so it is played once. Called on the message thread.
+void PianoController::PlayStyleSection(int section, int thenMain)
+{
+	static const int ReleaseMs = 150;
+	SendStyleSection(section, true);
+	std::weak_ptr<bool> alive = m_alive;
+	Timer::callAfterDelay(ReleaseMs, [this, alive, section, thenMain]()
+		{
+			if (alive.lock())
+			{
+				SendStyleSection(section, false);
+				if (thenMain >= ssMainA && thenMain < ssMainA + 4)
+				{
+					SendStyleSection(thenMain, true);
+				}
+			}
+		});
 }
 
 PianoController::Position PianoController::GetStylePosition() const

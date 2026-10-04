@@ -92,6 +92,8 @@ public:
 	int recorderQuantizeTicks = 120;
 	int recorderQuantizeTripletTicks = 0;
 	bool recorderQuantizeFill = false; // notes are lengthened to the next note
+	// Accompaniment window: a fill in is played when the main section is changed
+	bool accompanimentAutoFill = false;
 	bool recorderQuantizeEnds = false;
 
 private:

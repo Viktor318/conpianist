@@ -87,6 +87,8 @@ AccompanimentComponent::AccompanimentComponent(Settings& settings, PianoControll
 	{
 		initButton(endingButtons[i], String(i + 1));
 	}
+	initButton(autoFillButton, TRANS("Auto Fill"));
+	autoFillButton.setTooltip(TRANS("When on, a fill in is played before the new main section when the main section is changed (A)"));
 	initButton(fillInButton, TRANS("Fill In"));
 	fillInButton.setTooltip(TRANS("One measure of fill in, staying in the same main section (F)"));
 	initButton(breakButton, TRANS("Break"));
@@ -164,6 +166,7 @@ void AccompanimentComponent::resized()
 	{
 		endingButtons[i].setBounds(90 + i * 48, 228, 44, 32);
 	}
+	autoFillButton.setBounds(290, 148, 134, 32);
 	fillInButton.setBounds(290, 188, 64, 32);
 	breakButton.setBounds(360, 188, 64, 32);
 	// volume
@@ -188,7 +191,11 @@ void AccompanimentComponent::buttonClicked(Button* button)
 	}
 	else if (button == &breakButton)
 	{
-		pianoController.SetStyleSection(PianoController::ssBreak);
+		pianoController.PlayStyleSection(PianoController::ssBreak);
+	}
+	else if (button == &autoFillButton)
+	{
+		toggleAutoFill();
 	}
 	else
 	{
@@ -203,7 +210,7 @@ void AccompanimentComponent::buttonClicked(Button* button)
 		{
 			if (button == &mainButtons[i])
 			{
-				pianoController.SetStyleSection(PianoController::ssMainA + i);
+				changeMain(i);
 			}
 		}
 		for (int i = 0; i < NumEndings; i++)
@@ -226,7 +233,31 @@ void AccompanimentComponent::fillIn()
 	const int current = pianoController.GetStyleSection();
 	const int next = pianoController.GetStyleNextSection();
 	const int main = isMain(current) ? current : isMain(next) ? next : (int)PianoController::ssMainA;
-	pianoController.SetStyleSection(PianoController::ssFillInAA + (main - PianoController::ssMainA));
+	// played once, then the same main section goes on
+	pianoController.PlayStyleSection(PianoController::ssFillInAA + (main - PianoController::ssMainA));
+}
+
+// Main A..D (index 0..3). With Auto Fill, while the accompaniment is playing, the fill
+// in of the new main section is played first.
+void AccompanimentComponent::changeMain(int index)
+{
+	const int main = PianoController::ssMainA + index;
+	if (settings.accompanimentAutoFill && pianoController.GetStylePlaying() &&
+		pianoController.GetStyleSection() != main)
+	{
+		pianoController.PlayStyleSection(PianoController::ssFillInAA + index, main);
+	}
+	else
+	{
+		pianoController.SetStyleSection(main);
+	}
+}
+
+void AccompanimentComponent::toggleAutoFill()
+{
+	settings.accompanimentAutoFill = !settings.accompanimentAutoFill;
+	settings.Save();
+	update();
 }
 
 // Shortcuts while the window is active: Space - start and stop, 1..4 - Main A..D,
@@ -245,7 +276,12 @@ bool AccompanimentComponent::keyPressed(const KeyPress& key)
 	}
 	if (character >= '1' && character <= '4')
 	{
-		pianoController.SetStyleSection(PianoController::ssMainA + (int)(character - '1'));
+		changeMain((int)(character - '1'));
+		return true;
+	}
+	if (character == 'a')
+	{
+		toggleAutoFill();
 		return true;
 	}
 	if (character == 'f')
@@ -255,7 +291,7 @@ bool AccompanimentComponent::keyPressed(const KeyPress& key)
 	}
 	if (character == 'b')
 	{
-		pianoController.SetStyleSection(PianoController::ssBreak);
+		pianoController.PlayStyleSection(PianoController::ssBreak);
 		return true;
 	}
 	return false;
@@ -342,6 +378,7 @@ void AccompanimentComponent::update()
 	const bool fill = current >= PianoController::ssFillInAA && current < PianoController::ssFillInAA + 4;
 	const bool nextFill = next >= PianoController::ssFillInAA && next < PianoController::ssFillInAA + 4;
 	markButton(fillInButton, fill, nextFill);
+	markButton(autoFillButton, settings.accompanimentAutoFill, false);
 	markButton(breakButton, current == PianoController::ssBreak, next == PianoController::ssBreak);
 
 	if (!volumeSlider.isMouseButtonDown(true))
@@ -358,7 +395,7 @@ void AccompanimentComponent::update()
 	}
 
 	hintLabel.setText(connected ?
-		TRANS("Keys: Space - start and stop, 1-4 - Main A-D, F - Fill In, B - Break") :
+		TRANS("Keys: Space - start and stop, 1-4 - Main A-D, F - Fill In, A - Auto Fill, B - Break") :
 		TRANS("The accompaniment is played by the piano: the piano is not connected."),
 		dontSendNotification);
 	hintLabel.setColour(Label::textColourId, connected ? Colours::white.withAlpha(0.6f) : Colours::orange);

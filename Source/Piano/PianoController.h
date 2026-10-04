@@ -305,7 +305,13 @@ public:
 	void SetStyleSyncStart(bool on);
 	int GetStyleSection() const { return m_styleSection; }         // playing now
 	int GetStyleNextSection() const { return m_styleNextSection; } // played after it
+	// Switches to the section (like pressing its button on an arranger keyboard and
+	// keeping it pressed).
 	void SetStyleSection(int section);
+	// Plays the section once (pressing and releasing its button): a fill in or the break
+	// is played for one measure and the accompaniment goes on with its main section. If
+	// thenMain is a main section, the accompaniment goes on with that one.
+	void PlayStyleSection(int section, int thenMain = ssNone);
 	Position GetStylePosition() const;
 	StyleChord GetStyleChord() const;
 	// The tempo of the piano (also when ConPianist plays a song itself).
@@ -549,6 +555,7 @@ private:
 	std::atomic<int> m_stylePosition{0}; // measure << 16 | beat
 	std::atomic<int> m_styleChord{0x7f7f7f7f}; // root, type, bass root, bass type
 	std::atomic<int> m_pianoTempo{DefaultTempo};
+	void SendStyleSection(int section, bool on);
 	CriticalSection m_styleLock; // guards m_styleName
 	String m_styleName;
 	int m_pianoCount = 0;

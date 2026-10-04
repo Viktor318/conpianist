@@ -69,6 +69,7 @@ private:
 	TextButton introButtons[NumIntros];
 	TextButton mainButtons[NumMains];
 	TextButton endingButtons[NumEndings];
+	TextButton autoFillButton; // a fill in is played when the main section is changed
 	TextButton fillInButton;
 	TextButton breakButton;
 	Label volumeLabel;
@@ -77,6 +78,8 @@ private:
 
 	void update();
 	void fillIn();
+	void changeMain(int index);
+	void toggleAutoFill();
 	// current: the section is playing; next: it is played after the current one
 	static void markButton(TextButton& button, bool current, bool next);
 };

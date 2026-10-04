@@ -278,5 +278,7 @@ countries: hu
 "Break" = "Break"
 "One measure of break (B)" = "Egy ütem kiállás (B)"
 "Accompaniment volume:" = "Kíséret hangereje:"
-"Keys: Space - start and stop, 1-4 - Main A-D, F - Fill In, B - Break" = "Billentyűk: szóköz – indítás és leállítás, 1–4 – Main A–D, F – Fill In, B – Break"
+"Keys: Space - start and stop, 1-4 - Main A-D, F - Fill In, A - Auto Fill, B - Break" = "Billentyűk: szóköz – indítás/leállítás, 1–4 – Main A–D, F – Fill In, A – Auto Fill, B – Break"
+"Auto Fill" = "Auto Fill"
+"When on, a fill in is played before the new main section when the main section is changed (A)" = "Bekapcsolva a Main szakasz váltásakor az új szakasz előtt egy kitöltés szól (A)"
 "The accompaniment is played by the piano: the piano is not connected." = "A kíséretet a zongora játssza: a zongora nincs csatlakoztatva."
