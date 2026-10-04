@@ -793,13 +793,18 @@ void ChannelComponent::showMenu(Button* button)
 	if (!generic)
 	{
 		// the voice of this channel for a keyboard part (Voice tab)
+		// The keyboard parts take the voices of the panel only: for an XG, GM2 or GS voice
+		// the panel voice that is the nearest to it is used, and its name is shown. If
+		// there is none, the submenu is disabled.
+		Voice* panelVoice = Presets::FindVoice(pianoController.GetVoice(channel));
+		const bool nearest = panelVoice != nullptr && panelVoice->title != voiceTitle();
 		PopupMenu giveMenu;
 		for (int i = 0; i < 3; i++)
 		{
-			giveMenu.addItem(100 + parts[i], TRANS(partNames[i]));
+			giveMenu.addItem(100 + parts[i], TRANS(partNames[i]) +
+				(nearest ? " (" + panelVoice->title + ")" : String()));
 		}
-		menu.addSubMenu(TRANS("Use Voice for"), giveMenu,
-			Presets::FindVoice(pianoController.GetVoice(channel)) != nullptr);
+		menu.addSubMenu(TRANS("Use Voice for"), giveMenu, panelVoice != nullptr);
 	}
 
 	// voice, volume, pan, reverb and octave back to the song's (or the default) values
