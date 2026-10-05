@@ -39,6 +39,7 @@ public:
 		bool pianoroom = true;
 		bool settings = true;
 		bool livechannels = true; // Live Play octaves, channels used for Live Play only
+		bool style = true;        // the accompaniment: style, tempo, chord detection, mixer
 	};
 
 	RegistrationMemory(PianoController& pianoController, Settings& settings, const Options options, const File file) :
@@ -73,5 +74,7 @@ private:
 	void LoadSettings();
 	void SaveLiveChannels();
 	void LoadLiveChannels();
+	void SaveStyle();
+	void LoadStyle();
 	void SaveSongName();
 };

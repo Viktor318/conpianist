@@ -1246,6 +1246,18 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 			const String name = String::fromUTF8(utf8.data());
 			changed = name != m_styleName;
 			m_styleName = name;
+			m_styleNameKnown = true;
+			// a state is being restored (RestoreStyleState): it goes on now that the
+			// style of the piano is known, or that the piano has loaded the restored one
+			const int stage = m_styleRestoreStage;
+			if (stage == srWaitName)
+			{
+				StyleRestoreAfter(0, srWaitName);
+			}
+			else if (stage == srWaitLoad && name == m_styleRestoreName)
+			{
+				StyleRestoreAfter(500, srWaitLoad);
+			}
 		}
 		if (changed)
 		{
@@ -2305,6 +2317,155 @@ void PianoController::SetStyle(const String& path)
 	if (m_connected && path.isNotEmpty())
 	{
 		m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::StyleName, 0, path));
+	}
+}
+
+PianoController::StyleState PianoController::GetStyleState()
+{
+	StyleState state;
+	if (m_styleNameKnown)
+	{
+		state.style = GetStyleName();
+	}
+	state.tempo = m_pianoTempoKnown ? (int)m_pianoTempo : 0;
+	state.chordArea = m_styleChordArea;
+	state.leftSound = m_styleLeftSound;
+	state.splitPoint = m_styleSplitPoint;
+	state.hasMixer = true;
+	state.volume = GetVolume(chStyle);
+	state.pan = GetPan(chStyle);
+	state.reverb = GetReverb(chStyle);
+	for (int i = 0; i < NumStyleParts; i++)
+	{
+		const Channel ch = StylePartChannel(i);
+		state.parts[i].active = GetActive(ch);
+		state.parts[i].volume = GetVolume(ch);
+		state.parts[i].pan = GetPan(ch);
+		state.parts[i].reverb = GetReverb(ch);
+	}
+	return state;
+}
+
+void PianoController::RestoreStyleState(const StyleState& state)
+{
+	if (!m_connected)
+	{
+		return;
+	}
+
+	// what does not depend on the style is sent at once
+	if (state.chordArea == caLower || state.chordArea == caFull)
+	{
+		SetStyleChordArea(state.chordArea);
+	}
+	if (state.leftSound >= 0)
+	{
+		SetStyleLeftSound(state.leftSound == 1);
+	}
+	if (state.splitPoint > 0)
+	{
+		SetStyleSplitPoint(state.splitPoint);
+	}
+
+	m_styleRestore = state;
+	m_styleRestoreSerial++;
+	{
+		const ScopedLock lock(m_styleLock);
+		m_styleRestoreName = state.style;
+	}
+	if (m_styleNameKnown)
+	{
+		StyleRestoreSendStyle();
+	}
+	else
+	{
+		// right after connecting: the style of the piano is reported soon; if it is not,
+		// the saved style is sent anyway
+		m_styleRestoreStage = srWaitName;
+		StyleRestoreAfter(3000, srWaitName);
+	}
+}
+
+// Goes on with the restoring after a delay, if it is still at the given stage (and no
+// other restoring was started meanwhile). Called on any thread.
+void PianoController::StyleRestoreAfter(int ms, int stage)
+{
+	std::weak_ptr<bool> alive = m_alive;
+	MessageManager::callAsync([this, alive, ms, stage]()
+		{
+			if (!alive.lock())
+			{
+				return;
+			}
+			const int serial = m_styleRestoreSerial;
+			auto goOn = [this, alive, stage, serial]()
+				{
+					if (!alive.lock() || serial != m_styleRestoreSerial || m_styleRestoreStage != stage)
+					{
+						return;
+					}
+					if (stage == srWaitName)
+					{
+						StyleRestoreSendStyle();
+					}
+					else
+					{
+						StyleRestoreFinish();
+					}
+				};
+			if (ms > 0)
+			{
+				Timer::callAfterDelay(ms, goOn);
+			}
+			else
+			{
+				goOn();
+			}
+		});
+}
+
+void PianoController::StyleRestoreSendStyle()
+{
+	const String style = m_styleRestore.style;
+	if (style.isNotEmpty() && (!m_styleNameKnown || style != GetStyleName()))
+	{
+		// the rest follows when the piano reports the style (or a little later, if it
+		// does not, e.g. because it does not know the style)
+		m_styleRestoreStage = srWaitLoad;
+		SetStyle(style);
+		StyleRestoreAfter(3000, srWaitLoad);
+	}
+	else
+	{
+		StyleRestoreFinish();
+	}
+}
+
+void PianoController::StyleRestoreFinish()
+{
+	m_styleRestoreStage = srNone;
+	if (!m_connected)
+	{
+		return;
+	}
+	const StyleState& state = m_styleRestore;
+	if (state.tempo > 0)
+	{
+		SetStyleTempo(state.tempo);
+	}
+	if (state.hasMixer)
+	{
+		SetVolume(chStyle, state.volume);
+		SetPan(chStyle, state.pan);
+		SetReverb(chStyle, state.reverb);
+		for (int i = 0; i < NumStyleParts; i++)
+		{
+			const Channel ch = StylePartChannel(i);
+			SetVolume(ch, state.parts[i].volume);
+			SetPan(ch, state.parts[i].pan);
+			SetReverb(ch, state.parts[i].reverb);
+			SetActive(ch, state.parts[i].active);
+		}
 	}
 }
 

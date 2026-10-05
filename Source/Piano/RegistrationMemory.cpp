@@ -94,6 +94,11 @@ std::unique_ptr<XmlElement> RegistrationMemory::CreateXml()
 		SaveLiveChannels();
 	}
 
+	if (options.style)
+	{
+		SaveStyle();
+	}
+
 	root = nullptr;
 	return state;
 }
@@ -176,6 +181,13 @@ void RegistrationMemory::Load()
 	if (options.pianoroom)
 	{
 		LoadPianoRoom();
+	}
+
+	if (options.style)
+	{
+		// after the voices: the split point of the Left part is sent before the one of
+		// the accompaniment (the piano moves one with the other)
+		LoadStyle();
 	}
 }
 
@@ -332,6 +344,102 @@ void RegistrationMemory::LoadSplitPoint()
 	if (!chElem) return;
 
 	pianoController.SetSplitPoint(chElem->getAllSubText().getIntValue());
+}
+
+// The accompaniment: the style, the tempo, the chord detection, its split point and its
+// mixer (the whole accompaniment and its parts).
+void RegistrationMemory::SaveStyle()
+{
+	const PianoController::StyleState state = pianoController.GetStyleState();
+	XmlElement* styleElem = root->createNewChildElement("Style");
+	if (state.style.isNotEmpty())
+	{
+		styleElem->createNewChildElement("Path")->addTextElement(state.style);
+	}
+	if (state.tempo > 0)
+	{
+		styleElem->createNewChildElement("Tempo")->addTextElement(String(state.tempo));
+	}
+	if (state.chordArea == PianoController::caLower || state.chordArea == PianoController::caFull)
+	{
+		styleElem->createNewChildElement("ChordDetection")->addTextElement(
+			state.chordArea == PianoController::caFull ? "full" : "lower");
+	}
+	if (state.leftSound >= 0)
+	{
+		styleElem->createNewChildElement("MainVoiceBelow")->addTextElement(state.leftSound == 1 ? "yes" : "no");
+	}
+	if (state.splitPoint > 0)
+	{
+		styleElem->createNewChildElement("SplitPoint")->addTextElement(String(state.splitPoint));
+	}
+	if (state.hasMixer)
+	{
+		XmlElement* mixerElem = styleElem->createNewChildElement("Mixer");
+		mixerElem->setAttribute("volume", state.volume);
+		mixerElem->setAttribute("pan", state.pan);
+		mixerElem->setAttribute("reverb", state.reverb);
+		for (int i = 0; i < PianoController::NumStyleParts; i++)
+		{
+			XmlElement* partElem = mixerElem->createNewChildElement("Part");
+			partElem->setAttribute("number", i + 1);
+			partElem->setAttribute("name", PianoController::StylePartName(i));
+			partElem->setAttribute("active", state.parts[i].active ? "yes" : "no");
+			partElem->setAttribute("volume", state.parts[i].volume);
+			partElem->setAttribute("pan", state.parts[i].pan);
+			partElem->setAttribute("reverb", state.parts[i].reverb);
+		}
+	}
+}
+
+void RegistrationMemory::LoadStyle()
+{
+	XmlElement* styleElem = root->getChildByName("Style");
+	if (!styleElem) return; // saved by an older version
+
+	PianoController::StyleState state;
+	XmlElement* el;
+	if ((el = styleElem->getChildByName("Path")))
+	{
+		state.style = el->getAllSubText().trim();
+	}
+	if ((el = styleElem->getChildByName("Tempo")))
+	{
+		const int tempo = el->getAllSubText().getIntValue();
+		state.tempo = tempo > 0 ? jlimit((int)PianoController::MinTempo, (int)PianoController::MaxTempo, tempo) : 0;
+	}
+	if ((el = styleElem->getChildByName("ChordDetection")))
+	{
+		const String value = el->getAllSubText().trim();
+		state.chordArea = value.equalsIgnoreCase("full") ? PianoController::caFull :
+			value.equalsIgnoreCase("lower") ? PianoController::caLower : PianoController::caUnknown;
+	}
+	if ((el = styleElem->getChildByName("MainVoiceBelow")))
+	{
+		state.leftSound = el->getAllSubText().trim().equalsIgnoreCase("yes") ? 1 : 0;
+	}
+	if ((el = styleElem->getChildByName("SplitPoint")))
+	{
+		const int splitPoint = el->getAllSubText().getIntValue();
+		state.splitPoint = splitPoint > 0 && splitPoint < 128 ? splitPoint : 0;
+	}
+	if (XmlElement* mixerElem = styleElem->getChildByName("Mixer"))
+	{
+		state.hasMixer = true;
+		state.volume = jlimit(0, 127, mixerElem->getIntAttribute("volume", PianoController::DefaultVolume));
+		state.pan = jlimit(-64, 63, mixerElem->getIntAttribute("pan", PianoController::DefaultPan));
+		state.reverb = jlimit(0, 127, mixerElem->getIntAttribute("reverb", PianoController::DefaultReverb));
+		for (XmlElement* partElem : mixerElem->getChildWithTagNameIterator("Part"))
+		{
+			const int i = partElem->getIntAttribute("number") - 1;
+			if (i < 0 || i >= PianoController::NumStyleParts) continue;
+			state.parts[i].active = !partElem->getStringAttribute("active", "yes").equalsIgnoreCase("no");
+			state.parts[i].volume = jlimit(0, 127, partElem->getIntAttribute("volume", PianoController::DefaultVolume));
+			state.parts[i].pan = jlimit(-64, 63, partElem->getIntAttribute("pan", PianoController::DefaultPan));
+			state.parts[i].reverb = jlimit(0, 127, partElem->getIntAttribute("reverb", PianoController::DefaultReverb));
+		}
+	}
+	pianoController.RestoreStyleState(state);
 }
 
 void RegistrationMemory::SaveReverbEffect()

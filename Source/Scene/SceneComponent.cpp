@@ -1119,8 +1119,8 @@ String SceneComponent::getLastStateSong() const
 	return file.existsAsFile() ? RegistrationMemory::GetSongName(file) : String();
 }
 
-// Restores the piano's own settings of the last state (voices, balance, Piano Room),
-// once, when the piano is connected for the first time.
+// Restores the piano's own settings of the last state (voices, balance, Piano Room,
+// accompaniment), once, when the piano is connected for the first time.
 void SceneComponent::restorePianoState()
 {
 	if (pianoStateRestored)
@@ -1156,6 +1156,7 @@ void SceneComponent::restoreSongState()
 		opts.balance = false;
 		opts.pianoroom = false;
 		opts.settings = false;
+		opts.style = false;
 		RegistrationMemory regmem(pianoController, settings, opts, file);
 		regmem.Load();
 	}
@@ -1228,6 +1229,7 @@ void SceneComponent::saveLastState()
 		{
 			keep(*state, previous.get(), "Voices");
 			keep(*state, previous.get(), "PianoRoom");
+			keep(*state, previous.get(), "Style");
 			for (const char* name : {"Main", "Left", "Layer", "Mic", "AuxIn"})
 			{
 				keep(*channels, previousChannels, name);

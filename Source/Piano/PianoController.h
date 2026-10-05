@@ -347,6 +347,33 @@ public:
 	// the volume, the pan or the reverb (apVolume, apPan, apReverb) back to it; false if
 	// it is not known.
 	bool ResetStyleValue(Channel ch, Aspect aspect);
+	// The settings of the accompaniment that are saved with the state of the program
+	// (last state, registration memory file) and restored from it.
+	struct StyleState
+	{
+		String style;               // preset path of the style (empty: not saved)
+		int tempo = 0;              // 0: not saved
+		int chordArea = caUnknown;
+		int leftSound = -1;         // -1: not saved
+		int splitPoint = 0;         // of the accompaniment (0: not saved)
+		bool hasMixer = false;      // the values below were saved
+		int volume = DefaultVolume; // of the whole accompaniment
+		int pan = DefaultPan;
+		int reverb = DefaultReverb;
+		struct Part
+		{
+			bool active = true;
+			int volume = DefaultVolume;
+			int pan = DefaultPan;
+			int reverb = DefaultReverb;
+		};
+		Part parts[8];              // NumStyleParts
+	};
+	StyleState GetStyleState();
+	// Sends the saved settings to the piano: the style first (if it is another one), the
+	// tempo and the mixer of the accompaniment when the piano has loaded it, since a new
+	// style brings its own values. Called on the message thread.
+	void RestoreStyleState(const StyleState& state);
 
 	LiveRecorder& GetRecorder() { return m_recorder; }
 	void StartRecording(bool autoStart);
@@ -617,8 +644,23 @@ private:
 	void SendStyleSection(int section, bool on);
 	std::atomic<int> m_styleFillTarget{ssNone}; // main section to go on with after the fill in
 	std::atomic<uint32> m_styleFillTargetMs{0}; // when it was asked for
-	CriticalSection m_styleLock; // guards m_styleName
+	CriticalSection m_styleLock; // guards m_styleName and m_styleRestoreName
 	String m_styleName;
+	// RestoreStyleState in progress
+	enum StyleRestoreStage
+	{
+		srNone,
+		srWaitName, // the piano has not reported its style yet
+		srWaitLoad  // the style was sent, the piano is loading it
+	};
+	std::atomic<int> m_styleRestoreStage{srNone};
+	std::atomic<bool> m_styleNameKnown{false}; // the piano has reported its style
+	String m_styleRestoreName;  // the style that is being restored
+	StyleState m_styleRestore;  // used on the message thread
+	int m_styleRestoreSerial = 0;
+	void StyleRestoreAfter(int ms, int stage);
+	void StyleRestoreSendStyle();
+	void StyleRestoreFinish();
 	int m_pianoCount = 0;
 	int m_pianoCountPeriod = 0;
 	double m_softNextMs = 0;
