@@ -288,7 +288,7 @@ countries: hu
 "Subcategory of the style" = "A stílus alkategóriája"
 "Apply" = "Alkalmaz"
 "Loads the chosen style on the piano (Enter)" = "Betölti a kiválasztott stílust a zongorán (Enter)"
-"Current style:" = "Aktuális stílus:"
+"Current:" = "Aktuális:"
 "Tap Tempo" = "Tap Tempo"
 "Press it several times in the tempo you want: the tempo is set from the presses (T)" = "Nyomd meg többször egymás után a kívánt tempóban: a tempó a leütésekből áll be (T)"
 "Reset" = "Reset"

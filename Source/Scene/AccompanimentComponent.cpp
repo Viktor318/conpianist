@@ -60,7 +60,7 @@ AccompanimentComponent::AccompanimentComponent(Settings& settings, PianoControll
 	initButton(applyButton, TRANS("Apply"));
 	applyButton.setTooltip(TRANS("Loads the chosen style on the piano (Enter)"));
 
-	initLabel(currentLabel, TRANS("Current style:"));
+	initLabel(currentLabel, TRANS("Current:"));
 	initLabel(currentNameLabel, "");
 	currentNameLabel.setMinimumHorizontalScale(0.7f);
 	// bold, in the colour of the chord, in a frame like the chord (see paint)
