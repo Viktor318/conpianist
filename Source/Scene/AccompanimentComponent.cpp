@@ -159,7 +159,7 @@ AccompanimentComponent::AccompanimentComponent(Settings& settings, PianoControll
 	positionLabel.setJustificationType(Justification::centredRight);
 
 	initLabel(introLabel, TRANS("Intro"));
-	initLabel(mainLabel, TRANS("Main"));
+	initLabel(mainLabel, "Main"); // the name of the section, not translated (unlike the Main part)
 	initLabel(endingLabel, TRANS("Ending"));
 	for (int i = 0; i < NumIntros; i++)
 	{
