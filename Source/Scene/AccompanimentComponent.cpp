@@ -84,7 +84,6 @@ AccompanimentComponent::AccompanimentComponent(Settings& settings, PianoControll
 	// flats) and major or minor
 	initLabel(keyLabel, TRANS("Key:"));
 	initLabel(chordLabel, TRANS("Chord:"));
-	chordLabel.setVisible(false); // not shown: the frame has the whole rest of the row
 	keyCombo.setWantsKeyboardFocus(false);
 	keyCombo.setTooltip(TRANS("The key of the music: the chords are named with the sharps or the flats of the key (without a key, as the piano names them), and the key is written into the recording"));
 	keyModeCombo.setWantsKeyboardFocus(false);
@@ -181,7 +180,7 @@ AccompanimentComponent::AccompanimentComponent(Settings& settings, PianoControll
 	hintLabel.setMinimumHorizontalScale(0.7f);
 
 	setWantsKeyboardFocus(true);
-	setSize(440, 482);
+	setSize(440, 536);
 
 	pianoController.AddListener(this);
 	update();
@@ -193,7 +192,7 @@ AccompanimentComponent::~AccompanimentComponent()
 }
 
 // vertical positions of the lines between the groups of the controls
-static const int AccompanimentSeparatorY[] = {204, 256, 388, 432};
+static const int AccompanimentSeparatorY[] = {204, 258, 310, 442, 486};
 
 void AccompanimentComponent::paint(Graphics& g)
 {
@@ -224,9 +223,7 @@ void AccompanimentComponent::resized()
 		currentNameLabel.setBounds(16 + labelWidth, 88, 408 - labelWidth, 24);
 	}
 	{
-		// The key list right after its label, then the label of the chord; the chord is
-		// in a frame that takes the rest of the row, in the middle of it, with the same
-		// distance from the row above and from the row below.
+		// the key list right after its label, then major or minor
 		auto widthOf = [](const Label& label)
 			{
 				return GlyphArrangement::getStringWidthInt(label.getFont(), label.getText()) + 10;
@@ -235,8 +232,12 @@ void AccompanimentComponent::resized()
 		keyLabel.setBounds(16, 128, keyWidth, 24);
 		keyCombo.setBounds(16 + keyWidth, 128, 54, 24);
 		keyModeCombo.setBounds(16 + keyWidth + 54 + 4, 128, 66, 24);
-		const int chordX = 16 + keyWidth + 54 + 4 + 66 + 12;
-		chordFrame = Rectangle<int>(chordX, 121, 424 - chordX, 38);
+	}
+	{
+		// The chord in a row of its own, between two lines: its label at the left, and
+		// the frame in the middle of the window, wide enough for the longest chord name.
+		chordLabel.setBounds(16, 219, 74, 24);
+		chordFrame = Rectangle<int>((getWidth() - 260) / 2, 212, 260, 38);
 		chordNameLabel.setBounds(chordFrame.reduced(4, 1));
 	}
 	{
@@ -253,33 +254,33 @@ void AccompanimentComponent::resized()
 		tapTempoButton.setBounds(right - buttonWidth, 168, buttonWidth, 28);
 	}
 	// start and stop
-	startButton.setBounds(16, 214, 128, 32);
-	syncStartButton.setBounds(156, 214, 128, 32);
-	positionLabel.setBounds(296, 214, 128, 32);
+	startButton.setBounds(16, 268, 128, 32);
+	syncStartButton.setBounds(156, 268, 128, 32);
+	positionLabel.setBounds(296, 268, 128, 32);
 	// sections
-	introLabel.setBounds(16, 266, 70, 32);
-	mainLabel.setBounds(16, 306, 70, 32);
-	endingLabel.setBounds(16, 346, 70, 32);
+	introLabel.setBounds(16, 320, 70, 32);
+	mainLabel.setBounds(16, 360, 70, 32);
+	endingLabel.setBounds(16, 400, 70, 32);
 	for (int i = 0; i < NumIntros; i++)
 	{
-		introButtons[i].setBounds(90 + i * 48, 266, 44, 32);
+		introButtons[i].setBounds(90 + i * 48, 320, 44, 32);
 	}
 	for (int i = 0; i < NumMains; i++)
 	{
-		mainButtons[i].setBounds(90 + i * 48, 306, 44, 32);
+		mainButtons[i].setBounds(90 + i * 48, 360, 44, 32);
 	}
 	for (int i = 0; i < NumEndings; i++)
 	{
-		endingButtons[i].setBounds(90 + i * 48, 346, 44, 32);
+		endingButtons[i].setBounds(90 + i * 48, 400, 44, 32);
 	}
-	autoFillButton.setBounds(290, 266, 134, 32);
-	fillInButton.setBounds(290, 306, 64, 32);
-	breakButton.setBounds(360, 306, 64, 32);
+	autoFillButton.setBounds(290, 320, 134, 32);
+	fillInButton.setBounds(290, 360, 64, 32);
+	breakButton.setBounds(360, 360, 64, 32);
 	// volume
-	volumeLabel.setBounds(16, 398, 170, 24);
-	volumeSlider.setBounds(186, 398, 238, 24);
-	shortcutsButton.setBounds(16, 442, 190, 28);
-	hintLabel.setBounds(214, 444, 210, 24);
+	volumeLabel.setBounds(16, 452, 170, 24);
+	volumeSlider.setBounds(186, 452, 238, 24);
+	shortcutsButton.setBounds(16, 496, 190, 28);
+	hintLabel.setBounds(214, 498, 210, 24);
 }
 
 void AccompanimentComponent::buttonClicked(Button* button)

@@ -81,7 +81,7 @@ private:
 	TextButton tapTempoButton;
 	Label chordLabel;
 	Label chordNameLabel; // the recognized chord, large, in the middle of its frame
-	Rectangle<int> chordFrame; // the frame around the chord: the rest of the row
+	Rectangle<int> chordFrame; // the frame around the chord, in a row of its own
 	Label keyLabel;
 	ComboBox keyCombo;    // the key of the music: the chords are named with its sharps or flats
 	ComboBox keyModeCombo; // major or minor
