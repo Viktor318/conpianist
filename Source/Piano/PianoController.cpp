@@ -2348,6 +2348,8 @@ PianoController::StyleState PianoController::GetStyleState()
 
 void PianoController::RestoreStyleState(const StyleState& state)
 {
+	// the key (a setting of the program) may have been loaded with it
+	NotifyChanged(apStyle);
 	if (!m_connected)
 	{
 		return;

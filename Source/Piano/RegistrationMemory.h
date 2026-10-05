@@ -40,6 +40,7 @@ public:
 		bool settings = true;
 		bool livechannels = true; // Live Play octaves, channels used for Live Play only
 		bool style = true;        // the accompaniment: style, tempo, chord detection, mixer
+		bool key = true;          // the key of the Accompaniment window (a program setting; with "style")
 	};
 
 	RegistrationMemory(PianoController& pianoController, Settings& settings, const Options options, const File file) :

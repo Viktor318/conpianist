@@ -724,6 +724,15 @@ void AccompanimentComponent::update()
 	const bool connected = pianoController.IsConnected();
 	const bool playing = connected && pianoController.GetStylePlaying();
 
+	// the key may have been changed by a loaded registration memory file
+	const String shownKey = keyCombo.getSelectedId() > 1 ? keyCombo.getText() : String();
+	if (shownKey != settings.accompanimentKey ||
+		(keyModeCombo.getSelectedId() == 2) != settings.accompanimentMinor)
+	{
+		keyModeCombo.setSelectedId(settings.accompanimentMinor ? 2 : 1, dontSendNotification);
+		fillKeyCombo();
+	}
+
 	// The lists show the style of the piano when it changes (at the start, after Apply,
 	// or when it is changed on the piano); otherwise they can be browsed freely.
 	const String path = pianoController.GetStyleName();

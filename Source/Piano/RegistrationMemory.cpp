@@ -373,6 +373,14 @@ void RegistrationMemory::SaveStyle()
 	{
 		styleElem->createNewChildElement("SplitPoint")->addTextElement(String(state.splitPoint));
 	}
+	if (options.key)
+	{
+		// the key chosen in the Accompaniment window (empty: no key); a setting of the
+		// program, which keeps it in its settings file, too
+		XmlElement* keyElem = styleElem->createNewChildElement("Key");
+		keyElem->setAttribute("mode", settings.accompanimentMinor ? "minor" : "major");
+		keyElem->addTextElement(settings.accompanimentKey);
+	}
 	if (state.hasMixer)
 	{
 		XmlElement* mixerElem = styleElem->createNewChildElement("Mixer");
@@ -399,6 +407,23 @@ void RegistrationMemory::LoadStyle()
 
 	PianoController::StyleState state;
 	XmlElement* el;
+	if (options.key && (el = styleElem->getChildByName("Key")))
+	{
+		const bool minor = el->getStringAttribute("mode").equalsIgnoreCase("minor");
+		const String key = el->getAllSubText().trim();
+		bool valid = key.isEmpty();
+		for (int i = 0; !valid && i < Settings::NumKeys; i++)
+		{
+			valid = key == Settings::KeyName(i, minor);
+		}
+		if (valid && (key != settings.accompanimentKey || minor != settings.accompanimentMinor))
+		{
+			// the Accompaniment window shows it when the controller notifies (below)
+			settings.accompanimentKey = key;
+			settings.accompanimentMinor = minor;
+			settings.Save();
+		}
+	}
 	if ((el = styleElem->getChildByName("Path")))
 	{
 		state.style = el->getAllSubText().trim();

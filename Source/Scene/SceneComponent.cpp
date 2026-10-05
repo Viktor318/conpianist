@@ -1138,6 +1138,7 @@ void SceneComponent::restorePianoState()
 		opts.mixer = false;
 		opts.playback = false;
 		opts.settings = false;
+		opts.key = false; // at the start the key of the settings file is used
 		RegistrationMemory regmem(pianoController, settings, opts, file);
 		regmem.Load();
 	}
