@@ -84,6 +84,7 @@ AccompanimentComponent::AccompanimentComponent(Settings& settings, PianoControll
 	// flats) and major or minor
 	initLabel(keyLabel, TRANS("Key:"));
 	initLabel(chordLabel, TRANS("Chord:"));
+	chordLabel.setVisible(false); // not shown: the frame has the whole rest of the row
 	keyCombo.setWantsKeyboardFocus(false);
 	keyCombo.setTooltip(TRANS("The key of the music: the chords are named with the sharps or the flats of the key (without a key, as the piano names them), and the key is written into the recording"));
 	keyModeCombo.setWantsKeyboardFocus(false);
@@ -231,13 +232,11 @@ void AccompanimentComponent::resized()
 				return GlyphArrangement::getStringWidthInt(label.getFont(), label.getText()) + 10;
 			};
 		const int keyWidth = jlimit(30, 90, widthOf(keyLabel));
-		const int chordWidth = jlimit(30, 90, widthOf(chordLabel));
 		keyLabel.setBounds(16, 128, keyWidth, 24);
 		keyCombo.setBounds(16 + keyWidth, 128, 54, 24);
 		keyModeCombo.setBounds(16 + keyWidth + 54 + 4, 128, 66, 24);
-		const int chordX = 16 + keyWidth + 54 + 4 + 66 + 10;
-		chordLabel.setBounds(chordX, 128, chordWidth, 24);
-		chordFrame = Rectangle<int>(chordX + chordWidth, 121, 424 - (chordX + chordWidth), 38);
+		const int chordX = 16 + keyWidth + 54 + 4 + 66 + 12;
+		chordFrame = Rectangle<int>(chordX, 121, 424 - chordX, 38);
 		chordNameLabel.setBounds(chordFrame.reduced(4, 1));
 	}
 	{

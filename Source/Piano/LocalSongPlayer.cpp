@@ -52,6 +52,8 @@ bool LocalSongPlayer::Load(const File& file)
 
 	m_ticksPerQuarter = ticksPerQuarter;
 	m_events.clear();
+	m_chords.clear();
+	m_reportedChord = NoChord;
 	m_endTick = 0;
 
 	struct Meta { int tick; double secondsPerQuarter; int numerator; int denominator; };
@@ -76,6 +78,15 @@ bool LocalSongPlayer::Load(const File& file)
 				int numerator, denominator;
 				msg.getTimeSignatureInfo(numerator, denominator);
 				signatures.push_back({tick, 0.0, numerator, denominator});
+			}
+			else if (msg.isMetaEvent() && msg.getMetaEventType() == 0x7f && msg.getMetaEventLength() >= 7)
+			{
+				// chord of Yamaha's XF format: 43 7B 01 root type bass-root bass-type
+				const uint8* data = msg.getMetaEventData();
+				if (data[0] == 0x43 && data[1] == 0x7b && data[2] == 0x01)
+				{
+					m_chords.push_back({tick, 0.0, (data[3] << 24) | (data[4] << 16) | (data[5] << 8) | data[6]});
+				}
 			}
 			else if (!msg.isMetaEvent() && !msg.isSysEx() && msg.getChannel() > 0)
 			{
@@ -196,6 +207,13 @@ bool LocalSongPlayer::Load(const File& file)
 		}
 	}
 
+	std::stable_sort(m_chords.begin(), m_chords.end(),
+		[](const ChordPoint& a, const ChordPoint& b) { return a.tick < b.tick; });
+	for (ChordPoint& point : m_chords)
+	{
+		point.seconds = TickToSeconds(point.tick);
+	}
+
 	m_endSeconds = TickToSeconds(m_endTick);
 
 	for (auto& channel : m_sounding)
@@ -241,6 +259,8 @@ void LocalSongPlayer::Unload()
 	m_loaded = false;
 	m_playing = false;
 	m_events.clear();
+	m_chords.clear();
+	m_reportedChord = NoChord;
 }
 
 bool LocalSongPlayer::IsLoaded() const
@@ -521,6 +541,8 @@ void LocalSongPlayer::hiResTimerCallback()
 {
 	bool positionChanged = false;
 	bool playingChanged = false;
+	bool chordChanged = false;
+	int chord = NoChord;
 	{
 		const ScopedLock lock(m_lock);
 		if (!m_loaded || !m_playing)
@@ -557,8 +579,22 @@ void LocalSongPlayer::hiResTimerCallback()
 		}
 
 		positionChanged = UpdateReportedPosition();
+
+		// the chord at the position (also right after a jump or in a loop)
+		if (!m_chords.empty())
+		{
+			auto next = std::upper_bound(m_chords.begin(), m_chords.end(), m_songSeconds,
+				[](double seconds, const ChordPoint& point) { return seconds < point.seconds; });
+			chord = next == m_chords.begin() ? NoChord : (next - 1)->chord;
+			chordChanged = chord != m_reportedChord;
+			m_reportedChord = chord;
+		}
 	}
 	Notify(positionChanged, playingChanged);
+	if (chordChanged && onChord)
+	{
+		onChord(chord);
+	}
 }
 
 //==============================================================================

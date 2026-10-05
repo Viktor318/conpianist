@@ -19,6 +19,7 @@
 
 #include "RecorderComponent.h"
 #include "GuiHelper.h"
+#include "AccompanimentComponent.h"
 
 static const int RecorderTimerMs = 100;
 
@@ -573,6 +574,19 @@ String RecorderComponent::listenKey() const
 // signature (none, if no key is chosen).
 void RecorderComponent::applyKeySignature()
 {
+	// the names of the recorded chords, with the sharps or flats of the key
+	int keySharps = 0;
+	const int accidentals = !settings.GetKeySignature(keySharps) ? 0 : keySharps > 0 ? +1 : keySharps < 0 ? -1 : 0;
+	pianoController.GetRecorder().chordName = [accidentals](int chord)
+		{
+			PianoController::StyleChord styleChord;
+			styleChord.root = (chord >> 24) & 0x7f;
+			styleChord.type = (chord >> 16) & 0x7f;
+			styleChord.bassRoot = (chord >> 8) & 0x7f;
+			styleChord.bassType = chord & 0x7f;
+			return AccompanimentComponent::chordName(styleChord, accidentals);
+		};
+
 	int sharps = 0;
 	if (settings.GetKeySignature(sharps))
 	{

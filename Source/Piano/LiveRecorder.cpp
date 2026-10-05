@@ -39,6 +39,11 @@ bool LiveRecorder::IsRecordable(const MidiMessage& message)
 void LiveRecorder::Begin(double nowMs, bool alignToDownbeat)
 {
 	m_events.clear();
+	m_chords.clear();
+	if (((m_currentChord >> 24) & 0x7f) != 0x7f)
+	{
+		m_chords.push_back({0.0, m_currentChord}); // the chord that is on at the beginning
+	}
 	m_noteCount = 0;
 	m_saved = false;
 	m_startMs = nowMs;
@@ -61,6 +66,7 @@ void LiveRecorder::Arm()
 {
 	const ScopedLock lock(m_lock);
 	m_events.clear();
+	m_chords.clear();
 	m_noteCount = 0;
 	m_state = stArmed;
 }
@@ -75,6 +81,7 @@ void LiveRecorder::StartCountIn(int measures)
 {
 	const ScopedLock lock(m_lock);
 	m_events.clear();
+	m_chords.clear();
 	m_noteCount = 0;
 	// the next downbeat begins the count-in; the recording starts after its measures
 	m_downbeatsLeft = std::max(0, measures) + 1;
@@ -120,7 +127,22 @@ void LiveRecorder::MoveStart(double newStartMs)
 	{
 		event.time = std::max(0.0, event.time - delta);
 	}
+	for (ChordEvent& event : m_chords)
+	{
+		event.time = std::max(0.0, event.time - delta);
+	}
 	m_startMs = newStartMs;
+}
+
+void LiveRecorder::AddChord(int chord)
+{
+	const double nowMs = NowMs();
+	const ScopedLock lock(m_lock);
+	m_currentChord = chord;
+	if (m_state == stRecording)
+	{
+		m_chords.push_back({nowMs - m_startMs, chord});
+	}
 }
 
 void LiveRecorder::Stop()
@@ -155,6 +177,7 @@ void LiveRecorder::Clear()
 {
 	const ScopedLock lock(m_lock);
 	m_events.clear();
+	m_chords.clear();
 	m_noteCount = 0;
 	m_state = stIdle;
 }
@@ -682,6 +705,52 @@ bool LiveRecorder::Save(const File& file, int tempo, int beatNumerator, int beat
 	if (m_keySharps != NoValue)
 	{
 		conductor.addEvent(MidiMessage::keySignatureMetaEvent(m_keySharps, m_keyMinor), 0);
+	}
+
+	// The chords the piano recognized: as chords of Yamaha's XF format (a sequencer
+	// specific meta event: 43 7B 01 root type bass-root bass-type) and by their names as
+	// text. With quantization they are moved to the grid like the notes.
+	{
+		int lastChord = -1;
+		double lastTick = -1;
+		for (const ChordEvent& event : m_chords)
+		{
+			if (event.time > m_endMs - m_startMs + 1.0 || event.chord == lastChord)
+			{
+				continue; // after the end of the recording, or the same chord again
+			}
+			double tick = std::floor(std::max(0.0, event.time) * ticksPerMs + 0.5);
+			if (quantizeTicks > 0)
+			{
+				tick = std::floor(tick / quantizeTicks + 0.5) * quantizeTicks;
+			}
+			tick = std::max(tick, lastTick);
+			lastTick = tick;
+			lastChord = event.chord;
+
+			const int root = (event.chord >> 24) & 0x7f;
+			const int type = (event.chord >> 16) & 0x7f;
+			int bassRoot = (event.chord >> 8) & 0x7f;
+			int bassType = event.chord & 0x7f;
+			if (root == 0x7f)
+			{
+				bassRoot = bassType = 0x7f; // no chord
+			}
+			else if (bassRoot == root)
+			{
+				bassRoot = bassType = 0x7f; // no separate bass note
+			}
+			const uint8 data[] = {0xff, 0x7f, 0x07, 0x43, 0x7b, 0x01, (uint8)root, (uint8)type, (uint8)bassRoot, (uint8)bassType};
+			conductor.addEvent(MidiMessage(data, (int)sizeof(data), tick));
+
+			const String name = chordName ? chordName(event.chord) : String();
+			if (name.isNotEmpty())
+			{
+				MidiMessage text = MidiMessage::textMetaEvent(1, name);
+				text.setTimeStamp(tick);
+				conductor.addEvent(text);
+			}
+		}
 	}
 	if (reverbType != NoValue)
 	{

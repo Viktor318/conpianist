@@ -53,6 +53,11 @@ public:
 	// Called when the position or the playing state changed (from the playback thread
 	// or from the thread that called a method of this class).
 	std::function<void(bool positionChanged, bool playingChanged)> onChanged;
+	// The chord of the song at the playback position has changed (the chords written into
+	// the file in Yamaha's XF format): root, type, bass root, bass type in one number
+	// (0xRRTTBBbb), NoChord if there is none. Called from the playback thread.
+	std::function<void(int chord)> onChord;
+	static const int NoChord = 0x7f7f7f7f;
 
 	LocalSongPlayer() { ResetMixer(); }
 	~LocalSongPlayer() override;
@@ -104,6 +109,15 @@ private:
 		MidiMessage message;
 		bool setup;     // sent only once, when the song is loaded
 	};
+
+	struct ChordPoint
+	{
+		int tick;
+		double seconds; // at the original tempo
+		int chord;
+	};
+	std::vector<ChordPoint> m_chords;
+	int m_reportedChord = NoChord;
 
 	struct TempoPoint
 	{

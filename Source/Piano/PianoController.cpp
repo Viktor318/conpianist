@@ -1278,6 +1278,7 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 	else if (property == Property::StyleChord && size == 4)
 	{
 		m_styleChord = (data[0] << 24) | (data[1] << 16) | (data[2] << 8) | data[3];
+		m_recorder.AddChord(m_styleChord); // recorded with the music
 		NotifyChanged(apStyle);
 	}
 	else if (property == Property::Metronome)
@@ -1550,6 +1551,12 @@ void PianoController::ApplyPlaybackSource(PlaybackSource source)
 			{
 				SendToOutput(message);
 				OnLocalMessage(message);
+			};
+		// the chords written into the song are shown like the chords the piano recognizes
+		m_localPlayer->onChord = [this](int chord)
+			{
+				m_styleChord = chord;
+				NotifyChanged(apStyle);
 			};
 		m_localPlayer->onChanged = [this](bool positionChanged, bool playingChanged)
 			{

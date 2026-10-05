@@ -81,6 +81,12 @@ public:
 	void SetKeySignature(int sharps, bool minor) { const ScopedLock lock(m_lock); m_keySharps = jlimit(-7, 7, sharps); m_keyMinor = minor; }
 	void SetNoKeySignature() { const ScopedLock lock(m_lock); m_keySharps = NoValue; }
 
+	// A chord recognized by the piano (root, type, bass root, bass type in one number,
+	// 0xRRTTBBbb; 0x7f in the root: no chord); thread safe. The chords are written into
+	// the file in Yamaha's XF format, and by their names as text if chordName is set.
+	void AddChord(int chord);
+	std::function<String(int chord)> chordName;
+
 	// A played message of a source (the channel of the message is ignored); thread safe.
 	void Add(int source, const MidiMessage& message);
 	// A message of the piano's accompaniment (channel 9..16): the voices and settings are
@@ -135,6 +141,14 @@ private:
 	int m_noteCount = 0;
 	bool m_saved = false;
 	int m_keySharps = NoValue;
+	static const int NoChord = 0x7f7f7f7f;
+	struct ChordEvent
+	{
+		double time; // milliseconds from the start
+		int chord;
+	};
+	std::vector<ChordEvent> m_chords;
+	int m_currentChord = NoChord;
 	bool m_keyMinor = false;
 	int m_held[NumSources + 1][128] = {}; // held notes of each source
 	int m_pedal[NumSources + 1] = {};     // sustain pedal value of each source
