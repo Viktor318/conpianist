@@ -136,8 +136,8 @@ AccompanimentComponent::AccompanimentComponent(Settings& settings, PianoControll
 	chordLowerButton.setTooltip(TRANS("The chords are recognized below the split point"));
 	chordFullButton.setConnectedEdges(Button::ConnectedOnRight);
 	chordLowerButton.setConnectedEdges(Button::ConnectedOnLeft);
-	initButton(leftSoundButton, TRANS("Left-hand sound"));
-	leftSoundButton.setTooltip(TRANS("When on, the keys below the split point sound while the accompaniment is playing; when off, they only give the chords. Without the accompaniment the Left part of the Voice tab decides."));
+	initButton(leftSoundButton, TRANS("Main voice below"));
+	leftSoundButton.setTooltip(TRANS("For playing without the Left part: when on, the Main and Layer voices sound below the split point too while the accompaniment is playing; when off, the keys there only give the chords. It has no effect while the Left part is on (the button is greyed out then)."));
 	initLabel(splitLabel, TRANS("Split point:"));
 	initButton(splitDownButton, String(CharPointer_UTF8("\xe2\x97\x84")));
 	splitDownButton.setTooltip(TRANS("Split point one key lower"));
@@ -625,6 +625,7 @@ void AccompanimentComponent::PianoStateChanged(PianoController::Aspect aspect, P
 {
 	if (aspect == PianoController::apStyle || aspect == PianoController::apConnection ||
 		aspect == PianoController::apSplitPoint ||
+		(aspect == PianoController::apActive && channel == PianoController::chLeft) ||
 		(aspect == PianoController::apVolume && channel == PianoController::chStyle))
 	{
 		GuiHelper::CallAsync(this, [this]() { update(); });
@@ -827,7 +828,10 @@ void AccompanimentComponent::update()
 	const int chordArea = connected ? pianoController.GetStyleChordArea() : (int)PianoController::caUnknown;
 	markButton(chordFullButton, chordArea == PianoController::caFull, false);
 	markButton(chordLowerButton, chordArea == PianoController::caLower, false);
-	markButton(leftSoundButton, connected && pianoController.GetStyleLeftSound() == 1, false);
+	// it only has an effect while the Left part is off
+	const bool leftPartOn = pianoController.GetActive(PianoController::chLeft);
+	leftSoundButton.setEnabled(connected && !leftPartOn);
+	markButton(leftSoundButton, connected && !leftPartOn && pianoController.GetStyleLeftSound() == 1, false);
 	// not while the accompaniment is playing: its notes come from the piano too, and
 	// one of them would be taken for the key
 	if (!connected || playing)
@@ -1567,7 +1571,7 @@ String AccompanimentComponent::registrationTooltip(int index) const
 		text << TRANS("Chord detection:") << " " << (reg.chordArea == PianoController::caFull ? "Full" : "Lower");
 		if (reg.leftSound >= 0)
 		{
-			text << ", " << TRANS("Left-hand sound").toLowerCase() << " " << (reg.leftSound == 1 ? TRANS("On") : TRANS("Off")).toLowerCase();
+			text << ", " << TRANS("Main voice below").toLowerCase() << " " << (reg.leftSound == 1 ? TRANS("On") : TRANS("Off")).toLowerCase();
 		}
 		text << "\n";
 	}
