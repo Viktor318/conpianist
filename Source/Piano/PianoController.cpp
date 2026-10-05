@@ -843,6 +843,11 @@ void PianoController::ClearConvertedVoices()
 
 void PianoController::SetActive(Channel ch, bool active)
 {
+	if (ch == chStyle)
+	{
+		SetStyleOn(active);
+		return;
+	}
 	if (m_localPlayback && (IsSongChannel(ch) || ch == chMidiMaster))
 	{
 		// song channels are switched on and off by the local player, not by the piano
@@ -1160,9 +1165,14 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 	}
 	else if (property == Property::Active && ch != chMidiMaster && ch != chStyle)
 	{
-		// (the song and the accompaniment as a whole cannot be switched on and off)
+		// (the song as a whole cannot be switched on and off; the accompaniment as a whole
+		// is on while any of its parts is on)
 		m_channels[ch].active = boolValue;
 		NotifyChanged(apActive, ch);
+		if (ch >= chStylePart1 && ch < chStylePart1 + NumStyleParts)
+		{
+			UpdateStyleOn();
+		}
 	}
 	else if (property == Property::Present && ch != chMidiMaster)
 	{
@@ -1225,6 +1235,10 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 			const String name = String::fromUTF8(utf8.data());
 			changed = name != m_styleName;
 			m_styleName = name;
+		}
+		if (changed)
+		{
+			m_styleOffParts = 0; // the parts remembered belong to the old style
 		}
 		NotifyChanged(apStyle);
 		if (changed)
@@ -2289,6 +2303,62 @@ void PianoController::SetStyleLeftSound(bool on)
 		m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::StyleLeftSound, 0, on ? 1 : 0));
 		// the piano sends no event for it: the new value is asked for
 		m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::StyleLeftSound));
+	}
+}
+
+void PianoController::SetStyleOn(bool on)
+{
+	if (!m_connected)
+	{
+		return;
+	}
+	int parts = 0;
+	for (int i = 0; i < NumStyleParts; i++)
+	{
+		if (m_channels[chStylePart1 + i].active)
+		{
+			parts |= 1 << i;
+		}
+	}
+	if (!on)
+	{
+		if (parts != 0)
+		{
+			m_styleOffParts = parts; // switched on again later
+		}
+		for (int i = 0; i < NumStyleParts; i++)
+		{
+			if (parts & (1 << i))
+			{
+				m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::Active, chStylePart1 + i, 0));
+			}
+		}
+	}
+	else if (parts == 0)
+	{
+		const int wanted = m_styleOffParts != 0 ? m_styleOffParts : (1 << NumStyleParts) - 1;
+		for (int i = 0; i < NumStyleParts; i++)
+		{
+			if (wanted & (1 << i))
+			{
+				m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::Active, chStylePart1 + i, 1));
+			}
+		}
+	}
+}
+
+// Called when a part of the accompaniment was switched (from any thread).
+void PianoController::UpdateStyleOn()
+{
+	bool on = false;
+	for (int i = 0; i < NumStyleParts; i++)
+	{
+		on = on || m_channels[chStylePart1 + i].active;
+	}
+	if (m_channels[chStyle].active != on)
+	{
+		m_channels[chStyle].active = on;
+		NotifyChanged(apActive, chStyle);
 	}
 }
 

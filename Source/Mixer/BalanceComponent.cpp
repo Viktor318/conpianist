@@ -61,7 +61,7 @@ BalanceComponent::BalanceComponent (Settings& settings, PianoController& pianoCo
     effectComboBox->addItem (TRANS("Concert Hall"), 3);
     effectComboBox->addListener (this);
 
-    effectComboBox->setBounds (92, 176, 176, 24);
+    effectComboBox->setBounds (88, 176, 176, 24);
 
 
     //[UserPreSize]
@@ -239,7 +239,7 @@ BEGIN_JUCER_METADATA
              virtualName="" explicitFocusOrder="0" pos="428 0 70 0M" sourceFile="ChannelComponent.cpp"
              constructorParams="settings, pianoController, PianoController::chAuxIn, &quot;Aux In&quot;, false, false, true, false"/>
   <COMBOBOX name="Reverb Effect Combo Box" id="486cacdf50ec1ba7" memberName="effectComboBox"
-            virtualName="" explicitFocusOrder="0" pos="92 176 176 24" tooltip="Reverb Effect"
+            virtualName="" explicitFocusOrder="0" pos="88 176 176 24" tooltip="Reverb Effect"
             editable="0" layout="33" items="Real Large Hall&#10;Real Medium Hall&#10;Concert Hall"
             textWhenNonSelected="Reverb Effect" textWhenNoItems="(no choices)"/>
 </JUCER_COMPONENT>

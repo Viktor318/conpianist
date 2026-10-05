@@ -337,6 +337,10 @@ public:
 	static const char* StylePartName(int part);
 	// Asks the piano for the settings of the parts (they change with the style).
 	void QueryStyleParts();
+	// The accompaniment as a whole (the channel chStyle) is on while any of its parts is
+	// on. Switching it off switches every part off; switching it on switches on the parts
+	// that were on before (all of them, if that is not known).
+	void SetStyleOn(bool on);
 
 	LiveRecorder& GetRecorder() { return m_recorder; }
 	void StartRecording(bool autoStart);
@@ -594,6 +598,8 @@ private:
 	std::atomic<bool> m_pianoTempoKnown{false};  // the piano has reported its tempo
 	std::atomic<int> m_styleChordArea{caUnknown};
 	std::atomic<int> m_styleLeftSound{-1};
+	int m_styleOffParts = 0; // the parts that were on when the accompaniment was switched off (bits)
+	void UpdateStyleOn();
 	std::atomic<uint32> m_tempoSentMs{0};        // when the own player's tempo was sent to the piano
 	void SendStyleSection(int section, bool on);
 	std::atomic<int> m_styleFillTarget{ssNone}; // main section to go on with after the fill in

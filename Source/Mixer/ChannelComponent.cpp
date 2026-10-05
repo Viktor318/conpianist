@@ -957,7 +957,7 @@ void ChannelComponent::toggleChannel()
 			toggleLiveChannel();
 		}
 	}
-	else if (channel != PianoController::chAuxIn && channel != PianoController::chStyle)
+	else if (channel != PianoController::chAuxIn)
 	{
        	pianoController.SetActive(channel, !pianoController.GetActive(channel));
 	}
