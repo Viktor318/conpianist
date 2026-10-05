@@ -97,7 +97,6 @@ AccompanimentComponent::AccompanimentComponent(Settings& settings, PianoControll
 		{
 			this->settings.accompanimentKey = keyCombo.getSelectedId() > 1 ? keyCombo.getText() : String();
 			this->settings.Save();
-			keyModeCombo.setEnabled(keyCombo.getSelectedId() > 1);
 			update();
 		};
 	keyModeCombo.onChange = [this]()
@@ -635,8 +634,6 @@ void AccompanimentComponent::update()
 			child->setEnabled(connected);
 		}
 	}
-	// major or minor can be chosen only if there is a key (the loop above enabled it)
-	keyModeCombo.setEnabled(connected && keyCombo.getSelectedId() > 1);
 	const bool hasList = connected && !styles.empty();
 	categoryCombo.setEnabled(hasList);
 	groupCombo.setEnabled(hasList);
@@ -792,7 +789,6 @@ void AccompanimentComponent::fillKeyCombo()
 		}
 	}
 	keyCombo.setSelectedId(selected, dontSendNotification);
-	keyModeCombo.setEnabled(selected > 1);
 }
 
 // Sharps or flats of the chosen key (0: no key, or a key without accidentals).
