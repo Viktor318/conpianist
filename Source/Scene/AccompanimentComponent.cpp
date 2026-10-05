@@ -218,25 +218,13 @@ void AccompanimentComponent::resized()
 	groupCombo.setBounds(260, 16, 164, 24);
 	styleCombo.setBounds(90, 52, 220, 24);
 	applyButton.setBounds(316, 50, 108, 28);
-	{
-		// the name right after the text of the label
-		const int textWidth = GlyphArrangement::getStringWidthInt(currentLabel.getFont(), currentLabel.getText());
-		const int labelWidth = jlimit(60, 200, textWidth + 10);
-		currentLabel.setBounds(16, 88, labelWidth, 24);
-		currentNameLabel.setBounds(16 + labelWidth + 4, 88, 408 - labelWidth - 4, 24);
-	}
-	{
-		// the key list right after its label, then major or minor
-		auto widthOf = [](const Label& label)
-			{
-				return GlyphArrangement::getStringWidthInt(label.getFont(), label.getText()) + 10;
-			};
-		const int keyWidth = jlimit(30, 90, widthOf(keyLabel));
-		keyLabel.setBounds(16, 128, keyWidth, 24);
-		// wide enough for every name (e.g. "F#", "Bb") at the normal size of the text
-		keyCombo.setBounds(16 + keyWidth, 128, 76, 24);
-		keyModeCombo.setBounds(16 + keyWidth + 76 + 6, 128, 84, 24);
-	}
+	// the frame of the name and the key list start where the style lists do
+	currentLabel.setBounds(16, 88, 74, 24);
+	currentNameLabel.setBounds(90, 88, 334, 24);
+	keyLabel.setBounds(16, 128, 74, 24);
+	// wide enough for every name (e.g. "F#", "Bb") at the normal size of the text
+	keyCombo.setBounds(90, 128, 76, 24);
+	keyModeCombo.setBounds(90 + 76 + 6, 128, 84, 24);
 	{
 		// The chord in a row of its own, between two lines: its label at the left, and
 		// the frame in the middle of the window, wide enough for the longest chord name.
