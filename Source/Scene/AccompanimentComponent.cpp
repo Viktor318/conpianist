@@ -231,8 +231,9 @@ void AccompanimentComponent::resized()
 			};
 		const int keyWidth = jlimit(30, 90, widthOf(keyLabel));
 		keyLabel.setBounds(16, 128, keyWidth, 24);
-		keyCombo.setBounds(16 + keyWidth, 128, 54, 24);
-		keyModeCombo.setBounds(16 + keyWidth + 54 + 4, 128, 66, 24);
+		// wide enough for every name (e.g. "F#", "Bb") at the normal size of the text
+		keyCombo.setBounds(16 + keyWidth, 128, 76, 24);
+		keyModeCombo.setBounds(16 + keyWidth + 76 + 6, 128, 84, 24);
 	}
 	{
 		// The chord in a row of its own, between two lines: its label at the left, and
