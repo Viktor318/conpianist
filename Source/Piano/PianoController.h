@@ -336,11 +336,17 @@ public:
 	static Channel StylePartChannel(int part) { return (Channel)(chStylePart1 + part); }
 	static const char* StylePartName(int part);
 	// Asks the piano for the settings of the parts (they change with the style).
-	void QueryStyleParts();
+	// defaults: the answers are the values the style came with (see ResetStyleValue)
+	void QueryStyleParts(bool defaults = true);
 	// The accompaniment as a whole (the channel chStyle) is on while any of its parts is
 	// on. Switching it off switches every part off; switching it on switches on the parts
 	// that were on before (all of them, if that is not known).
 	void SetStyleOn(bool on);
+	// The values of a part (or of chStyle, the whole accompaniment) as the style came with
+	// them: what the piano reported when the style was loaded (or when connecting). Sets
+	// the volume, the pan or the reverb (apVolume, apPan, apReverb) back to it; false if
+	// it is not known.
+	bool ResetStyleValue(Channel ch, Aspect aspect);
 
 	LiveRecorder& GetRecorder() { return m_recorder; }
 	void StartRecording(bool autoStart);
@@ -599,6 +605,13 @@ private:
 	std::atomic<int> m_styleChordArea{caUnknown};
 	std::atomic<int> m_styleLeftSound{-1};
 	int m_styleOffParts = 0; // the parts that were on when the accompaniment was switched off (bits)
+	// default volume, pan and reverb of the parts and (last) of the whole accompaniment;
+	// -1000: not known. "Pending": the next value reported by the piano is the default.
+	static const int NoStyleDefault = -1000;
+	std::atomic<int> m_styleDefaults[NumStyleParts + 1][3];
+	std::atomic<bool> m_styleDefaultPending[NumStyleParts + 1][3];
+	static int StyleDefaultIndex(Channel ch);
+	void NoteStyleDefault(Channel ch, int which, int value);
 	void UpdateStyleOn();
 	std::atomic<uint32> m_tempoSentMs{0};        // when the own player's tempo was sent to the piano
 	void SendStyleSection(int section, bool on);

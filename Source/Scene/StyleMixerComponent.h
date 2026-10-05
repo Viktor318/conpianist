@@ -26,8 +26,10 @@
 
 // The content of the Accompaniment mixer window: the eight parts of the accompaniment
 // (style) of the piano, each with on/off, voice name, pan, reverb and volume, and a
-// master strip (the volume, pan and reverb of the whole accompaniment). The type of the
-// reverb is the same setting as in the Balance window and in Piano Room.
+// master strip (the volume, pan and reverb of the whole accompaniment). The controls look
+// and work like those of the Balance window: a double click sets a value back to what
+// the style came with, a part that is off is greyed out and cannot be set. The type of
+// the reverb is the same setting as in the Balance window and in Piano Room.
 class StyleMixerComponent : public Component,
                             public PianoController::Listener
 {
@@ -37,6 +39,7 @@ public:
 
 	void paint(Graphics& g) override;
 	void resized() override;
+	void mouseDoubleClick(const MouseEvent& event) override;
 	void PianoStateChanged(PianoController::Aspect aspect, PianoController::Channel channel) override;
 
 private:

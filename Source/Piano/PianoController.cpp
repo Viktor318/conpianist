@@ -47,6 +47,14 @@ PianoController::PianoController()
 		m_liveOriginalVoice[i] = -1;
 		m_liveConvertedVoice[i] = -1;
 	}
+	for (int i = 0; i <= NumStyleParts; i++)
+	{
+		for (int which = 0; which < 3; which++)
+		{
+			m_styleDefaults[i][which] = NoStyleDefault;
+			m_styleDefaultPending[i][which] = false;
+		}
+	}
 }
 
 PianoController::~PianoController()
@@ -1146,16 +1154,19 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 	else if (property == Property::Volume)
 	{
 		m_channels[ch].volume = intValue;
+		NoteStyleDefault(ch, 0, intValue);
 		NotifyChanged(apVolume, ch);
 	}
 	else if (property == Property::Pan)
 	{
 		m_channels[ch].pan = intValue - PanBase;
+		NoteStyleDefault(ch, 1, intValue - PanBase);
 		NotifyChanged(apPan, ch);
 	}
 	else if (property == Property::Reverb)
 	{
 		m_channels[ch].reverb = intValue;
+		NoteStyleDefault(ch, 2, intValue);
 		NotifyChanged(apReverb, ch);
 	}
 	else if (property == Property::Octave)
@@ -1243,16 +1254,25 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 		NotifyChanged(apStyle);
 		if (changed)
 		{
-			// another style: its parts have their own settings; asked for a little
-			// later, when the piano has loaded the style
+			// Another style: its parts have their own settings. They are asked for soon,
+			// before anything changes them (a registration memory sets its own values half
+			// a second after the style is loaded): these are the defaults of the style.
+			// Asked for once more later, in case the piano was not ready with them.
 			std::weak_ptr<bool> alive = m_alive;
 			MessageManager::callAsync([this, alive]()
 				{
-					Timer::callAfterDelay(700, [this, alive]()
+					Timer::callAfterDelay(300, [this, alive]()
 						{
 							if (alive.lock())
 							{
-								QueryStyleParts();
+								QueryStyleParts(true);
+							}
+						});
+					Timer::callAfterDelay(1500, [this, alive]()
+						{
+							if (alive.lock())
+							{
+								QueryStyleParts(false);
 							}
 						});
 				});
@@ -2362,6 +2382,58 @@ void PianoController::UpdateStyleOn()
 	}
 }
 
+int PianoController::StyleDefaultIndex(Channel ch)
+{
+	return ch == chStyle ? NumStyleParts :
+		ch >= chStylePart1 && ch < chStylePart1 + NumStyleParts ? ch - chStylePart1 : -1;
+}
+
+// which: 0 volume, 1 pan, 2 reverb. Called when the piano reports the value.
+void PianoController::NoteStyleDefault(Channel ch, int which, int value)
+{
+	const int index = StyleDefaultIndex(ch);
+	if (index >= 0 && m_styleDefaultPending[index][which].exchange(false))
+	{
+		m_styleDefaults[index][which] = value;
+	}
+}
+
+bool PianoController::ResetStyleValue(Channel ch, Aspect aspect)
+{
+	const int index = StyleDefaultIndex(ch);
+	const int which = aspect == apVolume ? 0 : aspect == apPan ? 1 : aspect == apReverb ? 2 : -1;
+	if (index < 0 || which < 0 || !m_connected)
+	{
+		return false;
+	}
+	int value = m_styleDefaults[index][which];
+	if (ch == chStyle && which == 0)
+	{
+		value = DefaultVolume; // of the whole accompaniment: always 100
+	}
+	else if (ch == chStyle && which == 1)
+	{
+		value = DefaultPan;
+	}
+	if (value == NoStyleDefault)
+	{
+		return false;
+	}
+	if (which == 0)
+	{
+		SetVolume(ch, value);
+	}
+	else if (which == 1)
+	{
+		SetPan(ch, value);
+	}
+	else
+	{
+		SetReverb(ch, value);
+	}
+	return true;
+}
+
 const char* PianoController::StylePartName(int part)
 {
 	static const char* const names[NumStyleParts] = {
@@ -2369,12 +2441,26 @@ const char* PianoController::StylePartName(int part)
 	return part >= 0 && part < NumStyleParts ? names[part] : "";
 }
 
-void PianoController::QueryStyleParts()
+void PianoController::QueryStyleParts(bool defaults)
 {
 	if (!m_pianoConnector)
 	{
 		return;
 	}
+	// asked for when connecting and after a style was loaded: the answers are the values
+	// the style came with (the defaults of ResetStyleValue)
+	for (int i = 0; defaults && i <= NumStyleParts; i++)
+	{
+		for (int which = 0; which < 3; which++)
+		{
+			// the whole accompaniment keeps its settings when the style changes: only once
+			if (i < NumStyleParts || m_styleDefaults[i][which] == NoStyleDefault)
+			{
+				m_styleDefaultPending[i][which] = true;
+			}
+		}
+	}
+	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::Volume, chStyle, 0));
 	for (int i = 0; i < NumStyleParts; i++)
 	{
 		const int ch = chStylePart1 + i;

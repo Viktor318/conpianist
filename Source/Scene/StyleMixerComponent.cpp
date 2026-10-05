@@ -43,8 +43,8 @@ StyleMixerComponent::StyleMixerComponent(Settings& settings, PianoController& pi
 
 		if (master)
 		{
-			initLabel(strip.nameLabel, "Master", 15.0f, Justification::centred);
-			strip.nameLabel.setFont(Font(FontOptions(15.0f, Font::bold)));
+			initLabel(strip.nameLabel, "Master", 16.0f, Justification::centred);
+			strip.nameLabel.setFont(Font(FontOptions(16.0f, Font::bold)));
 		}
 		else
 		{
@@ -56,15 +56,22 @@ StyleMixerComponent::StyleMixerComponent(Settings& settings, PianoController& pi
 					this->pianoController.SetActive(ch, !this->pianoController.GetActive(ch));
 				};
 			addAndMakeVisible(strip.onButton);
-			initLabel(strip.voiceLabel, "", 12.0f, Justification::centred);
+			initLabel(strip.voiceLabel, "", 14.0f, Justification::centred);
 		}
 
-		strip.panSlider.setSliderStyle(Slider::LinearHorizontal);
-		strip.panSlider.setTextBoxStyle(Slider::NoTextBox, true, 0, 0);
-		strip.panSlider.setRange(PianoController::MinPan, PianoController::MaxPan, 1);
-		strip.panSlider.setDoubleClickReturnValue(true, PianoController::DefaultPan);
-		strip.panSlider.setPopupDisplayEnabled(true, true, this);
-		strip.panSlider.setWantsKeyboardFocus(false);
+		// the controls of the Balance window: knobs and a fader with their value boxes
+		auto initSlider = [this](Slider& slider, Slider::SliderStyle style, int minimum, int maximum)
+			{
+				slider.setSliderStyle(style);
+				slider.setTextBoxStyle(Slider::TextBoxAbove, false, 50, 20);
+				slider.setRange(minimum, maximum, 1);
+				slider.setColour(Slider::textBoxOutlineColourId, Colour(0x80939d9f));
+				slider.setColour(Slider::textBoxHighlightColourId, Colour(0x6642a2c8));
+				slider.setWantsKeyboardFocus(false);
+				slider.addMouseListener(this, false); // double click: see mouseDoubleClick
+				addAndMakeVisible(slider);
+			};
+		initSlider(strip.panSlider, Slider::RotaryHorizontalVerticalDrag, PianoController::MinPan, PianoController::MaxPan);
 		strip.panSlider.onValueChange = [this, ch, slider = &strip.panSlider]()
 			{
 				const int value = roundToInt(slider->getValue());
@@ -73,13 +80,8 @@ StyleMixerComponent::StyleMixerComponent(Settings& settings, PianoController& pi
 					this->pianoController.SetPan(ch, value);
 				}
 			};
-		addAndMakeVisible(strip.panSlider);
 
-		strip.reverbSlider.setSliderStyle(Slider::LinearHorizontal);
-		strip.reverbSlider.setTextBoxStyle(Slider::NoTextBox, true, 0, 0);
-		strip.reverbSlider.setRange(PianoController::MinReverb, PianoController::MaxReverb, 1);
-		strip.reverbSlider.setPopupDisplayEnabled(true, true, this);
-		strip.reverbSlider.setWantsKeyboardFocus(false);
+		initSlider(strip.reverbSlider, Slider::RotaryHorizontalVerticalDrag, PianoController::MinReverb, PianoController::MaxReverb);
 		strip.reverbSlider.onValueChange = [this, ch, slider = &strip.reverbSlider]()
 			{
 				const int value = roundToInt(slider->getValue());
@@ -88,16 +90,8 @@ StyleMixerComponent::StyleMixerComponent(Settings& settings, PianoController& pi
 					this->pianoController.SetReverb(ch, value);
 				}
 			};
-		addAndMakeVisible(strip.reverbSlider);
 
-		strip.volumeSlider.setSliderStyle(Slider::LinearVertical);
-		strip.volumeSlider.setTextBoxStyle(Slider::TextBoxBelow, false, 44, 20);
-		strip.volumeSlider.setRange(PianoController::MinVolume, PianoController::MaxVolume, 1);
-		strip.volumeSlider.setWantsKeyboardFocus(false);
-		if (master)
-		{
-			strip.volumeSlider.setDoubleClickReturnValue(true, PianoController::DefaultVolume);
-		}
+		initSlider(strip.volumeSlider, Slider::LinearVertical, PianoController::MinVolume, PianoController::MaxVolume);
 		strip.volumeSlider.onValueChange = [this, ch, slider = &strip.volumeSlider]()
 			{
 				const int value = roundToInt(slider->getValue());
@@ -106,16 +100,12 @@ StyleMixerComponent::StyleMixerComponent(Settings& settings, PianoController& pi
 					this->pianoController.SetVolume(ch, value);
 				}
 			};
-		addAndMakeVisible(strip.volumeSlider);
 	}
 
-	initLabel(panCaption, TRANS("Pan"), 14.0f, Justification::centredLeft);
-	initLabel(reverbCaption, TRANS("Reverb"), 14.0f, Justification::centredLeft);
-	initLabel(volumeCaption, TRANS("Volume"), 14.0f, Justification::centredLeft);
-	for (Label* caption : {&panCaption, &reverbCaption, &volumeCaption})
-	{
-		caption->setColour(Label::textColourId, Colours::white.withAlpha(0.7f));
-	}
+	// the size of the labels of the Balance window
+	initLabel(panCaption, TRANS("Pan"), 15.4f, Justification::centredLeft);
+	initLabel(reverbCaption, TRANS("Reverb"), 15.4f, Justification::centredLeft);
+	initLabel(volumeCaption, TRANS("Volume"), 15.4f, Justification::centredLeft);
 
 	for (ReverbEffect& effect : Presets::ReverbEffects())
 	{
@@ -133,10 +123,10 @@ StyleMixerComponent::StyleMixerComponent(Settings& settings, PianoController& pi
 		};
 	addAndMakeVisible(reverbEffectCombo);
 
-	initLabel(hintLabel, "", 15.0f, Justification::centredRight);
+	initLabel(hintLabel, "", 15.0f, Justification::centredLeft);
 	hintLabel.setColour(Label::textColourId, Colours::orange);
 
-	setSize(654, 470);
+	setSize(798, 560);
 
 	pianoController.AddListener(this);
 	update();
@@ -149,18 +139,15 @@ StyleMixerComponent::~StyleMixerComponent()
 
 // the layout: the strips of the parts, a line, the master strip
 static const int StripLeft = 12;
-static const int StripWidth = 68;
-static const int MasterLeft = 12 + 8 * 68 + 14;
-static const int MasterWidth = 72;
+static const int StripWidth = 84;
+static const int MasterLeft = 12 + 8 * 84 + 14;
+static const int MasterWidth = 88;
 
 void StyleMixerComponent::paint(Graphics& g)
 {
 	g.fillAll(Colour(0xff323e44));
 	g.setColour(Colours::white.withAlpha(0.25f));
-	g.fillRect(12, 70, StripLeft + NumParts * StripWidth - 12, 1);
-	g.fillRect(12, 128, StripLeft + NumParts * StripWidth - 12, 1);
-	g.fillRect(12, 190, StripLeft + NumParts * StripWidth - 12, 1);
-	g.fillRect(MasterLeft - 8, 12, 1, getHeight() - 52); // before the master strip
+	g.fillRect(MasterLeft - 8, 12, 1, getHeight() - 24); // before the master strip
 }
 
 void StyleMixerComponent::resized()
@@ -171,20 +158,46 @@ void StyleMixerComponent::resized()
 		const bool master = i == MasterStrip;
 		const int x = master ? MasterLeft : StripLeft + i * StripWidth;
 		const int width = master ? MasterWidth : StripWidth;
-		strip.onButton.setBounds(x + 2, 12, width - 4, 30);
-		strip.nameLabel.setBounds(x, 12, width, 30);
-		strip.voiceLabel.setBounds(x, 46, width, 18);
-		strip.panSlider.setBounds(x + 2, 98, width - 4, 22);
-		strip.reverbSlider.setBounds(x + 2, 160, width - 4, 22);
-		strip.volumeSlider.setBounds(x + 2, 220, width - 4, 204);
+		const int sliderX = x + (width - 70) / 2; // the controls are 70 wide, as in the Balance window
+		strip.onButton.setBounds(x + 2, 12, width - 4, 36);
+		strip.nameLabel.setBounds(x, 12, width, 36);
+		strip.voiceLabel.setBounds(x, 52, width, 22);
+		strip.panSlider.setBounds(sliderX, 108, 70, 76);
+		strip.reverbSlider.setBounds(sliderX, 220, 70, 76);
+		strip.volumeSlider.setBounds(sliderX, 332, 70, getHeight() - 332 - 12);
 	}
-	panCaption.setBounds(12, 76, 90, 20);
+	panCaption.setBounds(12, 84, 90, 24);
 	// the list of the reverb types right after the text of its label
 	const int captionWidth = GlyphArrangement::getStringWidthInt(reverbCaption.getFont(), reverbCaption.getText()) + 10;
-	reverbCaption.setBounds(12, 134, captionWidth, 24);
-	reverbEffectCombo.setBounds(12 + captionWidth + 8, 134, 240, 24);
-	volumeCaption.setBounds(12, 196, 90, 20);
-	hintLabel.setBounds(12, getHeight() - 34, getWidth() - 24, 24);
+	reverbCaption.setBounds(12, 196, captionWidth, 24);
+	reverbEffectCombo.setBounds(12 + captionWidth + 8, 196, 220, 24);
+	volumeCaption.setBounds(12, 308, 90, 24);
+	hintLabel.setBounds(12 + captionWidth + 8 + 220 + 12, 196, 260, 24); // after the list
+}
+
+// A double click on a control sets it back to the value the style came with (the whole
+// accompaniment: volume 100, pan in the middle). Not on a greyed out control.
+void StyleMixerComponent::mouseDoubleClick(const MouseEvent& event)
+{
+	if (event.eventComponent == nullptr || !event.eventComponent->isEnabled())
+	{
+		return;
+	}
+	for (Strip& strip : strips)
+	{
+		if (event.eventComponent == &strip.panSlider)
+		{
+			pianoController.ResetStyleValue(strip.channel, PianoController::apPan);
+		}
+		else if (event.eventComponent == &strip.reverbSlider)
+		{
+			pianoController.ResetStyleValue(strip.channel, PianoController::apReverb);
+		}
+		else if (event.eventComponent == &strip.volumeSlider)
+		{
+			pianoController.ResetStyleValue(strip.channel, PianoController::apVolume);
+		}
+	}
 }
 
 bool StyleMixerComponent::isStripChannel(PianoController::Channel channel)
@@ -252,8 +265,7 @@ void StyleMixerComponent::update()
 		}
 		for (Slider* slider : {&strip.panSlider, &strip.reverbSlider, &strip.volumeSlider})
 		{
-			slider->setEnabled(connected);
-			slider->setAlpha(active ? 1.0f : 0.45f); // a part that is off is faint, but can be set
+			slider->setEnabled(connected && active); // a part that is off cannot be set
 		}
 	}
 
