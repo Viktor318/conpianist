@@ -1363,7 +1363,7 @@ void AccompanimentComponent::timerCallback()
 	markButton(memoryButton, memoryArmed && memoryBlink, false);
 }
 
-// The numbers: the current one marked, the empty ones faint. They stay usable without
+// The numbers: the ones in use framed, the current one marked, the empty ones faint. They stay usable without
 // the piano too (tooltip, renaming, deleting); only saving and recalling need it.
 void AccompanimentComponent::updateRegistrationButtons()
 {
@@ -1374,6 +1374,12 @@ void AccompanimentComponent::updateRegistrationButtons()
 		button.setEnabled(true);
 		button.setAlpha(registrations[i].used || memoryArmed ? 1.0f : 0.45f);
 		markButton(button, i == currentRegistration && registrations[i].used, false);
+		// a white frame around the memories that are in use (the current one too)
+		if (registrations[i].used)
+		{
+			button.getProperties().set("live", true);
+			button.repaint();
+		}
 		button.setTooltip(registrationTooltip(i));
 	}
 }
