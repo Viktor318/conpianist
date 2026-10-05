@@ -73,6 +73,9 @@ private:
 	Label positionLabel;     // time and measure of the listening back
 	Slider positionSlider;   // position in the recording while it is listened back (measures)
 	TextButton saveButton;
+	TextButton folderButton; // opens the folder of the recordings
+	Label positionCaption;   // the label of the position slider
+	File lastSavedFile;      // selected in the folder, if it still exists
 	// (the tooltips are shown by the tooltip window of the application, see Main.cpp)
 
 	LiveRecorder::State lastState = LiveRecorder::stIdle;

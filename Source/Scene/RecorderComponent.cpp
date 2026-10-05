@@ -206,6 +206,12 @@ RecorderComponent::RecorderComponent(Settings& settings, PianoController& pianoC
 	saveButton.addListener(this);
 	addAndMakeVisible(saveButton);
 
+	folderButton.setButtonText(TRANS("Folder"));
+	folderButton.setTooltip(TRANS("Opens the folder of the recordings (with the saved recording selected)"));
+	folderButton.addListener(this);
+	addAndMakeVisible(folderButton);
+	initLabel(positionCaption, TRANS("Position:"));
+
 	autoButton.setToggleState(settings.recorderAutomatic, dontSendNotification);
 	manualButton.setToggleState(!settings.recorderAutomatic, dontSendNotification);
 	silenceSlider.setValue(settings.recorderSilence, dontSendNotification);
@@ -273,20 +279,38 @@ void RecorderComponent::resized()
 	metronomeButton.setBounds(12, 132, 120, 24);
 	bellButton.setBounds(136, 132, 100, 24);
 	countInCombo.setBounds(240, 132, 184, 24);
-	tempoLabel.setBounds(16, 168, 150, 24);
-	tempoSlider.setBounds(170, 168, 120, 24);
-	beatCombo.setBounds(304, 168, 120, 24);
+	// (the controls of a row right after the text of its label, without a gap)
+	auto textWidth = [](const String& text)
+		{
+			return GlyphArrangement::getStringWidthInt(Font(FontOptions(15.00f, Font::plain)), text);
+		};
+	{
+		const int labelWidth = jlimit(60, 170, textWidth(tempoLabel.getText()) + 10);
+		tempoLabel.setBounds(16, 168, labelWidth, 24);
+		tempoSlider.setBounds(16 + labelWidth, 168, 120, 24);
+		beatCombo.setBounds(16 + labelWidth + 120 + 8, 168, 110, 24);
+	}
 	metronomeVolumeLabel.setBounds(16, 204, 170, 24);
 	metronomeVolumeSlider.setBounds(186, 204, 238, 24);
 	// quantization
-	quantizeButton.setBounds(12, 248, 124, 24);
-	quantizeCombo.setBounds(140, 248, 126, 24);
-	tripletCombo.setBounds(274, 248, 150, 24);
+	{
+		// the tick box and the text of the button, then the two lists
+		const int buttonWidth = jlimit(70, 140, textWidth(quantizeButton.getButtonText()) + 40);
+		quantizeButton.setBounds(12, 248, buttonWidth, 24);
+		quantizeCombo.setBounds(12 + buttonWidth, 248, 126, 24);
+		tripletCombo.setBounds(12 + buttonWidth + 126 + 8, 248, 150, 24);
+	}
 	quantizeEndsButton.setBounds(12, 284, 222, 24);
 	quantizeFillButton.setBounds(240, 284, 184, 24);
 	// file and state
-	nameLabel.setBounds(16, 328, 100, 24);
-	nameEditor.setBounds(120, 328, 304, 24);
+	{
+		// the name right after its label; the Folder button at the end of the row
+		const int labelWidth = jlimit(40, 120, textWidth(nameLabel.getText()) + 10);
+		const int folderWidth = 84;
+		nameLabel.setBounds(16, 328, labelWidth, 24);
+		nameEditor.setBounds(16 + labelWidth, 328, 424 - folderWidth - 8 - (16 + labelWidth), 24);
+		folderButton.setBounds(424 - folderWidth, 326, folderWidth, 28);
+	}
 	statusLabel.setBounds(16, 364, 408, 36);
 	// buttons, listening back
 	recordButton.setBounds(16, 408, 128, 32);
@@ -294,7 +318,11 @@ void RecorderComponent::resized()
 	saveButton.setBounds(296, 408, 128, 32);
 	listenButton.setBounds(16, 464, 160, 32);
 	positionLabel.setBounds(188, 464, 236, 32);
-	positionSlider.setBounds(12, 504, 416, 24);
+	{
+		const int labelWidth = jlimit(40, 120, textWidth(positionCaption.getText()) + 6);
+		positionCaption.setBounds(16, 504, labelWidth, 24);
+		positionSlider.setBounds(16 + labelWidth, 504, 428 - (16 + labelWidth), 24);
+	}
 }
 
 void RecorderComponent::buttonClicked(Button* button)
@@ -355,6 +383,20 @@ void RecorderComponent::buttonClicked(Button* button)
 	else if (button == &saveButton)
 	{
 		save();
+	}
+	else if (button == &folderButton)
+	{
+		// the saved recording selected in its folder, or the folder where it will be saved
+		if (lastSavedFile.existsAsFile())
+		{
+			lastSavedFile.revealToUser();
+		}
+		else
+		{
+			const File directory = settings.GetDefaultSongDirectory();
+			directory.createDirectory();
+			directory.startAsProcess();
+		}
 	}
 	else if (button == &autoButton || button == &manualButton || button == &styleButton ||
 		button == &quantizeButton || button == &quantizeEndsButton || button == &quantizeFillButton)
@@ -496,6 +538,7 @@ void RecorderComponent::writeFile(const File& file)
 	{
 		saved = true;
 		savedName = file.getFileName();
+		lastSavedFile = file;
 		message = "";
 	}
 	else
