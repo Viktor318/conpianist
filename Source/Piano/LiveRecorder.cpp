@@ -40,6 +40,7 @@ void LiveRecorder::Begin(double nowMs, bool alignToDownbeat)
 {
 	m_events.clear();
 	m_chords.clear();
+	m_tempos.clear();
 	if (((m_currentChord >> 24) & 0x7f) != 0x7f)
 	{
 		m_chords.push_back({0.0, m_currentChord}); // the chord that is on at the beginning
@@ -67,6 +68,7 @@ void LiveRecorder::Arm()
 	const ScopedLock lock(m_lock);
 	m_events.clear();
 	m_chords.clear();
+	m_tempos.clear();
 	m_noteCount = 0;
 	m_state = stArmed;
 }
@@ -82,6 +84,7 @@ void LiveRecorder::StartCountIn(int measures)
 	const ScopedLock lock(m_lock);
 	m_events.clear();
 	m_chords.clear();
+	m_tempos.clear();
 	m_noteCount = 0;
 	// the next downbeat begins the count-in; the recording starts after its measures
 	m_downbeatsLeft = std::max(0, measures) + 1;
@@ -131,7 +134,36 @@ void LiveRecorder::MoveStart(double newStartMs)
 	{
 		event.time = std::max(0.0, event.time - delta);
 	}
+	for (TempoEvent& event : m_tempos)
+	{
+		event.time = std::max(0.0, event.time - delta);
+	}
 	m_startMs = newStartMs;
+}
+
+void LiveRecorder::AddTempo(int tempo)
+{
+	const double nowMs = NowMs();
+	const ScopedLock lock(m_lock);
+	if (m_state == stRecording && tempo > 0)
+	{
+		m_tempos.push_back({nowMs - m_startMs, tempo});
+	}
+}
+
+// The place of a time in the file (ticks), by the tempo map of the file being written.
+double LiveRecorder::TickOf(double timeMs) const
+{
+	const double time = std::max(0.0, timeMs);
+	const TempoSegment* segment = &m_saveTempoMap.front();
+	for (const TempoSegment& candidate : m_saveTempoMap)
+	{
+		if (candidate.time <= time)
+		{
+			segment = &candidate;
+		}
+	}
+	return segment->tick + (time - segment->time) * segment->ticksPerMs;
 }
 
 void LiveRecorder::AddChord(int chord)
@@ -178,6 +210,7 @@ void LiveRecorder::Clear()
 	const ScopedLock lock(m_lock);
 	m_events.clear();
 	m_chords.clear();
+	m_tempos.clear();
 	m_noteCount = 0;
 	m_state = stIdle;
 }
@@ -442,7 +475,7 @@ double LiveRecorder::AddQuantized(MidiMessageSequence& track, int source, int ch
 		MidiMessage message(event.message);
 		message.setChannel(channel);
 		message.setTimeStamp(0); // see Save
-		const double tick = std::floor(std::max(0.0, event.time) * ticksPerMs + 0.5);
+		const double tick = std::floor(TickOf(event.time) + 0.5);
 		if (message.isNoteOn())
 		{
 			const int number = message.getNoteNumber();
@@ -626,6 +659,48 @@ bool LiveRecorder::Save(const File& file, int tempo, int beatNumerator, int beat
 	const int ticksPerQuarter = TicksPerQuarter;
 	const double ticksPerMs = tempo * ticksPerQuarter / 60000.0;
 
+	// The tempo map: the tempo of the beginning, then the changes made while recording.
+	// A change right at the beginning (or the same tempo again) is not a change.
+	m_saveTempoMap.clear();
+	m_saveTempoMap.push_back({0.0, 0.0, ticksPerMs});
+	std::vector<std::pair<double, int>> tempoChanges; // tick, tempo
+	{
+		int lastTempo = tempo;
+		for (const TempoEvent& event : m_tempos)
+		{
+			if (event.tempo == lastTempo || event.time > m_endMs - m_startMs + 1.0)
+			{
+				continue;
+			}
+			if (event.time < 1.0)
+			{
+				continue; // before the music: the tempo of the beginning is what was set
+			}
+			double tick = std::floor(TickOf(event.time) + 0.5);
+			if (quantizeTicks > 0)
+			{
+				tick = std::floor(tick / quantizeTicks + 0.5) * quantizeTicks; // on the grid, like the notes
+			}
+			const double time = m_saveTempoMap.back().time + (tick - m_saveTempoMap.back().tick) / m_saveTempoMap.back().ticksPerMs;
+			if (tick <= m_saveTempoMap.back().tick)
+			{
+				if (tempoChanges.empty())
+				{
+					continue; // at the very beginning: the tempo of the beginning stays
+				}
+				// two changes at the same place: the later one counts
+				m_saveTempoMap.back().ticksPerMs = event.tempo * ticksPerQuarter / 60000.0;
+				tempoChanges.back().second = event.tempo;
+			}
+			else
+			{
+				m_saveTempoMap.push_back({time, tick, event.tempo * ticksPerQuarter / 60000.0});
+				tempoChanges.push_back({tick, event.tempo});
+			}
+			lastTempo = event.tempo;
+		}
+	}
+
 	// the sources that played notes
 	bool used[NumSources + 1] = {};
 	for (const Event& event : m_events)
@@ -702,6 +777,12 @@ bool LiveRecorder::Save(const File& file, int tempo, int beatNumerator, int beat
 		conductor.addEvent(MidiMessage(data, (int)sizeof(data), 0.0), 0);
 	}
 	conductor.addEvent(MidiMessage::tempoMetaEvent(60000000 / std::max(1, tempo)), 0);
+	for (const auto& change : tempoChanges)
+	{
+		MidiMessage message = MidiMessage::tempoMetaEvent(60000000 / std::max(1, change.second));
+		message.setTimeStamp(change.first);
+		conductor.addEvent(message);
+	}
 	if (m_keySharps != NoValue)
 	{
 		conductor.addEvent(MidiMessage::keySignatureMetaEvent(m_keySharps, m_keyMinor), 0);
@@ -719,7 +800,7 @@ bool LiveRecorder::Save(const File& file, int tempo, int beatNumerator, int beat
 			{
 				continue; // after the end of the recording, or the same chord again
 			}
-			double tick = std::floor(std::max(0.0, event.time) * ticksPerMs + 0.5);
+			double tick = std::floor(TickOf(event.time) + 0.5);
 			if (quantizeTicks > 0)
 			{
 				tick = std::floor(tick / quantizeTicks + 0.5) * quantizeTicks;
@@ -832,7 +913,7 @@ bool LiveRecorder::Save(const File& file, int tempo, int beatNumerator, int beat
 				// addEvent adds its time to the time stamp of the message: messages coming from a
 				// MIDI input carry the time of their arrival, which must not be added
 				message.setTimeStamp(0);
-				const double tick = std::floor(std::max(0.0, event.time) * ticksPerMs + 0.5);
+				const double tick = std::floor(TickOf(event.time) + 0.5);
 				track.addEvent(message, tick);
 				lastTick = std::max(lastTick, tick);
 			}

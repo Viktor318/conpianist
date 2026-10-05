@@ -85,6 +85,11 @@ public:
 	// 0xRRTTBBbb; 0x7f in the root: no chord); thread safe. The chords are written into
 	// the file in Yamaha's XF format, and by their names as text if chordName is set.
 	void AddChord(int chord);
+
+	// The tempo has changed (beats per minute) while recording; thread safe. The change is
+	// written into the file at its time, and the music after it is placed by the new
+	// tempo, so it sounds as it was played and its measures stay in place.
+	void AddTempo(int tempo);
 	std::function<String(int chord)> chordName;
 
 	// A played message of a source (the channel of the message is ignored); thread safe.
@@ -148,6 +153,21 @@ private:
 		int chord;
 	};
 	std::vector<ChordEvent> m_chords;
+	struct TempoEvent
+	{
+		double time; // milliseconds from the start
+		int tempo;
+	};
+	std::vector<TempoEvent> m_tempos;
+	// while a file is written: where the tempo changes (time, tick, ticks per millisecond)
+	struct TempoSegment
+	{
+		double time;
+		double tick;
+		double ticksPerMs;
+	};
+	mutable std::vector<TempoSegment> m_saveTempoMap;
+	double TickOf(double timeMs) const; // not rounded
 	int m_currentChord = NoChord;
 	bool m_keyMinor = false;
 	int m_held[NumSources + 1][128] = {}; // held notes of each source

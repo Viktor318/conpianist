@@ -599,6 +599,10 @@ void PianoController::SetTempo(int tempo)
 		if (m_localPlayer) m_localPlayer->SetTempo(tempo);
 		m_tempo = tempo;
 		NotifyChanged(apTempo);
+		if (!m_connected)
+		{
+			m_recorder.AddTempo(tempo); // no piano that reports it: recorded from here
+		}
 		if (m_connected)
 		{
 			// the piano's metronome and accompaniment follow the tempo of the own player
@@ -978,6 +982,7 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 		const int pianoTempo = pm->GetIntValue();
 		const bool changed = m_pianoTempoKnown && pianoTempo != m_pianoTempo;
 		m_pianoTempo = pianoTempo;
+		m_recorder.AddTempo(pianoTempo); // a change of the tempo is recorded with the music
 		m_pianoTempoKnown = true;
 		NotifyChanged(apStyle);
 
