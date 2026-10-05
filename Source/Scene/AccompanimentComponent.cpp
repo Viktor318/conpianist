@@ -63,9 +63,9 @@ AccompanimentComponent::AccompanimentComponent(Settings& settings, PianoControll
 	initLabel(currentLabel, TRANS("Current style:"));
 	initLabel(currentNameLabel, "");
 	currentNameLabel.setMinimumHorizontalScale(0.7f);
-	// bold, amber, on a dark framed field (see paint)
-	currentNameLabel.setFont(Font(FontOptions(15.00f, Font::bold)));
-	currentNameLabel.setColour(Label::textColourId, Colour(0xffffb84d));
+	// bold, in the colour of the chord, in a frame like the chord (see paint)
+	currentNameLabel.setFont(Font(FontOptions(17.00f, Font::bold)));
+	currentNameLabel.setColour(Label::textColourId, Colour(0xffee6c0a));
 
 	loadStyles();
 
@@ -204,14 +204,9 @@ void AccompanimentComponent::paint(Graphics& g)
 	{
 		g.fillRect(12, y, getWidth() - 24, 1);
 	}
-	// the name of the current style on a dark field, like a display
-	const auto nameField = currentNameLabel.getBounds().expanded(0, 3).toFloat();
-	g.setColour(Colour(0xff0c1012));
-	g.fillRoundedRectangle(nameField, 5.0f);
-	g.setColour(Colour(0xffc8cdd0));
-	g.drawRoundedRectangle(nameField.reduced(0.75f), 5.0f, 1.5f);
-	// the frame of the chord
+	// the frames of the current style name and of the chord
 	g.setColour(Colours::white.withAlpha(0.7f));
+	g.drawRoundedRectangle(currentNameLabel.getBounds().expanded(0, 3).toFloat().reduced(0.75f), 5.0f, 1.5f);
 	g.drawRoundedRectangle(chordFrame.toFloat().reduced(0.75f), 5.0f, 1.5f);
 }
 
