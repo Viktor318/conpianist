@@ -469,6 +469,11 @@ void ChannelComponent::toggleLiveChannel()
 
 void ChannelComponent::mouseDoubleClick(const MouseEvent& event)
 {
+	// a greyed out control is not reset either
+	if (event.eventComponent == nullptr || !event.eventComponent->isEnabled())
+	{
+		return;
+	}
 	if (event.eventComponent == panSlider.get())
 	{
 		pianoController.ResetPan(channel);
