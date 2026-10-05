@@ -828,18 +828,26 @@ void AccompanimentComponent::update()
 	const int chordArea = connected ? pianoController.GetStyleChordArea() : (int)PianoController::caUnknown;
 	markButton(chordFullButton, chordArea == PianoController::caFull, false);
 	markButton(chordLowerButton, chordArea == PianoController::caLower, false);
+	// With the chords recognized on the whole keyboard the split point of the
+	// accompaniment has no role: it, its learning and the voice below it are greyed out
+	// (as in Smart Pianist).
+	const bool splitUsed = connected && chordArea != PianoController::caFull;
 	// it only has an effect while the Left part is off
 	const bool leftPartOn = pianoController.GetActive(PianoController::chLeft);
-	leftSoundButton.setEnabled(connected && !leftPartOn);
-	markButton(leftSoundButton, connected && !leftPartOn && pianoController.GetStyleLeftSound() == 1, false);
+	leftSoundButton.setEnabled(splitUsed && !leftPartOn);
+	markButton(leftSoundButton, splitUsed && !leftPartOn && pianoController.GetStyleLeftSound() == 1, false);
 	// not while the accompaniment is playing: its notes come from the piano too, and
 	// one of them would be taken for the key
-	if (!connected || playing)
+	if (!splitUsed || playing)
 	{
 		splitLearning = false;
 	}
-	splitLearnButton.setEnabled(connected && !playing);
+	splitLearnButton.setEnabled(splitUsed && !playing);
 	markButton(splitLearnButton, splitLearning, false);
+	splitDownButton.setEnabled(splitUsed);
+	splitUpButton.setEnabled(splitUsed);
+	splitLabel.setEnabled(splitUsed);
+	splitNameLabel.setEnabled(splitUsed);
 	const int splitPoint = pianoController.GetStyleSplitPoint();
 	splitNameLabel.setText(connected && splitPoint > 0 ? noteName(splitPoint) : String("-"), dontSendNotification);
 
