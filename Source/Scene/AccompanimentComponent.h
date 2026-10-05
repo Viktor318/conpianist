@@ -105,6 +105,7 @@ private:
 	TextButton splitLearnButton; // the next key played becomes the split point
 	std::atomic<bool> splitLearning{false};
 	void stepSplitPoint(int delta);
+	void setBothSplitPoints(int note);
 	TextButton startButton;
 	TextButton syncStartButton;
 	Label positionLabel;

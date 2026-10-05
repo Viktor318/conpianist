@@ -146,7 +146,7 @@ AccompanimentComponent::AccompanimentComponent(Settings& settings, PianoControll
 	initLabel(splitNameLabel, "");
 	splitNameLabel.setJustificationType(Justification::centred);
 	splitNameLabel.setColour(Label::outlineColourId, Colour(0xff4e5b62));
-	splitNameLabel.setTooltip(TRANS("The split point of the accompaniment: the chords are played below it. The split point of the Left part is on the Voice tab."));
+	splitNameLabel.setTooltip(TRANS("The split point of the accompaniment: the chords are played below it. Setting it here moves the split point of the Left part with it; that one alone can be set on the Voice tab."));
 	initButton(splitLearnButton, TRANS("Learn"));
 	splitLearnButton.setTooltip(TRANS("Press it, then a key on the piano or on the MIDI keyboard: that key becomes the split point. Press it again (or Esc) to cancel."));
 
@@ -644,7 +644,7 @@ void AccompanimentComponent::PianoNoteMessage(const MidiMessage& message)
 			{
 				if (splitLearning.exchange(false))
 				{
-					pianoController.SetStyleSplitPoint(note);
+					setBothSplitPoints(note);
 					update();
 				}
 			});
@@ -668,7 +668,26 @@ void AccompanimentComponent::stepSplitPoint(int delta)
 	const int target = jlimit(22, 108, current + delta); // A#-1 .. C7: a key must stay below it
 	if (current > 0 && target != current)
 	{
-		pianoController.SetStyleSplitPoint(target);
+		setBothSplitPoints(target);
+	}
+}
+
+// The split point of the accompaniment and the one of the Left part together, as the
+// Fingering page of Smart Pianist does it: the Left voice and the chords share the same
+// part of the keyboard. (The split point of the Left part alone is on the Voice tab.)
+// The piano keeps the one of the accompaniment at or below the one of the Left part, so
+// the order depends on the direction.
+void AccompanimentComponent::setBothSplitPoints(int note)
+{
+	if (note >= pianoController.GetSplitPoint())
+	{
+		pianoController.SetSplitPoint(note);
+		pianoController.SetStyleSplitPoint(note);
+	}
+	else
+	{
+		pianoController.SetStyleSplitPoint(note);
+		pianoController.SetSplitPoint(note);
 	}
 }
 

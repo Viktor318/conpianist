@@ -331,7 +331,7 @@ countries: hu
 "Split point:" = "Split pont:"
 "Split point one key lower" = "Split pont egy billentyűvel lejjebb"
 "Split point one key higher" = "Split pont egy billentyűvel feljebb"
-"The split point of the accompaniment: the chords are played below it. The split point of the Left part is on the Voice tab." = "A kíséret split pontja: az akkordok alatta játszandók. A Left szólam split pontja a Hangszín fülön állítható."
+"The split point of the accompaniment: the chords are played below it. Setting it here moves the split point of the Left part with it; that one alone can be set on the Voice tab." = "A kíséret split pontja: az akkordok alatta játszandók. Innen állítva a Left szólam split pontja is vele mozog; azt külön a Hangszín fülön lehet állítani."
 "Learn" = "Tanulás"
 "Press it, then a key on the piano or on the MIDI keyboard: that key becomes the split point. Press it again (or Esc) to cancel." = "Nyomja meg, majd üssön le egy billentyűt a zongorán vagy a MIDI-billentyűzeten: az lesz a split pont. Megszakítás: újra ez a gomb (vagy Esc)."
 "Accompaniment mixer" = "Kíséret keverő"
