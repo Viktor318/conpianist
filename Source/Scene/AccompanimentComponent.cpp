@@ -19,6 +19,7 @@
 
 #include "AccompanimentComponent.h"
 #include "GuiHelper.h"
+#include "Presets.h"
 
 AccompanimentComponent::AccompanimentComponent(Settings& settings, PianoController& pianoController) :
 	settings(settings), pianoController(pianoController)
@@ -181,8 +182,17 @@ AccompanimentComponent::AccompanimentComponent(Settings& settings, PianoControll
 	hintLabel.setJustificationType(Justification::centredRight);
 	hintLabel.setMinimumHorizontalScale(0.7f);
 
+	initButton(memoryButton, TRANS("Memory"));
+	memoryButton.setTooltip(TRANS("Saves the style, the tempo, the key and the voices of the keyboard: press it, then the number of the memory (or F1 - F8). Press it again (or Esc) to cancel."));
+	for (int i = 0; i < NumRegistrations; i++)
+	{
+		initButton(registrationButtons[i], String(i + 1));
+		registrationButtons[i].onMenu = [this, i]() { showRegistrationMenu(i); };
+	}
+	loadRegistrations();
+
 	setWantsKeyboardFocus(true);
-	setSize(440, 536);
+	setSize(440, 584);
 
 	pianoController.AddListener(this);
 	update();
@@ -190,11 +200,12 @@ AccompanimentComponent::AccompanimentComponent(Settings& settings, PianoControll
 
 AccompanimentComponent::~AccompanimentComponent()
 {
+	stopTimer();
 	pianoController.RemoveListener(this);
 }
 
 // vertical positions of the lines between the groups of the controls
-static const int AccompanimentSeparatorY[] = {204, 258, 310, 442, 486};
+static const int AccompanimentSeparatorY[] = {204, 258, 310, 442, 486, 538};
 
 void AccompanimentComponent::paint(Graphics& g)
 {
@@ -271,8 +282,15 @@ void AccompanimentComponent::resized()
 	// volume
 	volumeLabel.setBounds(16, 452, 170, 24);
 	volumeSlider.setBounds(186, 452, 238, 24);
-	shortcutsButton.setBounds(16, 496, 190, 28);
-	hintLabel.setBounds(214, 498, 210, 24);
+	// registration memories: Memory in the column of the labels, the numbers spread
+	// evenly from the line of the lists to the right edge
+	memoryButton.setBounds(16, 496, 70, 32);
+	for (int i = 0; i < NumRegistrations; i++)
+	{
+		registrationButtons[i].setBounds(90 + i * 296 / (NumRegistrations - 1), 496, 38, 32);
+	}
+	shortcutsButton.setBounds(16, 548, 190, 28);
+	hintLabel.setBounds(214, 550, 210, 24);
 }
 
 void AccompanimentComponent::buttonClicked(Button* button)
@@ -313,8 +331,19 @@ void AccompanimentComponent::buttonClicked(Button* button)
 	{
 		showShortcuts();
 	}
+	else if (button == &memoryButton)
+	{
+		setMemoryArmed(!memoryArmed);
+	}
 	else
 	{
+		for (int i = 0; i < NumRegistrations; i++)
+		{
+			if (button == &registrationButtons[i])
+			{
+				registrationPressed(i);
+			}
+		}
 		for (int i = 0; i < NumIntros; i++)
 		{
 			if (button == &introButtons[i])
@@ -405,6 +434,7 @@ void AccompanimentComponent::showShortcuts()
 		<< "T" << dash << TRANS("Tap Tempo") << "\n"
 		<< "R" << dash << TRANS("Default tempo of the style (Reset)") << "\n"
 		<< "Enter" << dash << TRANS("Apply: loads the chosen style") << "\n"
+		<< "F1 " << dash.trim() << " F8" << dash << TRANS("Registration memory 1 - 8") << "\n"
 		<< "H" << dash << TRANS("This list") << "\n\n"
 		<< TRANS("The keys work while the Accompaniment window is the active window.");
 	AlertWindow::showAsync(MessageBoxOptions()
@@ -466,9 +496,25 @@ bool AccompanimentComponent::keyPressed(const KeyPress& key)
 		showShortcuts();
 		return true;
 	}
+	if (key == KeyPress::escapeKey && memoryArmed)
+	{
+		setMemoryArmed(false);
+		return true;
+	}
 	if (!pianoController.IsConnected())
 	{
 		return false;
+	}
+	static const int functionKeys[NumRegistrations] = {
+		KeyPress::F1Key, KeyPress::F2Key, KeyPress::F3Key, KeyPress::F4Key,
+		KeyPress::F5Key, KeyPress::F6Key, KeyPress::F7Key, KeyPress::F8Key};
+	for (int i = 0; i < NumRegistrations; i++)
+	{
+		if (key == KeyPress(functionKeys[i]))
+		{
+			registrationPressed(i);
+			return true;
+		}
 	}
 	if (key == KeyPress::spaceKey)
 	{
@@ -558,6 +604,24 @@ void AccompanimentComponent::update()
 	// The lists show the style of the piano when it changes (at the start, after Apply,
 	// or when it is changed on the piano); otherwise they can be browsed freely.
 	const String path = pianoController.GetStyleName();
+	if (pendingStyle.isNotEmpty() && path == pendingStyle)
+	{
+		// The piano has loaded the style of the recalled registration. It sets the default
+		// tempo of the style with it: the saved tempo is sent a little later.
+		pendingStyle.clear();
+		const int serial = recallSerial;
+		Timer::callAfterDelay(500, [this, serial, self = Component::SafePointer<Component>(this)]()
+			{
+				if (self != nullptr && serial == recallSerial)
+				{
+					finishRecall();
+				}
+			});
+	}
+	if (currentRegistration >= 0 && pendingStyle.isEmpty() && registrations[currentRegistration].style != path)
+	{
+		currentRegistration = -1; // another style was chosen since
+	}
 	const String title = styleTitle(path);
 	currentNameLabel.setText(title.isEmpty() ? String("-") : title, dontSendNotification);
 	if (path != shownStyle && !categoryCombo.isPopupActive() && !groupCombo.isPopupActive() &&
@@ -638,6 +702,11 @@ void AccompanimentComponent::update()
 	markButton(applyButton, false, pending);
 
 	shortcutsButton.setEnabled(true); // the list can be read without the piano too
+	if (!connected && memoryArmed)
+	{
+		setMemoryArmed(false);
+	}
+	updateRegistrationButtons();
 	hintLabel.setText(connected ? String() : TRANS("The piano is not connected."), dontSendNotification);
 	hintLabel.setColour(Label::textColourId, Colours::orange);
 }
@@ -855,6 +924,458 @@ String AccompanimentComponent::styleTitle(const String& path)
 	const int styleIndex = parts.indexOf("STYLE");
 	const String category = styleIndex >= 0 && styleIndex + 2 < parts.size() ? parts[styleIndex + 1] : String();
 	return category.isEmpty() ? name : name + " (" + category + ")";
+}
+
+//==============================================================================
+// Registration memories
+
+static const char* const RegistrationPartNames[] = {"Main", "Layer", "Left"};
+static const PianoController::Channel RegistrationPartChannels[] = {
+	PianoController::chMain, PianoController::chLayer, PianoController::chLeft};
+
+void AccompanimentComponent::MemoryButton::mouseDown(const MouseEvent& e)
+{
+	menuClick = e.mods.isPopupMenu();
+	if (menuClick)
+	{
+		if (onMenu)
+		{
+			onMenu();
+		}
+		return;
+	}
+	TextButton::mouseDown(e);
+}
+
+void AccompanimentComponent::MemoryButton::mouseDrag(const MouseEvent& e)
+{
+	if (!menuClick)
+	{
+		TextButton::mouseDrag(e);
+	}
+}
+
+void AccompanimentComponent::MemoryButton::mouseUp(const MouseEvent& e)
+{
+	if (menuClick)
+	{
+		menuClick = false;
+		return;
+	}
+	TextButton::mouseUp(e);
+}
+
+File AccompanimentComponent::registrationsFile() const
+{
+	return settings.GetLastStateFile().getSiblingFile("Registrations.xml");
+}
+
+void AccompanimentComponent::loadRegistrations()
+{
+	std::unique_ptr<XmlElement> root = XmlDocument::parse(registrationsFile());
+	if (!root || !root->hasTagName("ConPianistRegistrations"))
+	{
+		return;
+	}
+	for (XmlElement* el : root->getChildWithTagNameIterator("Registration"))
+	{
+		const int index = el->getIntAttribute("number") - 1;
+		if (index < 0 || index >= NumRegistrations)
+		{
+			continue;
+		}
+		Registration& reg = registrations[index];
+		reg = Registration();
+		reg.used = true;
+		reg.name = el->getStringAttribute("name");
+		reg.style = el->getStringAttribute("style");
+		reg.tempo = jlimit((int)PianoController::MinTempo, (int)PianoController::MaxTempo,
+			el->getIntAttribute("tempo", PianoController::DefaultTempo));
+		reg.styleVolume = jlimit(0, 127, el->getIntAttribute("styleVolume", PianoController::DefaultVolume));
+		reg.key = el->getStringAttribute("key");
+		reg.minor = el->getBoolAttribute("minor");
+		reg.transpose = jlimit((int)PianoController::MinTranspose, (int)PianoController::MaxTranspose, el->getIntAttribute("transpose"));
+		reg.keyboardTranspose = jlimit((int)PianoController::MinTranspose, (int)PianoController::MaxTranspose, el->getIntAttribute("keyboardTranspose"));
+		reg.splitPoint = el->getIntAttribute("splitPoint");
+		for (int i = 0; i < 3; i++)
+		{
+			if (XmlElement* partEl = el->getChildByName(RegistrationPartNames[i]))
+			{
+				Registration::Part& part = reg.parts[i];
+				part.voice = partEl->getStringAttribute("voice");
+				part.active = partEl->getBoolAttribute("active");
+				part.volume = jlimit(0, 127, partEl->getIntAttribute("volume", PianoController::DefaultVolume));
+				part.pan = jlimit((int)PianoController::MinPan, (int)PianoController::MaxPan, partEl->getIntAttribute("pan"));
+				part.reverb = jlimit(0, 127, partEl->getIntAttribute("reverb"));
+				part.octave = jlimit((int)PianoController::MinOctave, (int)PianoController::MaxOctave, partEl->getIntAttribute("octave"));
+			}
+		}
+	}
+}
+
+void AccompanimentComponent::saveRegistrations()
+{
+	XmlElement root("ConPianistRegistrations");
+	for (int index = 0; index < NumRegistrations; index++)
+	{
+		const Registration& reg = registrations[index];
+		if (!reg.used)
+		{
+			continue;
+		}
+		XmlElement* el = root.createNewChildElement("Registration");
+		el->setAttribute("number", index + 1);
+		el->setAttribute("name", reg.name);
+		el->setAttribute("style", reg.style);
+		el->setAttribute("tempo", reg.tempo);
+		el->setAttribute("styleVolume", reg.styleVolume);
+		el->setAttribute("key", reg.key);
+		el->setAttribute("minor", reg.minor);
+		el->setAttribute("transpose", reg.transpose);
+		el->setAttribute("keyboardTranspose", reg.keyboardTranspose);
+		el->setAttribute("splitPoint", reg.splitPoint);
+		for (int i = 0; i < 3; i++)
+		{
+			const Registration::Part& part = reg.parts[i];
+			XmlElement* partEl = el->createNewChildElement(RegistrationPartNames[i]);
+			partEl->setAttribute("voice", part.voice);
+			partEl->setAttribute("active", part.active);
+			partEl->setAttribute("volume", part.volume);
+			partEl->setAttribute("pan", part.pan);
+			partEl->setAttribute("reverb", part.reverb);
+			partEl->setAttribute("octave", part.octave);
+		}
+	}
+	root.writeTo(registrationsFile());
+}
+
+// The settings as they are now.
+AccompanimentComponent::Registration AccompanimentComponent::captureRegistration() const
+{
+	Registration reg;
+	reg.used = true;
+	reg.style = pianoController.GetStyleName();
+	reg.tempo = pianoController.GetStyleTempo();
+	reg.styleVolume = pianoController.GetVolume(PianoController::chStyle);
+	reg.key = settings.accompanimentKey;
+	reg.minor = settings.accompanimentMinor;
+	reg.transpose = pianoController.GetTranspose();
+	reg.keyboardTranspose = pianoController.GetKeyboardTranspose();
+	reg.splitPoint = pianoController.GetSplitPoint();
+	for (int i = 0; i < 3; i++)
+	{
+		const PianoController::Channel ch = RegistrationPartChannels[i];
+		Registration::Part& part = reg.parts[i];
+		const String voice = pianoController.GetVoice(ch);
+		Voice* preset = Presets::FindVoice(voice);
+		part.voice = preset ? preset->path : voice;
+		part.active = pianoController.GetActive(ch);
+		part.volume = pianoController.GetVolume(ch);
+		part.pan = pianoController.GetPan(ch);
+		part.reverb = pianoController.GetReverb(ch);
+		part.octave = pianoController.GetOctave(ch);
+	}
+	return reg;
+}
+
+// A number was pressed (button or F1..F8): saves after Memory, recalls otherwise.
+void AccompanimentComponent::registrationPressed(int index)
+{
+	if (!pianoController.IsConnected())
+	{
+		return;
+	}
+	if (memoryArmed)
+	{
+		setMemoryArmed(false);
+		storeRegistration(index);
+	}
+	else if (registrations[index].used)
+	{
+		recallRegistration(index);
+	}
+}
+
+// Asks for the (optional) name, then saves the settings as they were when the number
+// was pressed. Cancelling the name window keeps the memory as it was.
+void AccompanimentComponent::storeRegistration(int index)
+{
+	const Registration captured = captureRegistration();
+	askRegistrationName(index, TRANS("Save to memory NUMBER").replace("NUMBER", String(index + 1)),
+		[this, index, captured](const String& name)
+		{
+			registrations[index] = captured;
+			registrations[index].name = name;
+			saveRegistrations();
+			currentRegistration = index;
+			update();
+		});
+}
+
+void AccompanimentComponent::askRegistrationName(int index, const String& title, std::function<void(const String&)> done)
+{
+	AlertWindow* window = new AlertWindow(title,
+		registrations[index].used ? TRANS("The memory is in use: saving replaces what is in it.") : String(),
+		MessageBoxIconType::NoIcon, this);
+	window->addTextEditor("name", registrations[index].name, TRANS("Name (not required):"));
+	window->addButton(TRANS("OK"), 1, KeyPress(KeyPress::returnKey));
+	window->addButton(TRANS("Cancel"), 0, KeyPress(KeyPress::escapeKey));
+	if (TextEditor* editor = window->getTextEditor("name"))
+	{
+		editor->setSelectAllWhenFocused(true);
+		editor->setInputRestrictions(40);
+	}
+	window->enterModalState(true, ModalCallbackFunction::create(
+		[window, done, self = Component::SafePointer<Component>(this)](int result)
+		{
+			if (self != nullptr)
+			{
+				if (result == 1)
+				{
+					done(window->getTextEditorContents("name").trim());
+				}
+				self->grabKeyboardFocus(); // the shortcuts work again at once
+			}
+		}), true);
+	if (TextEditor* editor = window->getTextEditor("name"))
+	{
+		editor->grabKeyboardFocus(); // the name can be typed at once
+	}
+}
+
+// Sends what differs from the current state of the piano. The style comes last: the
+// piano sets the default tempo of a style when it loads it, so the saved tempo (and the
+// volume of the accompaniment) is sent when the piano reports the new style.
+void AccompanimentComponent::recallRegistration(int index)
+{
+	const Registration& reg = registrations[index];
+	if (!reg.used || !pianoController.IsConnected())
+	{
+		return;
+	}
+
+	for (int i = 0; i < 3; i++)
+	{
+		const PianoController::Channel ch = RegistrationPartChannels[i];
+		const Registration::Part& part = reg.parts[i];
+		const String voice = pianoController.GetVoice(ch);
+		Voice* preset = Presets::FindVoice(voice);
+		if (part.voice.isNotEmpty() && part.voice != (preset ? preset->path : voice))
+		{
+			pianoController.SetVoice(ch, part.voice);
+			pianoController.SetOctave(ch, part.octave); // a new voice may bring its own octave
+		}
+		else if (part.octave != pianoController.GetOctave(ch))
+		{
+			pianoController.SetOctave(ch, part.octave);
+		}
+		if (part.volume != pianoController.GetVolume(ch))
+		{
+			pianoController.SetVolume(ch, part.volume);
+		}
+		if (part.pan != pianoController.GetPan(ch))
+		{
+			pianoController.SetPan(ch, part.pan);
+		}
+		if (part.reverb != pianoController.GetReverb(ch))
+		{
+			pianoController.SetReverb(ch, part.reverb);
+		}
+		if (part.active != pianoController.GetActive(ch))
+		{
+			pianoController.SetActive(ch, part.active);
+		}
+	}
+	if (reg.splitPoint > 0 && reg.splitPoint != pianoController.GetSplitPoint())
+	{
+		pianoController.SetSplitPoint(reg.splitPoint);
+	}
+	if (reg.transpose != pianoController.GetTranspose())
+	{
+		pianoController.SetTranspose(reg.transpose);
+	}
+	if (reg.keyboardTranspose != pianoController.GetKeyboardTranspose())
+	{
+		pianoController.SetKeyboardTranspose(reg.keyboardTranspose);
+	}
+
+	if (settings.accompanimentKey != reg.key || settings.accompanimentMinor != reg.minor)
+	{
+		settings.accompanimentKey = reg.key;
+		settings.accompanimentMinor = reg.minor;
+		settings.Save();
+		keyModeCombo.setSelectedId(reg.minor ? 2 : 1, dontSendNotification);
+		fillKeyCombo();
+	}
+
+	recallSerial++;
+	pendingTempo = reg.tempo;
+	pendingVolume = reg.styleVolume;
+	currentRegistration = index;
+	taps.clear();
+	if (reg.style.isNotEmpty() && reg.style != pianoController.GetStyleName())
+	{
+		pendingStyle = reg.style;
+		pianoController.SetStyle(reg.style);
+		// if the piano does not report the style (e.g. it does not know it), the rest
+		// is sent anyway
+		const int serial = recallSerial;
+		Timer::callAfterDelay(3000, [this, serial, self = Component::SafePointer<Component>(this)]()
+			{
+				if (self != nullptr && serial == recallSerial && pendingStyle.isNotEmpty())
+				{
+					pendingStyle.clear();
+					finishRecall();
+				}
+			});
+	}
+	else
+	{
+		pendingStyle.clear();
+		finishRecall();
+	}
+	update();
+}
+
+// The tempo and the volume of the accompaniment of the recalled registration.
+void AccompanimentComponent::finishRecall()
+{
+	if (!pianoController.IsConnected())
+	{
+		return;
+	}
+	if (pendingTempo > 0 && pendingTempo != pianoController.GetStyleTempo())
+	{
+		pianoController.SetStyleTempo(pendingTempo);
+	}
+	if (pendingVolume != pianoController.GetVolume(PianoController::chStyle))
+	{
+		pianoController.SetVolume(PianoController::chStyle, pendingVolume);
+	}
+}
+
+// Menu of a number button (right mouse button): rename and delete.
+void AccompanimentComponent::showRegistrationMenu(int index)
+{
+	if (!registrations[index].used)
+	{
+		return;
+	}
+	PopupMenu menu;
+	menu.addItem(1, TRANS("Rename..."));
+	menu.addItem(2, TRANS("Delete"));
+	menu.showMenuAsync(PopupMenu::Options().withTargetComponent(&registrationButtons[index]),
+		[this, index, self = Component::SafePointer<Component>(this)](int result)
+		{
+			if (self == nullptr)
+			{
+				return;
+			}
+			if (result == 1)
+			{
+				askRegistrationName(index, TRANS("Name of memory NUMBER").replace("NUMBER", String(index + 1)),
+					[this, index](const String& name)
+					{
+						registrations[index].name = name;
+						saveRegistrations();
+						update();
+					});
+			}
+			else if (result == 2)
+			{
+				registrations[index] = Registration();
+				if (currentRegistration == index)
+				{
+					currentRegistration = -1;
+				}
+				saveRegistrations();
+				update();
+			}
+		});
+}
+
+// What is in the memory, shown as the tooltip of its button.
+String AccompanimentComponent::registrationTooltip(int index) const
+{
+	const Registration& reg = registrations[index];
+	const String dash = " " + String(CharPointer_UTF8("\xe2\x80\x93")) + " ";
+	const String number = String(index + 1);
+	const String shortcut = " (F" + number + ")";
+	if (!reg.used)
+	{
+		return TRANS("Memory NUMBER").replace("NUMBER", number) + shortcut + dash + TRANS("empty") + "\n" +
+			TRANS("To save: Memory, then this button");
+	}
+	String text = (reg.name.isNotEmpty() ? number + ". " + reg.name : TRANS("Memory NUMBER").replace("NUMBER", number)) + shortcut + "\n";
+	text << TRANS("Style:") << " " << styleTitle(reg.style) << "\n";
+	text << TRANS("Tempo:") << " " << reg.tempo;
+	if (reg.key.isNotEmpty())
+	{
+		text << "    " << TRANS("Key:") << " " << (reg.minor ? TRANS("KEY minor") : TRANS("KEY major")).replace("KEY", reg.key);
+	}
+	text << "\n";
+	for (int i = 0; i < 3; i++)
+	{
+		const Registration::Part& part = reg.parts[i];
+		String title = Presets::VoiceTitle(part.voice);
+		if (title.isEmpty())
+		{
+			title = "-";
+		}
+		text << RegistrationPartNames[i] << ": " << title;
+		if (!part.active)
+		{
+			text << " (" << TRANS("Off").toLowerCase() << ")";
+		}
+		text << "\n";
+	}
+	auto signedNumber = [](int value) { return (value > 0 ? "+" : "") + String(value); };
+	if (reg.transpose != 0)
+	{
+		text << TRANS("Transpose") << ": " << signedNumber(reg.transpose) << "\n";
+	}
+	if (reg.keyboardTranspose != 0)
+	{
+		text << TRANS("Transpose") << " (Piano Room): " << signedNumber(reg.keyboardTranspose) << "\n";
+	}
+	return text.trimEnd();
+}
+
+// After Memory the button blinks until a number is pressed (or it is cancelled).
+void AccompanimentComponent::setMemoryArmed(bool armed)
+{
+	memoryArmed = armed;
+	memoryBlink = armed;
+	if (armed)
+	{
+		startTimer(400);
+	}
+	else
+	{
+		stopTimer();
+	}
+	updateRegistrationButtons();
+}
+
+void AccompanimentComponent::timerCallback()
+{
+	memoryBlink = !memoryBlink;
+	markButton(memoryButton, memoryArmed && memoryBlink, false);
+}
+
+// The numbers: the current one marked, the empty ones faint. They stay usable without
+// the piano too (tooltip, renaming, deleting); only saving and recalling need it.
+void AccompanimentComponent::updateRegistrationButtons()
+{
+	markButton(memoryButton, memoryArmed && memoryBlink, false);
+	for (int i = 0; i < NumRegistrations; i++)
+	{
+		MemoryButton& button = registrationButtons[i];
+		button.setEnabled(true);
+		button.setAlpha(registrations[i].used || memoryArmed ? 1.0f : 0.45f);
+		markButton(button, i == currentRegistration && registrations[i].used, false);
+		button.setTooltip(registrationTooltip(i));
+	}
 }
 
 //==============================================================================

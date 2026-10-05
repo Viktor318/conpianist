@@ -28,7 +28,8 @@
 // The accompaniment is played by the piano itself; the window needs the piano.
 class AccompanimentComponent : public Component,
                                public Button::Listener,
-                               public PianoController::Listener
+                               public PianoController::Listener,
+                               private Timer
 {
 public:
 	AccompanimentComponent(Settings& settings, PianoController& pianoController);
@@ -107,6 +108,72 @@ private:
 	Label volumeLabel;
 	Slider volumeSlider;
 	TextButton shortcutsButton; // shows the list of the keyboard shortcuts
+
+	// Registration memories: the style, the tempo, the key and the keyboard parts are
+	// saved with the Memory button and a number, and recalled with the number (or F1..F8).
+	// They are kept in a file of their own in the data folder of the program.
+	static const int NumRegistrations = 8;
+	struct Registration
+	{
+		bool used = false;
+		String name;        // given by the user, may be empty
+		String style;       // preset path of the style
+		int tempo = PianoController::DefaultTempo;
+		int styleVolume = PianoController::DefaultVolume;
+		String key;         // as Settings::accompanimentKey (empty: no key)
+		bool minor = false;
+		int transpose = 0;         // of the song and Live Play (left panel)
+		int keyboardTranspose = 0; // of the piano's own keys (Piano Room)
+		int splitPoint = 0;
+		struct Part
+		{
+			String voice;   // preset path of the voice
+			bool active = false;
+			int volume = PianoController::DefaultVolume;
+			int pan = PianoController::DefaultPan;
+			int reverb = PianoController::DefaultReverb;
+			int octave = PianoController::DefaultOctave;
+		};
+		Part parts[3];      // Main, Layer, Left
+	};
+	// A number button: a click with the right mouse button opens its menu instead of
+	// pressing it.
+	class MemoryButton : public TextButton
+	{
+	public:
+		std::function<void()> onMenu;
+		void mouseDown(const MouseEvent& e) override;
+		void mouseDrag(const MouseEvent& e) override;
+		void mouseUp(const MouseEvent& e) override;
+	private:
+		bool menuClick = false;
+	};
+	TextButton memoryButton;
+	MemoryButton registrationButtons[NumRegistrations];
+	Registration registrations[NumRegistrations];
+	bool memoryArmed = false;      // Memory was pressed: the next number saves
+	bool memoryBlink = false;
+	int currentRegistration = -1;  // recalled or saved last, while its style is on the piano
+	// the style of a recalled registration is being loaded by the piano; its tempo and
+	// volume are sent when the piano has loaded it
+	String pendingStyle;
+	int pendingTempo = 0;
+	int pendingVolume = 0;
+	int recallSerial = 0;
+	File registrationsFile() const;
+	void loadRegistrations();
+	void saveRegistrations();
+	Registration captureRegistration() const;
+	void registrationPressed(int index);
+	void storeRegistration(int index);
+	void recallRegistration(int index);
+	void finishRecall();
+	void showRegistrationMenu(int index);
+	void askRegistrationName(int index, const String& title, std::function<void(const String&)> done);
+	String registrationTooltip(int index) const;
+	void setMemoryArmed(bool armed);
+	void updateRegistrationButtons();
+	void timerCallback() override;
 	Label hintLabel;            // a message, e.g. that the piano is not connected
 
 	void update();
