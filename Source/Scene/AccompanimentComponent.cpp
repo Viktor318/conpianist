@@ -202,6 +202,9 @@ void AccompanimentComponent::paint(Graphics& g)
 	{
 		g.fillRect(12, y, getWidth() - 24, 1);
 	}
+	// the name of the current style on a dark field, like a display
+	g.setColour(Colour(0xff171d20));
+	g.fillRoundedRectangle(currentNameLabel.getBounds().expanded(0, 3).toFloat(), 5.0f);
 	// the frame of the chord
 	g.setColour(Colours::white.withAlpha(0.7f));
 	g.drawRoundedRectangle(chordFrame.toFloat().reduced(0.75f), 5.0f, 1.5f);
@@ -220,7 +223,7 @@ void AccompanimentComponent::resized()
 		const int textWidth = GlyphArrangement::getStringWidthInt(currentLabel.getFont(), currentLabel.getText());
 		const int labelWidth = jlimit(60, 200, textWidth + 10);
 		currentLabel.setBounds(16, 88, labelWidth, 24);
-		currentNameLabel.setBounds(16 + labelWidth, 88, 408 - labelWidth, 24);
+		currentNameLabel.setBounds(16 + labelWidth + 4, 88, 408 - labelWidth - 4, 24);
 	}
 	{
 		// the key list right after its label, then major or minor
