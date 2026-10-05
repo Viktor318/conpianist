@@ -125,7 +125,11 @@ private:
     std::unique_ptr<AccompanimentWindow> accompanimentWindow; // likewise
     std::unique_ptr<StyleMixerWindow> styleMixerWindow; // Accompaniment mixer window, likewise
     std::unique_ptr<BalanceWindow> balanceWindow; // Balance window, likewise
-    std::unique_ptr<StyleMixerButton> styleMixerButton; // opens it, to the right of the Balance button
+    // top bar buttons drawn in code, from left to right; the Balance button is between
+    // the Accompaniment and the Accompaniment mixer button
+    std::unique_ptr<TopBarButton> recorderButton;
+    std::unique_ptr<TopBarButton> accompanimentButton;
+    std::unique_ptr<TopBarButton> styleMixerButton;
 	std::unique_ptr<LocalMidiConnector> localMidiConnector;
 	std::unique_ptr<RtpMidiConnector> rtpMidiConnector;
 	MidiConnector* midiConnector = nullptr;

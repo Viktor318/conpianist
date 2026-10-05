@@ -235,7 +235,17 @@ SceneComponent::SceneComponent (Settings& settings)
 
 
     //[Constructor] You can add your own custom stuff here..
-	styleMixerButton.reset(new StyleMixerButton());
+	recorderButton.reset(new TopBarButton("Recorder Button", TopBarButton::iconRecord));
+	addAndMakeVisible(recorderButton.get());
+	recorderButton->setTooltip(TRANS("Recording"));
+	recorderButton->onClick = [this]() { showRecorder(); };
+	recorderButton->setBounds(getWidth() - 255 - 32, 8, 32, 28);
+	accompanimentButton.reset(new TopBarButton("Accompaniment Button", TopBarButton::iconAccompaniment));
+	addAndMakeVisible(accompanimentButton.get());
+	accompanimentButton->setTooltip(TRANS("Accompaniment"));
+	accompanimentButton->onClick = [this]() { showAccompaniment(); };
+	accompanimentButton->setBounds(getWidth() - 220 - 32, 8, 32, 28);
+	styleMixerButton.reset(new TopBarButton("Style Mixer Button", TopBarButton::iconStyleMixer));
 	addAndMakeVisible(styleMixerButton.get());
 	styleMixerButton->setTooltip(TRANS("Accompaniment mixer"));
 	styleMixerButton->onClick = [this]() { showStyleMixer(); };
@@ -273,6 +283,8 @@ SceneComponent::~SceneComponent()
     styleMixerWindow = nullptr;
     balanceWindow = nullptr;
     styleMixerButton = nullptr;
+    accompanimentButton = nullptr;
+    recorderButton = nullptr;
     saveLastState(); // restored at the next start
     // MIDI In 2 is closed first (the output stays open), so no more notes arrive;
     // then the notes still held there or on the virtual keyboard are released
@@ -353,7 +365,10 @@ void SceneComponent::resized()
     //[UserResized] Add your own custom resize handling here..
     if (styleMixerButton) // created after the first layout
     {
-        styleMixerButton->setBounds(getWidth() - 150 - 32, 8, 32, 28); // between the Balance and the keyboard button
+        // Recording, Accompaniment, (Balance), Accompaniment mixer, (keyboard, ...)
+        recorderButton->setBounds(getWidth() - 255 - 32, 8, 32, 28);
+        accompanimentButton->setBounds(getWidth() - 220 - 32, 8, 32, 28);
+        styleMixerButton->setBounds(getWidth() - 150 - 32, 8, 32, 28);
     }
     // the height of the virtual keyboard can be changed by the user
     const int keyboardHeight = getKeyboardHeight();

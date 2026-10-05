@@ -320,31 +320,57 @@ bool StyleMixerWindow::RestorePosition()
 
 //==============================================================================
 
-// A drum seen from the side: the head, the shell with its lugs, and two sticks.
-void StyleMixerButton::paintButton(Graphics& g, bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown)
+// The head and the bottom rim, the shell and its three lugs.
+void TopBarButton::drawDrum(Graphics& g, float left, float right, float top, float bottom,
+	float rim, float shell, float lug, float lugInset)
+{
+	g.fillRect(left - 1.0f, top, right - left + 2.0f, rim);
+	g.fillRect(left - 1.0f, bottom - rim, right - left + 2.0f, rim);
+	g.fillRect(left, top, shell, bottom - top);
+	g.fillRect(right - shell, top, shell, bottom - top);
+	for (int i = 1; i <= 3; i++)
+	{
+		const float x = left + (right - left) * (float)i / 4.0f - lug / 2.0f;
+		g.fillRect(x, top + lugInset, lug, bottom - top - 2.0f * lugInset);
+	}
+}
+
+void TopBarButton::paintButton(Graphics& g, bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown)
 {
 	const float alpha = !isEnabled() ? 0.4f : shouldDrawButtonAsHighlighted && !shouldDrawButtonAsDown ? 0.75f : 1.0f;
 	g.setColour(Colours::white.withAlpha(alpha));
 
+	// every icon is drawn on a 22 x 22 grid in the middle of the button
 	const Rectangle<float> area = getLocalBounds().toFloat().withSizeKeepingCentre(22.0f, 22.0f);
-	const float left = area.getX() + 2.0f;
-	const float right = area.getRight() - 2.0f;
-	const float top = area.getY() + 9.0f;
-	const float bottom = area.getBottom() - 1.0f;
+	const float x0 = area.getX();
+	const float y0 = area.getY();
 
-	// the head and the bottom rim
-	g.fillRect(left - 1.0f, top, right - left + 2.0f, 2.5f);
-	g.fillRect(left - 1.0f, bottom - 2.5f, right - left + 2.0f, 2.5f);
-	// the shell
-	g.fillRect(left, top, 2.0f, bottom - top);
-	g.fillRect(right - 2.0f, top, 2.0f, bottom - top);
-	// the lugs
-	for (int i = 1; i <= 3; i++)
+	switch (m_icon)
 	{
-		const float x = left + (right - left) * (float)i / 4.0f - 0.75f;
-		g.fillRect(x, top + 4.0f, 1.5f, bottom - top - 8.0f);
+		case iconRecord:
+			g.drawEllipse(x0 + 2.9f, y0 + 2.9f, 16.2f, 16.2f, 1.8f);
+			g.fillEllipse(x0 + 6.4f, y0 + 6.4f, 9.2f, 9.2f);
+			break;
+
+		case iconAccompaniment:
+			drawDrum(g, x0 + 3.0f, x0 + 19.0f, y0 + 9.0f, y0 + 21.0f, 2.5f, 2.0f, 1.5f, 4.0f);
+			// the sticks, crossed above the head
+			g.drawLine(x0 + 1.0f, y0 + 1.0f, x0 + 14.0f, y0 + 7.5f, 2.0f);
+			g.drawLine(x0 + 21.0f, y0 + 1.0f, x0 + 8.0f, y0 + 7.5f, 2.0f);
+			break;
+
+		case iconStyleMixer:
+		{
+			// three faders with their knobs at different heights
+			const float faderX[3] = { 5.0f, 11.0f, 17.0f };
+			const float knobY[3] = { 3.0f, 6.0f, 2.0f };
+			for (int i = 0; i < 3; i++)
+			{
+				g.fillRect(x0 + faderX[i] - 0.7f, y0 + 0.5f, 1.4f, 8.5f);
+				g.fillRect(x0 + faderX[i] - 2.2f, y0 + knobY[i], 4.4f, 2.6f);
+			}
+			drawDrum(g, x0 + 3.0f, x0 + 19.0f, y0 + 12.0f, y0 + 21.0f, 2.2f, 1.8f, 1.4f, 3.4f);
+			break;
+		}
 	}
-	// the sticks, crossed above the head
-	g.drawLine(area.getX() + 1.0f, area.getY() + 1.0f, area.getCentreX() + 3.0f, top - 1.5f, 2.0f);
-	g.drawLine(area.getRight() - 1.0f, area.getY() + 1.0f, area.getCentreX() - 3.0f, top - 1.5f, 2.0f);
 }

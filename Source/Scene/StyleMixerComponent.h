@@ -86,11 +86,25 @@ private:
 	Settings& settings;
 };
 
-// The button of the top bar that opens the Accompaniment mixer window: a drum, drawn
-// like the image buttons next to it.
-class StyleMixerButton : public Button
+// A button of the top bar whose icon is drawn in code, in the style of the image
+// buttons next to it (white, fainter when disabled or under the mouse).
+class TopBarButton : public Button
 {
 public:
-	StyleMixerButton() : Button("Style Mixer Button") {}
+	enum Icon
+	{
+		iconRecord,        // Recording window: a dot in a ring
+		iconAccompaniment, // Accompaniment window: a drum with two sticks
+		iconStyleMixer     // Accompaniment mixer window: a drum below three faders
+	};
+
+	TopBarButton(const String& name, Icon icon) : Button(name), m_icon(icon) {}
 	void paintButton(Graphics& g, bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown) override;
+
+private:
+	// A drum seen from the side, between the given edges.
+	static void drawDrum(Graphics& g, float left, float right, float top, float bottom,
+		float rim, float shell, float lug, float lugInset);
+
+	Icon m_icon;
 };
