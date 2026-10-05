@@ -194,6 +194,8 @@ const Property Property::StylePosition = Property("06 00 04 01", 4, 200);
 const Property Property::StyleSyncStart = Property("06 00 07 01", 1, 200);
 const Property Property::StyleSection = Property("06 00 0f 01", 1, 200);
 const Property Property::StyleChord = Property("06 00 24 01", 4, 200);
+const Property Property::StyleChordArea = Property("06 00 21 01", 1, 200);
+const Property Property::StyleLeftSound = Property("06 00 27 01", 1, 200);
 
 const Property Property::Metronome = Property("07 00 00 01", 1, 200);
 const Property Property::MetronomeCount = Property("07 00 01 01", 2, 0);
@@ -209,7 +211,7 @@ const std::vector<Property> Property::AllProperties = {
 	FixedCurve, FixedVelocity, MasterTune, Vrm, DamperResonance, StringResonance,
 	KeyOffSampling, Metronome, MetronomeCount, MetronomeVolume, MetronomeBell,
 	MetronomeBeat, StyleName, StylePlay, StylePosition, StyleSyncStart, StyleSection,
-	StyleChord
+	StyleChord, StyleChordArea, StyleLeftSound
 };
 
 constexpr char CharToCode(char ch)

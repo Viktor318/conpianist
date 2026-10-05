@@ -235,6 +235,11 @@ SceneComponent::SceneComponent (Settings& settings)
 
 
     //[Constructor] You can add your own custom stuff here..
+	styleMixerButton.reset(new StyleMixerButton());
+	addAndMakeVisible(styleMixerButton.get());
+	styleMixerButton->setTooltip(TRANS("Accompaniment mixer"));
+	styleMixerButton->onClick = [this]() { showStyleMixer(); };
+	styleMixerButton->setBounds(getWidth() - 185 - 32, 8, 32, 28);
 	pianoConnector.startThread();
     pianoController.SetPianoConnector(&pianoConnector);
     pianoController.AddListener(this);
@@ -265,6 +270,8 @@ SceneComponent::~SceneComponent()
     //[Destructor_pre]. You can add your own custom destruction code here..
     recorderWindow = nullptr;
     accompanimentWindow = nullptr;
+    styleMixerWindow = nullptr;
+    styleMixerButton = nullptr;
     saveLastState(); // restored at the next start
     // MIDI In 2 is closed first (the output stays open), so no more notes arrive;
     // then the notes still held there or on the virtual keyboard are released
@@ -343,6 +350,10 @@ void SceneComponent::resized()
     scoreButton->setBounds (0 + 298, (-8) + 18, 80, 34);
     mixerButton->setBounds (0 + 458, (-8) + 18, 80, 34);
     //[UserResized] Add your own custom resize handling here..
+    if (styleMixerButton) // created after the first layout
+    {
+        styleMixerButton->setBounds(getWidth() - 185 - 32, 8, 32, 28); // to the left of the Balance button
+    }
     // the height of the virtual keyboard can be changed by the user
     const int keyboardHeight = getKeyboardHeight();
     keyboardPanel->setBounds (0, getHeight() - keyboardHeight, getWidth(), keyboardHeight);
@@ -487,6 +498,10 @@ void SceneComponent::updateSettingsState()
 			1.000f, Colour (0x00000000), Image(), 0.750f, Colour (0x00000000), Image(), 1.000f, Colour (0x00000000));
 
 	balanceButton->setEnabled(pianoController.IsConnected());
+	if (styleMixerButton)
+	{
+		styleMixerButton->setEnabled(pianoController.IsConnected());
+	}
 	keyboardButton->setEnabled(pianoController.IsReady());
 	muteButton->setEnabled(pianoController.IsConnected());
 }
@@ -509,6 +524,7 @@ void SceneComponent::showMenu()
 	menu.addSectionHeader(TRANS("LIVE PLAY"));
 	menu.addItem(301, TRANS("Recording..."));
 	menu.addItem(302, TRANS("Accompaniment..."));
+	menu.addItem(303, TRANS("Accompaniment mixer..."));
 	menu.addSectionHeader(TRANS("LANGUAGE"));
 	// language names are intentionally not translated: each is shown in its own language
 	menu.addItem(201, "English", true, settings.GetEffectiveLanguage() == "en");
@@ -551,6 +567,9 @@ void SceneComponent::showMenu()
 					break;
 				case 302:
 					showAccompaniment();
+					break;
+				case 303:
+					showStyleMixer();
 					break;
 				case 997:
 					showAbout();
@@ -1442,6 +1461,21 @@ void SceneComponent::showAccompaniment()
 	{
 		content->grabKeyboardFocus();
 	}
+}
+
+void SceneComponent::showStyleMixer()
+{
+	if (!styleMixerWindow)
+	{
+		styleMixerWindow = std::make_unique<StyleMixerWindow>(settings, pianoController);
+		if (!styleMixerWindow->RestorePosition())
+		{
+			styleMixerWindow->centreAroundComponent(this, styleMixerWindow->getWidth(), styleMixerWindow->getHeight());
+		}
+	}
+	styleMixerWindow->setVisible(true);
+	styleMixerWindow->setMinimised(false); // opened again while it is minimised
+	styleMixerWindow->toFront(true);
 }
 
 void SceneComponent::requestExit()

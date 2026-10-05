@@ -321,6 +321,22 @@ public:
 	// accompaniment, the metronome) follow each other.
 	int GetStyleTempo() const { return m_pianoTempo; }
 	void SetStyleTempo(int tempo);
+	// Where the chords of the accompaniment are recognized: below the split point or on
+	// the whole keyboard (caUnknown: the piano has not reported it yet).
+	enum StyleChordArea { caUnknown = -1, caLower = 5, caFull = 6 };
+	int GetStyleChordArea() const { return m_styleChordArea; }
+	void SetStyleChordArea(int area);
+	// The sound of the keys below the split point while the accompaniment is playing:
+	// 1 on, 0 off, -1 not known. The piano does not report its changes: it is asked for
+	// when connecting and when the accompaniment starts or stops.
+	int GetStyleLeftSound() const { return m_styleLeftSound; }
+	void SetStyleLeftSound(bool on);
+	// The parts of the accompaniment (0..NumStyleParts-1) are mixer channels: their
+	// volume, pan, reverb, voice and on/off are read and set like those of any channel.
+	static Channel StylePartChannel(int part) { return (Channel)(chStylePart1 + part); }
+	static const char* StylePartName(int part);
+	// Asks the piano for the settings of the parts (they change with the style).
+	void QueryStyleParts();
 
 	LiveRecorder& GetRecorder() { return m_recorder; }
 	void StartRecording(bool autoStart);
@@ -568,6 +584,8 @@ private:
 	std::atomic<int> m_styleChord{0x7f7f7f7f}; // root, type, bass root, bass type
 	std::atomic<int> m_pianoTempo{DefaultTempo};
 	std::atomic<bool> m_pianoTempoKnown{false};  // the piano has reported its tempo
+	std::atomic<int> m_styleChordArea{caUnknown};
+	std::atomic<int> m_styleLeftSound{-1};
 	std::atomic<uint32> m_tempoSentMs{0};        // when the own player's tempo was sent to the piano
 	void SendStyleSection(int section, bool on);
 	std::atomic<int> m_styleFillTarget{ssNone}; // main section to go on with after the fill in

@@ -33,6 +33,7 @@
 #include "Settings.h"
 #include "RecorderComponent.h"
 #include "AccompanimentComponent.h"
+#include "StyleMixerComponent.h"
 //[/Headers]
 
 
@@ -76,6 +77,7 @@ public:
 	void showAbout();
 	void showRecorder();
 	void showAccompaniment();
+	void showStyleMixer();
 	void resetMidiConnector();
 	void updatePlaybackSource();
 	void checkNetworkPlayback();
@@ -119,6 +121,8 @@ private:
     std::unique_ptr<KeyboardComponent> keyboardComponent;
     std::unique_ptr<RecorderWindow> recorderWindow; // Recording window, created when first opened
     std::unique_ptr<AccompanimentWindow> accompanimentWindow; // likewise
+    std::unique_ptr<StyleMixerWindow> styleMixerWindow; // Accompaniment mixer window, likewise
+    std::unique_ptr<StyleMixerButton> styleMixerButton; // opens it, next to the Balance button
 	std::unique_ptr<LocalMidiConnector> localMidiConnector;
 	std::unique_ptr<RtpMidiConnector> rtpMidiConnector;
 	MidiConnector* midiConnector = nullptr;

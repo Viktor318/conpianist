@@ -98,6 +98,7 @@ void PianoController::InitEvents()
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Events, Property::StyleSyncStart));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Events, Property::StyleSection));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Events, Property::StyleChord));
+	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Events, Property::StyleChordArea));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Events, Property::Metronome));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Events, Property::MetronomeCount));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Events, Property::MetronomeBeat));
@@ -157,6 +158,9 @@ void PianoController::ResyncStateFromPiano()
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::StyleSyncStart));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::StyleSection, 0, 0));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::StyleSection, 1, 0));
+	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::StyleChordArea));
+	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::StyleLeftSound));
+	QueryStyleParts();
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::Metronome));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::MetronomeBeat));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::MetronomeBell));
@@ -1208,17 +1212,52 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 			utf8[i] = (char)raw[i];
 		}
 		utf8[raw.length()] = 0;
+		bool changed = false;
 		{
 			const ScopedLock lock(m_styleLock);
-			m_styleName = String::fromUTF8(utf8.data());
+			const String name = String::fromUTF8(utf8.data());
+			changed = name != m_styleName;
+			m_styleName = name;
 		}
+		NotifyChanged(apStyle);
+		if (changed)
+		{
+			// another style: its parts have their own settings; asked for a little
+			// later, when the piano has loaded the style
+			std::weak_ptr<bool> alive = m_alive;
+			MessageManager::callAsync([this, alive]()
+				{
+					Timer::callAfterDelay(700, [this, alive]()
+						{
+							if (alive.lock())
+							{
+								QueryStyleParts();
+							}
+						});
+				});
+		}
+	}
+	else if (property == Property::StyleChordArea)
+	{
+		m_styleChordArea = intValue;
+		NotifyChanged(apStyle);
+	}
+	else if (property == Property::StyleLeftSound)
+	{
+		m_styleLeftSound = intValue != 0 ? 1 : 0;
 		NotifyChanged(apStyle);
 	}
 	else if (property == Property::StylePlay)
 	{
 		const bool stopped = m_stylePlaying && !boolValue;
+		const bool playChanged = m_stylePlaying != boolValue;
 		m_stylePlaying = boolValue;
 		NotifyChanged(apStyle);
+		if (playChanged)
+		{
+			// not reported by the piano when it is changed elsewhere
+			m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::StyleLeftSound));
+		}
 		if (stopped && m_styleSyncWanted && !m_styleSyncSuspended)
 		{
 			// Sync Start was on before the accompaniment started: on again, a moment
@@ -2225,6 +2264,50 @@ void PianoController::SetStyle(const String& path)
 	{
 		m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::StyleName, 0, path));
 	}
+}
+
+void PianoController::SetStyleChordArea(int area)
+{
+	if (m_connected && (area == caLower || area == caFull))
+	{
+		m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::StyleChordArea, 0, area));
+	}
+}
+
+void PianoController::SetStyleLeftSound(bool on)
+{
+	if (m_connected)
+	{
+		m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::StyleLeftSound, 0, on ? 1 : 0));
+		// the piano sends no event for it: the new value is asked for
+		m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::StyleLeftSound));
+	}
+}
+
+const char* PianoController::StylePartName(int part)
+{
+	static const char* const names[NumStyleParts] = {
+		"Rhythm 1", "Rhythm 2", "Bass", "Chord 1", "Chord 2", "Pad", "Phrase 1", "Phrase 2"};
+	return part >= 0 && part < NumStyleParts ? names[part] : "";
+}
+
+void PianoController::QueryStyleParts()
+{
+	if (!m_pianoConnector)
+	{
+		return;
+	}
+	for (int i = 0; i < NumStyleParts; i++)
+	{
+		const int ch = chStylePart1 + i;
+		m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::Active, ch, 0));
+		m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::Volume, ch, 0));
+		m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::Pan, ch, 0));
+		m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::Reverb, ch, 0));
+		m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::VoiceMidi, ch, 0));
+	}
+	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::Pan, chStyle, 0));
+	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::Reverb, chStyle, 0));
 }
 
 void PianoController::SetStylePlaying(bool playing)

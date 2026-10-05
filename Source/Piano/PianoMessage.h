@@ -213,6 +213,12 @@ struct Property
 	const static Property StyleSection;
 	// Value (4 Bytes, read only): Chord Root, Chord Type, Bass Root, Bass Type (7f - none)
 	const static Property StyleChord;
+	// Value: 5 - Lower (the chords are recognized below the split point), 6 - Full (on the
+	// whole keyboard)
+	const static Property StyleChordArea;
+	// Value: 0 - Off, 1 - On: the keys below the split point sound while the style is
+	// playing (the chords are recognized either way). The piano sends no events for it.
+	const static Property StyleLeftSound;
 
 	// Metronome. Value: 0 - Off, 1 - On
 	const static Property Metronome;

@@ -40,6 +40,9 @@ public:
 	void buttonClicked(Button* button) override;
 	bool keyPressed(const KeyPress& key) override;
 	void PianoStateChanged(PianoController::Aspect aspect, PianoController::Channel channel) override;
+	void PianoNoteMessage(const MidiMessage& message) override;
+	// Name of a note as the piano names it (middle C, note 60, is C3).
+	static String noteName(int note);
 
 	// Name of a chord as the piano reports it (e.g. "Cmaj7/E"); empty if there is none.
 	// accidentals: 0 - the notes as the piano names them, +1 - the black keys with
@@ -88,6 +91,19 @@ private:
 	ComboBox keyModeCombo; // major or minor
 	void fillKeyCombo();
 	std::vector<double> taps; // times of the last presses of Tap Tempo (ms)
+	// chord detection: where the chords are recognized, whether the keys below the split
+	// point sound while the accompaniment is playing, and the split point
+	Label chordAreaLabel;
+	TextButton chordFullButton;
+	TextButton chordLowerButton;
+	TextButton leftSoundButton;
+	Label splitLabel;
+	TextButton splitDownButton;
+	Label splitNameLabel;
+	TextButton splitUpButton;
+	TextButton splitLearnButton; // the next key played becomes the split point
+	std::atomic<bool> splitLearning{false};
+	void stepSplitPoint(int delta);
 	TextButton startButton;
 	TextButton syncStartButton;
 	Label positionLabel;
@@ -135,6 +151,18 @@ private:
 			int octave = PianoController::DefaultOctave;
 		};
 		Part parts[3];      // Main, Layer, Left
+		int chordArea = PianoController::caUnknown; // chord detection area
+		int leftSound = -1; // sound of the keys below the split point (-1: not saved)
+		// the parts of the accompaniment (saved since they can be mixed)
+		bool hasStyleParts = false;
+		struct StylePart
+		{
+			bool active = true;
+			int volume = PianoController::DefaultVolume;
+			int pan = PianoController::DefaultPan;
+			int reverb = PianoController::DefaultReverb;
+		};
+		StylePart styleParts[PianoController::NumStyleParts];
 	};
 	// A number button: a click with the right mouse button opens its menu instead of
 	// pressing it.
@@ -159,6 +187,8 @@ private:
 	String pendingStyle;
 	int pendingTempo = 0;
 	int pendingVolume = 0;
+	int pendingRegistration = -1; // its parts of the accompaniment are sent with them
+	bool pendingStyleChanged = false;
 	int recallSerial = 0;
 	File registrationsFile() const;
 	void loadRegistrations();
