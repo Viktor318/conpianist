@@ -63,7 +63,7 @@ AccompanimentComponent::AccompanimentComponent(Settings& settings, PianoControll
 	initLabel(currentLabel, TRANS("Current style:"));
 	initLabel(currentNameLabel, "");
 	currentNameLabel.setMinimumHorizontalScale(0.7f);
-	currentNameLabel.setColour(Label::textColourId, Colour(0xffee6c0a)); // like the chord
+	currentNameLabel.setFont(Font(FontOptions(15.00f, Font::bold))); // white, but bold: easier to see
 
 	loadStyles();
 
