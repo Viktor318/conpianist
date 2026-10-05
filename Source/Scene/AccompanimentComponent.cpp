@@ -146,7 +146,7 @@ AccompanimentComponent::AccompanimentComponent(Settings& settings, PianoControll
 	initLabel(splitNameLabel, "");
 	splitNameLabel.setJustificationType(Justification::centred);
 	splitNameLabel.setColour(Label::outlineColourId, Colour(0xff4e5b62));
-	splitNameLabel.setTooltip(TRANS("The first key of the right-hand section; the chords are played below it"));
+	splitNameLabel.setTooltip(TRANS("The split point of the accompaniment: the chords are played below it. The split point of the Left part is on the Voice tab."));
 	initButton(splitLearnButton, TRANS("Learn"));
 	splitLearnButton.setTooltip(TRANS("Press it, then a key on the piano or on the MIDI keyboard: that key becomes the split point. Press it again (or Esc) to cancel."));
 
@@ -635,14 +635,16 @@ void AccompanimentComponent::PianoStateChanged(PianoController::Aspect aspect, P
 // MIDI keyboard) becomes the split point.
 void AccompanimentComponent::PianoNoteMessage(const MidiMessage& message)
 {
-	if (splitLearning && message.isNoteOn())
+	// the keys of the piano are sent on the channels 1..3; the channels 9..16 are the
+	// parts of the accompaniment
+	if (splitLearning && message.isNoteOn() && message.getChannel() < 9 && !pianoController.GetStylePlaying())
 	{
 		const int note = message.getNoteNumber();
 		GuiHelper::CallAsync(this, [this, note]()
 			{
 				if (splitLearning.exchange(false))
 				{
-					pianoController.SetSplitPoint(note);
+					pianoController.SetStyleSplitPoint(note);
 					update();
 				}
 			});
@@ -662,11 +664,11 @@ String AccompanimentComponent::noteName(int note)
 // One key lower or higher, within the keys of the piano.
 void AccompanimentComponent::stepSplitPoint(int delta)
 {
-	const int current = pianoController.GetSplitPoint();
+	const int current = pianoController.GetStyleSplitPoint();
 	const int target = jlimit(22, 108, current + delta); // A#-1 .. C7: a key must stay below it
 	if (current > 0 && target != current)
 	{
-		pianoController.SetSplitPoint(target);
+		pianoController.SetStyleSplitPoint(target);
 	}
 }
 
@@ -807,12 +809,15 @@ void AccompanimentComponent::update()
 	markButton(chordFullButton, chordArea == PianoController::caFull, false);
 	markButton(chordLowerButton, chordArea == PianoController::caLower, false);
 	markButton(leftSoundButton, connected && pianoController.GetStyleLeftSound() == 1, false);
-	if (!connected)
+	// not while the accompaniment is playing: its notes come from the piano too, and
+	// one of them would be taken for the key
+	if (!connected || playing)
 	{
 		splitLearning = false;
 	}
+	splitLearnButton.setEnabled(connected && !playing);
 	markButton(splitLearnButton, splitLearning, false);
-	const int splitPoint = pianoController.GetSplitPoint();
+	const int splitPoint = pianoController.GetStyleSplitPoint();
 	splitNameLabel.setText(connected && splitPoint > 0 ? noteName(splitPoint) : String("-"), dontSendNotification);
 
 	shortcutsButton.setEnabled(true); // the list can be read without the piano too
@@ -1111,6 +1116,7 @@ void AccompanimentComponent::loadRegistrations()
 		reg.transpose = jlimit((int)PianoController::MinTranspose, (int)PianoController::MaxTranspose, el->getIntAttribute("transpose"));
 		reg.keyboardTranspose = jlimit((int)PianoController::MinTranspose, (int)PianoController::MaxTranspose, el->getIntAttribute("keyboardTranspose"));
 		reg.splitPoint = el->getIntAttribute("splitPoint");
+		reg.styleSplitPoint = el->getIntAttribute("styleSplitPoint");
 		reg.chordArea = el->getIntAttribute("chordArea", PianoController::caUnknown);
 		reg.leftSound = el->getIntAttribute("leftSound", -1);
 		for (XmlElement* partEl : el->getChildWithTagNameIterator("StylePart"))
@@ -1163,6 +1169,7 @@ void AccompanimentComponent::saveRegistrations()
 		el->setAttribute("transpose", reg.transpose);
 		el->setAttribute("keyboardTranspose", reg.keyboardTranspose);
 		el->setAttribute("splitPoint", reg.splitPoint);
+		el->setAttribute("styleSplitPoint", reg.styleSplitPoint);
 		el->setAttribute("chordArea", reg.chordArea);
 		el->setAttribute("leftSound", reg.leftSound);
 		if (reg.hasStyleParts)
@@ -1206,6 +1213,7 @@ AccompanimentComponent::Registration AccompanimentComponent::captureRegistration
 	reg.transpose = pianoController.GetTranspose();
 	reg.keyboardTranspose = pianoController.GetKeyboardTranspose();
 	reg.splitPoint = pianoController.GetSplitPoint();
+	reg.styleSplitPoint = pianoController.GetStyleSplitPoint();
 	reg.chordArea = pianoController.GetStyleChordArea();
 	reg.leftSound = pianoController.GetStyleLeftSound();
 	reg.hasStyleParts = true;
@@ -1342,9 +1350,20 @@ void AccompanimentComponent::recallRegistration(int index)
 			pianoController.SetActive(ch, part.active);
 		}
 	}
-	if (reg.splitPoint > 0 && reg.splitPoint != pianoController.GetSplitPoint())
+	// The piano keeps the split point of the accompaniment at or below the one of the Left
+	// part, moving one with the other: if either differs, both are sent, the Left one first.
+	const bool leftSplitDiffers = reg.splitPoint > 0 && reg.splitPoint != pianoController.GetSplitPoint();
+	const bool styleSplitDiffers = reg.styleSplitPoint > 0 && reg.styleSplitPoint != pianoController.GetStyleSplitPoint();
+	if (leftSplitDiffers || styleSplitDiffers)
 	{
-		pianoController.SetSplitPoint(reg.splitPoint);
+		if (reg.splitPoint > 0)
+		{
+			pianoController.SetSplitPoint(reg.splitPoint);
+		}
+		if (reg.styleSplitPoint > 0)
+		{
+			pianoController.SetStyleSplitPoint(reg.styleSplitPoint);
+		}
 	}
 	if (reg.transpose != pianoController.GetTranspose())
 	{

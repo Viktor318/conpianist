@@ -92,7 +92,8 @@ private:
 	void fillKeyCombo();
 	std::vector<double> taps; // times of the last presses of Tap Tempo (ms)
 	// chord detection: where the chords are recognized, whether the keys below the split
-	// point sound while the accompaniment is playing, and the split point
+	// point sound while the accompaniment is playing, and the split point of the
+	// accompaniment (not the one of the Left part, which is on the Voice tab)
 	Label chordAreaLabel;
 	TextButton chordFullButton;
 	TextButton chordLowerButton;
@@ -140,7 +141,8 @@ private:
 		bool minor = false;
 		int transpose = 0;         // of the song and Live Play (left panel)
 		int keyboardTranspose = 0; // of the piano's own keys (Piano Room)
-		int splitPoint = 0;
+		int splitPoint = 0;        // of the Left part
+		int styleSplitPoint = 0;   // of the accompaniment (0: not saved)
 		struct Part
 		{
 			String voice;   // preset path of the voice

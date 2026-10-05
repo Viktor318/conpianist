@@ -181,6 +181,7 @@ void PianoController::ResyncStateFromPiano()
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::PartChannel, paLeft, 0));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::PartAuto));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::SplitPoint));
+	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::SplitPoint, 1, 0));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::LidPosition));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::Environment));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::Brightness));
@@ -858,6 +859,11 @@ void PianoController::SetSplitPoint(int splitPoint)
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::SplitPoint, 0, splitPoint));
 }
 
+void PianoController::SetStyleSplitPoint(int splitPoint)
+{
+	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::SplitPoint, 1, splitPoint));
+}
+
 void PianoController::SetLidPosition(LidPosition position)
 {
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::LidPosition, 0, position));
@@ -1409,7 +1415,8 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 	}
 	else if (property == Property::SplitPoint)
 	{
-		m_splitPoint = intValue;
+		// index 0: the split point of the Left part, 1: of the accompaniment
+		(index == 1 ? m_styleSplitPoint : m_splitPoint) = intValue;
 		NotifyChanged(apSplitPoint);
 	}
 	else if (property == Property::LidPosition)

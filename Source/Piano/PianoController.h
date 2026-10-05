@@ -458,8 +458,15 @@ public:
 	bool GetEnabled(Channel ch) { return m_channels[ch].enabled; }
 	int GetReverbEffect() { return m_reverbEffect; }
 	void SetReverbEffect(int effect);
+	// The split point of the Left part (Voice tab): the Left voice sounds below it.
 	int GetSplitPoint() { return m_splitPoint; }
 	void SetSplitPoint(int splitPoint);
+	// The split point of the accompaniment: the chords are recognized below it (with the
+	// chord detection area Lower). It is another setting than the split point of the Left
+	// part, but the piano keeps it at or below that one: moving the split point of the
+	// Left part below it takes it along.
+	int GetStyleSplitPoint() { return m_styleSplitPoint; }
+	void SetStyleSplitPoint(int splitPoint);
 	const String& GetSongName() { return m_songName; }
 	LidPosition GetLidPosition() { return m_lidPosition; }
 	void SetLidPosition(LidPosition position);
@@ -525,6 +532,7 @@ private:
 	bool m_songLoaded = false;
 	bool m_songLoading = false;
 	int m_splitPoint = 0;
+	int m_styleSplitPoint = 0;
 	LidPosition m_lidPosition = DefaultLidPosition;
 	int m_environment = 0;
 	int m_brightness = DefaultBrightness;
