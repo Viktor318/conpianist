@@ -335,6 +335,5 @@ countries: hu
 "Learn" = "Tanulás"
 "Press it, then a key on the piano or on the MIDI keyboard: that key becomes the split point. Press it again (or Esc) to cancel." = "Nyomja meg, majd üssön le egy billentyűt a zongorán vagy a MIDI-billentyűzeten: az lesz a split pont. Megszakítás: újra ez a gomb (vagy Esc)."
 "Accompaniment mixer" = "Kíséret keverő"
-"Accompaniment mixer..." = "Kíséret keverő…"
 "Switches the part on and off" = "A szólam be- és kikapcsolása"
 "The type of the reverb of the piano (the same setting as in the Balance window)" = "A zongora zengetésének típusa (ugyanaz a beállítás, mint a Hangerőegyensúly ablakban)"

@@ -239,7 +239,7 @@ SceneComponent::SceneComponent (Settings& settings)
 	addAndMakeVisible(styleMixerButton.get());
 	styleMixerButton->setTooltip(TRANS("Accompaniment mixer"));
 	styleMixerButton->onClick = [this]() { showStyleMixer(); };
-	styleMixerButton->setBounds(getWidth() - 185 - 32, 8, 32, 28);
+	styleMixerButton->setBounds(getWidth() - 150 - 32, 8, 32, 28);
 	pianoConnector.startThread();
     pianoController.SetPianoConnector(&pianoConnector);
     pianoController.AddListener(this);
@@ -346,14 +346,14 @@ void SceneComponent::resized()
     zoomOutButton->setBounds (getWidth() - 45 - 32, 8, 32, 28);
     keyboardPanel->setBounds (0, getHeight() - 67, getWidth() - 0, 67);
     keyboardButton->setBounds (getWidth() - 115 - 32, 8, 32, 28);
-    balanceButton->setBounds (getWidth() - 150 - 32, 8, 32, 28);
+    balanceButton->setBounds (getWidth() - 185 - 32, 8, 32, 28);
     voiceButton->setBounds (0 + 378, (-8) + 18, 80, 34);
     scoreButton->setBounds (0 + 298, (-8) + 18, 80, 34);
     mixerButton->setBounds (0 + 458, (-8) + 18, 80, 34);
     //[UserResized] Add your own custom resize handling here..
     if (styleMixerButton) // created after the first layout
     {
-        styleMixerButton->setBounds(getWidth() - 185 - 32, 8, 32, 28); // to the left of the Balance button
+        styleMixerButton->setBounds(getWidth() - 150 - 32, 8, 32, 28); // between the Balance and the keyboard button
     }
     // the height of the virtual keyboard can be changed by the user
     const int keyboardHeight = getKeyboardHeight();
@@ -525,7 +525,6 @@ void SceneComponent::showMenu()
 	menu.addSectionHeader(TRANS("LIVE PLAY"));
 	menu.addItem(301, TRANS("Recording..."));
 	menu.addItem(302, TRANS("Accompaniment..."));
-	menu.addItem(303, TRANS("Accompaniment mixer..."));
 	menu.addSectionHeader(TRANS("LANGUAGE"));
 	// language names are intentionally not translated: each is shown in its own language
 	menu.addItem(201, "English", true, settings.GetEffectiveLanguage() == "en");
@@ -568,9 +567,6 @@ void SceneComponent::showMenu()
 					break;
 				case 302:
 					showAccompaniment();
-					break;
-				case 303:
-					showStyleMixer();
 					break;
 				case 997:
 					showAbout();
@@ -1640,7 +1636,7 @@ BEGIN_JUCER_METADATA
                colourNormal="0" resourceOver="" opacityOver="0.75" colourOver="0"
                resourceDown="" opacityDown="1.0" colourDown="0"/>
   <IMAGEBUTTON name="Balance Button" id="b26d1a0a73e9171c" memberName="balanceButton"
-               virtualName="" explicitFocusOrder="0" pos="150Rr 8 32 28" tooltip="Balance"
+               virtualName="" explicitFocusOrder="0" pos="185Rr 8 32 28" tooltip="Balance"
                buttonText="Balance" connectedEdges="0" needsCallback="1" radioGroupId="0"
                keepProportions="1" resourceNormal="BinaryData::buttonbalance_png"
                opacityNormal="1.0" colourNormal="0" resourceOver="" opacityOver="0.75"
