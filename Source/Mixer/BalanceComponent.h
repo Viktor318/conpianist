@@ -57,7 +57,6 @@ public:
 		{ if (ap == PianoController::apConnection || ap == PianoController::apReverbEffect)
 			GuiHelper::CallAsync(this, [=](){updateReverbEffectState();}); }
 	void updateReverbEffectState();
-	static void showDialog(Settings& settings, PianoController& pianoController);
     //[/UserMethods]
 
     void paint (Graphics& g) override;
@@ -72,6 +71,7 @@ private:
     //[/UserVariables]
 
     //==============================================================================
+    std::unique_ptr<ChannelComponent> styleChannel;
     std::unique_ptr<ChannelComponent> leftChannel;
     std::unique_ptr<ChannelComponent> mainChannel;
     std::unique_ptr<ChannelComponent> layerChannel;
@@ -86,5 +86,20 @@ private:
 };
 
 //[EndFile] You can add extra defines here...
+// The Balance window: not modal and always on top, like the Accompaniment window.
+// Closing only hides it.
+class BalanceWindow : public DocumentWindow
+{
+public:
+	BalanceWindow(Settings& settings, PianoController& pianoController);
+	void closeButtonPressed() override;
+	void moved() override;
+	// Moves the window where it was the last time; false if that is not known (or not
+	// on a screen any more).
+	bool RestorePosition();
+
+private:
+	Settings& settings;
+};
 //[/EndFile]
 

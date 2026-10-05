@@ -179,8 +179,10 @@ void StyleMixerComponent::resized()
 		strip.volumeSlider.setBounds(x + 2, 220, width - 4, 204);
 	}
 	panCaption.setBounds(12, 76, 90, 20);
-	reverbCaption.setBounds(12, 134, 90, 24);
-	reverbEffectCombo.setBounds(104, 134, 240, 24);
+	// the list of the reverb types right after the text of its label
+	const int captionWidth = GlyphArrangement::getStringWidthInt(reverbCaption.getFont(), reverbCaption.getText()) + 10;
+	reverbCaption.setBounds(12, 134, captionWidth, 24);
+	reverbEffectCombo.setBounds(12 + captionWidth + 8, 134, 240, 24);
 	volumeCaption.setBounds(12, 196, 90, 20);
 	hintLabel.setBounds(12, getHeight() - 34, getWidth() - 24, 24);
 }

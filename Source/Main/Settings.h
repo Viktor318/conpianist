@@ -60,6 +60,7 @@ public:
 	Point<int> recorderWindowPos{NoWindowPos, NoWindowPos};
 	Point<int> accompanimentWindowPos{NoWindowPos, NoWindowPos};
 	Point<int> styleMixerWindowPos{NoWindowPos, NoWindowPos};
+	Point<int> balanceWindowPos{NoWindowPos, NoWindowPos};
 	// true if a window of this size at this (saved) position can be reached on a screen
 	static bool IsWindowPosUsable(Point<int> pos, int width);
 	bool keyboardVisible = false;

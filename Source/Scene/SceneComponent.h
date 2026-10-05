@@ -34,6 +34,7 @@
 #include "RecorderComponent.h"
 #include "AccompanimentComponent.h"
 #include "StyleMixerComponent.h"
+#include "BalanceComponent.h"
 //[/Headers]
 
 
@@ -78,6 +79,7 @@ public:
 	void showRecorder();
 	void showAccompaniment();
 	void showStyleMixer();
+	void showBalance();
 	void resetMidiConnector();
 	void updatePlaybackSource();
 	void checkNetworkPlayback();
@@ -122,6 +124,7 @@ private:
     std::unique_ptr<RecorderWindow> recorderWindow; // Recording window, created when first opened
     std::unique_ptr<AccompanimentWindow> accompanimentWindow; // likewise
     std::unique_ptr<StyleMixerWindow> styleMixerWindow; // Accompaniment mixer window, likewise
+    std::unique_ptr<BalanceWindow> balanceWindow; // Balance window, likewise
     std::unique_ptr<StyleMixerButton> styleMixerButton; // opens it, next to the Balance button
 	std::unique_ptr<LocalMidiConnector> localMidiConnector;
 	std::unique_ptr<RtpMidiConnector> rtpMidiConnector;

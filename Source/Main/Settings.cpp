@@ -88,6 +88,8 @@ void Settings::Save()
 	prop.setValue("Accompaniment.Window.Y", accompanimentWindowPos.y);
 	prop.setValue("StyleMixer.Window.X", styleMixerWindowPos.x);
 	prop.setValue("StyleMixer.Window.Y", styleMixerWindowPos.y);
+	prop.setValue("Balance.Window.X", balanceWindowPos.x);
+	prop.setValue("Balance.Window.Y", balanceWindowPos.y);
 
 	prop.save();
 	sendChangeMessage();
@@ -155,6 +157,8 @@ void Settings::Load()
 	accompanimentWindowPos.y = prop.getIntValue("Accompaniment.Window.Y", accompanimentWindowPos.y);
 	styleMixerWindowPos.x = prop.getIntValue("StyleMixer.Window.X", styleMixerWindowPos.x);
 	styleMixerWindowPos.y = prop.getIntValue("StyleMixer.Window.Y", styleMixerWindowPos.y);
+	balanceWindowPos.x = prop.getIntValue("Balance.Window.X", balanceWindowPos.x);
+	balanceWindowPos.y = prop.getIntValue("Balance.Window.Y", balanceWindowPos.y);
 }
 
 const char* Settings::KeyName(int index, bool minor)

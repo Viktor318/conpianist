@@ -271,6 +271,7 @@ SceneComponent::~SceneComponent()
     recorderWindow = nullptr;
     accompanimentWindow = nullptr;
     styleMixerWindow = nullptr;
+    balanceWindow = nullptr;
     styleMixerButton = nullptr;
     saveLastState(); // restored at the next start
     // MIDI In 2 is closed first (the output stays open), so no more notes arrive;
@@ -417,7 +418,7 @@ void SceneComponent::buttonClicked (Button* buttonThatWasClicked)
     else if (buttonThatWasClicked == balanceButton.get())
     {
         //[UserButtonCode_balanceButton] -- add your button handler code here..
-		BalanceComponent::showDialog(settings, pianoController);
+		showBalance();
         //[/UserButtonCode_balanceButton]
     }
     else if (buttonThatWasClicked == voiceButton.get())
@@ -1476,6 +1477,21 @@ void SceneComponent::showStyleMixer()
 	styleMixerWindow->setVisible(true);
 	styleMixerWindow->setMinimised(false); // opened again while it is minimised
 	styleMixerWindow->toFront(true);
+}
+
+void SceneComponent::showBalance()
+{
+	if (!balanceWindow)
+	{
+		balanceWindow = std::make_unique<BalanceWindow>(settings, pianoController);
+		if (!balanceWindow->RestorePosition())
+		{
+			balanceWindow->centreAroundComponent(this, balanceWindow->getWidth(), balanceWindow->getHeight());
+		}
+	}
+	balanceWindow->setVisible(true);
+	balanceWindow->setMinimised(false); // opened again while it is minimised
+	balanceWindow->toFront(true);
 }
 
 void SceneComponent::requestExit()

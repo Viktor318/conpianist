@@ -35,7 +35,9 @@ BalanceComponent::BalanceComponent (Settings& settings, PianoController& pianoCo
     //[Constructor_pre] You can add your own custom stuff here..
     //[/Constructor_pre]
 
-    leftChannel.reset (new ChannelComponent (settings, pianoController, PianoController::chLeft, "Left", true, false, true, false));
+    styleChannel.reset (new ChannelComponent (settings, pianoController, PianoController::chStyle, "Style", true, false, true, false));
+    addAndMakeVisible (styleChannel.get());
+    leftChannel.reset (new ChannelComponent (settings, pianoController, PianoController::chLeft, "Left", false, false, true, false));
     addAndMakeVisible (leftChannel.get());
     mainChannel.reset (new ChannelComponent (settings, pianoController, PianoController::chMain, "Main", false, false, true, false));
     addAndMakeVisible (mainChannel.get());
@@ -59,13 +61,13 @@ BalanceComponent::BalanceComponent (Settings& settings, PianoController& pianoCo
     effectComboBox->addItem (TRANS("Concert Hall"), 3);
     effectComboBox->addListener (this);
 
-    effectComboBox->setBounds (74, 176, 176, 24);
+    effectComboBox->setBounds (92, 176, 176, 24);
 
 
     //[UserPreSize]
     //[/UserPreSize]
 
-    setSize (436, 560);
+    setSize (506, 560);
 
 
     //[Constructor] You can add your own custom stuff here..
@@ -86,6 +88,7 @@ BalanceComponent::~BalanceComponent()
     pianoController.RemoveListener(this);
     //[/Destructor_pre]
 
+    styleChannel = nullptr;
     leftChannel = nullptr;
     mainChannel = nullptr;
     layerChannel = nullptr;
@@ -116,12 +119,13 @@ void BalanceComponent::resized()
     //[UserPreResize] Add your own custom resize code here..
     //[/UserPreResize]
 
-    leftChannel->setBounds (8, 0, 70, getHeight() - 0);
-    mainChannel->setBounds (78, 0, 70, getHeight() - 0);
-    layerChannel->setBounds (148, 0, 70, getHeight() - 0);
-    songChannel->setBounds (218, 0, 70, getHeight() - 0);
-    micChannel->setBounds (288, 0, 70, getHeight() - 0);
-    auxInChannel->setBounds (358, 0, 70, getHeight() - 0);
+    styleChannel->setBounds (8, 0, 70, getHeight() - 0);
+    leftChannel->setBounds (78, 0, 70, getHeight() - 0);
+    mainChannel->setBounds (148, 0, 70, getHeight() - 0);
+    layerChannel->setBounds (218, 0, 70, getHeight() - 0);
+    songChannel->setBounds (288, 0, 70, getHeight() - 0);
+    micChannel->setBounds (358, 0, 70, getHeight() - 0);
+    auxInChannel->setBounds (428, 0, 70, getHeight() - 0);
     //[UserResized] Add your own custom resize handling here..
     //[/UserResized]
 }
@@ -155,9 +159,44 @@ void BalanceComponent::updateReverbEffectState()
 	}
 }
 
-void BalanceComponent::showDialog(Settings& settings, PianoController& pianoController)
+//==============================================================================
+
+BalanceWindow::BalanceWindow(Settings& settings, PianoController& pianoController) :
+	DocumentWindow(TRANS("Balance"), Colour(0xff323e44),
+		DocumentWindow::minimiseButton | DocumentWindow::closeButton),
+	settings(settings)
 {
-	GuiHelper::ShowDialogAsync(new BalanceComponent(settings, pianoController), TRANS("Balance"));
+	const bool usingNativeTitleBar = (SystemStats::getOperatingSystemType() & SystemStats::Windows) ||
+		(SystemStats::getOperatingSystemType() & SystemStats::MacOSX);
+	setUsingNativeTitleBar(usingNativeTitleBar);
+	setContentOwned(new BalanceComponent(settings, pianoController), true);
+	setResizable(false, false);
+	setAlwaysOnTop(true);
+}
+
+void BalanceWindow::closeButtonPressed()
+{
+	setVisible(false);
+}
+
+// The position is remembered (saved with the settings when the program exits).
+void BalanceWindow::moved()
+{
+	DocumentWindow::moved();
+	if (isShowing() && !isMinimised() && getX() > -10000 && getY() > -10000)
+	{
+		settings.balanceWindowPos = getPosition();
+	}
+}
+
+bool BalanceWindow::RestorePosition()
+{
+	if (!Settings::IsWindowPosUsable(settings.balanceWindowPos, getWidth()))
+	{
+		return false;
+	}
+	setTopLeftPosition(settings.balanceWindowPos);
+	return true;
 }
 //[/MiscUserCode]
 
@@ -176,28 +215,31 @@ BEGIN_JUCER_METADATA
                  constructorParams="Settings&amp; settings, PianoController&amp; pianoController"
                  variableInitialisers="pianoController(pianoController)" snapPixels="8"
                  snapActive="1" snapShown="1" overlayOpacity="0.330" fixedSize="0"
-                 initialWidth="436" initialHeight="560">
+                 initialWidth="506" initialHeight="560">
   <BACKGROUND backgroundColour="ff323e44"/>
-  <JUCERCOMP name="Left Channel" id="97f9a699004cae9a" memberName="leftChannel"
+  <JUCERCOMP name="Style Channel" id="5c1d7e0a93b46f28" memberName="styleChannel"
              virtualName="" explicitFocusOrder="0" pos="8 0 70 0M" sourceFile="ChannelComponent.cpp"
-             constructorParams="settings, pianoController, PianoController::chLeft, &quot;Left&quot;, true, false, true, false"/>
-  <JUCERCOMP name="Main Channel" id="74e25a6d700b5cc9" memberName="mainChannel"
+             constructorParams="settings, pianoController, PianoController::chStyle, &quot;Style&quot;, true, false, true, false"/>
+  <JUCERCOMP name="Left Channel" id="97f9a699004cae9a" memberName="leftChannel"
              virtualName="" explicitFocusOrder="0" pos="78 0 70 0M" sourceFile="ChannelComponent.cpp"
+             constructorParams="settings, pianoController, PianoController::chLeft, &quot;Left&quot;, false, false, true, false"/>
+  <JUCERCOMP name="Main Channel" id="74e25a6d700b5cc9" memberName="mainChannel"
+             virtualName="" explicitFocusOrder="0" pos="148 0 70 0M" sourceFile="ChannelComponent.cpp"
              constructorParams="settings, pianoController, PianoController::chMain, &quot;Main&quot;, false, false, true, false"/>
   <JUCERCOMP name="Layer Channel" id="ef551064ccb187e2" memberName="layerChannel"
-             virtualName="" explicitFocusOrder="0" pos="148 0 70 0M" sourceFile="ChannelComponent.cpp"
+             virtualName="" explicitFocusOrder="0" pos="218 0 70 0M" sourceFile="ChannelComponent.cpp"
              constructorParams="settings, pianoController, PianoController::chLayer, &quot;Layer&quot;, false, false, true, false"/>
   <JUCERCOMP name="Song Channel" id="ea486fd33cd44e31" memberName="songChannel"
-             virtualName="" explicitFocusOrder="0" pos="218 0 70 0M" sourceFile="ChannelComponent.cpp"
+             virtualName="" explicitFocusOrder="0" pos="288 0 70 0M" sourceFile="ChannelComponent.cpp"
              constructorParams="settings, pianoController, PianoController::chMidiMaster, &quot;Song&quot;, false, false, true, false"/>
   <JUCERCOMP name="Mic Channel" id="8f4c373ee8ae253f" memberName="micChannel"
-             virtualName="" explicitFocusOrder="0" pos="288 0 70 0M" sourceFile="ChannelComponent.cpp"
+             virtualName="" explicitFocusOrder="0" pos="358 0 70 0M" sourceFile="ChannelComponent.cpp"
              constructorParams="settings, pianoController, PianoController::chMic, &quot;Mic&quot;, false, false, true, false"/>
   <JUCERCOMP name="AuxIn Channel" id="7ffff5d33c7b27f" memberName="auxInChannel"
-             virtualName="" explicitFocusOrder="0" pos="358 0 70 0M" sourceFile="ChannelComponent.cpp"
+             virtualName="" explicitFocusOrder="0" pos="428 0 70 0M" sourceFile="ChannelComponent.cpp"
              constructorParams="settings, pianoController, PianoController::chAuxIn, &quot;Aux In&quot;, false, false, true, false"/>
   <COMBOBOX name="Reverb Effect Combo Box" id="486cacdf50ec1ba7" memberName="effectComboBox"
-            virtualName="" explicitFocusOrder="0" pos="74 176 176 24" tooltip="Reverb Effect"
+            virtualName="" explicitFocusOrder="0" pos="92 176 176 24" tooltip="Reverb Effect"
             editable="0" layout="33" items="Real Large Hall&#10;Real Medium Hall&#10;Concert Hall"
             textWhenNonSelected="Reverb Effect" textWhenNoItems="(no choices)"/>
 </JUCER_COMPONENT>

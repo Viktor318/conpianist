@@ -1158,8 +1158,9 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 		m_channels[ch].octave = intValue - OctaveBase;
 		NotifyChanged(apOctave, ch);
 	}
-	else if (property == Property::Active && ch != chMidiMaster)
+	else if (property == Property::Active && ch != chMidiMaster && ch != chStyle)
 	{
+		// (the song and the accompaniment as a whole cannot be switched on and off)
 		m_channels[ch].active = boolValue;
 		NotifyChanged(apActive, ch);
 	}
