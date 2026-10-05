@@ -113,7 +113,7 @@ countries: hu
 "Aux In" = "Bemenet"
 "R" = "J"
 "L" = "B"
-"Pan" = "Pan"
+"Pan" = "Tér"
 "Reverb" = "Zengetés"
 "Reverb Effect" = "Zengetés típusa"
 "Context Menu" = "Helyi menü"

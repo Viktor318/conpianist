@@ -43,8 +43,8 @@ StyleMixerComponent::StyleMixerComponent(Settings& settings, PianoController& pi
 
 		if (master)
 		{
-			initLabel(strip.nameLabel, "Master", 16.0f, Justification::centred);
-			strip.nameLabel.setFont(Font(FontOptions(16.0f, Font::bold)));
+			initLabel(strip.nameLabel, "Master", 19.0f, Justification::centred);
+			strip.nameLabel.setFont(Font(FontOptions(19.0f, Font::bold)));
 		}
 		else
 		{
@@ -162,17 +162,20 @@ void StyleMixerComponent::resized()
 		strip.onButton.setBounds(x + 2, 12, width - 4, 36);
 		strip.nameLabel.setBounds(x, 12, width, 36);
 		strip.voiceLabel.setBounds(x, 52, width, 22);
-		strip.panSlider.setBounds(sliderX, 108, 70, 76);
-		strip.reverbSlider.setBounds(sliderX, 220, 70, 76);
-		strip.volumeSlider.setBounds(sliderX, 332, 70, getHeight() - 332 - 12);
+		strip.panSlider.setBounds(sliderX, 116, 70, 76);
+		strip.reverbSlider.setBounds(sliderX, 228, 70, 76);
+		strip.volumeSlider.setBounds(sliderX, 340, 70, getHeight() - 340 - 12);
 	}
-	panCaption.setBounds(12, 84, 90, 24);
-	// the list of the reverb types right after the text of its label
-	const int captionWidth = GlyphArrangement::getStringWidthInt(reverbCaption.getFont(), reverbCaption.getText()) + 10;
-	reverbCaption.setBounds(12, 196, captionWidth, 24);
-	reverbEffectCombo.setBounds(12 + captionWidth + 8, 196, 220, 24);
-	volumeCaption.setBounds(12, 308, 90, 24);
-	hintLabel.setBounds(12 + captionWidth + 8 + 220 + 12, 196, 260, 24); // after the list
+	// The labels as in the Balance window: their text starts where the value boxes of
+	// the first strip do, 32 pixels above the boxes; the list of the reverb types is in
+	// the row of its label, above the value box of the second strip, 176 wide.
+	const int firstSliderX = StripLeft + (StripWidth - 70) / 2;
+	const int labelX = firstSliderX + 10 - 5; // the box starts at 10, the text of a label at 5
+	panCaption.setBounds(labelX, 84, StripWidth - 10, 24);
+	reverbCaption.setBounds(labelX, 196, StripWidth - 10, 24);
+	reverbEffectCombo.setBounds(firstSliderX + StripWidth + 10, 196, 176, 24);
+	volumeCaption.setBounds(labelX, 308, StripWidth - 10, 24);
+	hintLabel.setBounds(firstSliderX + StripWidth + 10 + 176 + 12, 196, 260, 24); // after the list
 }
 
 // A double click on a control sets it back to the value the style came with (the whole

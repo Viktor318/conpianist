@@ -81,7 +81,7 @@ ChannelComponent::ChannelComponent (Settings& settings, PianoController& pianoCo
     panLabel->setColour (TextEditor::textColourId, Colours::black);
     panLabel->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
 
-    panLabel->setBounds (0, 90, 40, 24);
+    panLabel->setBounds (5, 90, 40, 24);
 
     menuButton2.reset (new ImageButton ("Menu Button"));
     addAndMakeVisible (menuButton2.get());
@@ -123,7 +123,7 @@ ChannelComponent::ChannelComponent (Settings& settings, PianoController& pianoCo
     reverbLabel->setColour (TextEditor::textColourId, Colours::black);
     reverbLabel->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
 
-    reverbLabel->setBounds (0, 196, 70, 24);
+    reverbLabel->setBounds (5, 196, 65, 24);
 
     reverbSlider.reset (new Slider ("Reverb Slider"));
     addAndMakeVisible (reverbSlider.get());
@@ -144,7 +144,7 @@ ChannelComponent::ChannelComponent (Settings& settings, PianoController& pianoCo
     volumeLabel->setColour (TextEditor::textColourId, Colours::black);
     volumeLabel->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
 
-    volumeLabel->setBounds (0, 304, 70, 24);
+    volumeLabel->setBounds (5, 304, 65, 24);
 
     titleButton.reset (new TextButton ("Title Button"));
     addAndMakeVisible (titleButton.get());
@@ -1007,7 +1007,7 @@ BEGIN_JUCER_METADATA
          focusDiscardsChanges="0" fontname="Default font" fontsize="18.0"
          kerning="0.0" bold="0" italic="0" justification="36"/>
   <LABEL name="Pan Label" id="83fd07e9ba9100c1" memberName="panLabel"
-         virtualName="" explicitFocusOrder="0" pos="0 90 40 24" edTextCol="ff000000"
+         virtualName="" explicitFocusOrder="0" pos="5 90 40 24" edTextCol="ff000000"
          edBkgCol="0" labelText="Pan" editableSingleClick="0" editableDoubleClick="0"
          focusDiscardsChanges="0" fontname="Default font" fontsize="15.4"
          kerning="0.0" bold="0" italic="0" justification="33"/>
@@ -1029,7 +1029,7 @@ BEGIN_JUCER_METADATA
           textBoxPos="TextBoxAbove" textBoxEditable="1" textBoxWidth="50"
           textBoxHeight="20" skewFactor="1.0" needsCallback="1"/>
   <LABEL name="Reverb Label" id="5ba2a16ed7ba194a" memberName="reverbLabel"
-         virtualName="" explicitFocusOrder="0" pos="0 196 70 24" edTextCol="ff000000"
+         virtualName="" explicitFocusOrder="0" pos="5 196 65 24" edTextCol="ff000000"
          edBkgCol="0" labelText="Reverb" editableSingleClick="0" editableDoubleClick="0"
          focusDiscardsChanges="0" fontname="Default font" fontsize="15.4"
          kerning="0.0" bold="0" italic="0" justification="33"/>
@@ -1039,7 +1039,7 @@ BEGIN_JUCER_METADATA
           textBoxPos="TextBoxAbove" textBoxEditable="1" textBoxWidth="50"
           textBoxHeight="20" skewFactor="1.0" needsCallback="1"/>
   <LABEL name="Volume Label" id="3a0483b1c68cf176" memberName="volumeLabel"
-         virtualName="" explicitFocusOrder="0" pos="0 304 70 24" edTextCol="ff000000"
+         virtualName="" explicitFocusOrder="0" pos="5 304 65 24" edTextCol="ff000000"
          edBkgCol="0" labelText="Volume" editableSingleClick="0" editableDoubleClick="0"
          focusDiscardsChanges="0" fontname="Default font" fontsize="15.4"
          kerning="0.0" bold="0" italic="0" justification="33"/>
