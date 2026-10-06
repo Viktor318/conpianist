@@ -284,7 +284,6 @@ countries: hu
 "Auto Fill" = "Auto Fill"
 "When on, a fill in is played before the new main section when the main section is changed (A)" = "Bekapcsolva a Main szakasz váltásakor az új szakasz előtt egy kitöltés szól (A)"
 "Category of the style" = "A stílus kategóriája"
-"The list of the styles (styles.csv) was not found in the data folder of the program" = "A stílusok listája (styles.csv) nincs meg a program adatmappájában"
 "Subcategory of the style" = "A stílus alkategóriája"
 "Apply" = "Alkalmaz"
 "Loads the chosen style on the piano (Enter)" = "Betölti a kiválasztott stílust a zongorán (Enter)"

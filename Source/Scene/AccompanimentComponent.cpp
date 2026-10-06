@@ -510,15 +510,8 @@ void AccompanimentComponent::showShortcuts()
 
 int AccompanimentComponent::defaultTempo() const
 {
-	const String path = pianoController.GetStyleName();
-	for (const StyleEntry& style : styles)
-	{
-		if (style.path == path)
-		{
-			return style.tempo;
-		}
-	}
-	return 0;
+	const Style* style = Presets::FindStyle(pianoController.GetStyleName());
+	return style ? style->tempo : 0;
 }
 
 void AccompanimentComponent::resetTempo()
@@ -870,39 +863,13 @@ void AccompanimentComponent::update()
 	hintLabel.setColour(Label::textColourId, Colours::orange);
 }
 
-// The list file: text, one style in a line, the fields separated by semicolons:
-// id;path;title;category;group;... (the first line is the header).
+// Fills the lists from the styles built into the program.
 void AccompanimentComponent::loadStyles()
 {
-	styles.clear();
 	categories.clear();
-
-	const File file = settings.GetLastStateFile().getSiblingFile("styles.csv");
-	if (file.existsAsFile())
+	for (const Style& style : styles)
 	{
-		StringArray lines;
-		lines.addLines(file.loadFileAsString());
-		for (const String& line : lines)
-		{
-			StringArray fields;
-			fields.addTokens(line, ";", "");
-			if (fields.size() < 5 || !fields[1].trim().startsWith("PRESET:"))
-			{
-				continue; // header or not a style
-			}
-			StyleEntry entry;
-			entry.path = fields[1].trim();
-			entry.title = fields[2].trim();
-			entry.category = fields[3].trim();
-			entry.group = fields[4].trim();
-			entry.tempo = fields.size() > 6 ? fields[6].getIntValue() : 0;
-			if (entry.title.isEmpty())
-			{
-				entry.title = styleTitle(entry.path);
-			}
-			styles.push_back(entry);
-			categories.addIfNotAlreadyThere(entry.category);
-		}
+		categories.addIfNotAlreadyThere(style.category);
 	}
 
 	categoryCombo.clear(dontSendNotification);
@@ -912,18 +879,8 @@ void AccompanimentComponent::loadStyles()
 	}
 	groupCombo.clear(dontSendNotification);
 	styleCombo.clear(dontSendNotification);
-	if (styles.empty())
-	{
-		const String tip = TRANS("The list of the styles (styles.csv) was not found in the data folder of the program");
-		categoryCombo.setTooltip(tip);
-		groupCombo.setTooltip(tip);
-		styleCombo.setTooltip(tip);
-	}
-	else
-	{
-		categoryCombo.setSelectedId(1, dontSendNotification);
-		fillGroupCombo();
-	}
+	categoryCombo.setSelectedId(1, dontSendNotification);
+	fillGroupCombo();
 }
 
 // The groups (subcategories) of the chosen category; the first one becomes chosen, and
@@ -932,7 +889,7 @@ void AccompanimentComponent::fillGroupCombo()
 {
 	groups.clear();
 	const String category = categories[categoryCombo.getSelectedId() - 1];
-	for (const StyleEntry& style : styles)
+	for (const Style& style : styles)
 	{
 		if (style.category == category)
 		{
@@ -973,7 +930,7 @@ void AccompanimentComponent::fillStyleCombo()
 // Chooses the style (index in styles) in the three lists.
 void AccompanimentComponent::showStyleInLists(int index)
 {
-	const StyleEntry& style = styles[index];
+	const Style& style = styles[index];
 	categoryCombo.setSelectedId(categories.indexOf(style.category) + 1, dontSendNotification);
 	fillGroupCombo();
 	groupCombo.setSelectedId(groups.indexOf(style.group) + 1, dontSendNotification);

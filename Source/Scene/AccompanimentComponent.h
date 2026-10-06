@@ -21,6 +21,7 @@
 
 #include "../JuceLibraryCode/JuceHeader.h"
 #include "PianoController.h"
+#include "Presets.h"
 #include "Settings.h"
 
 // The content of the Accompaniment window: controls the accompaniment (style) of the
@@ -55,17 +56,8 @@ private:
 	Settings& settings;
 	PianoController& pianoController;
 
-	// A style of the piano, from the list file (styles.csv in the data folder of the
-	// program; it is not part of the program, the lists stay empty without it).
-	struct StyleEntry
-	{
-		String path;     // preset path, e.g. PRESET:/STYLE/Pop & Rock/Pop/Contemp Gtr Pop.T308.prs
-		String title;
-		String category; // e.g. Pop & Rock
-		String group;    // e.g. Pop
-		int tempo = 0;   // default tempo of the style (0: not known)
-	};
-	std::vector<StyleEntry> styles;
+	// The styles of the piano: the list built into the program.
+	const std::vector<Style>& styles = Presets::Styles();
 	StringArray categories;
 	String shownStyle = "?"; // the style of the piano that the lists show
 

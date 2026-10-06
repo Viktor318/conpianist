@@ -62,6 +62,20 @@ struct ReverbEffect
 
 using ReverbEffectList = std::vector<ReverbEffect>;
 
+// A style (accompaniment) of the piano, as in its style selector. The title, the category
+// and the group are the parts of the preset path.
+struct Style
+{
+	String path;     // preset path, e.g. PRESET:/STYLE/Pop & Rock/Pop/Contemp Gtr Pop.T308.prs
+	String title;    // e.g. Contemp Gtr Pop
+	String category; // e.g. Pop & Rock
+	String group;    // e.g. Pop
+	String type;     // Pro, Session, Pianist or Free Play
+	int tempo;       // default tempo
+	int beats;       // default time signature: beats in a measure ...
+	int beatUnit;    // ... and the note value of a beat
+};
+
 class Presets
 {
 public:
@@ -75,6 +89,9 @@ public:
 	static String VoiceName(int num);
 	static ReverbEffectList& ReverbEffects();
 	static String ReverbEffectTitle(int num);
+	// The styles of the piano (CSP-170), in the order of its style selector.
+	static const std::vector<Style>& Styles();
+	static const Style* FindStyle(const String& path); // nullptr if it is not in the list
 
 	// General MIDI voices, for MIDI devices that are not Yamaha pianos.
 	// Voice numbers have the same format as Voice::num (0x00MMLLPP), with bank 0.
