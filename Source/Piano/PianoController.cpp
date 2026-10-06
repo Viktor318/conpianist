@@ -278,7 +278,7 @@ void PianoController::Reset()
 	{
 		SetStylePlaying(false);
 	}
-	m_styleOffParts = 0;
+	ForgetStyleOffParts();
 	StyleState style;
 	style.style = "PRESET:/STYLE/Pop & Rock/Pop/Standard 8Beat.T308.prs";
 	style.tempo = DefaultStyleTempo;
@@ -1291,7 +1291,7 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 		}
 		if (changed)
 		{
-			m_styleOffParts = 0; // the parts remembered belong to the old style
+			ForgetStyleOffParts(); // the parts remembered belong to the old style
 		}
 		NotifyChanged(apStyle);
 		if (changed)
@@ -2550,6 +2550,76 @@ void PianoController::SetStyleOn(bool on)
 	else if (parts == 0)
 	{
 		const int wanted = m_styleOffParts != 0 ? m_styleOffParts : (1 << NumStyleParts) - 1;
+		for (int i = 0; i < NumStyleParts; i++)
+		{
+			if (wanted & (1 << i))
+			{
+				m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::Active, chStylePart1 + i, 1));
+			}
+		}
+	}
+}
+
+void PianoController::ForgetStyleOffParts()
+{
+	m_styleOffParts = 0;
+	for (int& parts : m_styleGroupOffParts)
+	{
+		parts = 0;
+	}
+}
+
+int PianoController::StyleGroupParts(int group)
+{
+	// bit 0: Rhythm 1 ... bit 7: Phrase 2
+	return group == sgRhythm ? 0x03 : group == sgBass ? 0x04 : group == sgOthers ? 0xf8 : 0;
+}
+
+bool PianoController::GetStyleGroupOn(int group)
+{
+	const int groupParts = StyleGroupParts(group);
+	for (int i = 0; i < NumStyleParts; i++)
+	{
+		if ((groupParts & (1 << i)) && m_channels[chStylePart1 + i].active)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+void PianoController::SetStyleGroupOn(int group, bool on)
+{
+	if (!m_connected || group < 0 || group >= NumStyleGroups)
+	{
+		return;
+	}
+	const int groupParts = StyleGroupParts(group);
+	int parts = 0; // the parts of the group that are on
+	for (int i = 0; i < NumStyleParts; i++)
+	{
+		if ((groupParts & (1 << i)) && m_channels[chStylePart1 + i].active)
+		{
+			parts |= 1 << i;
+		}
+	}
+	if (!on)
+	{
+		if (parts != 0)
+		{
+			m_styleGroupOffParts[group] = parts; // switched on again later
+		}
+		for (int i = 0; i < NumStyleParts; i++)
+		{
+			if (parts & (1 << i))
+			{
+				m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::Active, chStylePart1 + i, 0));
+			}
+		}
+	}
+	else if (parts == 0)
+	{
+		const int wanted = m_styleGroupOffParts[group] != 0 ? m_styleGroupOffParts[group] : groupParts;
 		for (int i = 0; i < NumStyleParts; i++)
 		{
 			if (wanted & (1 << i))

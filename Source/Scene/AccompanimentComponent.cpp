@@ -252,6 +252,17 @@ AccompanimentComponent::AccompanimentComponent(Settings& settings, PianoControll
 	hintLabel.setJustificationType(Justification::centredRight);
 	hintLabel.setMinimumHorizontalScale(0.7f);
 
+	initLabel(partsLabel, TRANS("Parts:"));
+	initButton(partGroupButtons[PianoController::sgRhythm], TRANS("Rhythm"));
+	initButton(partGroupButtons[PianoController::sgBass], TRANS("Bass"));
+	initButton(partGroupButtons[PianoController::sgOthers], TRANS("Others"));
+	partGroupButtons[PianoController::sgRhythm].setConnectedEdges(Button::ConnectedOnRight);
+	partGroupButtons[PianoController::sgBass].setConnectedEdges(Button::ConnectedOnLeft | Button::ConnectedOnRight);
+	partGroupButtons[PianoController::sgOthers].setConnectedEdges(Button::ConnectedOnLeft);
+	partGroupButtons[PianoController::sgRhythm].setTooltip(TRANS("The drums of the accompaniment (Rhythm 1, Rhythm 2) on / off"));
+	partGroupButtons[PianoController::sgBass].setTooltip(TRANS("The bass of the accompaniment on / off"));
+	partGroupButtons[PianoController::sgOthers].setTooltip(TRANS("The other parts of the accompaniment (Chord 1, Chord 2, Pad, Phrase 1, Phrase 2) on / off"));
+
 	initButton(memoryButton, TRANS("Memory"));
 	memoryButton.setTooltip(TRANS("Saves the style, the tempo, the key and the voices of the keyboard: press it, then the number of the memory (or F1 - F8). Press it again (or Esc) to cancel."));
 	for (int i = 0; i < NumRegistrations; i++)
@@ -262,7 +273,7 @@ AccompanimentComponent::AccompanimentComponent(Settings& settings, PianoControll
 	loadRegistrations();
 
 	setWantsKeyboardFocus(true);
-	setSize(440, 666);
+	setSize(440, 710);
 
 	pianoController.AddListener(this);
 	update();
@@ -275,7 +286,7 @@ AccompanimentComponent::~AccompanimentComponent()
 }
 
 // vertical positions of the lines between the groups of the controls
-static const int AccompanimentSeparatorY[] = {204, 258, 340, 392, 524, 568, 620};
+static const int AccompanimentSeparatorY[] = {204, 258, 340, 392, 524, 568, 612, 664};
 
 void AccompanimentComponent::paint(Graphics& g)
 {
@@ -366,15 +377,20 @@ void AccompanimentComponent::resized()
 	// volume
 	volumeLabel.setBounds(16, 534, 170, 24);
 	volumeSlider.setBounds(186, 534, 238, 24);
+	// the groups of the parts: three joined buttons from the line of the lists to the right edge
+	partsLabel.setBounds(16, 578, 74, 24);
+	partGroupButtons[PianoController::sgRhythm].setBounds(90, 576, 111, 28);
+	partGroupButtons[PianoController::sgBass].setBounds(201, 576, 112, 28);
+	partGroupButtons[PianoController::sgOthers].setBounds(313, 576, 111, 28);
 	// registration memories: Memory in the column of the labels, the numbers spread
 	// evenly from the line of the lists to the right edge
-	memoryButton.setBounds(16, 578, 70, 32);
+	memoryButton.setBounds(16, 622, 70, 32);
 	for (int i = 0; i < NumRegistrations; i++)
 	{
-		registrationButtons[i].setBounds(90 + i * 296 / (NumRegistrations - 1), 578, 38, 32);
+		registrationButtons[i].setBounds(90 + i * 296 / (NumRegistrations - 1), 622, 38, 32);
 	}
-	shortcutsButton.setBounds(16, 630, 190, 28);
-	hintLabel.setBounds(214, 632, 210, 24);
+	shortcutsButton.setBounds(16, 674, 190, 28);
+	hintLabel.setBounds(214, 676, 210, 24);
 }
 
 void AccompanimentComponent::buttonClicked(Button* button)
@@ -446,6 +462,13 @@ void AccompanimentComponent::buttonClicked(Button* button)
 	}
 	else
 	{
+		for (int i = 0; i < PianoController::NumStyleGroups; i++)
+		{
+			if (button == &partGroupButtons[i])
+			{
+				pianoController.SetStyleGroupOn(i, !pianoController.GetStyleGroupOn(i));
+			}
+		}
 		for (int i = 0; i < NumRegistrations; i++)
 		{
 			if (button == &registrationButtons[i])
@@ -671,7 +694,9 @@ void AccompanimentComponent::PianoStateChanged(PianoController::Aspect aspect, P
 {
 	if (aspect == PianoController::apStyle || aspect == PianoController::apConnection ||
 		aspect == PianoController::apSplitPoint ||
-		(aspect == PianoController::apActive && channel == PianoController::chLeft) ||
+		(aspect == PianoController::apActive && (channel == PianoController::chLeft ||
+			(channel >= PianoController::chStylePart1 &&
+			 channel < PianoController::chStylePart1 + PianoController::NumStyleParts))) ||
 		(aspect == PianoController::apVolume && channel == PianoController::chStyle))
 	{
 		GuiHelper::CallAsync(this, [this]() { update(); });
@@ -859,6 +884,10 @@ void AccompanimentComponent::update()
 	markButton(autoFillButton, settings.accompanimentAutoFill, false);
 	markButton(breakButton, current == PianoController::ssBreak, next == PianoController::ssBreak);
 
+	for (int i = 0; i < PianoController::NumStyleGroups; i++)
+	{
+		markButton(partGroupButtons[i], connected && pianoController.GetStyleGroupOn(i), false);
+	}
 	if (!volumeSlider.isMouseButtonDown(true))
 	{
 		volumeSlider.setValue(pianoController.GetVolume(PianoController::chStyle), dontSendNotification);

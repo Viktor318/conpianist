@@ -350,6 +350,14 @@ public:
 	// on. Switching it off switches every part off; switching it on switches on the parts
 	// that were on before (all of them, if that is not known).
 	void SetStyleOn(bool on);
+	// The parts of the accompaniment in three groups, as in Smart Pianist's Style screen:
+	// Rhythm (Rhythm 1, 2), Bass, Others (Chord 1, 2, Pad, Phrase 1, 2). A group is on
+	// while any of its parts is on; switching it on switches on the parts that were on
+	// before it was switched off (all of them, if that is not known).
+	enum StyleGroup { sgRhythm, sgBass, sgOthers, NumStyleGroups };
+	static int StyleGroupParts(int group); // the parts of the group as bits
+	bool GetStyleGroupOn(int group);
+	void SetStyleGroupOn(int group, bool on);
 	// The values of a part (or of chStyle, the whole accompaniment) as the style came with
 	// them: what the piano reported when the style was loaded (or when connecting). Sets
 	// the volume, the pan or the reverb (apVolume, apPan, apReverb) back to it; false if
@@ -640,6 +648,8 @@ private:
 	std::atomic<int> m_styleChordArea{caUnknown};
 	std::atomic<int> m_styleLeftSound{-1};
 	int m_styleOffParts = 0; // the parts that were on when the accompaniment was switched off (bits)
+	int m_styleGroupOffParts[3] = {0, 0, 0}; // the same for the groups (NumStyleGroups)
+	void ForgetStyleOffParts();
 	// default volume, pan and reverb of the parts and (last) of the whole accompaniment;
 	// -1000: not known. "Pending": the next value reported by the piano is the default.
 	static const int NoStyleDefault = -1000;

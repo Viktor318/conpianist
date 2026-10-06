@@ -13,6 +13,12 @@ Ez a fájl a ConPianist jövőbeli fejlesztéseit gyűjti egy helyre. Új ötlet
 - Ami nem kerülhet fel a netre, az a program adatmappájában él (`%APPDATA%\ConPianist`, a Roaming mappában).
 - A zongorán még ki nem próbált funkció előbb rövid tesztet kap, és csak utána kerül ütemezésre.
 
+## Új ötletek (még nincs besorolva)
+
+Ide bármikor beírható egy új ötlet, egy sorban, akár félkészen is. A következő alkalommal kerül a megfelelő csomagba, a munkaigény és a függőségek megjelölésével.
+
+- (üres)
+
 ## Folyamatban
 
 Jelenleg nincs megkezdett fejlesztés.

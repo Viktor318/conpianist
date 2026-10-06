@@ -127,6 +127,9 @@ private:
 	TextButton breakButton;
 	Label volumeLabel;
 	Slider volumeSlider;
+	// the parts of the accompaniment in three groups (Rhythm, Bass, Others), on / off
+	Label partsLabel;
+	TextButton partGroupButtons[PianoController::NumStyleGroups];
 	TextButton shortcutsButton; // shows the list of the keyboard shortcuts
 
 	// Registration memories: the style, the tempo, the key and the keyboard parts are
