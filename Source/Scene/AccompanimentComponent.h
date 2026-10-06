@@ -49,8 +49,10 @@ public:
 	// accidentals: 0 - the notes as the piano names them, +1 - the black keys with
 	// sharps (C#), -1 - with flats (Db).
 	static String chordName(const PianoController::StyleChord& chord, int accidentals = 0);
-	// Name and category of a style from its preset path, e.g. "Contemp Gtr Pop (Pop & Rock)".
+	// A style as it is shown: its name, type and default time signature, e.g.
+	// "Standard 8Beat - Pro (4/4)" (with a middle dot), by its preset path or as a list item.
 	static String styleTitle(const String& path);
+	static String styleListName(const Style& style);
 
 private:
 	Settings& settings;

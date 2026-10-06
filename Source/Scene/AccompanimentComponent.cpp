@@ -248,7 +248,8 @@ void AccompanimentComponent::resized()
 	styleLabel.setBounds(16, 16, 70, 24);
 	categoryCombo.setBounds(90, 16, 164, 24);
 	groupCombo.setBounds(260, 16, 164, 24);
-	styleCombo.setBounds(90, 52, 220, 24);
+	// from the left margin: wide enough for the longest name with its type and time signature
+	styleCombo.setBounds(16, 52, 294, 24);
 	applyButton.setBounds(316, 50, 108, 28);
 	// the frame of the name and the key list start where the style lists do
 	currentLabel.setBounds(16, 88, 74, 24);
@@ -916,7 +917,7 @@ void AccompanimentComponent::fillStyleCombo()
 	{
 		if (styles[i].category == category && styles[i].group == group)
 		{
-			styleCombo.addItem(styles[i].title, i + 1);
+			styleCombo.addItem(styleListName(styles[i]), i + 1);
 			if (first == 0)
 			{
 				first = i + 1;
@@ -1026,8 +1027,21 @@ String AccompanimentComponent::chordName(const PianoController::StyleChord& chor
 	return name;
 }
 
+// A style as the lists show it: its name, type and default time signature, e.g.
+// "Standard 8Beat - Pro (4/4)" (with a middle dot instead of the hyphen).
+String AccompanimentComponent::styleListName(const Style& style)
+{
+	return style.title + " " + String(CharPointer_UTF8("\xc2\xb7")) + " " + style.type +
+		" (" + String(style.beats) + "/" + String(style.beatUnit) + ")";
+}
+
 String AccompanimentComponent::styleTitle(const String& path)
 {
+	if (const Style* style = Presets::FindStyle(path))
+	{
+		return styleListName(*style);
+	}
+	// not in the list: the name and the category from the path,
 	// PRESET:/STYLE/<category>/<group>/<name>.<id>.<extension>
 	StringArray parts;
 	parts.addTokens(path.replaceCharacter('\\', '/'), "/", "");
