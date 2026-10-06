@@ -50,7 +50,7 @@ public:
 	// sharps (C#), -1 - with flats (Db).
 	static String chordName(const PianoController::StyleChord& chord, int accidentals = 0);
 	// A style as it is shown: its name, type and default time signature, e.g.
-	// "Standard 8Beat - Pro (4/4)" (with a middle dot), by its preset path or as a list item.
+	// "Standard 8Beat - Pro - (4/4)" (with middle dots), by its preset path or as a list item.
 	static String styleTitle(const String& path);
 	static String styleListName(const Style& style);
 

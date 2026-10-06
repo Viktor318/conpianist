@@ -1028,11 +1028,12 @@ String AccompanimentComponent::chordName(const PianoController::StyleChord& chor
 }
 
 // A style as the lists show it: its name, type and default time signature, e.g.
-// "Standard 8Beat - Pro (4/4)" (with a middle dot instead of the hyphen).
+// "Standard 8Beat - Pro - (4/4)" (with middle dots instead of the hyphens).
 String AccompanimentComponent::styleListName(const Style& style)
 {
-	return style.title + " " + String(CharPointer_UTF8("\xc2\xb7")) + " " + style.type +
-		" (" + String(style.beats) + "/" + String(style.beatUnit) + ")";
+	const String dot = " " + String(CharPointer_UTF8("\xc2\xb7")) + " ";
+	return style.title + dot + style.type + dot +
+		"(" + String(style.beats) + "/" + String(style.beatUnit) + ")";
 }
 
 String AccompanimentComponent::styleTitle(const String& path)
