@@ -86,10 +86,11 @@ private:
 	void fillKeyCombo();
 	// Filter of the style lists: only the styles of the chosen time signature are listed
 	// (and only the categories and groups that have such styles). It is not saved.
-	// Item id: 1 no filter, 2..6 that many quarter notes in a measure (2/4..6/4), 7: 6/8.
+	// The time signatures are the ones the styles are shown with. Item id: 1 no filter,
+	// otherwise note value * 100 + beats (e.g. 403: 3/4, 806: 6/8).
 	Label meterLabel;
 	ComboBox meterCombo;
-	static const int MeterSixEight = 7;
+	static int meterId(const Style& style) { return style.beatUnit * 100 + style.beats; }
 	bool matchesMeter(const Style& style) const;
 	std::vector<double> taps; // times of the last presses of Tap Tempo (ms)
 	// chord detection: where the chords are recognized, whether the keys below the split

@@ -21,6 +21,8 @@
 #include "GuiHelper.h"
 #include "Presets.h"
 
+#include <set>
+
 AccompanimentComponent::AccompanimentComponent(Settings& settings, PianoController& pianoController) :
 	settings(settings), pianoController(pianoController)
 {
@@ -122,35 +124,39 @@ AccompanimentComponent::AccompanimentComponent(Settings& settings, PianoControll
 	meterLabel.setJustificationType(Justification::centredRight);
 	meterCombo.setWantsKeyboardFocus(false);
 	meterCombo.addItem("-", 1);
-	for (int beats = 2; beats <= 6; beats++)
 	{
-		meterCombo.addItem(String(beats) + "/4", beats);
+		// every time signature the styles have: the quarter ones first, then the eighth ones
+		std::set<int> meters;
+		for (const Style& style : styles)
+		{
+			meters.insert(meterId(style));
+		}
+		for (int id : meters)
+		{
+			meterCombo.addItem(String(id % 100) + "/" + String(id / 100), id);
+		}
 	}
-	meterCombo.addItem("6/8", MeterSixEight);
 	meterCombo.setSelectedId(1, dontSendNotification);
-	meterCombo.setTooltip(TRANS("Filter of the style lists: only the styles with this time signature are listed (6/8: the styles with 6-8 or 12-8 in their name)"));
+	meterCombo.setTooltip(TRANS("Filter of the style lists: only the styles with this time signature are listed"));
 	meterCombo.onChange = [this]()
 		{
-			// the chosen style stays chosen if it is still listed; otherwise the style of
-			// the piano is shown if it is listed, or the first style
+			// the lists show the style of the piano if it is listed; otherwise the chosen
+			// style stays chosen if it is still listed, or the first style is chosen
 			const int chosen = styleCombo.getSelectedId() - 1;
 			loadStyles();
 			int keep = -1;
-			if (chosen >= 0 && chosen < (int)styles.size() && matchesMeter(styles[chosen]))
+			const String path = this->pianoController.GetStyleName();
+			for (int i = 0; i < (int)styles.size(); i++)
+			{
+				if (styles[i].path == path && matchesMeter(styles[i]))
+				{
+					keep = i;
+					break;
+				}
+			}
+			if (keep < 0 && chosen >= 0 && chosen < (int)styles.size() && matchesMeter(styles[chosen]))
 			{
 				keep = chosen;
-			}
-			else
-			{
-				const String path = this->pianoController.GetStyleName();
-				for (int i = 0; i < (int)styles.size(); i++)
-				{
-					if (styles[i].path == path && matchesMeter(styles[i]))
-					{
-						keep = i;
-						break;
-					}
-				}
 			}
 			if (keep >= 0)
 			{
@@ -914,20 +920,11 @@ void AccompanimentComponent::update()
 	hintLabel.setColour(Label::textColourId, Colours::orange);
 }
 
-// The filter of the lists: the default time signature of the style. The piano keeps the
-// 6/8 (and 12/8) styles as 4/4 ones (one as 2/4), so these are found by their names.
+// The filter of the lists: the time signature the style is shown with.
 bool AccompanimentComponent::matchesMeter(const Style& style) const
 {
 	const int meter = meterCombo.getSelectedId();
-	if (meter <= 1)
-	{
-		return true; // no filter
-	}
-	if (meter == MeterSixEight)
-	{
-		return style.title.contains("6-8") || style.title.contains("12-8");
-	}
-	return style.beats == meter && style.beatUnit == 4;
+	return meter <= 1 || meter == meterId(style); // 1: no filter
 }
 
 // Fills the lists from the styles built into the program: the categories that have

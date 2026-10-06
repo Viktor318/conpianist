@@ -294,7 +294,7 @@ countries: hu
 "Back to the default tempo of the style (R)" = "Vissza a stílus alapértelmezett tempójára (R)"
 "Key:" = "Hangnem:"
 "Meter:" = "Ütem:"
-"Filter of the style lists: only the styles with this time signature are listed (6/8: the styles with 6-8 or 12-8 in their name)" = "A stíluslisták szűrője: csak az ilyen ütemmutatójú stílusok látszanak (6/8: azok a stílusok, amelyek nevében 6-8 vagy 12-8 szerepel)"
+"Filter of the style lists: only the styles with this time signature are listed" = "A stíluslisták szűrője: csak az ilyen ütemmutatójú stílusok látszanak"
 "The key of the music: the chords are named with the sharps or the flats of the key (without a key, as the piano names them), and the key is written into the recording" = "A darab hangneme: az akkordok neve a hangnem keresztjeivel vagy béivel jelenik meg (hangnem nélkül úgy, ahogy a zongora nevezi őket), és a hangnem a felvételbe is bekerül"
 "major" = "dúr"
 "minor" = "moll"
