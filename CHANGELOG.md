@@ -5,7 +5,9 @@ Ez a fájl a ConPianist változásait dokumentálja. Az 1.0–3.0 verziók az er
 ## Következő verzió (fejlesztés alatt)
 
 ### Új
-- **A kíséret részei a Kíséret ablakban.** A kíséret hangereje alatt új **Részek** sor három gombbal: **Dob** (Rhythm 1, Rhythm 2), **Basszus** (Bass) és **Egyéb** (Chord 1, Chord 2, Pad, Phrase 1, Phrase 2), ahogy a Smart Pianist Style képernyőjén (Rhythm, Bass, Others). A gomb ki- és bekapcsolja a csoport szólamait; narancs, amíg a csoportból legalább egy szólam szól. Visszakapcsoláskor azok a szólamok szólalnak meg, amelyek a kikapcsolás előtt szóltak. A gombok együtt változnak a Kíséret keverő szólamgombjaival és a Hangerőegyensúly ablak Stílus csíkjával. Az ablak ennyivel magasabb lett.
+- **A kíséret részei a Kíséret ablakban.** A kíséret hangereje alatt új **Részek** sor három gombbal: **Dob** (Rhythm 1, Rhythm 2), **Basszus** (Bass) és **Egyéb** (Chord 1, Chord 2, Pad, Phrase 1, Phrase 2), ahogy a Smart Pianist Style képernyőjén (Rhythm, Bass, Others). A gomb ki- és bekapcsolja a csoport szólamait; narancs, amíg a csoportból legalább egy szólam szól. Visszakapcsoláskor azok a szólamok szólalnak meg, amelyek a kikapcsolás előtt szóltak. A gombok együtt változnak a Kíséret keverő szólamgombjaival és a Hangerőegyensúly ablak Stílus csíkjával. Gyorsbillentyűk: **D** – Dob, **B** – Basszus, **E** – Egyéb. Az ablak ennyivel magasabb lett.
+- **Nincsenek torlódó elemek az ablakokban:** az egymás melletti elemek között vízszintesen mindenhol legalább 4 képpont van. Változott: a Tempó értékmezője, − és + gombja (Kíséret és Felvétel ablak) és a Felvétel ablak csendhosszának ugyanilyen gombjai; a Full és Lower gomb; a bal panel Kíséret, Bal, Jobb gombja (eddig 3 képpont). A felső sáv ikonjaira és füleire a szabály nem vonatkozik.
+- **A Break gyorsbillentyűje G lett** (eddig B), így a Fill In (F) mellett van; a B a Basszus gombé.
 
 ## 4.7 (fork) – 2026. október 6.
 

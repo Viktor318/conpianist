@@ -37,7 +37,7 @@ void ::LookAndFeel::drawButtonBackground(Graphics& gr, Button& btn, const Colour
 		fill = Colour(!enabled ? 0xff4e5b62 : toggle ? 0xFEEE6C0A : tab ? 0xff4e5b62 : 0xff3D484E);
 	}
 
-	Rectangle<int> r = btn.getLocalBounds();
+	Rectangle<int> r = buttonArea(btn);
 
 	gr.setColour(fill);
 	if (tab)
@@ -52,6 +52,46 @@ void ::LookAndFeel::drawButtonBackground(Graphics& gr, Button& btn, const Colour
 		gr.setColour(outline);
 		gr.drawRoundedRectangle(r.getX(), r.getY(), r.getWidth(), r.getHeight(), 5, 2);
 	}
+}
+
+// The - and + buttons of a slider are laid out by the slider itself, touching the value
+// box and each other. They are drawn narrower instead, so that the elements of a row are
+// at least 4 pixels apart: each button leaves 4 pixels free on the side of the value box.
+Rectangle<int> (::LookAndFeel::buttonArea)(Button& button)
+{
+	Rectangle<int> area = button.getLocalBounds();
+	if (auto* slider = dynamic_cast<Slider*>(button.getParentComponent()))
+	{
+		if (slider->getSliderStyle() == Slider::IncDecButtons)
+		{
+			const int gap = 4;
+			if (slider->getTextBoxPosition() == Slider::TextBoxRight)
+			{
+				area.removeFromRight(gap);
+			}
+			else
+			{
+				area.removeFromLeft(gap);
+			}
+		}
+	}
+	return area;
+}
+
+void ::LookAndFeel::drawButtonText(Graphics& gr, TextButton& button,
+	bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown)
+{
+	const Rectangle<int> area = buttonArea(button);
+	if (area == button.getLocalBounds())
+	{
+		LookAndFeel_V4::drawButtonText(gr, button, shouldDrawButtonAsHighlighted, shouldDrawButtonAsDown);
+		return;
+	}
+	// a narrowed button: the text in the middle of the drawn area
+	gr.setFont(getTextButtonFont(button, button.getHeight()));
+	gr.setColour(button.findColour(button.getToggleState() ? TextButton::textColourOnId : TextButton::textColourOffId)
+		.withMultipliedAlpha(button.isEnabled() ? 1.0f : 0.5f));
+	gr.drawFittedText(button.getButtonText(), area, Justification::centred, 1);
 }
 
 void ::LookAndFeel::drawImageButton(Graphics& gr, Image* im,

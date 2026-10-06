@@ -461,10 +461,10 @@ void PlaybackComponent::resized()
     rewindButton->setBounds (14, ((-8) + 70 - 8) + 60, 40, 28);
     forwardButton->setBounds (104, ((-8) + 70 - 8) + 60, 40, 28);
     chooseSongButton->setBounds (0 + (getWidth() - 0) - 20 - (20 / 2), (-8) + 25, 20, 24);
-    backingPartButton->setBounds (14, ((-8) + 70 - 8) + 142, 86, 28);
+    backingPartButton->setBounds (14, ((-8) + 70 - 8) + 142, 85, 28);
     partLabel->setBounds (8, ((-8) + 70 - 8) + 110, 136, 24);
     leftPartButton->setBounds (103, ((-8) + 70 - 8) + 142, 86, 28);
-    rightPartButton->setBounds (0 + 192, ((-8) + 70 - 8) + 142, 86, 28);
+    rightPartButton->setBounds (0 + 193, ((-8) + 70 - 8) + 142, 85, 28);
     guideButton->setBounds (0 + 193, ((-8) + 70 - 8) + 60, 40, 28);
     loopButton->setBounds (148, ((-8) + 70 - 8) + 60, 40, 28);
     lightsButton->setBounds (0 + 238, ((-8) + 70 - 8) + 60, 40, 28);
@@ -1100,7 +1100,7 @@ BEGIN_JUCER_METADATA
                opacityNormal="1.0" colourNormal="0" resourceOver="" opacityOver="0.75"
                colourOver="0" resourceDown="" opacityDown="1.0" colourDown="0"/>
   <TEXTBUTTON name="Backing Part Button" id="c44e73ef2ac29304" memberName="backingPartButton"
-              virtualName="" explicitFocusOrder="0" pos="14 142 86 28" posRelativeY="c7b94b60aa96c6e2"
+              virtualName="" explicitFocusOrder="0" pos="14 142 85 28" posRelativeY="c7b94b60aa96c6e2"
               buttonText="Backing" connectedEdges="0" needsCallback="1" radioGroupId="0"/>
   <LABEL name="Part Label" id="35efabd1f34f8989" memberName="partLabel"
          virtualName="" explicitFocusOrder="0" pos="8 110 136 24" posRelativeY="c7b94b60aa96c6e2"
@@ -1112,7 +1112,7 @@ BEGIN_JUCER_METADATA
               virtualName="" explicitFocusOrder="0" pos="103 142 86 28" posRelativeY="c7b94b60aa96c6e2"
               buttonText="Left" connectedEdges="0" needsCallback="1" radioGroupId="0"/>
   <TEXTBUTTON name="Right Part Button" id="7413d6f9d0d8d631" memberName="rightPartButton"
-              virtualName="" explicitFocusOrder="0" pos="192 142 86 28" posRelativeX="c7b94b60aa96c6e2"
+              virtualName="" explicitFocusOrder="0" pos="193 142 85 28" posRelativeX="c7b94b60aa96c6e2"
               posRelativeY="c7b94b60aa96c6e2" buttonText="Right" connectedEdges="0"
               needsCallback="1" radioGroupId="0"/>
   <IMAGEBUTTON name="Guide Button" id="21ab7b81d08c0a5a" memberName="guideButton"

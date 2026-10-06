@@ -29,6 +29,13 @@ public:
 	void drawButtonBackground(Graphics&, Button&, const Colour& backgroundColour,
 		bool isMouseOverButton, bool isButtonDown) override;
 
+	void drawButtonText(Graphics&, TextButton&, bool shouldDrawButtonAsHighlighted,
+		bool shouldDrawButtonAsDown) override;
+
+	// The area a button is drawn in: its bounds, except for the - and + buttons of a
+	// slider, which are drawn 4 pixels apart from the value box and from each other.
+	static Rectangle<int> buttonArea(Button& button);
+
 	void drawImageButton(Graphics&, Image*,
 		int imageX, int imageY, int imageW, int imageH,
 		const Colour& overlayColour, float imageOpacity, ImageButton&) override;

@@ -183,8 +183,6 @@ AccompanimentComponent::AccompanimentComponent(Settings& settings, PianoControll
 	chordFullButton.setTooltip(TRANS("The chords are recognized on the whole keyboard"));
 	initButton(chordLowerButton, "Lower");
 	chordLowerButton.setTooltip(TRANS("The chords are recognized below the split point"));
-	chordFullButton.setConnectedEdges(Button::ConnectedOnRight);
-	chordLowerButton.setConnectedEdges(Button::ConnectedOnLeft);
 	initButton(leftSoundButton, TRANS("Main voice below"));
 	leftSoundButton.setTooltip(TRANS("For playing without the Left part: when on, the Main and Layer voices sound below the split point too while the accompaniment is playing; when off, the keys there only give the chords. It has no effect while the Left part is on (the button is greyed out then)."));
 	initLabel(splitLabel, TRANS("Split point:"));
@@ -228,7 +226,7 @@ AccompanimentComponent::AccompanimentComponent(Settings& settings, PianoControll
 	initButton(fillInButton, TRANS("Fill In"));
 	fillInButton.setTooltip(TRANS("One measure of fill in, staying in the same main section (F)"));
 	initButton(breakButton, TRANS("Break"));
-	breakButton.setTooltip(TRANS("One measure of break (B)"));
+	breakButton.setTooltip(TRANS("One measure of break (G)"));
 
 	initLabel(volumeLabel, TRANS("Accompaniment volume:"));
 	volumeSlider.setSliderStyle(Slider::LinearHorizontal);
@@ -256,12 +254,9 @@ AccompanimentComponent::AccompanimentComponent(Settings& settings, PianoControll
 	initButton(partGroupButtons[PianoController::sgRhythm], TRANS("Rhythm"));
 	initButton(partGroupButtons[PianoController::sgBass], TRANS("Bass"));
 	initButton(partGroupButtons[PianoController::sgOthers], TRANS("Others"));
-	partGroupButtons[PianoController::sgRhythm].setConnectedEdges(Button::ConnectedOnRight);
-	partGroupButtons[PianoController::sgBass].setConnectedEdges(Button::ConnectedOnLeft | Button::ConnectedOnRight);
-	partGroupButtons[PianoController::sgOthers].setConnectedEdges(Button::ConnectedOnLeft);
-	partGroupButtons[PianoController::sgRhythm].setTooltip(TRANS("The drums of the accompaniment (Rhythm 1, Rhythm 2) on / off"));
-	partGroupButtons[PianoController::sgBass].setTooltip(TRANS("The bass of the accompaniment on / off"));
-	partGroupButtons[PianoController::sgOthers].setTooltip(TRANS("The other parts of the accompaniment (Chord 1, Chord 2, Pad, Phrase 1, Phrase 2) on / off"));
+	partGroupButtons[PianoController::sgRhythm].setTooltip(TRANS("The drums of the accompaniment (Rhythm 1, Rhythm 2) on / off (D)"));
+	partGroupButtons[PianoController::sgBass].setTooltip(TRANS("The bass of the accompaniment on / off (B)"));
+	partGroupButtons[PianoController::sgOthers].setTooltip(TRANS("The other parts of the accompaniment (Chord 1, Chord 2, Pad, Phrase 1, Phrase 2) on / off (E)"));
 
 	initButton(memoryButton, TRANS("Memory"));
 	memoryButton.setTooltip(TRANS("Saves the style, the tempo, the key and the voices of the keyboard: press it, then the number of the memory (or F1 - F8). Press it again (or Esc) to cancel."));
@@ -343,8 +338,8 @@ void AccompanimentComponent::resized()
 	}
 	// chord detection: the area and the sound of the left hand, then the split point
 	chordAreaLabel.setBounds(16, 270, 138, 24);
-	chordFullButton.setBounds(156, 268, 63, 28);
-	chordLowerButton.setBounds(219, 268, 63, 28);
+	chordFullButton.setBounds(156, 268, 61, 28); // 4 pixels apart
+	chordLowerButton.setBounds(221, 268, 61, 28);
 	leftSoundButton.setBounds(304, 268, 120, 28);
 	splitLabel.setBounds(16, 306, 138, 24);
 	splitDownButton.setBounds(156, 304, 30, 28);
@@ -377,11 +372,12 @@ void AccompanimentComponent::resized()
 	// volume
 	volumeLabel.setBounds(16, 534, 170, 24);
 	volumeSlider.setBounds(186, 534, 238, 24);
-	// the groups of the parts: three joined buttons from the line of the lists to the right edge
+	// the groups of the parts: three buttons from the line of the lists to the right edge,
+	// 6 pixels apart (as Fill In and Break)
 	partsLabel.setBounds(16, 578, 74, 24);
-	partGroupButtons[PianoController::sgRhythm].setBounds(90, 576, 111, 28);
-	partGroupButtons[PianoController::sgBass].setBounds(201, 576, 112, 28);
-	partGroupButtons[PianoController::sgOthers].setBounds(313, 576, 111, 28);
+	partGroupButtons[PianoController::sgRhythm].setBounds(90, 576, 107, 28);
+	partGroupButtons[PianoController::sgBass].setBounds(203, 576, 108, 28);
+	partGroupButtons[PianoController::sgOthers].setBounds(317, 576, 107, 28);
 	// registration memories: Memory in the column of the labels, the numbers spread
 	// evenly from the line of the lists to the right edge
 	memoryButton.setBounds(16, 622, 70, 32);
@@ -562,7 +558,10 @@ void AccompanimentComponent::showShortcuts()
 		<< "1, 2, 3, 4" << dash << "Main A, B, C, D" << "\n"
 		<< "F" << dash << TRANS("Fill In") << "\n"
 		<< "A" << dash << TRANS("Auto Fill on / off") << "\n"
-		<< "B" << dash << TRANS("Break") << "\n"
+		<< "G" << dash << TRANS("Break") << "\n"
+		<< "D" << dash << TRANS("Rhythm on / off") << "\n"
+		<< "B" << dash << TRANS("Bass on / off") << "\n"
+		<< "E" << dash << TRANS("Others on / off") << "\n"
 		<< "T" << dash << TRANS("Tap Tempo") << "\n"
 		<< "R" << dash << TRANS("Default tempo of the style (Reset)") << "\n"
 		<< "Enter" << dash << TRANS("Apply: loads the chosen style") << "\n"
@@ -681,10 +680,20 @@ bool AccompanimentComponent::keyPressed(const KeyPress& key)
 		fillIn();
 		return true;
 	}
-	if (character == 'b')
+	if (character == 'g')
 	{
 		pianoController.PlayStyleSection(PianoController::ssBreak);
 		return true;
+	}
+	// the groups of the parts: D - Rhythm (Dob), B - Bass, E - Others (Egyéb)
+	static const char partGroupKeys[PianoController::NumStyleGroups] = {'d', 'b', 'e'};
+	for (int i = 0; i < PianoController::NumStyleGroups; i++)
+	{
+		if (character == (juce_wchar)partGroupKeys[i])
+		{
+			pianoController.SetStyleGroupOn(i, !pianoController.GetStyleGroupOn(i));
+			return true;
+		}
 	}
 	return false;
 }
