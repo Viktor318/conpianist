@@ -272,7 +272,7 @@ void PianoController::Reset()
 	SetSplitPoint(DefaultSplitPoint);
 
 	// The accompaniment: the default style with its own tempo and mixer, chords detected
-	// on the whole keyboard. The values of the parts are the ones of this style; they are
+	// below the split point. The values of the parts are the ones of this style; they are
 	// sent since the piano keeps changed values while the style is not loaded again.
 	if (m_stylePlaying)
 	{
@@ -282,7 +282,7 @@ void PianoController::Reset()
 	StyleState style;
 	style.style = "PRESET:/STYLE/Pop & Rock/Pop/Standard 8Beat.T308.prs";
 	style.tempo = DefaultStyleTempo;
-	style.chordArea = caFull;
+	style.chordArea = caLower;
 	style.leftSound = 1;
 	style.splitPoint = DefaultSplitPoint;
 	style.hasMixer = true;

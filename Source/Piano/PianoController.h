@@ -169,17 +169,19 @@ public:
 	static const int MaxReverb = 127;
 	static const int DefaultReverb = 0;
 	static const int GenericDefaultReverb = 40; // General MIDI default of CC91
-	static const int DefaultReverbEffect = 0x0121; // Real Medium Hall (as the CSP-170 starts)
+	static const int DefaultReverbEffect = 0x0118; // Recital Hall
 	static const int MinOctave = -2;
 	static const int MaxOctave = +2;
 	static const int DefaultOctave = 0;
-	// The state the CSP-170 starts with after it is switched on (read from the piano):
-	// used by Reset.
+	// The default state (Reset) is the one Smart Pianist sets when it is started, read
+	// from a CSP-170. The piano itself starts with slightly different values: reverb effect
+	// Real Medium Hall (0x0121), environment 10, chords detected on the whole keyboard,
+	// split points F#2 (54).
 	static const int DefaultLeftOctave = 1;   // of the default voice of the Left part
-	static const int DefaultSplitPoint = 54;  // F#2, of the Left part and of the accompaniment
+	static const int DefaultSplitPoint = 53;  // F2, of the Left part and of the accompaniment
 	static const int DefaultStyleTempo = 100; // of the default style
 	static const int OctaveBase = 0x40;
-	static const int DefaultEnvironment = 10;
+	static const int DefaultEnvironment = 23;
 	static const int DefaultBrightness = 0x40;
 	static const int MasterTuneBase = 0x400;
 	static const int MasterTuneFactor = 4;
@@ -187,7 +189,7 @@ public:
 	static const int MaxResonance = 10;
 	static const int DefaultKeyOffSampling = 0x40;
 	static const int MaxKeyOffSampling = 0x50;
-	static const int DefaultFixedVelocity = 95; // as the CSP-170 starts
+	static const int DefaultFixedVelocity = 95;
 	static const LidPosition DefaultLidPosition = lpOpen;
 	static const TouchCurve DefaultTouchCurve = tcMedium;
 	static const int UploadPort = 10504; // TCP port of the piano for uploading songs
