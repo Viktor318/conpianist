@@ -84,6 +84,13 @@ private:
 	ComboBox keyCombo;    // the key of the music: the chords are named with its sharps or flats
 	ComboBox keyModeCombo; // major or minor
 	void fillKeyCombo();
+	// Filter of the style lists: only the styles of the chosen time signature are listed
+	// (and only the categories and groups that have such styles). It is not saved.
+	// Item id: 1 no filter, 2..6 that many quarter notes in a measure (2/4..6/4), 7: 6/8.
+	Label meterLabel;
+	ComboBox meterCombo;
+	static const int MeterSixEight = 7;
+	bool matchesMeter(const Style& style) const;
 	std::vector<double> taps; // times of the last presses of Tap Tempo (ms)
 	// chord detection: where the chords are recognized, whether the keys below the split
 	// point sound while the accompaniment is playing, and the split point of the
@@ -204,7 +211,7 @@ private:
 	Label hintLabel;            // a message, e.g. that the piano is not connected
 
 	void update();
-	void loadStyles();
+	void loadStyles();      // the categories that have styles (of the chosen time signature)
 	void fillGroupCombo();  // the groups of the chosen category, the first one chosen
 	void fillStyleCombo();  // the styles of the chosen group, the first one chosen
 	void applyStyle();

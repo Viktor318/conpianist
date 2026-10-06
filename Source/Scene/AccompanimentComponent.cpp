@@ -117,6 +117,49 @@ AccompanimentComponent::AccompanimentComponent(Settings& settings, PianoControll
 	addAndMakeVisible(keyCombo);
 	addAndMakeVisible(keyModeCombo);
 
+	// the filter of the style lists by time signature
+	initLabel(meterLabel, TRANS("Meter:"));
+	meterLabel.setJustificationType(Justification::centredRight);
+	meterCombo.setWantsKeyboardFocus(false);
+	meterCombo.addItem("-", 1);
+	for (int beats = 2; beats <= 6; beats++)
+	{
+		meterCombo.addItem(String(beats) + "/4", beats);
+	}
+	meterCombo.addItem("6/8", MeterSixEight);
+	meterCombo.setSelectedId(1, dontSendNotification);
+	meterCombo.setTooltip(TRANS("Filter of the style lists: only the styles with this time signature are listed (6/8: the styles with 6-8 or 12-8 in their name)"));
+	meterCombo.onChange = [this]()
+		{
+			// the chosen style stays chosen if it is still listed; otherwise the style of
+			// the piano is shown if it is listed, or the first style
+			const int chosen = styleCombo.getSelectedId() - 1;
+			loadStyles();
+			int keep = -1;
+			if (chosen >= 0 && chosen < (int)styles.size() && matchesMeter(styles[chosen]))
+			{
+				keep = chosen;
+			}
+			else
+			{
+				const String path = this->pianoController.GetStyleName();
+				for (int i = 0; i < (int)styles.size(); i++)
+				{
+					if (styles[i].path == path && matchesMeter(styles[i]))
+					{
+						keep = i;
+						break;
+					}
+				}
+			}
+			if (keep >= 0)
+			{
+				showStyleInLists(keep);
+			}
+			update();
+		};
+	addAndMakeVisible(meterCombo);
+
 	initButton(resetTempoButton, TRANS("Reset"));
 	resetTempoButton.setTooltip(TRANS("Back to the default tempo of the style (R)"));
 	initButton(tapTempoButton, TRANS("Tap Tempo"));
@@ -258,6 +301,9 @@ void AccompanimentComponent::resized()
 	// wide enough for every name (e.g. "F#", "Bb") at the normal size of the text
 	keyCombo.setBounds(90, 128, 76, 24);
 	keyModeCombo.setBounds(90 + 76 + 6, 128, 84, 24);
+	// the filter of the style lists at the right edge of the row
+	meterLabel.setBounds(262, 128, 74, 24);
+	meterCombo.setBounds(338, 128, 86, 24);
 	{
 		// The chord in a row of its own, between two lines: its label at the left, and
 		// the frame in the middle of the window, wide enough for the longest chord name.
@@ -758,7 +804,11 @@ void AccompanimentComponent::update()
 		{
 			if (styles[i].path == path)
 			{
-				showStyleInLists(i);
+				// a style that the filter hides is not shown in the lists
+				if (matchesMeter(styles[i]))
+				{
+					showStyleInLists(i);
+				}
 				break;
 			}
 		}
@@ -864,13 +914,33 @@ void AccompanimentComponent::update()
 	hintLabel.setColour(Label::textColourId, Colours::orange);
 }
 
-// Fills the lists from the styles built into the program.
+// The filter of the lists: the default time signature of the style. The piano keeps the
+// 6/8 (and 12/8) styles as 4/4 ones (one as 2/4), so these are found by their names.
+bool AccompanimentComponent::matchesMeter(const Style& style) const
+{
+	const int meter = meterCombo.getSelectedId();
+	if (meter <= 1)
+	{
+		return true; // no filter
+	}
+	if (meter == MeterSixEight)
+	{
+		return style.title.contains("6-8") || style.title.contains("12-8");
+	}
+	return style.beats == meter && style.beatUnit == 4;
+}
+
+// Fills the lists from the styles built into the program: the categories that have
+// styles of the chosen time signature, the first one chosen.
 void AccompanimentComponent::loadStyles()
 {
 	categories.clear();
 	for (const Style& style : styles)
 	{
-		categories.addIfNotAlreadyThere(style.category);
+		if (matchesMeter(style))
+		{
+			categories.addIfNotAlreadyThere(style.category);
+		}
 	}
 
 	categoryCombo.clear(dontSendNotification);
@@ -880,7 +950,7 @@ void AccompanimentComponent::loadStyles()
 	}
 	groupCombo.clear(dontSendNotification);
 	styleCombo.clear(dontSendNotification);
-	categoryCombo.setSelectedId(1, dontSendNotification);
+	categoryCombo.setSelectedId(categories.isEmpty() ? 0 : 1, dontSendNotification);
 	fillGroupCombo();
 }
 
@@ -892,7 +962,7 @@ void AccompanimentComponent::fillGroupCombo()
 	const String category = categories[categoryCombo.getSelectedId() - 1];
 	for (const Style& style : styles)
 	{
-		if (style.category == category)
+		if (style.category == category && matchesMeter(style))
 		{
 			groups.addIfNotAlreadyThere(style.group);
 		}
@@ -915,7 +985,7 @@ void AccompanimentComponent::fillStyleCombo()
 	int first = 0;
 	for (int i = 0; i < (int)styles.size(); i++)
 	{
-		if (styles[i].category == category && styles[i].group == group)
+		if (styles[i].category == category && styles[i].group == group && matchesMeter(styles[i]))
 		{
 			styleCombo.addItem(styleListName(styles[i]), i + 1);
 			if (first == 0)
