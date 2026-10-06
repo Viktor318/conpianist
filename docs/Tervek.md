@@ -66,7 +66,7 @@ Egyetlen funkció, amely a korábban külön tervezett „betöltött MIDI-fájl
 ## Később (elfogadott, nincs ütemezve)
 
 - **Lejátszás és gyakorlás:** Segéd mód és billentyűfények a saját lejátszóval; tempóemelés ismétléses gyakorláshoz; setlist; legutóbbi dalok; további gyorsbillentyűk.
-- **Akkordmenet-lejátszó és saját arranger**, három lépésben: (1) előre beírt akkordmenet a zongora beépített stílusaival, szakaszváltásokkal, ütemenként több akkorddal; (2) ugyanez a program saját lejátszójával, külső `.sty` fájlokhoz; (3) élő akkordfelismerés a split pont alatt. Csak akkor, ha minden más kész.
+- **Akkordmenet-lejátszó és saját arranger**, három lépésben: (1) előre beírt akkordmenet a zongora beépített stílusaival, szakaszváltásokkal, ütemenként több akkorddal; (2) ugyanez a program saját lejátszójával, külső `.sty` fájlokhoz; (3) élő akkordfelismerés a split pont alatt. Csak akkor, ha minden más kész. Az első lépés részletei: a kíséret előre megírt akkordokkal és átmenetekkel (Intro, Main A–D, Fill In, Break, Ending) szól; a menet külön ablakban szerkeszthető, a lehető legegyszerűbben, előre felajánlott elemekkel (akkordok, szakaszok, átmenetek). Elfogadott irány: ütemrács szakaszokra bontva (egy ütem több akkordra osztható, az üres ütem az előzőt tartja); akkordpaletta a beállított hangnem fokaiból, szakaszpaletta, automatikus Fill In a szakaszváltás előtt, ismétlésszám, kész dalszerkezet-sablonok, gyors beírás egy sorban; a menet szövegfájlként a Roaming adatmappában. Lejátszás: elsősorban automatikus mód (a zongora ütemszámlálóját követve, az akkordokat a második porton küldve), mellette léptetett mód; végtelenített mód is kell, amely a beírt akkordsort leállításig ismétli. A szerkesztőablakról megvalósítás előtt vázlat készül.
 - **Protokoll feltérképezése** a Smart Pianist többi funkciójának eléréséhez.
 - **Más rendszerek:** iOS-változat (iPad), utána Android.
 - **Angol útmutató**, ha lesz rá igény.
@@ -92,3 +92,4 @@ Egyetlen funkció, amely a korábban külön tervezett „betöltött MIDI-fájl
 
 1. **Mappa fájlműveletenként:** mely műveletek tartoznak össze? Javaslat: dal megnyitása; `.conmem` megnyitása és mentése (egy pár); felvétel mentése; MIDI mentése szerkesztés után.
 2. **PDF-kotta:** elég a megjelenítés lapozással, vagy kell hozzá automatikus lapozás a lejátszás közben?
+3. **Akkordmenet-lejátszó:** a szerkesztőablak pontos elrendezése (vázlat alapján), és hogy egy dal önálló fájl legyen-e, vagy a regisztrációs memóriához kapcsolódjon.
