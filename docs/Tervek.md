@@ -56,6 +56,7 @@ Egyetlen funkció, amely a korábban külön tervezett „betöltött MIDI-fájl
 | Tétel | Leírás | Munka | Megjegyzés |
 |---|---|---|---|
 | Lomse frissítése | A kottamegjelenítő könyvtár frissítése 0.27.0-ról (2020) a legújabb, 0.30.0 verzióra (2022). Amit hoz: ujjrend és pedáljelek megjelenítése, minden ütemvonalstílus, helyes volta-zárójelek sortörésnél, tömörített (.mxl) és UTF-16 kódolású MusicXML beolvasása, szebb kottakép (előkék, kötőívek, gerendák, térközök), új nézetek. | N | Kockázatos: a program saját módosításokkal használja (dalszöveges összeomlás, FreeType-típusjavítás, Dorico-kották javításai), ezeket egyenként ellenőrizni kell, és át kell vinni, ha az új verzió nem oldja meg. Megváltozott a rajzolópuffer átadása és a naplózó neve. A kottás tételek előtt kell megcsinálni, külön ágon, a tesztkották előtte–utána összevetésével. |
+| Tömörített MusicXML (.mxl) megnyitása | A kottamegnyitó ablak és a MIDI betöltésekor futó kottakeresés az `.mxl` kiterjesztést is felismeri (a Dorico alapból ilyet exportál). | K | A Lomse frissítésére épül, azzal együtt készül. |
 | Ismétlőjelek kezelése | A kotta kurzora követi az ismétléseket és a voltákat (MusicXML-ből). | Kö–N | |
 | Ujjrend megjelenítése | Az ujjrend megjelenítése a kottában, MusicXML-ből. | Kö | A Lomse 0.29-től megjeleníti az ujjrendet; a frissítés után kell kipróbálni, mennyi munka marad. |
 | PDF megjelenítő | PDF-kotta megjelenítése; a dal betöltésekor a program előbb MusicXML-t, utána PDF-et keres, menüből választható. | N | Új könyvtár kell hozzá; a pozíciókövetés PDF-nél nem lehetséges. |
