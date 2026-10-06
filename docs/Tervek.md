@@ -38,7 +38,20 @@ Jelenleg nincs megkezdett fejlesztés.
 | Metronóm a stílus ütemével | Stílus betöltésekor a metronóm átveszi a stílus név szerinti ütemmutatóját; fordítva nem hat. | K | A Felvétel ablak ütemlistája már minden szükséges ütemet tartalmaz. Zongorás próba kell (9/8, 12/8). |
 | Rövid útmutató | 10–15 oldalas magyar PDF útmutató képekkel, Markdown forrásból. | Kö | A képernyőképeket Viktor készíti lista alapján. |
 
-### 4.9 – MIDI áthangszerelő
+### 4.9 – Akkordmenet-lejátszó
+
+A kíséret előre megírt akkordokkal és átmenetekkel szól, a zongora beépített stílusaival. Kipróbálandó előfeltétele nincs: a zongora elfogadja a második portra küldött akkordhangokat, küldi a stílus ütempozícióját, és a Keverő csatornáin játszott hangok nem zavarják a stílust (tesztelve).
+
+| Tétel | Leírás | Munka | Megjegyzés |
+|---|---|---|---|
+| Szerkesztőablak | Külön ablak: ütemrács szakaszokra bontva (egy ütem több akkordra osztható, az üres ütem az előzőt tartja); akkordpaletta a beállított hangnem fokaiból, szakaszpaletta (Intro, Main A–D, Ending), automatikus Fill In a szakaszváltás előtt, Break, ismétlésszám, kész dalszerkezet-sablonok, gyors beírás egy sorban. | N | A lehető legegyszerűbb szerkesztés, előre felajánlott elemekkel. Megvalósítás előtt vázlat készül. |
+| Automatikus lejátszás | A program a zongora ütemszámlálóját követve küldi az akkordokat (a második porton) és a szakaszváltásokat. | Kö–N | Az akkord küldésének pillanatát hallás után kell behangolni. |
+| Léptetett mód | A következő akkordra billentyűvel vagy pedállal lehet lépni. | K | Szabad tempójú játékhoz. |
+| Végtelenített mód | A beírt akkordsort leállításig ismétli. | K | Eldöntendő: az egész menetet vagy kijelölt szakaszt is; Intro csak az első körben, Ending leállításkor (javaslat). |
+| Élő játék a Keverő csatornáin | Lejátszás közben a külső billentyűzet csak a Keverő csatornáin szól, így a játék nem keveredik a küldött akkordokkal, és a teljes billentyűzet használható. | K | |
+| Tárolás | A menet szövegfájlként a Roaming adatmappában (stílus, tempó, hangnem, akkordok). | K | Eldöntendő: önálló fájl, vagy a regisztrációs memóriához kapcsolódik. |
+
+### 4.10 – MIDI áthangszerelő
 
 Egyetlen funkció, amely a korábban külön tervezett „betöltött MIDI-fájl szerkesztése” és a két MIDI-segédprogram helyébe lép. Csak a fájl **kezdeti** beállításairól szól: a hangjegyekhez nem nyúl.
 
@@ -66,7 +79,7 @@ Egyetlen funkció, amely a korábban külön tervezett „betöltött MIDI-fájl
 ## Később (elfogadott, nincs ütemezve)
 
 - **Lejátszás és gyakorlás:** Segéd mód és billentyűfények a saját lejátszóval; tempóemelés ismétléses gyakorláshoz; setlist; legutóbbi dalok; további gyorsbillentyűk.
-- **Akkordmenet-lejátszó és saját arranger**, három lépésben: (1) előre beírt akkordmenet a zongora beépített stílusaival, szakaszváltásokkal, ütemenként több akkorddal; (2) ugyanez a program saját lejátszójával, külső `.sty` fájlokhoz; (3) élő akkordfelismerés a split pont alatt. Csak akkor, ha minden más kész. Az első lépés részletei: a kíséret előre megírt akkordokkal és átmenetekkel (Intro, Main A–D, Fill In, Break, Ending) szól; a menet külön ablakban szerkeszthető, a lehető legegyszerűbben, előre felajánlott elemekkel (akkordok, szakaszok, átmenetek). Elfogadott irány: ütemrács szakaszokra bontva (egy ütem több akkordra osztható, az üres ütem az előzőt tartja); akkordpaletta a beállított hangnem fokaiból, szakaszpaletta, automatikus Fill In a szakaszváltás előtt, ismétlésszám, kész dalszerkezet-sablonok, gyors beírás egy sorban; a menet szövegfájlként a Roaming adatmappában. Lejátszás: elsősorban automatikus mód (a zongora ütemszámlálóját követve, az akkordokat a második porton küldve), mellette léptetett mód; végtelenített mód is kell, amely a beírt akkordsort leállításig ismétli. Ebben a módban a külső billentyűzet csak a Keverő csatornáin szól (mint az „Élő játék: Keverő csatornái"), így a játék nem keveredik a program által küldött akkordokkal, és a teljes billentyűzet használható. A szerkesztőablakról megvalósítás előtt vázlat készül.
+- **Saját arranger**, az akkordmenet-lejátszó (4.9) folytatásaként, két lépésben: (1) az akkordmenet-szerkesztő a program saját lejátszójával, külső `.sty` fájlokhoz; (2) élő akkordfelismerés a split pont alatt. Csak akkor, ha minden más kész.
 - **Protokoll feltérképezése** a Smart Pianist többi funkciójának eléréséhez.
 - **Más rendszerek:** iOS-változat (iPad), utána Android.
 - **Angol útmutató**, ha lesz rá igény.
