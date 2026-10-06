@@ -176,7 +176,8 @@ public:
 	// The default state (Reset) is the one Smart Pianist sets when it is started, read
 	// from a CSP-170. The piano itself starts with slightly different values: reverb effect
 	// Real Medium Hall (0x0121), environment 10, chords detected on the whole keyboard,
-	// split points F#2 (54).
+	// split points F#2 (54). One value differs from Smart Pianist on purpose: the sound of
+	// the keys below the split point ("Main voice below") is off.
 	static const int DefaultLeftOctave = 1;   // of the default voice of the Left part
 	static const int DefaultSplitPoint = 53;  // F2, of the Left part and of the accompaniment
 	static const int DefaultStyleTempo = 100; // of the default style

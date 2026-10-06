@@ -283,7 +283,7 @@ void PianoController::Reset()
 	style.style = "PRESET:/STYLE/Pop & Rock/Pop/Standard 8Beat.T308.prs";
 	style.tempo = DefaultStyleTempo;
 	style.chordArea = caLower;
-	style.leftSound = 1;
+	style.leftSound = 0; // "Main voice below" off (Smart Pianist starts with it on)
 	style.splitPoint = DefaultSplitPoint;
 	style.hasMixer = true;
 	style.volume = DefaultVolume;
