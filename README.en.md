@@ -24,7 +24,7 @@
 >
 > A ready-to-run Windows (64-bit) build is available on the [Releases](https://github.com/Viktor318/conpianist/releases) page: unzip it to any folder and start `ConPianist.exe` (the `Resources` folder and the `.dll` files must stay next to the `.exe`). The default folder for songs, scores and `.conmem` files is `%APPDATA%\ConPianist\Demo Midi Songs`; it is worth copying the contents of the included `Demo Midi Songs` folder there.
 >
-> **Planned:** the metronome following the time signature of the loaded style; a MIDI In 2 pass-through mode for the accompaniment of another instrument (e.g. a PSR); following repeat signs in the score; choosing the piano's built-in songs; saving a MIDI file with the sound set in the program (voice, volume, tempo, pan, reverb), also updating the sound data of an existing MusicXML score; Guide mode with ConPianist's own player.
+> **Planned:** the plan of the next versions is in [docs/Tervek.md](docs/Tervek.md) (in Hungarian). Next: the list of the piano's built-in songs with a song selector, then a MIDI setup editor (editing and saving the initial settings of a loaded MIDI file), then improvements of the score display.
 
 **ConPianist** or **Connected Pianist** is an app to control Yamaha digital pianos of CSP (Clavinova Smart Piano) series. This is an alternative to Yamaha's own app "Smart Pianist". Unlike Smart Pianist, which works on iOS and Android, Connected Pianist is designed for desktop systems - macOS, Windows and Linux. It works on iPad too though.
 

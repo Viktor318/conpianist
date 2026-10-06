@@ -78,4 +78,4 @@ Ez a változat saját, magáncélú felhasználásra készül egy Yamaha CSP-170
 
 A részletes változáslista a [CHANGELOG.md](CHANGELOG.md) fájlban található.
 
-**Tervezett fejlesztés:** a metronóm ütemjelzése kövesse a betöltött stílust; MIDI In 2 átengedő mód másik hangszer (pl. PSR) kíséretéhez; ismétlőjelek követése a kottában; a zongora beépített dalainak kiválasztása; MIDI-fájl mentése a programban beállított hangzással (hangszín, hangerő, tempó, pan, zengetés), a meglévő MusicXML-kotta hangzásadatainak frissítésével; a Segéd mód a ConPianist saját lejátszójával is.
+**Tervezett fejlesztés:** a következő verziók terve a [docs/Tervek.md](docs/Tervek.md) fájlban található. A soron következő csomag a zongora beépített dalainak listája és a dalválasztó, utána a MIDI áthangszerelő (a betöltött MIDI-fájl kezdeti beállításainak szerkesztése és mentése), majd a kottakezelés fejlesztése.
