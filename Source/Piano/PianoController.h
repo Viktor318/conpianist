@@ -169,10 +169,15 @@ public:
 	static const int MaxReverb = 127;
 	static const int DefaultReverb = 0;
 	static const int GenericDefaultReverb = 40; // General MIDI default of CC91
-	static const int DefaultReverbEffect = 0x0118; // Recital Hall
+	static const int DefaultReverbEffect = 0x0121; // Real Medium Hall (as the CSP-170 starts)
 	static const int MinOctave = -2;
 	static const int MaxOctave = +2;
 	static const int DefaultOctave = 0;
+	// The state the CSP-170 starts with after it is switched on (read from the piano):
+	// used by Reset.
+	static const int DefaultLeftOctave = 1;   // of the default voice of the Left part
+	static const int DefaultSplitPoint = 54;  // F#2, of the Left part and of the accompaniment
+	static const int DefaultStyleTempo = 100; // of the default style
 	static const int OctaveBase = 0x40;
 	static const int DefaultEnvironment = 10;
 	static const int DefaultBrightness = 0x40;
@@ -182,7 +187,7 @@ public:
 	static const int MaxResonance = 10;
 	static const int DefaultKeyOffSampling = 0x40;
 	static const int MaxKeyOffSampling = 0x50;
-	static const int DefaultFixedVelocity = 100;
+	static const int DefaultFixedVelocity = 95; // as the CSP-170 starts
 	static const LidPosition DefaultLidPosition = lpOpen;
 	static const TouchCurve DefaultTouchCurve = tcMedium;
 	static const int UploadPort = 10504; // TCP port of the piano for uploading songs

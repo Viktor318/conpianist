@@ -257,10 +257,6 @@ void PianoController::Reset()
 	SetStringResonance(DefaultResonance);
 	SetKeyOffSampling(DefaultKeyOffSampling);
 
-	SetOctave(chMain, 0);
-	SetOctave(chLayer, 0);
-	SetOctave(chLeft, 0);
-
 	SetActive(chMain, true);
 	SetActive(chLayer, false);
 	SetActive(chLeft, false);
@@ -269,6 +265,40 @@ void PianoController::Reset()
 	SetVoice(chMain, "PRESET:/VOICE/Piano/Grand Piano/CFX Grand.T542.VRM");
 	SetVoice(chLayer, "PRESET:/VOICE/Strings & Vocal/String Ensemble/Real Strings.T250.SAR");
 	SetVoice(chLeft, "PRESET:/VOICE/Piano/FM E.Piano/Sweet DX.T232.CLV");
+	// after the voices: a voice may bring its own octave
+	SetOctave(chMain, DefaultOctave);
+	SetOctave(chLayer, DefaultOctave);
+	SetOctave(chLeft, DefaultLeftOctave);
+	SetSplitPoint(DefaultSplitPoint);
+
+	// The accompaniment: the default style with its own tempo and mixer, chords detected
+	// on the whole keyboard. The values of the parts are the ones of this style; they are
+	// sent since the piano keeps changed values while the style is not loaded again.
+	if (m_stylePlaying)
+	{
+		SetStylePlaying(false);
+	}
+	m_styleOffParts = 0;
+	StyleState style;
+	style.style = "PRESET:/STYLE/Pop & Rock/Pop/Standard 8Beat.T308.prs";
+	style.tempo = DefaultStyleTempo;
+	style.chordArea = caFull;
+	style.leftSound = 1;
+	style.splitPoint = DefaultSplitPoint;
+	style.hasMixer = true;
+	style.volume = DefaultVolume;
+	style.pan = DefaultPan;
+	style.reverb = 64;
+	static const int partDefaults[NumStyleParts][3] = { // volume, pan, reverb
+		{54, 0, 26}, {76, 0, 26}, {56, 0, 0}, {31, -28, 26}, {68, 0, 30}, {44, 0, 36}, {52, 27, 36}, {100, 0, 40}};
+	for (int i = 0; i < NumStyleParts; i++)
+	{
+		style.parts[i].active = true;
+		style.parts[i].volume = partDefaults[i][0];
+		style.parts[i].pan = partDefaults[i][1];
+		style.parts[i].reverb = partDefaults[i][2];
+	}
+	RestoreStyleState(style);
 
 	if (m_localPlayback)
 	{
