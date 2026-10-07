@@ -56,7 +56,7 @@ void ::LookAndFeel::drawButtonBackground(Graphics& gr, Button& btn, const Colour
 
 // The - and + buttons of a slider are laid out by the slider itself, touching the value
 // box and each other. They are drawn narrower instead, so that the elements of a row are
-// at least 4 pixels apart: each button leaves 4 pixels free on the side of the value box.
+// at least 3 pixels apart: each button leaves 3 pixels free on the side of the value box.
 Rectangle<int> (::LookAndFeel::buttonArea)(Button& button)
 {
 	Rectangle<int> area = button.getLocalBounds();
@@ -64,7 +64,7 @@ Rectangle<int> (::LookAndFeel::buttonArea)(Button& button)
 	{
 		if (slider->getSliderStyle() == Slider::IncDecButtons)
 		{
-			const int gap = 4;
+			const int gap = 3;
 			if (slider->getTextBoxPosition() == Slider::TextBoxRight)
 			{
 				area.removeFromRight(gap);

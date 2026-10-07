@@ -33,7 +33,7 @@ public:
 		bool shouldDrawButtonAsDown) override;
 
 	// The area a button is drawn in: its bounds, except for the - and + buttons of a
-	// slider, which are drawn 4 pixels apart from the value box and from each other.
+	// slider, which are drawn 3 pixels apart from the value box and from each other.
 	static Rectangle<int> buttonArea(Button& button);
 
 	void drawImageButton(Graphics&, Image*,

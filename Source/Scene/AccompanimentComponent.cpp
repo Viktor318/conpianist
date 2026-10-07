@@ -338,7 +338,7 @@ void AccompanimentComponent::resized()
 	}
 	// chord detection: the area and the sound of the left hand, then the split point
 	chordAreaLabel.setBounds(16, 270, 138, 24);
-	chordFullButton.setBounds(156, 268, 61, 28); // 4 pixels apart
+	chordFullButton.setBounds(156, 268, 62, 28); // 3 pixels apart
 	chordLowerButton.setBounds(221, 268, 61, 28);
 	leftSoundButton.setBounds(304, 268, 120, 28);
 	splitLabel.setBounds(16, 306, 138, 24);
@@ -373,11 +373,11 @@ void AccompanimentComponent::resized()
 	volumeLabel.setBounds(16, 534, 170, 24);
 	volumeSlider.setBounds(186, 534, 238, 24);
 	// the groups of the parts: three buttons from the line of the lists to the right edge,
-	// 6 pixels apart (as Fill In and Break)
+	// 3 pixels apart
 	partsLabel.setBounds(16, 578, 74, 24);
-	partGroupButtons[PianoController::sgRhythm].setBounds(90, 576, 107, 28);
-	partGroupButtons[PianoController::sgBass].setBounds(203, 576, 108, 28);
-	partGroupButtons[PianoController::sgOthers].setBounds(317, 576, 107, 28);
+	partGroupButtons[PianoController::sgRhythm].setBounds(90, 576, 109, 28);
+	partGroupButtons[PianoController::sgBass].setBounds(202, 576, 110, 28);
+	partGroupButtons[PianoController::sgOthers].setBounds(315, 576, 109, 28);
 	// registration memories: Memory in the column of the labels, the numbers spread
 	// evenly from the line of the lists to the right edge
 	memoryButton.setBounds(16, 622, 70, 32);
