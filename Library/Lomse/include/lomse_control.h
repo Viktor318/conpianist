@@ -1,37 +1,17 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2016. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #ifndef __LOMSE_CONTROL_H__
 #define __LOMSE_CONTROL_H__
 
 #include "lomse_basic.h"
-#include "lomse_document.h"
+#include "private/lomse_document_p.h"
 #include "lomse_injectors.h"
 #include "lomse_events.h"               // EventHandler
 #include "lomse_gm_basic.h"
@@ -58,7 +38,7 @@ protected:
     Control*        m_pParent;
     ImoId           m_ownerImoId;
     string          m_language;
-    ImoStyle*       m_style;
+    ImoId           m_styleId;
     bool            m_fEnabled;
     bool            m_fVisible;
     ImoId           m_id;
@@ -72,16 +52,18 @@ protected:
         , m_pParent(pParent)
         , m_ownerImoId(k_no_imoid)
         , m_language()
-        , m_style(nullptr)
+        , m_styleId(k_no_imoid)
         , m_fEnabled(true)
         , m_fVisible(true)
         , m_id(k_no_imoid)
     {
-        pDoc->assign_id(this);
-
         //default language
         ImoDocument* pImoDoc = m_pDoc->get_im_root();
         m_language = pImoDoc->get_language();
+
+        //assign id
+        DocModel* pModel = pImoDoc->get_doc_model();
+        pModel->assign_id(this);
     }
 
 public:
@@ -123,29 +105,32 @@ public:
     //Any Control must know how to generate its graphical model
     virtual GmoBoxControl* layout(LibraryScope& libraryScope, UPoint pos) = 0;
     virtual void on_draw(Drawer* pDrawer, RenderOptions& opt) = 0;
-    inline void set_style(ImoStyle* pStyle) { m_style = pStyle; }
+    inline void set_style(ImoStyle* pStyle) { m_styleId = pStyle->get_id(); }
 
     //mandatory overrides from Observable
-    EventNotifier* get_event_notifier() { return m_pDoc->get_event_notifier(); }
+    EventNotifier* get_event_notifier() override { return m_pDoc->get_event_notifier(); }
 
     //overrides for Observable children
-    void add_event_handler(int eventType, EventHandler* pHandler)
+    void add_event_handler(int eventType, EventHandler* pHandler) override
     {
         m_pDoc->add_event_handler(Observable::k_control, m_id, eventType, pHandler);
     }
     void add_event_handler(int eventType, void* pThis,
-                           void (*pt2Func)(void* pObj, SpEventInfo event) )
+                           void (*pt2Func)(void* pObj, SpEventInfo event) ) override
     {
         m_pDoc->add_event_handler(Observable::k_control, m_id, eventType,
                                   pThis, pt2Func);
     }
-    void add_event_handler(int eventType, void (*pt2Func)(SpEventInfo event) )
+    void add_event_handler(int eventType, void (*pt2Func)(SpEventInfo event) ) override
     {
         m_pDoc->add_event_handler(Observable::k_control, m_id, eventType, pt2Func);
     }
 
     //accessors
     inline Control* get_parent_control() { return m_pParent; }
+    ImoStyle* get_style() const {
+        return static_cast<ImoStyle*>( m_pDoc->get_doc_model()->get_pointer_to_imo(m_styleId) );
+    }
 
     //getters
     inline bool is_enabled() { return m_fEnabled; }
@@ -154,7 +139,7 @@ public:
     inline ImoId get_owner_imo_id() { return m_ownerImoId; }
 
     ImoControl* get_owner_imo() {
-        if (m_ownerImoId != -1L)
+        if (m_ownerImoId != k_no_imoid)
             return static_cast<ImoControl*>( m_pDoc->get_pointer_to_imo(m_ownerImoId) );
         else if (m_pParent)
             return m_pParent->get_owner_imo();
@@ -172,13 +157,20 @@ protected:
 
     void select_font()
     {
-        TextMeter meter(m_libraryScope);
-        meter.select_font(m_language,
-                          m_style->font_file(),
-                          m_style->font_name(),
-                          m_style->font_size(),
-                          m_style->is_bold(),
-                          m_style->is_italic() );
+        if (m_styleId != k_no_imoid)
+        {
+            TextMeter meter(m_libraryScope);
+            ImoStyle* pStyle = get_style();
+            if (pStyle)
+            {
+                meter.select_font(m_language,
+                                  pStyle->font_file(),
+                                  pStyle->font_name(),
+                                  pStyle->font_size(),
+                                  pStyle->is_bold(),
+                                  pStyle->is_italic() );
+            }
+        }
     }
 
 };

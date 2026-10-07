@@ -1,30 +1,10 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2018. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #ifndef __LOMSE_BASIC_H__
@@ -35,8 +15,8 @@
 #include <string>
 #include <vector>
 #include <memory>
-#include <algorithm>   //min
-using namespace std;
+#include <algorithm>    //min
+#include <cmath>        //fabs
 
 
 
@@ -52,6 +32,28 @@ using namespace std;
 #endif
 
 
+//---------------------------------------------------------------------------------------
+// macro to mark functions as being deprecated and generate a warning message,
+// e.g.:
+//    LOMSE_DEPRECATED_MSG("use get_distance() instead")
+//    LUnits get_approximate_distance() const;
+
+#if defined(__GNUC__)
+    #define LOMSE_DEPRECATED_MSG(msg) __attribute__((deprecated(msg)))
+#elif defined(__clang__) && defined(__has_extension)
+    #if __has_extension(attribute_deprecated_with_message)
+        #define LOMSE_DEPRECATED_MSG(msg) __attribute__((deprecated(msg)))
+    #else
+        #define LOMSE_DEPRECATED_MSG(msg) __attribute__((deprecated))
+    #endif
+#elif defined(__VISUALC__)
+    #define LOMSE_DEPRECATED_MSG(msg) __declspec(deprecated("deprecated: " msg))
+#else
+    #define LOMSE_DEPRECATED_MSG(msg)
+#endif
+
+
+///@cond INTERNALS
 namespace lomse
 {
 
@@ -213,10 +215,10 @@ struct Rectangle
         }
         else if ( rect.width && rect.height )
         {
-            T x1 = min(x, rect.x);
-            T y1 = min(y, rect.y);
-            T y2 = max(y + height, rect.height + rect.y);
-            T x2 = max(x + width, rect.width + rect.x);
+            T x1 = std::min(x, rect.x);
+            T y1 = std::min(y, rect.y);
+            T y2 = std::max(y + height, rect.height + rect.y);
+            T x2 = std::max(x + width, rect.width + rect.x);
 
             x = x1;
             y = y1;
@@ -285,7 +287,7 @@ typedef Point<Pixels> VPoint;   //point, in pixels
 typedef Size<Pixels> VSize;     //size, in pixels
 typedef Rectangle<Pixels> VRect; //rectangle, in pixels
 
-//for compilers that not use <stdint.h>  (i.e. MS VisualStudio 2003)
+//for compilers that not use <stdint.h>  (e.g., MS VisualStudio 2003)
 #ifndef UINT32_MAX
     typedef int             int_least32_t;
     typedef unsigned int    uint_least32_t;
@@ -304,24 +306,72 @@ typedef int_least32_t ImoId;        //identifier for ImoObj objects
 const ImoId k_no_imoid = -1;        //value for undefined imo id (MUST BE -1. See Cursor)
 
 typedef std::pair<ImoId, ImoId> GmoRef;        //identifier for GmoObj objects
-const GmoRef k_no_gmo_ref = make_pair(-1, -1);
+const GmoRef k_no_gmo_ref = std::make_pair(-1, -1);
 
 typedef double TimeUnits;           //time units (TU). Relative, depends on metronome speed
 
+///@endcond
 
-//---------------------------------------------------------------------------------------
-// For describing the measure location of a musical event or other.
+//=======================================================================================
+/** Struct describing the measure location of a musical event or other.
+
+    There are a variety of situations in which the position of an object needs to be
+    described not by its absolute timepos but referencing the measure number.
+
+    But although for most common scores just providing the measure number does the job,
+    it is necessary to take into account that for polymetric music (music in which not
+    all instruments have the same time signature), the measure number is not an absolute
+    value, common to all score instruments (score parts), but it is relative to
+    each instrument.
+
+    Due to this, the measure location struct also needs a reference to the instrument
+    to which the measure number refers.
+
+    The first measure (anacruxis or not) is always measure 0.
+    The first instrument is always instrument 0.
+*/
 struct MeasureLocator
 {
-    int iInstr;             //instrument number (0..n)
-    int iMeasure;           //measure number (0..m), for the instrument
-    TimeUnits location;     //TimeUnits from start of measure
+    int iInstr;             ///instrument number (0..n)
+    int iMeasure;           ///measure number (0..m), for the instrument
+    TimeUnits location;     ///TimeUnits from start of measure
 
-    MeasureLocator() : iInstr(0), iMeasure(0), location(0.0) {}
+    MeasureLocator() : iInstr(-1), iMeasure(-1), location(0.0) {}
     MeasureLocator(int i, int m, TimeUnits l) : iInstr(i), iMeasure(m), location(l) {}
+
+    bool is_valid() const { return iInstr >=0 && iMeasure >= 0; }
 
 };
 
+//forward declarations
+class ImoObj;
+
+//=======================================================================================
+/** Struct that describes the content of a point on current bitmap rendition
+    (e.g. a mouse click)
+
+    The struct provides a ptr. to the clicked object. In addition, if the clicked point
+    is on a score, it also provides:
+    - A MeasureLocator struct with information about measure, instrument, and time
+      position.
+    - The staff index, relative to instrument staves.
+
+    Otherwise, if clicked point is not on a score, the MeasureLocator is invalid
+    and the staff index is -1.
+
+*/
+struct ClickPointData
+{
+    ImoObj* pImo;           //clicked object or nullptr if out of document
+    MeasureLocator ml;      //locator when clicked point is on a score; otherwise invalid locator
+    int iStaff;             //staff index, relative to instrument, or -1 when clicked point is not on a score
+
+    ClickPointData() : pImo(nullptr), ml(-1, -1, 0.0), iStaff(-1) {}
+
+};
+
+
+///@cond INTERNALS
 
 //---------------------------------------------------------------------------------------
 // Logical Units comparison (LUnits, Tenths)
@@ -436,6 +486,13 @@ inline bool is_different(Color c1, Color c2) {
 //
 //
 //};
+
+
+
+
+
+
+///@endcond
 
 
 }   //namespace lomse

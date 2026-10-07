@@ -1,30 +1,10 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2016. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #ifndef __LOMSE_SHAPE_LINE_H__        //to avoid nested includes
@@ -81,15 +61,12 @@ protected:
     enum { k_start=0, k_end };
     UPoint m_uPoint[2];
 
-    friend class LineEngraver;
-    friend class LyricEngraver;
-    friend class OctaveShiftEngraver;
-    GmoShapeLine(ImoObj* pCreatorImo, ShapeId idx,
+public:
+    GmoShapeLine(ImoObj* pCreatorImo, ShapeId idx, int type,
                  LUnits xStart, LUnits yStart, LUnits xEnd, LUnits yEnd,
                  LUnits uWidth, LUnits uBoundsExtraWidth, ELineStyle nStyle,
                  Color color, ELineEdge nEdge, ELineCap nStartCap, ELineCap nEndCap);
 
-public:
     virtual ~GmoShapeLine();
 
     //properties and options
@@ -97,7 +74,7 @@ public:
     inline void set_tail_type(ELineCap nHeadType) { m_nEndCap = nHeadType; }
 
     //implementation of virtual methods from base class
-    void on_draw(Drawer* pDrawer, RenderOptions& opt);
+    void on_draw(Drawer* pDrawer, RenderOptions& opt) override;
 
     //overrides
     bool HitTest(UPoint& uPoint);
@@ -120,6 +97,22 @@ protected:
     void SubtractVectors(UVector& v0, UVector& v1, UVector& v);
     LUnits VectorMagnitude(UVector& v);
 
+};
+
+//---------------------------------------------------------------------------------------
+class GmoShapeGraceStroke : public GmoShapeLine, public VoiceRelatedShape
+{
+public:
+    GmoShapeGraceStroke(ImoObj* pCreatorImo, LUnits xStart, LUnits yStart, LUnits xEnd,
+                        LUnits yEnd, LUnits uWidth, Color color)
+        : GmoShapeLine(pCreatorImo, 0, GmoObj::k_shape_grace_stroke, xStart, yStart,
+                       xEnd, yEnd, uWidth, 0.0f, k_line_solid, color, k_edge_normal,
+                       k_cap_none, k_cap_none)
+        , VoiceRelatedShape()
+    {
+    }
+
+    void on_draw(Drawer* pDrawer, RenderOptions& opt) override;
 };
 
 ////---------------------------------------------------------------------------------------

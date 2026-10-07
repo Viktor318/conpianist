@@ -1,30 +1,10 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2016. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 //  This file is based on Anti-Grain Geometry version 2.4 examples' code.
@@ -122,6 +102,14 @@ void Calligrapher::draw_glyph(double x, double y, unsigned int ch, Color color,
 }
 
 //---------------------------------------------------------------------------------------
+void Calligrapher::draw_glyph_rotated(double x, double y, unsigned int ch, Color color,
+                                      double scale, double rotation)
+{
+    set_scale_and_rotation(scale, rotation);
+    draw_glyph(x, y, ch, color);
+}
+
+//---------------------------------------------------------------------------------------
 void Calligrapher::draw_glyph(double x, double y, unsigned int ch, Color color)
 {
     //ch is the glyph (utf-32)
@@ -150,6 +138,18 @@ void Calligrapher::set_scale(double scale)
 
     agg::trans_affine mtx;
     mtx *= agg::trans_affine_scaling(scale);
+    m_pFonts->set_transform(mtx);
+}
+
+//---------------------------------------------------------------------------------------
+void Calligrapher::set_scale_and_rotation(double scale, double rotation)
+{
+   if (!m_pFonts->is_font_valid())
+        return;
+
+    agg::trans_affine mtx;
+    mtx *= agg::trans_affine_scaling(scale);
+    mtx *= agg::trans_affine_rotation(rotation);
     m_pFonts->set_transform(mtx);
 }
 
@@ -221,6 +221,22 @@ void TextMeter::measure_glyphs(wstring* glyphs, std::vector<LUnits>& glyphWidths
         else
             glyphWidths.push_back( 0.0f );
     }
+}
+
+//---------------------------------------------------------------------------------------
+LUnits TextMeter::get_advance_x(unsigned int ch)
+{
+    if (!m_pFonts->is_font_valid())
+        return 0.0f;
+
+    set_transform();
+
+    const lomse::glyph_cache* glyph = m_pFonts->get_glyph_cache(ch);
+
+    if (glyph)
+        return static_cast<LUnits>(glyph->advance_x);
+    else
+        return 0.0f;
 }
 
 //---------------------------------------------------------------------------------------

@@ -1,30 +1,10 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2019. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #ifndef __LOMSE_SPACING_ALGORITHM_H__        //to avoid nested includes
@@ -35,7 +15,6 @@
 
 //std
 #include <list>
-using namespace std;
 
 namespace lomse
 {
@@ -61,17 +40,19 @@ class EngraversMap;
 class SpAlgColumn;
 class StaffObjsCursor;
 class TimeGridTable;
-class TypeMeasureInfo;
 class GmoBoxSystem;
 class VerticalProfile;
+struct TypeMeasureInfo;
 
 //---------------------------------------------------------------------------------------
 // Barlines at the end of a column
 enum EColumnBarlinesInfo
 {
-    k_all_instr_have_barline        = 0x01,
-    k_some_instr_have_barline       = 0x02,
-    k_all_instr_have_final_barline  = 0x04,
+    k_all_instr_have_barline            = 0x01,
+    k_some_instr_have_barline           = 0x02,
+    k_all_instr_have_final_barline      = 0x04,
+    k_all_instr_have_barline_TS_or_KS   = 0x08,
+    k_some_instr_have_barline_TS_or_KS  = 0x10,
 };
 
 
@@ -163,6 +144,7 @@ public:
     //access to info
     virtual ColStaffObjsEntry* get_prolog_clef(int iCol, ShapeId idx) = 0;
     virtual ColStaffObjsEntry* get_prolog_key(int iCol, ShapeId idx) = 0;
+    virtual ColStaffObjsEntry* get_prolog_time(int iCol, ShapeId idx) = 0;
 
     //debug and support for unit tests
     virtual void dump_column_data(int iCol, ostream& outStream) = 0;
@@ -196,6 +178,7 @@ protected:
     //applicable prolog at start of this column. On entry per staff
     std::vector<ColStaffObjsEntry*> m_prologClefs;
     std::vector<ColStaffObjsEntry*> m_prologKeys;
+    std::vector<ColStaffObjsEntry*> m_prologTimes;
 
 
 public:
@@ -206,13 +189,14 @@ public:
     inline void use_this_slice_box(GmoBoxSlice* pBoxSlice) { m_pBoxSlice = pBoxSlice; };
     inline GmoBoxSlice* get_slice_box() { return m_pBoxSlice; };
     void save_context(int iInstr, int iStaff, ColStaffObjsEntry* pClefEntry,
-                      ColStaffObjsEntry* pKeyEntry);
+                      ColStaffObjsEntry* pKeyEntry, ColStaffObjsEntry* pTimeEntry);
 
     //access to info
     inline bool has_system_break() { return m_fHasSystemBreak; }
     inline void set_system_break(bool value) { m_fHasSystemBreak = value; }
     inline ColStaffObjsEntry* get_prolog_clef(ShapeId idx) { return m_prologClefs[idx]; }
     inline ColStaffObjsEntry* get_prolog_key(ShapeId idx) { return m_prologKeys[idx]; }
+    inline ColStaffObjsEntry* get_prolog_time(ShapeId idx) { return m_prologTimes[idx]; }
 
     //boxes and shapes
     void add_shapes_to_boxes(int iCol);
@@ -271,51 +255,51 @@ public:
     //------------------------------------------------------------------------------
 
     //collect content
-    void split_content_in_columns();
+    void split_content_in_columns() override;
     //spacing algorithm
-    void do_spacing_algorithm();
+    void do_spacing_algorithm() override;
     //boxes and shapes
-    virtual void add_shapes_to_boxes(int iCol, VerticalProfile* pVProfile);
-    virtual GmoBoxSliceInstr* get_slice_instr(int iCol, int iInstr);
-    virtual void set_slice_final_position(int iCol, LUnits left, LUnits top);
-    virtual void create_boxes_for_column(int iCol, LUnits left, LUnits top);
-    LUnits get_staves_height();
+    void add_shapes_to_boxes(int iCol, VerticalProfile* pVProfile) override;
+    GmoBoxSliceInstr* get_slice_instr(int iCol, int iInstr) override;
+    void set_slice_final_position(int iCol, LUnits left, LUnits top) override;
+    void create_boxes_for_column(int iCol, LUnits left, LUnits top) override;
+    LUnits get_staves_height() override;
     ///store slice box for column iCol and access it
-    virtual void use_this_slice_box(int iCol, GmoBoxSlice* pBoxSlice);
-    virtual GmoBoxSlice* get_slice_box(int iCol);
-    virtual bool has_system_break(int iCol);
-    virtual void delete_box_and_shapes(int iCol);
+    void use_this_slice_box(int iCol, GmoBoxSlice* pBoxSlice) override;
+    GmoBoxSlice* get_slice_box(int iCol) override;
+    bool has_system_break(int iCol) override;
+    void delete_box_and_shapes(int iCol) override;
     //other
-    virtual TypeMeasureInfo* get_measure_info_for_column(int iCol);
-    virtual GmoShapeBarline* get_start_barline_shape_for_column(int iCol);
+    TypeMeasureInfo* get_measure_info_for_column(int iCol) override;
+    GmoShapeBarline* get_start_barline_shape_for_column(int iCol) override;
 
 
     //methods in base class SpacingAlgorithm that still need to be created
     //------------------------------------------------------------------------
 
-    virtual void reposition_slices_and_staffobjs(int iFirstCol, int iLastCol,
-            LUnits yShift,
-            LUnits* yMin, LUnits* yMax) = 0;
-    virtual void justify_system(int iFirstCol, int iLastCol, LUnits uSpaceIncrement) = 0;
-
-    //for line break algorithm
-    virtual bool is_empty_column(int iCol) = 0;
-
-    //information about a column
-    virtual LUnits get_column_width(int iCol) = 0;
-    virtual int get_column_barlines_information(int iCol) = 0;
-
-    //methods to compute results
-    virtual TimeGridTable* create_time_grid_table_for_column(int iCol) = 0;
-
-    //methods for line break
-    virtual float determine_penalty_for_line(int iSystem, int i, int j) = 0;
-    virtual bool is_better_option(float prevPenalty, float newPenalty, float nextPenalty,
-                                  int i, int j) = 0;
-
-    //debug
-    virtual void dump_column_data(int iCol, ostream& outStream) = 0;
-    virtual ColumnData* get_column(int i);
+//    virtual void reposition_slices_and_staffobjs(int iFirstCol, int iLastCol,
+//            LUnits yShift,
+//            LUnits* yMin, LUnits* yMax) = 0;
+//    virtual void justify_system(int iFirstCol, int iLastCol, LUnits uSpaceIncrement) = 0;
+//
+//    //for line break algorithm
+//    virtual bool is_empty_column(int iCol) = 0;
+//
+//    //information about a column
+//    virtual LUnits get_column_width(int iCol) = 0;
+//    virtual int get_column_barlines_information(int iCol) = 0;
+//
+//    //methods to compute results
+//    virtual TimeGridTable* create_time_grid_table_for_column(int iCol) = 0;
+//
+//    //methods for line break
+//    virtual float determine_penalty_for_line(int iSystem, int i, int j) = 0;
+//    virtual bool is_better_option(float prevPenalty, float newPenalty, float nextPenalty,
+//                                  int i, int j) = 0;
+//
+//    //debug
+//    virtual void dump_column_data(int iCol, ostream& outStream) = 0;
+    ColumnData* get_column(int i) override;
 
 
     //new methods to be implemented by derived classes (apart from previous methods)
@@ -335,29 +319,31 @@ public:
     virtual void finish_column_measurements(int iCol) = 0;
 
     //spacing algorithm main actions
-    ///apply spacing algorithm to column iCol
-    virtual void do_spacing(int iCol, bool fTrace=false) = 0;
+    ///apply spacing algorithm to all columns
+    virtual void do_spacing(int iColumnToTrace) = 0;
 
     //auxiliary: shapes and boxes
     ///add shapes for staff objects to graphical model
     virtual void add_shapes_to_box(int iCol, GmoBoxSliceInstr* pSliceInstrBox,
                                    int iInstr) = 0;
 
-    virtual void delete_shapes(int iCol) = 0;
+//    virtual void delete_shapes(int iCol) = 0;
 
 
     //new methods for this class, normally no need to override
     //-------------------------------------------------------------------------
 
     ///Returns the number of columns in which the content has been split
-    virtual int get_num_columns();
+    int get_num_columns() override;
 
-    ///save context information (clef, key) for iCol, and access it
+    ///save context information (clef, key, time) for iCol, and access it
     virtual void save_context(int iCol, int iInstr, int iStaff,
                               ColStaffObjsEntry* pClefEntry,
-                              ColStaffObjsEntry* pKeyEntry);
-    virtual ColStaffObjsEntry* get_prolog_clef(int iCol, ShapeId idx);
-    virtual ColStaffObjsEntry* get_prolog_key(int iCol, ShapeId idx);
+                              ColStaffObjsEntry* pKeyEntry,
+                              ColStaffObjsEntry* pTimeEntry);
+    ColStaffObjsEntry* get_prolog_clef(int iCol, ShapeId idx) override;
+    ColStaffObjsEntry* get_prolog_key(int iCol, ShapeId idx) override;
+    ColStaffObjsEntry* get_prolog_time(int iCol, ShapeId idx) override;
 
     ///system break found while collecting content for iCol
     virtual void set_system_break(int iCol, bool value);
@@ -373,7 +359,7 @@ public:
     virtual void set_slice_width(int iCol, LUnits width);
 
     ///activate trace for iCol at level traceLevel
-    virtual void set_trace_level(int iCol, int nTraceLevel);
+    void set_trace_level(int iCol, int nTraceLevel) override;
 
 
 };
@@ -410,7 +396,7 @@ protected:
     std::vector<ColumnData*>& m_colsData;
 
 public:
-    ColumnsBuilder(ScoreMeter* pScoreMeter, vector<ColumnData*>& colsData,
+    ColumnsBuilder(ScoreMeter* pScoreMeter, std::vector<ColumnData*>& colsData,
                    ScoreLayouter* pScoreLyt, ImoScore* pScore,
                    EngraversMap& engravers,
                    ShapesCreator* pShapesCreator,
@@ -443,7 +429,6 @@ protected:
 
     void prepare_for_new_column();
     void collect_content_for_this_column();
-    void layout_column();
 
     GmoBoxSlice* create_slice_box();
     void find_and_save_context_info_for_this_column();
@@ -454,8 +439,9 @@ protected:
 
     bool determine_if_is_in_prolog(ImoStaffObj* pSO, TimeUnits rTime, int iInstr,
                                    int idx);
-    vector<bool> m_fNoSignatures;   //key/time signature not yet found, for each instrument
-    vector<bool> m_fClefFound;      //for each instrument
+    std::vector<bool> m_fClefFound;     //for each instrument
+    std::vector<bool> m_fSignatures;    //key or time signature found, for each instrument
+    std::vector<bool> m_fOther;         //other objects found, for each instrument
 
     inline bool is_first_column()
     {

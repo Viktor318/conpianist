@@ -1,30 +1,10 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2019. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #ifndef __LOMSE_LYRIC_ENGRAVER_H__        //to avoid nested includes
@@ -36,7 +16,6 @@
 
 #include <list>
 #include <vector>
-using namespace std;
 
 namespace lomse
 {
@@ -58,8 +37,8 @@ class LyricEngraver : public AuxRelObjEngraver
 protected:
     GmoShapeLyrics* m_pLyricsShape;
     InstrumentEngraver* m_pInstrEngrv;
-    list< pair<ImoLyric*, GmoShape*> > m_lyrics;
-    vector<ShapeBoxInfo*> m_shapesInfo;
+    std::list< std::pair<ImoLyric*, GmoShape*> > m_lyrics;
+    std::vector<ShapeBoxInfo*> m_shapesInfo;
     UPoint m_origin;
     USize m_size;
     bool m_fLyricAbove;
@@ -79,34 +58,16 @@ public:
     ~LyricEngraver();
 
     //implementation of virtual methods from AuxRelObjEngraver
-    void set_start_staffobj(ImoAuxRelObj* pARO, ImoStaffObj* pSO,
-                            GmoShape* pStaffObjShape, int iInstr, int iStaff,
-                            int iSystem, int iCol,
-                            LUnits xStaffLeft, LUnits xStaffRight, LUnits yStaffTop,
-                            int idxStaff, VerticalProfile* pVProfile) override;
-    void set_middle_staffobj(ImoAuxRelObj* pARO, ImoStaffObj* pSO,
-                             GmoShape* pStaffObjShape, int iInstr, int iStaff,
-                             int iSystem, int iCol,
-                             LUnits xStaffLeft, LUnits xStaffRight, LUnits yStaffTop,
-                             int idxStaff, VerticalProfile* pVProfile) override;
-    void set_end_staffobj(ImoAuxRelObj* pARO, ImoStaffObj* pSO,
-                          GmoShape* pStaffObjShape, int iInstr, int iStaff,
-                          int iSystem, int iCol,
-                          LUnits xStaffLeft, LUnits xStaffRight, LUnits yStaffTop,
-                          int idxStaff, VerticalProfile* pVProfile) override;
+    void set_start_staffobj(ImoAuxRelObj* pARO, const AuxObjContext& aoc) override;
+    void set_middle_staffobj(ImoAuxRelObj* pARO, const AuxObjContext& aoc) override;
+    void set_end_staffobj(ImoAuxRelObj* pARO, const AuxObjContext& aoc) override;
 
-    int create_shapes(Color color=Color(0,0,0)) override;
+    int create_shapes(const RelObjEngravingContext& ctx) override;
     int get_num_shapes() override { return m_numShapes; }
-    ShapeBoxInfo* get_shape_box_info(int i) override
-    {
-        //defensive bounds check, kept as a last-resort safety net even though
-        //prepare_for_next_system() (not create_shapes()) is now what clears
-        //m_shapesInfo, so a correctly-behaving caller should never hit this.
-        if (i < 0 || i >= int(m_shapesInfo.size()))
-            return nullptr;
-        return m_shapesInfo[i];
-    }
-    void prepare_for_next_system() override;
+    ShapeBoxInfo* get_shape_box_info(int i) override { return m_shapesInfo[i]; }
+
+    //specific methods for this engraver
+    void prepare_for_next_system();
 
 
 protected:

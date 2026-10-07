@@ -1,35 +1,15 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2019. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #include "lomse_fragment_mark.h"
 
-#include "lomse_screen_drawer.h"
+#include "lomse_bitmap_drawer.h"
 #include "lomse_gm_basic.h"
 #include "lomse_logger.h"
 #include "lomse_graphic_view.h"
@@ -63,13 +43,13 @@ public:
     virtual ~RawShape() {};
 
 //    ///Draw the shape
-//    void on_draw(ScreenDrawer* pDrawer, Color color=Color(0,0,0)) = 0;
+//    void on_draw(BitmapDrawer* pDrawer, Color color=Color(0,0,0)) = 0;
     ///Return the shape bounding box
     virtual URect get_bounds() { return m_bounds; }
 
 protected:
     //debug
-    void draw_bounding_box(ScreenDrawer* pDrawer);
+    void draw_bounding_box(BitmapDrawer* pDrawer);
 
 };
 
@@ -102,7 +82,7 @@ protected:
 public:
     RawShapeRoundedBracket();
 
-    void draw(ScreenDrawer* pDrawer, LUnits xLeft, LUnits yTop,
+    void draw(BitmapDrawer* pDrawer, LUnits xLeft, LUnits yTop,
               LUnits xRight, LUnits yBottom, bool fOpen, Color color = Color(0,0,0));
 
 //    //RawShape
@@ -113,7 +93,7 @@ protected:
 
     //VertexSource
     unsigned vertex(double* px, double* py) override;
-    void rewind(int UNUSED(pathId) = 0) override { m_nCurVertex = 0; m_nContour = 0; }
+    void rewind(unsigned UNUSED(pathId) = 0) override { m_nCurVertex = 0; m_nContour = 0; }
 };
 
 //=======================================================================================
@@ -150,7 +130,7 @@ protected:
 public:
     RawShapeCurlyBracket();
 
-    void draw(ScreenDrawer* pDrawer, LUnits xLeft, LUnits yTop,
+    void draw(BitmapDrawer* pDrawer, LUnits xLeft, LUnits yTop,
               LUnits xRight, LUnits yBottom, bool fOpen, Color color = Color(0,0,0));
 
     //URect get_bounds();
@@ -160,7 +140,7 @@ protected:
 
     //VertexSource
     unsigned vertex(double* px, double* py) override;
-    void rewind(int UNUSED(pathId) = 0) override { m_nCurVertex = 0; m_nContour = 0; }
+    void rewind(unsigned UNUSED(pathId) = 0) override { m_nCurVertex = 0; m_nContour = 0; }
 };
 
 
@@ -287,7 +267,7 @@ FragmentMark* FragmentMark::thickness(Tenths value)
 }
 
 //---------------------------------------------------------------------------------------
-void FragmentMark::on_draw(ScreenDrawer* pDrawer)
+void FragmentMark::on_draw(BitmapDrawer* pDrawer)
 {
     if (!m_pBoxSystem)
         return;
@@ -418,7 +398,7 @@ URect FragmentMark::get_bounds()
 }
 
 //---------------------------------------------------------------------------------------
-void FragmentMark::draw_bounding_box(ScreenDrawer* pDrawer)
+void FragmentMark::draw_bounding_box(BitmapDrawer* pDrawer)
 {
     pDrawer->begin_path();
     pDrawer->fill(Color(0, 0, 0, 0));
@@ -437,7 +417,7 @@ void FragmentMark::draw_bounding_box(ScreenDrawer* pDrawer)
 //=======================================================================================
 // RawShape implementation
 //=======================================================================================
-void RawShape::draw_bounding_box(ScreenDrawer* pDrawer)
+void RawShape::draw_bounding_box(BitmapDrawer* pDrawer)
 {
     pDrawer->begin_path();
     pDrawer->fill(Color(0, 0, 0, 0));
@@ -595,7 +575,7 @@ unsigned RawShapeRoundedBracket::vertex(double* px, double* py)
 }
 
 //---------------------------------------------------------------------------------------
-void RawShapeRoundedBracket::draw(ScreenDrawer* pDrawer, LUnits xLeft, LUnits yTop,
+void RawShapeRoundedBracket::draw(BitmapDrawer* pDrawer, LUnits xLeft, LUnits yTop,
                                LUnits xRight, LUnits yBottom, bool fOpen, Color color)
 {
     set_position_bounds(xLeft, yTop, xRight, yBottom, fOpen);
@@ -785,7 +765,7 @@ unsigned RawShapeCurlyBracket::vertex(double* px, double* py)
 }
 
 //---------------------------------------------------------------------------------------
-void RawShapeCurlyBracket::draw(ScreenDrawer* pDrawer, LUnits xLeft, LUnits yTop,
+void RawShapeCurlyBracket::draw(BitmapDrawer* pDrawer, LUnits xLeft, LUnits yTop,
                                LUnits xRight, LUnits yBottom, bool fOpen, Color color)
 {
     set_position_bounds(xLeft, yTop, xRight, yBottom, fOpen);

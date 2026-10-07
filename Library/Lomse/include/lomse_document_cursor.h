@@ -1,41 +1,18 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2016. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #ifndef __LOMSE_DOCUMENT_CURSOR_H__
 #define __LOMSE_DOCUMENT_CURSOR_H__
 
 #include <stack>
-#include "lomse_document_iterator.h"
 #include "lomse_staffobjs_table.h"
 #include "lomse_time.h"
-
-using namespace std;
 
 namespace lomse
 {
@@ -43,7 +20,6 @@ namespace lomse
 //forward declarations
 class Document;
 class ImoObj;
-class StaffObjsIterator;
 class ImoScore;
 
 //---------------------------------------------------------------------------------------
@@ -174,10 +150,10 @@ public:
     {
         set_at_end_of_score();
     }
-    ~ScoreCursorState() {}
+    ~ScoreCursorState() override {}
 
     //mandatory overrides
-    ImoId pointee_id() { return id(); }
+    ImoId pointee_id() override { return id(); }
 
     //getters
     inline int instrument() { return m_instr; }
@@ -274,7 +250,10 @@ public:
 //=======================================================================================
 
 //---------------------------------------------------------------------------------------
-// ElementCursor: base class for any specific element cursor
+/** %ElementCursor is an abstract base class for any cursor for traversing a
+    non-terminal node of a document, such as an score or a paragraph, oriented
+    to support document edition tasks.
+*/
 class ElementCursor
 {
 protected:
@@ -316,13 +295,17 @@ public:
     virtual void reset_and_point_after(ImoId id)=0;
 
     //debug
-    virtual string dump_cursor()=0;
+    virtual std::string dump_cursor()=0;
 };
 
 
 //---------------------------------------------------------------------------------------
-// DocContentCursor
-// A cursor to traverse the non-terminal nodes of a document
+/** %DocContentCursor is a cursor for traversing the non-terminal nodes of a document,
+    oriented to support document edition tasks.
+
+    %DocContentCursor can be used directly, but its main purpose is as helper class
+    for DocCursor.
+*/
 class DocContentCursor
 {
 protected:
@@ -381,7 +364,16 @@ protected:
 
 
 //---------------------------------------------------------------------------------------
-// ScoreCursor: A cursor for traversing a score
+/** %ScoreCursor is a cursor for traversing a music score. It is oriented to support
+    score edition tasks. It traverses the score following the logical path that a user
+    would expect for a caret on the screen over a rendered score.
+
+    The cursor position indicates where the next insertion or other edition action will
+    take place. Its main movement methods are oriented to people interacting with a
+    visual representation of the score, and provides great flexibility for movements.
+
+    %ScoreCursor can be used directly, or can be used as part of a DocCursor.
+*/
 class ScoreCursor : public ElementCursor
 {
 protected:
@@ -402,27 +394,27 @@ protected:
 
 public:
     ScoreCursor(Document* pDoc, ImoScore* pScore);
-    virtual ~ScoreCursor();
+    ~ScoreCursor() override;
 
     //mandatory overrides from ElementCursor
         //positioning
-    void point_to(ImoObj* pImo);
-    void point_to(ImoId nId);
-    void move_next() { to_next_staffobj(); }
-    void move_prev() { to_prev_staffobj(); }
-    void move_up();
-    void move_down();
+    void point_to(ImoObj* pImo) override;
+    void point_to(ImoId nId) override;
+    void move_next() override { to_next_staffobj(); }
+    void move_prev() override { to_prev_staffobj(); }
+    void move_up() override;
+    void move_down() override;
         //saving/restoring state
-    SpElementCursorState get_state();
-    void restore_state(SpElementCursorState spState);
+    SpElementCursorState get_state() override;
+    void restore_state(SpElementCursorState spState) override;
         //info
     inline ImoObj* operator *() { return staffobj(); }
-    inline ImoObj* get_pointee() { return staffobj(); }
-    inline ImoId get_pointee_id() { return staffobj_id(); }
-    SpElementCursorState find_previous_pos_state();
+    ImoObj* get_pointee() override { return staffobj(); }
+    ImoId get_pointee_id() override { return staffobj_id(); }
+    SpElementCursorState find_previous_pos_state() override;
         //special operations for restoring cursor validity after Document modification
-    void reset_and_point_to(ImoId nId);
-    void reset_and_point_after(ImoId id);
+    void reset_and_point_to(ImoId nId) override;
+    void reset_and_point_after(ImoId id) override;
 
     //specific methods
 
@@ -483,7 +475,7 @@ public:
     void change_voice_to(int voice);
 
     //debug & unit tests
-    string dump_cursor();
+    std::string dump_cursor() override;
 
 protected:
     //support: related to time info
@@ -540,7 +532,7 @@ protected:
 
     //helper: dealing with ref.object
     inline ImoStaffObj* p_iter_object() { return (*m_it)->imo_object(); }
-    inline int p_iter_object_id() { return (int)(*m_it)->element_id(); }
+    inline int p_iter_object_id() { return (*m_it)->element_id(); }
     inline TimeUnits p_iter_object_time() { return (*m_it)->time(); }
     inline int p_iter_object_measure() { return (*m_it)->measure(); }
     inline int p_iter_object_staff() { return (*m_it)->staff(); }
@@ -571,10 +563,15 @@ protected:
 
 
 //---------------------------------------------------------------------------------------
-// DocCursor
-// facade object to enclose all specific cursors for traversing a document
-//---------------------------------------------------------------------------------------
+/** %DocCursor is a cursor oriented to support document edition tasks. It is oriented
+    to traverse a document following the logical path that will follow a caret on a
+    document rendered on a screen. The cursor position indicates where the next insertion
+    or other edition action will take place. Its main movement methods are suited to
+    user needs and visual logical expectations.
 
+    %DocCursor is a facade object enclosing all specific cursors required to traverse the
+    document and tye current content element (e.g. an score) being traversed.
+*/
 class DocCursor
 {
 protected:
@@ -628,8 +625,8 @@ public:
     void restore_state(DocCursorState& state);
 
     //debug
-    string dump_cursor();
-    static string id_to_string(ImoId id);
+    std::string dump_cursor();
+    static std::string id_to_string(ImoId id);
 
 protected:
     void start_delegation();

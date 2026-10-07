@@ -1,30 +1,10 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2016. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #ifndef __LOMSE_ID_ASSIGNER_H__
@@ -33,14 +13,15 @@
 #include "lomse_basic.h"
 
 #include <map>
+#include <unordered_map>
 #include <string>
-using namespace std;
 
 namespace lomse
 {
 
 //forward declarations
 class ImoObj;
+class ImoDocument;
 class Control;
 
 //---------------------------------------------------------------------------------------
@@ -50,12 +31,13 @@ class IdAssigner
 {
 protected:
     ImoId m_idCounter;
-    std::map<ImoId, ImoObj*> m_idToImo;
-    std::map<ImoId, Control*> m_idToControl;
+    std::unordered_map<ImoId, ImoObj*> m_idToImo;
+    std::unordered_map<ImoId, Control*> m_idToControl;
+    std::unordered_map<ImoId, std::string> m_idToXmlId;
+    std::map<std::string, ImoId> m_xmlIdToId;
 
 public:
-    IdAssigner();
-    ~IdAssigner() {}
+    IdAssigner() : m_idCounter(k_no_imoid) {}
 
     void reset();
 
@@ -63,17 +45,27 @@ public:
     void assign_id(Control* pControl);
     ImoId reserve_id(ImoId id);
     ImoObj* get_pointer_to_imo(ImoId id) const;
+    ImoObj* get_pointer_to_imo(const std::string& xmlId) const;
     Control* get_pointer_to_control(ImoId id) const;
     void remove(ImoObj* pImo);
     void copy_ids_to(IdAssigner* assigner, ImoId idMin);
+    std::string get_xml_id_for(ImoId id);
+    void set_xml_id_for(ImoId id, const std::string& xmlId);
 
     //debug
-    string dump() const;
+    std::string dump() const;
     inline size_t size() const { return m_idToImo.size(); }
+    bool check_ids(IdAssigner* pCopy, std::stringstream& reporter, const std::string& label);
 
 protected:
+    friend class FixModelVisitor;
+    friend class DocModel;
+
     void add_id(ImoId id, ImoObj* pImo);
     void add_control_id(ImoId id, Control* pControl);
+    void copy_strings_from(IdAssigner* pIdAssigner);
+    void set_counter(ImoId value) { m_idCounter = value; }
+    void set_control_id(ImoId id, Control* pControl);
 
 };
 

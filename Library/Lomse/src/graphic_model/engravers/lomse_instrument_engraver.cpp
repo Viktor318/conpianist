@@ -1,30 +1,10 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2019. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #include "lomse_instrument_engraver.h"
@@ -71,6 +51,7 @@ PartsEngraver::~PartsEngraver()
     delete_group_engravers();
     delete_instrument_engravers();
     delete m_pRightAlignerFirst;
+    delete m_pRightAlignerOther;
 }
 
 //---------------------------------------------------------------------------------------
@@ -148,11 +129,12 @@ void PartsEngraver::decide_systems_indentation()
 
     //Create a RightAligner to contain and assign final positions to all
     //names, brackets and braces. Initially empty.
+    delete m_pRightAlignerFirst;
+    delete m_pRightAlignerOther;
     m_pRightAlignerFirst = LOMSE_NEW RightAligner();
     m_pRightAlignerOther = LOMSE_NEW RightAligner();
 
-    //Traverse all groups from inner to outer (backwards, from last defined one to
-    //first one). For each group:
+    //Traverse all groups. For each group:
     // - measure bracket/brace. Bracket/brace coords: x=0, y = determined by first
     //   instrument yTop and last instrument yBottom.
     // - add bracket/brace to the RightAligner
@@ -161,8 +143,14 @@ void PartsEngraver::decide_systems_indentation()
     //Traverse all instruments. For each instrument:
     // - engrave name/abbr at x=0, y= instr.center (middle of instrument yTop and
     //   instrument yBottom).
-    // - add name/abbr to the RightAligner
+    // - add bracket (if exists) to the RightAligner
     measure_instruments_name_and_bracket();
+
+    //Traverse all instruments and add name/abbrev. to the RightAligner
+    add_instruments_name_to_aligner();
+
+    //Traverse all groups and add name/abbrev. to the RightAligner
+    add_groups_name_to_aligner();
 
     //As each box is added to the RightAligner it is repositioned to
     //the correct position. Therefore, at this point, all the boxes for names
@@ -218,8 +206,7 @@ LUnits PartsEngraver::get_staff_bottom_position_for(ImoInstrument* pInstr)
 //---------------------------------------------------------------------------------------
 void PartsEngraver::measure_groups_name_and_bracket()
 {
-    //Traverse all groups from inner to outer (backwards, from last defined one to
-    //first one). For each group:
+    //Traverse all groups. For each group:
     // - measure bracket/brace. Bracket/brace coords: x=0, y = determined by first
     //   instrument yTop and last instrument yBottom.
     // - add bracket/brace to the RightAligner
@@ -230,8 +217,20 @@ void PartsEngraver::measure_groups_name_and_bracket()
     {
         (*it)->measure_name_and_bracket();
         m_iGrpBracketFirst[i] = m_pRightAlignerFirst->add_box( (*it)->get_box_for_bracket() );
-        m_iGrpName[i] = m_pRightAlignerFirst->add_box( (*it)->get_box_for_name() );
         m_iGrpBracketOther[i] = m_pRightAlignerOther->add_box( (*it)->get_box_for_bracket() );
+    }
+}
+
+//---------------------------------------------------------------------------------------
+void PartsEngraver::add_groups_name_to_aligner()
+{
+    //Traverse all groups. For each group add name/abbrev to the RightAligner
+
+    int i = 0;
+    std::vector<GroupEngraver*>::iterator it;
+    for (it = m_groupEngravers.begin(); it != m_groupEngravers.end(); ++it, ++i)
+    {
+        m_iGrpName[i] = m_pRightAlignerFirst->add_box( (*it)->get_box_for_name() );
         m_iGrpAbbrev[i] = m_pRightAlignerOther->add_box( (*it)->get_box_for_abbrev() );
     }
 }
@@ -245,8 +244,19 @@ void PartsEngraver::measure_instruments_name_and_bracket()
     {
         (*it)->measure_name_and_bracket();
         m_iInstrBracketFirst[i] = m_pRightAlignerFirst->add_box( (*it)->get_box_for_bracket() );
-        m_iInstrName[i] = m_pRightAlignerFirst->add_box( (*it)->get_box_for_name() );
         m_iInstrBracketOther[i] = m_pRightAlignerOther->add_box( (*it)->get_box_for_bracket() );
+    }
+}
+
+//---------------------------------------------------------------------------------------
+void PartsEngraver::add_instruments_name_to_aligner()
+{
+    int i = 0;
+    std::vector<InstrumentEngraver*>::iterator it;
+    for (it = m_instrEngravers.begin(); it != m_instrEngravers.end(); ++it, ++i)
+    {
+        (*it)->measure_name_and_bracket();
+        m_iInstrName[i] = m_pRightAlignerFirst->add_box( (*it)->get_box_for_name() );
         m_iInstrAbbrev[i] = m_pRightAlignerOther->add_box( (*it)->get_box_for_abbrev() );
     }
 }
@@ -301,7 +311,7 @@ void PartsEngraver::engrave_names_and_brackets(bool fDrawStafflines, GmoBoxSyste
     for (it = m_instrEngravers.begin(); it != m_instrEngravers.end(); ++it)
     {
         if (fDrawStafflines)
-            (*it)->add_staff_lines(pBox);
+            (*it)->add_staff_lines(pBox, iSystem);
         (*it)->add_name_abbrev(pBox, iSystem);
         (*it)->add_brace_bracket(pBox, iSystem);
     }
@@ -330,6 +340,7 @@ void PartsEngraver::set_position_and_width_for_staves(LUnits indent, UPoint org,
     {
         (*it)->set_staves_horizontal_position(left, width, indent);
         (*it)->set_slice_instr_origin(org);
+        (*it)->reset_staff_position_shifts();
     }
 }
 
@@ -412,12 +423,12 @@ void GroupEngraver::measure_name_abbrev()
     LUnits uSpaceAfterName = tenths_to_logical(LOMSE_INSTR_SPACE_AFTER_NAME);
     if (m_pGroup->has_name())
     {
-        ImoScoreText& text = m_pGroup->get_name();
-        ImoStyle* pStyle = text.get_style();
+        TypeTextInfo& text = m_pGroup->get_name();
+        ImoStyle* pStyle = m_pGroup->get_name_style();
         if (!pStyle)
             pStyle = m_pScore->get_default_style();
-        TextEngraver engr(m_libraryScope, m_pMeter, text.get_text(),
-                          text.get_language(), pStyle);
+        TextEngraver engr(m_libraryScope, m_pMeter, text.text,
+                          text.language, pStyle, TextEngraver::k_class_group_name);
 
         m_nameBox.width = engr.measure_width() + uSpaceAfterName;
         m_nameBox.height = engr.measure_height();
@@ -426,12 +437,12 @@ void GroupEngraver::measure_name_abbrev()
     }
     if (m_pGroup->has_abbrev())
     {
-        ImoScoreText& text = m_pGroup->get_abbrev();
-        ImoStyle* pStyle = text.get_style();
+        TypeTextInfo& text = m_pGroup->get_abbrev();
+        ImoStyle* pStyle = m_pGroup->get_abbrev_style();
         if (!pStyle)
             pStyle = m_pScore->get_default_style();
-        TextEngraver engr(m_libraryScope, m_pMeter, text.get_text(),
-                          text.get_language(), pStyle);
+        TextEngraver engr(m_libraryScope, m_pMeter, text.text,
+                          text.language, pStyle, TextEngraver::k_class_group_abbrev);
 
         m_abbrevBox.width = engr.measure_width() + uSpaceAfterName;
         m_abbrevBox.height = engr.measure_height();
@@ -448,12 +459,12 @@ void GroupEngraver::measure_brace_or_bracket()
         int symbol = m_pGroup->get_symbol();
 
         LUnits uBracketWidth;
-        if (symbol == ImoInstrGroup::k_brace)
+        if (symbol == k_group_symbol_brace)
         {
             uBracketWidth = tenths_to_logical(LOMSE_GRP_BRACE_WIDTH);
             m_uBracketGap = tenths_to_logical(LOMSE_GRP_BRACKET_GAP);
         }
-        else if  (symbol == ImoInstrGroup::k_bracket)
+        else if  (symbol == k_group_symbol_bracket)
         {
             uBracketWidth = tenths_to_logical(LOMSE_GRP_BRACKET_WIDTH);
             m_uBracketGap = tenths_to_logical(LOMSE_GRP_BRACKET_GAP);
@@ -475,7 +486,7 @@ void GroupEngraver::measure_brace_or_bracket()
 bool GroupEngraver::has_brace_or_bracket()
 {
     int symbol = m_pGroup->get_symbol();
-    return (symbol != ImoInstrGroup::k_none);
+    return (symbol != k_group_symbol_none);
 }
 
 //---------------------------------------------------------------------------------------
@@ -484,19 +495,20 @@ void GroupEngraver::add_name_abbrev(GmoBoxSystem* pBox, int iSystem)
     determine_staves_position();
     LUnits yTop = m_org.y + (m_stavesBottom + m_stavesTop) / 2.0f;
 
+    ShapeId idx = ShapeId(iSystem + 1);
     if (iSystem == 0)
     {
         if (m_pGroup->has_name())
         {
             LUnits xLeft = m_nameBox.x + pBox->get_left();
 
-            ImoScoreText& text = m_pGroup->get_name();
-            ImoStyle* pStyle = text.get_style();
+            TypeTextInfo& text = m_pGroup->get_name();
+            ImoStyle* pStyle = m_pGroup->get_name_style();
             if (!pStyle)
                 pStyle = m_pScore->get_default_style();
-            TextEngraver engr(m_libraryScope, m_pMeter, text.get_text(),
-                              text.get_language(), pStyle);
-            GmoShape* pShape = engr.create_shape(m_pGroup, xLeft, yTop);
+            TextEngraver engr(m_libraryScope, m_pMeter, text.text,
+                              text.language, pStyle, TextEngraver::k_class_group_name);
+            GmoShape* pShape = engr.create_shape(m_pGroup, idx, xLeft, yTop);
             pBox->add_shape(pShape, GmoShape::k_layer_staff);
         }
     }
@@ -506,13 +518,13 @@ void GroupEngraver::add_name_abbrev(GmoBoxSystem* pBox, int iSystem)
         {
             LUnits xLeft = m_abbrevBox.x + pBox->get_left();
 
-            ImoScoreText& text = m_pGroup->get_abbrev();
-            ImoStyle* pStyle = text.get_style();
+            TypeTextInfo& text = m_pGroup->get_abbrev();
+            ImoStyle* pStyle = m_pGroup->get_abbrev_style();
             if (!pStyle)
                 pStyle = m_pScore->get_default_style();
-            TextEngraver engr(m_libraryScope, m_pMeter, text.get_text(),
-                              text.get_language(), pStyle);
-            GmoShape* pShape = engr.create_shape(m_pGroup, xLeft, yTop);
+            TextEngraver engr(m_libraryScope, m_pMeter, text.text,
+                              text.language, pStyle, TextEngraver::k_class_group_abbrev);
+            GmoShape* pShape = engr.create_shape(m_pGroup, idx, xLeft, yTop);
             pBox->add_shape(pShape, GmoShape::k_layer_staff);
         }
     }
@@ -540,12 +552,12 @@ void GroupEngraver::add_brace_bracket(GmoBoxSystem* pBox, int iSystem)
         }
 
         GmoShape* pShape;
-        ShapeId idx = 0;
+        ShapeId idx = ShapeId(iSystem + 1);
         int symbol = m_pGroup->get_symbol();
-        if (symbol == ImoInstrGroup::k_brace)
+        if (symbol == k_group_symbol_brace)
             pShape = LOMSE_NEW GmoShapeBrace(m_pGroup, idx, xLeft, yTop,
                                              xRight, yBottom, Color(0,0,0));
-        else if (symbol == ImoInstrGroup::k_bracket)
+        else if (symbol == k_group_symbol_bracket)
         {
             LUnits dyHook = tenths_to_logical(LOMSE_GRP_BRACKET_HOOK);
             pShape = LOMSE_NEW GmoShapeBracket(m_pGroup, idx, xLeft, yTop, xRight,
@@ -597,12 +609,6 @@ int InstrumentEngraver::get_num_staves()
 }
 
 //---------------------------------------------------------------------------------------
-LUnits InstrumentEngraver::tenths_to_logical(Tenths value, int iStaff)
-{
-    return (value * m_pInstr->get_staff(iStaff)->get_line_spacing()) / 10.0f;
-}
-
-//---------------------------------------------------------------------------------------
 void InstrumentEngraver::measure_name_and_bracket()
 {
     measure_name_abbrev();
@@ -615,12 +621,12 @@ void InstrumentEngraver::measure_name_abbrev()
     LUnits uSpaceAfterName = tenths_to_logical(LOMSE_INSTR_SPACE_AFTER_NAME);
     if (m_pInstr->has_name())
     {
-        ImoScoreText& text = m_pInstr->get_name();
-        ImoStyle* pStyle = text.get_style();
+        TypeTextInfo& text = m_pInstr->get_name();
+        ImoStyle* pStyle = m_pInstr->get_name_style();
         if (!pStyle)
             pStyle = m_pScore->get_default_style();
-        TextEngraver engr(m_libraryScope, m_pMeter, text.get_text(),
-                          text.get_language(), pStyle);
+        TextEngraver engr(m_libraryScope, m_pMeter, text.text, text.language, pStyle,
+                          TextEngraver::k_class_instr_name);
 
         m_nameBox.width = engr.measure_width() + uSpaceAfterName;
         m_nameBox.height = engr.measure_height();
@@ -629,12 +635,12 @@ void InstrumentEngraver::measure_name_abbrev()
     }
     if (m_pInstr->has_abbrev())
     {
-        ImoScoreText& text = m_pInstr->get_abbrev();
-        ImoStyle* pStyle = text.get_style();
+        TypeTextInfo& text = m_pInstr->get_abbrev();
+        ImoStyle* pStyle = m_pInstr->get_abbrev_style();
         if (!pStyle)
             pStyle = m_pScore->get_default_style();
-        TextEngraver engr(m_libraryScope, m_pMeter, text.get_text(),
-                          text.get_language(), pStyle);
+        TextEngraver engr(m_libraryScope, m_pMeter, text.text, text.language, pStyle,
+                          TextEngraver::k_class_instr_abbrev);
 
         m_abbrevBox.width = engr.measure_width() + uSpaceAfterName;
         m_abbrevBox.height = engr.measure_height();
@@ -681,6 +687,7 @@ bool InstrumentEngraver::has_brace_or_bracket()
 //---------------------------------------------------------------------------------------
 void InstrumentEngraver::add_name_abbrev(GmoBoxSystem* pBox, int iSystem)
 {
+    ShapeId idx = ShapeId(iSystem + 1);
     if (iSystem == 0)
     {
         if (m_pInstr->has_name())
@@ -689,13 +696,13 @@ void InstrumentEngraver::add_name_abbrev(GmoBoxSystem* pBox, int iSystem)
             m_nameBox.y = (get_staff_top_position() + get_staff_bottom_position()) / 2.0f;
             LUnits yTop = m_nameBox.y + m_org.y;
 
-            ImoScoreText& text = m_pInstr->get_name();
-            ImoStyle* pStyle = text.get_style();
+            TypeTextInfo& text = m_pInstr->get_name();
+            ImoStyle* pStyle = m_pInstr->get_name_style();
             if (!pStyle)
                 pStyle = m_pScore->get_default_style();
-            TextEngraver engr(m_libraryScope, m_pMeter, text.get_text(),
-                              text.get_language(), pStyle);
-            GmoShape* pShape = engr.create_shape(m_pInstr, xLeft, yTop);
+            TextEngraver engr(m_libraryScope, m_pMeter, text.text, text.language, pStyle,
+                              TextEngraver::k_class_instr_name);
+            GmoShape* pShape = engr.create_shape(m_pInstr, idx, xLeft, yTop);
             pBox->add_shape(pShape, GmoShape::k_layer_staff);
         }
     }
@@ -707,13 +714,13 @@ void InstrumentEngraver::add_name_abbrev(GmoBoxSystem* pBox, int iSystem)
             m_abbrevBox.y = (get_staff_top_position() + get_staff_bottom_position()) / 2.0f;
             LUnits yTop = m_abbrevBox.y + m_org.y;
 
-            ImoScoreText& text = m_pInstr->get_abbrev();
-            ImoStyle* pStyle = text.get_style();
+            TypeTextInfo& text = m_pInstr->get_abbrev();
+            ImoStyle* pStyle = m_pInstr->get_abbrev_style();
             if (!pStyle)
                 pStyle = m_pScore->get_default_style();
-            TextEngraver engr(m_libraryScope, m_pMeter, text.get_text(),
-                              text.get_language(), pStyle);
-            GmoShape* pShape = engr.create_shape(m_pInstr, xLeft, yTop);
+            TextEngraver engr(m_libraryScope, m_pMeter, text.text, text.language, pStyle,
+                              TextEngraver::k_class_instr_abbrev);
+            GmoShape* pShape = engr.create_shape(m_pInstr, idx, xLeft, yTop);
             pBox->add_shape(pShape, GmoShape::k_layer_staff);
         }
     }
@@ -742,20 +749,21 @@ void InstrumentEngraver::add_brace_bracket(GmoBoxSystem* pBox, int iSystem)
             yBottom = yTop + m_bracketOtherBox.height;
         }
 
-        GmoShape* pShape = LOMSE_NEW GmoShapeBrace(m_pInstr, 0, xLeft, yTop, xRight,
+        ShapeId idx = ShapeId(iSystem + 1);
+        GmoShape* pShape = LOMSE_NEW GmoShapeBrace(m_pInstr, idx, xLeft, yTop, xRight,
                                                    yBottom, Color(0,0,0));
         pBox->add_shape(pShape, GmoShape::k_layer_staff);
     }
 }
 
 //---------------------------------------------------------------------------------------
-void InstrumentEngraver::add_staff_lines(GmoBoxSystem* pBox)
+void InstrumentEngraver::add_staff_lines(GmoBoxSystem* pBox, int iSystem)
 {
     for (int iStaff=0; iStaff < m_pInstr->get_num_staves(); iStaff++)
 	{
         ImoStaffInfo* pStaff = m_pInstr->get_staff(iStaff);
         GmoShapeStaff* pShape
-            = LOMSE_NEW GmoShapeStaff(m_pInstr, iStaff, pStaff, iStaff, m_stavesWidth,
+            = LOMSE_NEW GmoShapeStaff(m_pInstr, iSystem+1, pStaff, iStaff, m_stavesWidth,
                                 Color(0,0,0));
         pShape->set_origin(m_stavesLeft + m_org.x,
                            m_org.y + m_staffTop[iStaff] + m_yShifts[iStaff]);
@@ -797,7 +805,7 @@ void InstrumentEngraver::reposition_staff(int iStaff, LUnits yShift)
 //---------------------------------------------------------------------------------------
 LUnits InstrumentEngraver::get_top_line_of_staff(int iStaff)
 {
-    return m_org.y + m_staffTop[iStaff] + m_lineThickness[iStaff] / 2.0f;
+    return m_org.y + m_staffTop[iStaff] + m_yShifts[iStaff] + m_lineThickness[iStaff] / 2.0f;
 }
 
 //---------------------------------------------------------------------------------------
@@ -808,9 +816,12 @@ LUnits InstrumentEngraver::get_bottom_line_of_staff(int iStaff)
 }
 
 //---------------------------------------------------------------------------------------
-LUnits InstrumentEngraver::get_unshifted_bottom_line_of_staff(int iStaff)
+void InstrumentEngraver::reset_staff_position_shifts()
 {
-    return m_org.y + m_staffBottom[iStaff] + m_lineThickness[iStaff] / 2.0f;
+    for (LUnits& yShift : m_yShifts)
+    {
+        yShift = 0;
+    }
 }
 
 //---------------------------------------------------------------------------------------

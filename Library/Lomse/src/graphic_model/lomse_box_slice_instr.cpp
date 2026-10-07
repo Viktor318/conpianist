@@ -1,30 +1,10 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2019. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #include "lomse_box_slice_instr.h"
@@ -35,6 +15,7 @@
 #include "lomse_shape_note.h"
 #include "lomse_shape_beam.h"
 #include "lomse_system_layouter.h"
+#include "lomse_im_note.h"
 
 
 namespace lomse
@@ -75,24 +56,67 @@ void GmoBoxSliceInstr::add_shape(GmoShape* pShape, int layer, int iStaff)
 }
 
 //---------------------------------------------------------------------------------------
+GmoShape* GmoBoxSliceInstr::find_staffobj_shape_before(LUnits x)
+{
+    vector<GmoBox*>::iterator it;
+    GmoShape* pShape = nullptr;
+    for (it=m_childBoxes.begin(); it != m_childBoxes.end(); ++it)
+    {
+        GmoBoxSliceStaff* pSlice = static_cast<GmoBoxSliceStaff*>(*it);
+        GmoShape* pS = pSlice->find_staffobj_shape_before(x);
+        if (pS)
+        {
+            if (!pShape)
+                pShape = pS;
+            else if (pShape->get_right() < pS->get_right())
+                pShape = pS;
+        }
+    }
+    return pShape;
+}
+
+//---------------------------------------------------------------------------------------
+GmoShape* GmoBoxSliceInstr::find_staffobj_shape_after(LUnits x)
+{
+    vector<GmoBox*>::iterator it;
+    GmoShape* pShape = nullptr;
+    for (it=m_childBoxes.begin(); it != m_childBoxes.end(); ++it)
+    {
+        GmoBoxSliceStaff* pSlice = static_cast<GmoBoxSliceStaff*>(*it);
+        GmoShape* pS = pSlice->find_staffobj_shape_after(x);
+        if (pS)
+        {
+            if (!pShape)
+                pShape = pS;
+            else if (pShape->get_left() > pS->get_left())
+                pShape = pS;
+        }
+    }
+    return pShape;
+}
+
+//---------------------------------------------------------------------------------------
 void GmoBoxSliceInstr::reposition_slices_and_shapes(const vector<LUnits>& yOrgShifts,
-                                                    vector<LUnits>& heights,
+                                                    const vector<LUnits>& heights,
                                                     LUnits barlinesHeight,
+                                                    const std::vector<LUnits>& relStaffTopPositions,
                                                     SystemLayouter* pSysLayouter)
 
 {
     vector<GmoBox*>::iterator it;
     int idxStaff = m_idxStaff;
-    for (it=m_childBoxes.begin(); it != m_childBoxes.end(); ++it)
+    int staff = 0;
+    for (it=m_childBoxes.begin(); it != m_childBoxes.end(); ++it, ++staff)
     {
         GmoBoxSliceStaff* pSlice = static_cast<GmoBoxSliceStaff*>(*it);
-        pSlice->reposition_shapes(yOrgShifts, barlinesHeight, pSysLayouter);
+        pSlice->reposition_shapes(yOrgShifts, barlinesHeight, relStaffTopPositions, pSysLayouter, staff);
 
-        m_size.height += heights[idxStaff];
+        m_size.height += heights[idxStaff+staff];
     }
 
     //shift origin
-    m_origin.y += yOrgShifts[m_idxStaff];
+    if (m_idxStaff > 0)
+        m_origin.y += yOrgShifts[m_idxStaff-1];
 }
 
 //---------------------------------------------------------------------------------------
@@ -119,19 +143,25 @@ GmoBoxSliceStaff::~GmoBoxSliceStaff()
 //---------------------------------------------------------------------------------------
 void GmoBoxSliceStaff::reposition_shapes(const vector<LUnits>& yShifts,
                                          LUnits barlinesHeight,
-                                         SystemLayouter* pSysLayouter)
+                                         const std::vector<LUnits>& relStaffTopPositions,
+                                         SystemLayouter* pSysLayouter, int UNUSED(staff))
 
 {
     LUnits yShift = yShifts[m_idxStaff];
+    LUnits yPrevShift = (m_idxStaff > 0 ? yShifts[m_idxStaff-1] : 0.0f);
 
     if (yShift == 0.0f)
     {
-        //deal only with barlines height
+        //deal only with barlines height and cross-staff stems
         list<GmoShape*>::iterator it;
         for (it=m_shapes.begin(); it != m_shapes.end(); ++it)
         {
             if ((*it)->is_shape_barline())
-                (*it)->set_height(barlinesHeight);
+            {
+                GmoShapeBarline* pBarlineShape = static_cast<GmoShapeBarline*>(*it);
+                pBarlineShape->set_height(barlinesHeight);
+                pBarlineShape->set_relative_staff_top_positions(relStaffTopPositions);
+            }
         }
     }
     else
@@ -145,23 +175,96 @@ void GmoBoxSliceStaff::reposition_shapes(const vector<LUnits>& yShifts,
                 GmoShapeBeam* pShapeBeam = static_cast<GmoShapeBeam*>(*it);
                 if (pShapeBeam->is_cross_staff())
                 {
-                    LUnits down = (yShift + yShifts[m_idxStaff-1]) / 2.0f;
-                    LUnits increment = (yShift - yShifts[m_idxStaff-1]) / 2.0f;
-                    pSysLayouter->increment_cross_staff_stems(pShapeBeam, increment);
-                    (*it)->reposition_shape(down);
+//                    if (!pShapeBeam->has_chords())
+//                    {
+                        LUnits down = (yShift + yPrevShift) / 2.0f;
+                        LUnits increment = (yShift - yPrevShift) / 2.0f;
+                        pSysLayouter->increment_cross_staff_stems(pShapeBeam, increment);
+                        (*it)->reposition_shape(down);
+//                    }
+//                    else //if (pShapeBeam->get_staff() == staff)
+//                        (*it)->reposition_shape(yShift);
                 }
                 else
                     (*it)->reposition_shape(yShift);
             }
+            else if ((*it)->is_shape_note())
+            {
+                GmoShapeNote* pShapeNote = static_cast<GmoShapeNote*>(*it);
+                LUnits increment = (yShift - yPrevShift);
+                pShapeNote->reposition_shape(yShift);
+
+                if (pShapeNote->is_cross_staff_chord())
+                {
+                    if (pShapeNote->is_chord_start_note())
+                    {
+                        pShapeNote->increment_stem_length(increment);
+
+                        GmoShapeArpeggio* pArpeggio = pShapeNote->get_base_note_shape()->get_arpeggio();
+
+                        if (pArpeggio)
+                            pArpeggio->increase_length_up(increment);
+                    }
+                    else if (pShapeNote->is_chord_flag_note() && !pShapeNote->is_up())
+                    {
+                        GmoShapeChordBaseNote* pBase = pShapeNote->get_base_note_shape();
+                        pShapeNote = pBase->get_start_note();
+                        pShapeNote->increment_stem_length(increment);
+                    }
+                }
+//                ImoNote* pNote = static_cast<ImoNote*>(pShapeNote->get_creator_imo());
+//                if (pNote->is_beamed() && pShapeNote->is_up())
+//                {
+//                    ImoBeam* pBeam = pNote->get_beam();
+//                    if (pBeam->is_cross_staff())
+//                        pShapeNote->increment_stem_length(yShift);
+//                }
+            }
+            else if ((*it)->is_shape_barline())
+            {
+                GmoShapeBarline* pBarlineShape = static_cast<GmoShapeBarline*>(*it);
+                pBarlineShape->reposition_shape(yShift);
+                pBarlineShape->set_height(barlinesHeight);
+                pBarlineShape->set_relative_staff_top_positions(relStaffTopPositions);
+            }
             else
             {
                 (*it)->reposition_shape(yShift);
-
-                if ((*it)->is_shape_barline())
-                    (*it)->set_height(barlinesHeight);
             }
         }
     }
+}
+
+//---------------------------------------------------------------------------------------
+GmoShape* GmoBoxSliceStaff::find_staffobj_shape_before(LUnits x)
+{
+    list<GmoShape*>::reverse_iterator it;
+    for (it=m_shapes.rbegin(); it != m_shapes.rend(); ++it)
+    {
+        ImoObj* pImo = (*it)->get_creator_imo();
+        if (pImo && pImo->is_staffobj())
+        {
+            if ((*it)->get_right() <= x)
+                return *it;
+        }
+    }
+    return nullptr;
+}
+
+//---------------------------------------------------------------------------------------
+GmoShape* GmoBoxSliceStaff::find_staffobj_shape_after(LUnits x)
+{
+    list<GmoShape*>::iterator it;
+    for (it=m_shapes.begin(); it != m_shapes.end(); ++it)
+    {
+        ImoObj* pImo = (*it)->get_creator_imo();
+        if (pImo && pImo->is_staffobj())
+        {
+            if ((*it)->get_left() >= x)
+                return *it;
+        }
+    }
+    return nullptr;
 }
 
 //---------------------------------------------------------------------------------------

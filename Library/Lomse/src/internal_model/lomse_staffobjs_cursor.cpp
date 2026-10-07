@@ -1,30 +1,10 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2019. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #include "lomse_staffobjs_cursor.h"
@@ -39,19 +19,14 @@ namespace lomse
 //---------------------------------------------------------------------------------------
 StaffObjsCursor::StaffObjsCursor(ImoScore* pScore)
     : m_pColStaffObjs( pScore->get_staffobjs_table() )
-    , m_scoreIt(m_pColStaffObjs)
-    , m_savedPos(m_scoreIt)
+    , m_it(m_pColStaffObjs->begin())
+    , m_savedPos(m_it)
     , m_numInstruments( pScore->get_num_instruments() )
-    , m_numLines( pScore->get_staffobjs_table()->num_lines() )
-    , m_fScoreIsEmpty( m_scoreIt.is_end() )
+    , m_numLines( m_pColStaffObjs->num_lines() )
+    , m_fScoreIsEmpty( is_end() )
     , m_pLastBarline(nullptr)
 {
     initialize_clefs_keys_times(pScore);
-}
-
-//---------------------------------------------------------------------------------------
-StaffObjsCursor::~StaffObjsCursor()
-{
 }
 
 //---------------------------------------------------------------------------------------
@@ -83,15 +58,15 @@ void StaffObjsCursor::move_next()
         save_time_signature();
     else if (pSO->is_barline())
         save_barline();
-    else if (pSO->is_note())
+    else if (pSO->is_note_rest())
         save_octave_shift_at_end( static_cast<ImoStaffObj*>(pSO) );
 
-    ++m_scoreIt;
+    ++m_it;
 
     if (!is_end())
     {
         pSO = imo_object();
-        if (pSO && pSO->is_note())
+        if (pSO && pSO->is_note_rest())
             save_octave_shift_at_start( static_cast<ImoStaffObj*>(pSO) );
     }
 }
@@ -101,7 +76,7 @@ void StaffObjsCursor::save_clef()
 {
     int iInstr = num_instrument();
     int idx = m_staffIndex[iInstr] + staff();
-    m_clefs[idx] = *m_scoreIt;
+    m_clefs[idx] = *m_it;
 }
 
 //---------------------------------------------------------------------------------------
@@ -109,21 +84,23 @@ void StaffObjsCursor::save_octave_shift_at_end(ImoStaffObj* pSO)
 {
     if (pSO->get_num_relations() > 0)
     {
-        ImoRelations* pRelObjs = pSO->get_relations();
-        list<ImoRelObj*>& relObjs = pRelObjs->get_relations();
-        list<ImoRelObj*>::iterator it;
-        for(it = relObjs.begin(); it != relObjs.end(); ++it)
+        ImoRelations* pRels = pSO->get_relations();
+        list<ImoRelObj*>& relobjs = pRels->get_relobjs();
+        if (relobjs.size() > 0)
         {
-            ImoRelObj* pRO = static_cast<ImoRelObj*>(*it);
-
-            if (pRO->is_octave_shift())
+            list<ImoRelObj*>::iterator it;
+            for (it = relobjs.begin(); it != relobjs.end(); ++it)
             {
-		        if (pSO == pRO->get_end_object())
-		        {
-                    int idx = m_staffIndex[num_instrument()] + staff();
-                    m_octave_shifts[idx] = 0;
-                    break;
-		        }
+                ImoRelObj* pRO = static_cast<ImoRelObj*>(*it);
+                if (pRO->is_octave_shift())
+                {
+                    if (pSO == pRO->get_end_object())
+                    {
+                        int idx = m_staffIndex[num_instrument()] + staff();
+                        m_octave_shifts[idx] = 0;
+                        break;
+                    }
+                }
             }
         }
     }
@@ -136,20 +113,22 @@ void StaffObjsCursor::save_octave_shift_at_start(ImoStaffObj* pSO)
     bool fOctaveShift = false;
     if (pSO->get_num_relations() > 0)
     {
-        ImoRelations* pRelObjs = pSO->get_relations();
-        list<ImoRelObj*>& relObjs = pRelObjs->get_relations();
-        list<ImoRelObj*>::iterator it;
-        for(it = relObjs.begin(); it != relObjs.end(); ++it)
+        ImoRelations* pRels = pSO->get_relations();
+        list<ImoRelObj*>& relobjs = pRels->get_relobjs();
+        if (relobjs.size() > 0)
         {
-            ImoRelObj* pRO = static_cast<ImoRelObj*>(*it);
-
-            if (pRO->is_octave_shift())
+            list<ImoRelObj*>::iterator it;
+            for (it = relobjs.begin(); it != relobjs.end(); ++it)
             {
-		        if (pSO == pRO->get_start_object())
-		        {
-                    fOctaveShift = true;
-		            steps = static_cast<ImoOctaveShift*>(pRO)->get_shift_steps();
-		        }
+                ImoRelObj* pRO = static_cast<ImoRelObj*>(*it);
+                if (pRO->is_octave_shift())
+                {
+                    if (pSO == pRO->get_start_object())
+                    {
+                        fOctaveShift = true;
+                        steps = static_cast<ImoOctaveShift*>(pRO)->get_shift_steps();
+                    }
+                }
             }
         }
     }
@@ -166,7 +145,7 @@ void StaffObjsCursor::save_key_signature()
 {
     int iInstr = num_instrument();
     int idx = m_staffIndex[iInstr] + staff();
-    m_keys[idx] = *m_scoreIt;
+    m_keys[idx] = *m_it;
 }
 
 //---------------------------------------------------------------------------------------
@@ -179,7 +158,7 @@ void StaffObjsCursor::save_barline()
 void StaffObjsCursor::save_time_signature()
 {
     int iInstr = num_instrument();
-    m_times[iInstr] = *m_scoreIt;
+    m_times[iInstr] = *m_it;
 }
 
 //---------------------------------------------------------------------------------------
@@ -258,6 +237,29 @@ ImoKeySignature* StaffObjsCursor::get_key_for_instr_staff(int iInstr, int iStaff
 }
 
 //---------------------------------------------------------------------------------------
+ColStaffObjsEntry* StaffObjsCursor::get_prolog_time_entry_for_instrument(int iInstr)
+{
+    //return entry for time signature only when the time signature has just been defined,
+    //that is, when cursor is pointing just after time entry for this instrument
+
+    ColStaffObjsEntry* pEntry = get_time_entry_for_instrument(iInstr);
+    ColStaffObjsEntry* pPrev = prev_entry();
+    if (pPrev == pEntry)
+        return pEntry;
+
+    //there could be other time signatures for other instruments, so move backwards
+    ColStaffObjsIterator it(pPrev);
+    while (*it && *it != pEntry &&
+           ((*it)->imo_object()->is_time_signature()
+            || (*it)->imo_object()->is_key_signature()) )
+    {
+        --it;
+    }
+
+    return (*it == pEntry ? pEntry : nullptr);
+}
+
+//---------------------------------------------------------------------------------------
 ImoKeySignature* StaffObjsCursor::get_applicable_key()
 {
     if (m_fScoreIsEmpty)
@@ -313,13 +315,13 @@ ColStaffObjsEntry* StaffObjsCursor::get_time_entry_for_instrument(int iInstr)
 //---------------------------------------------------------------------------------------
 void StaffObjsCursor::save_position()
 {
-    m_savedPos = m_scoreIt;
+    m_savedPos = m_it;
 }
 
 //---------------------------------------------------------------------------------------
 void StaffObjsCursor::go_back_to_saved_position()
 {
-    m_scoreIt = m_savedPos;
+    m_it = m_savedPos;
 }
 
 //---------------------------------------------------------------------------------------
@@ -378,6 +380,30 @@ void StaffObjsCursor::staff_index_to_instr_staff(int idx, int* iInstr, int* iSta
             return;
         }
     }
+}
+
+//---------------------------------------------------------------------------------------
+int StaffObjsCursor::num_staves_for_instrument(int iInstr)
+{
+    int startIdx = m_staffIndex[iInstr];
+    if (iInstr == (m_numInstruments-1))
+        return m_numStaves - startIdx;
+    else
+        return m_staffIndex[iInstr+1] - startIdx;
+}
+
+//---------------------------------------------------------------------------------------
+vector<int> StaffObjsCursor::get_applicable_clefs_for_instrument(int iInstr)
+{
+    int numStaves = num_staves_for_instrument(iInstr);
+    vector<int> clefs(numStaves);
+    int idx = staff_index_for(iInstr, 0);
+    for (int i=0; i < numStaves; ++i, ++idx)
+    {
+        ImoClef* clef = static_cast<ImoClef*>( m_clefs[idx]->imo_object() );
+        clefs[i] = clef->get_clef_type();
+    }
+    return clefs;
 }
 
 

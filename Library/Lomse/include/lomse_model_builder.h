@@ -1,42 +1,24 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2018. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #ifndef __LOMSE_MODEL_BUILDER_H__
 #define __LOMSE_MODEL_BUILDER_H__
 
-#include <ostream>
+//lomse
+#include "lomse_staffobjs_table.h"
 
+//std library
+#include <ostream>
 #include <map>
 #include <list>
 #include <vector>
 #include <array>
-using namespace std;
 
 namespace lomse
 {
@@ -45,12 +27,12 @@ namespace lomse
 class ImoBarline;
 class ImoDocument;
 class ImoInstrument;
+class ImoInstrGroup;
 class ImoKeySignature;
 class ImoNote;
 class ImoObj;
 class ImoScore;
 class ImoSoundInfo;
-class ColStaffObjsEntry;
 class ImMeasuresTable;
 class ImMeasuresTableEntry;
 
@@ -67,6 +49,9 @@ public:
     ImoDocument* build_model(ImoDocument* pImoDoc);
     void structurize(ImoObj* pImo);
 
+    ImoDocument* fix_cloned_model(ImoDocument* pImoDoc);
+    void fix_model(ImoObj* pImo);
+
 };
 
 //---------------------------------------------------------------------------------------
@@ -77,7 +62,7 @@ public:
 class PitchAssigner
 {
 protected:
-    vector<std::array<int, 7> > m_context;
+    std::vector<std::array<int, 7> > m_context;
 
 public:
     PitchAssigner() {}
@@ -100,8 +85,8 @@ protected:
 class MidiAssigner
 {
 protected:
-    list<ImoSoundInfo*> m_sounds;
-	list<string> m_ids;
+    std::list<ImoSoundInfo*> m_sounds;
+	std::list<std::string> m_ids;
 
 public:
     MidiAssigner();
@@ -115,29 +100,61 @@ protected:
     void assign_port_and_channel();
 };
 
+//---------------------------------------------------------------------------------------
+// PartIdAssigner. Implements the algorithm to traverse the score instruments and assign
+// a unique partID to any instrument not having partID
+class PartIdAssigner
+{
+protected:
+
+public:
+    PartIdAssigner();
+    virtual ~PartIdAssigner();
+
+	void assign_parts_id(ImoScore* pScore);
+
+protected:
+};
+
+//---------------------------------------------------------------------------------------
+// GroupBarlinesFixer. Implements the algorithm for ensuring that barlines shared between
+// all instruments in a group are are identified and marked as such.
+class GroupBarlinesFixer
+{
+protected:
+
+public:
+    GroupBarlinesFixer();
+    virtual ~GroupBarlinesFixer();
+
+	void set_barline_layout_in_instruments(ImoScore* pScore);
+
+protected:
+    void set_barlines_layout_for(ImoInstrGroup* pGrp);
+};
+
 
 //---------------------------------------------------------------------------------------
 // MeasuresTableBuilder. Implements the algorithm to traverse the ColStaffObjs table
-// and create the ImMeasuresTable for each instrument. If the measure entries already
-// exist (they could have been created by importers, e.g. MusicXML, MNX) in these cases
-// the algorithm just updates them to ensure they have valid content.
+// for creating the ImMeasuresTable for each instrument.
 class MeasuresTableBuilder
 {
 protected:
-    vector<ImoInstrument*> m_instruments;
-    vector<ImMeasuresTableEntry*> m_measures;   //current open measures
+    std::vector<ImMeasuresTable*> m_tables;             //table for each instrument
+    std::vector<ImMeasuresTableEntry*> m_curMeasure;    //current measure in process, for each instrument
 
 public:
-    MeasuresTableBuilder();
-    virtual ~MeasuresTableBuilder();
+    MeasuresTableBuilder() {}
+    virtual ~MeasuresTableBuilder() {}
 
 	void build(ImoScore* pScore);
 
 protected:
+
     void start_measures_table_for(int iInstr, ImoInstrument* pInstr,
-                                  ColStaffObjsEntry* pCsoEntry);
-    void finish_current_measure(int iInstr);
-    void start_new_measure(int iInstr, ColStaffObjsEntry* pCsoEntry);
+                                  ColStaffObjsEntry* pStartEntry);
+    void finish_current_measure(int iInstr, ColStaffObjsEntry* pEndEntry=nullptr);
+    void start_new_measure(int iInstr, ColStaffObjsEntry* pStartEntry);
 };
 
 

@@ -1,30 +1,10 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2016. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 //  This file is based on Anti-Grain Geometry version 2.4 examples' code and on
@@ -115,7 +95,7 @@ public:
     virtual void initialize(RenderingBuffer& buf, Color bgcolor) = 0;
     virtual void render() = 0;
     virtual void render(FontRasterizer& ras, FontScanline& sl, Color color) = 0;
-    virtual void render_gsv_text(double x, double y, const char* str) = 0;
+//    virtual void render_gsv_text(double x, double y, const char* str) = 0;
     virtual void copy_from(RenderingBuffer& img, const AggRectInt* srcRect,
                            int xDest, int yDest) = 0;
     virtual void blend_from(RenderingBuffer& bmap, const AggRectInt* srcRect,
@@ -142,10 +122,10 @@ public:
 
     virtual void get_bounding_rect(double* x1, double* y1, double* x2, double* y2) = 0;
 
-    inline void set_viewport(Pixels x, Pixels y)
+    inline void set_viewport(double x, double y)
     {
-        m_vxOrg = double(x);
-        m_vyOrg = double(y);
+        m_vxOrg = x;
+        m_vyOrg = y;
     }
 
     inline void set_scale(double scale) { m_userScale = scale; }
@@ -158,6 +138,9 @@ public:
     void remove_shift();
     inline TransAffine& get_transform() { return m_mtx; }
     void set_transform(TransAffine& transform);
+
+    //information
+    static int bytesPerPixel(int pixFmt);
 
 protected:
     TransAffine& set_transformation();
@@ -231,7 +214,7 @@ public:
     ~RendererTemplate() {}
 
     //-----------------------------------------------------------------------------------
-    void initialize(RenderingBuffer& buf, Color bgcolor)
+    void initialize(RenderingBuffer& buf, Color bgcolor) override
     {
         m_rbuf.attach(buf.buf(), buf.width(), buf.height(), buf.stride());
         m_renBase.reset_clipping(true);
@@ -243,7 +226,7 @@ public:
     }
 
     //-----------------------------------------------------------------------------------
-    void render()
+    void render() override
     {
         agg::rasterizer_scanline_aa<> ras;
         agg::scanline_p8 sl;
@@ -273,29 +256,7 @@ public:
     }
 
     //-----------------------------------------------------------------------------------
-    void render_gsv_text(double x, double y, const char* str)
-    {
-        agg::gsv_text t;
-        t.size(10.0);
-        t.flip(true);
-
-        agg::conv_stroke<agg::gsv_text> pt(t);
-        pt.width(1.5);
-
-        t.start_point(x, y);
-        t.text(str);
-
-        agg::rasterizer_scanline_aa<> ras;
-        agg::scanline_p8 sl;
-
-        ras.gamma(agg::gamma_power(m_gamma));
-        ras.add_path(pt);
-        m_renSolid.color(agg::rgba(0,0,0));
-        agg::render_scanlines(ras, sl, m_renSolid);
-    }
-
-    //-----------------------------------------------------------------------------------
-    void render(FontRasterizer& ras, FontScanline& sl, Color color)
+    void render(FontRasterizer& ras, FontScanline& sl, Color color) override
     {
         m_renSolid.color( to_rgba(color) );
         agg::render_scanlines(ras, sl, m_renSolid);
@@ -303,24 +264,24 @@ public:
 
     //-----------------------------------------------------------------------------------
     // Expand all polygons
-    void expand(double value) { m_curved_trans_contour.width(value); }
+    void expand(double value) override { m_curved_trans_contour.width(value); }
 
     //-----------------------------------------------------------------------------------
-    void get_bounding_rect(double* x1, double* y1, double* x2, double* y2)
+    void get_bounding_rect(double* x1, double* y1, double* x2, double* y2) override
     {
         agg::conv_transform<agg::path_storage> trans(m_path, m_transform);
         agg::bounding_rect(trans, *this, 0, m_attr_storage.size(), x1, y1, x2, y2);
     }
 
     //-----------------------------------------------------------------------------------
-    void copy_from(RenderingBuffer& bmap, const AggRectInt* srcRect, int xDest, int yDest)
+    void copy_from(RenderingBuffer& bmap, const AggRectInt* srcRect, int xDest, int yDest) override
     {
         m_renBase.copy_from(bmap, srcRect, xDest, yDest);
     }
 
     //-----------------------------------------------------------------------------------
     void blend_from(RenderingBuffer& bmap, const AggRectInt* srcRect, int xShift,
-                    int yShift, unsigned alpha)
+                    int yShift, unsigned alpha) override
     {
         typedef agg::pixfmt_rgba32   ImgPixFmt;
         ImgPixFmt img_pixf(bmap);
@@ -333,7 +294,7 @@ public:
                        double srcX1, double srcY1, double srcX2, double srcY2,
                        double dstX1, double dstY1, double dstX2, double dstY2,
                        EResamplingQuality resamplingMode,
-                       double alpha)
+                       double alpha) override
     {
         //set affine transformation (rotation, scale, translation, skew)
         set_transformation();

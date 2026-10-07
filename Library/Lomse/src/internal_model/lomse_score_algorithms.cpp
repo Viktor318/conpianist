@@ -1,30 +1,10 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2018. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #include "lomse_score_algorithms.h"
@@ -34,6 +14,7 @@
 #include "lomse_time.h"
 #include "lomse_staffobjs_table.h"
 #include "lomse_im_measures_table.h"
+#include "lomse_document.h"             //for enum EBeatDuration
 
 //specific for ScoreAlgorithms
 #include "lomse_pitch.h"
@@ -321,13 +302,13 @@ TimeUnits ScoreAlgorithms::get_timepos_for(ImoScore* pScore, int iMeasure, int i
     ImoInstrument* pInstr = pScore->get_instrument(iInstr);
     ImMeasuresTable* pTable = pInstr->get_measures_table();
     ImMeasuresTableEntry* measure = pTable->get_measure(iMeasure);
-    TimeUnits timepos = 0.0f;
+    TimeUnits timepos = 0.0;
     if (measure)
     {
         timepos = measure->get_timepos();
         if (iBeat >= 0)
         {
-            timepos += get_beat_duration_for(pScore, measure) * iBeat;
+            timepos += measure->get_implied_beat_duration() * iBeat;
         }
     }
     return timepos;
@@ -336,36 +317,18 @@ TimeUnits ScoreAlgorithms::get_timepos_for(ImoScore* pScore, int iMeasure, int i
 //---------------------------------------------------------------------------------------
 TimeUnits ScoreAlgorithms::get_timepos_for(ImoScore* pScore, const MeasureLocator& ml)
 {
-    if (ml.iInstr < 0 || ml.iInstr >= pScore->get_num_instruments())
+    if (!ml.is_valid() || ml.iInstr >= pScore->get_num_instruments())
         return 0.0;
 
     ImoInstrument* pInstr = pScore->get_instrument(ml.iInstr);
     ImMeasuresTable* pTable = pInstr->get_measures_table();
     ImMeasuresTableEntry* measure = pTable->get_measure(ml.iMeasure);
-    TimeUnits timepos = 0.0f;
+    TimeUnits timepos = 0.0;
     if (measure)
     {
         timepos = measure->get_timepos() + ml.location;
     }
     return timepos;
-}
-
-//---------------------------------------------------------------------------------------
-TimeUnits ScoreAlgorithms::get_beat_duration_for(ImoScore* pScore,
-                                                 ImMeasuresTableEntry* measure)
-{
-    //get current definition for 'beat'
-    Document* pDoc = pScore->get_the_document();
-    TimeUnits beatType = pDoc->get_beat_type();
-
-    //use current definition for providing beat duration
-    if (beatType == k_beat_implied)
-        return measure->get_implied_beat_duration();
-
-    if (beatType == k_beat_bottom_ts)
-        return measure->get_bottom_ts_beat_duration();
-
-    return pDoc->get_beat_duration();
 }
 
 

@@ -1,42 +1,22 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2018. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #ifndef __LOMSE_STAFFOBJS_TABLE_H__
 #define __LOMSE_STAFFOBJS_TABLE_H__
 
+#include "private/lomse_document_p.h"
+#include "lomse_time.h"
+
+//std
 #include <vector>
 #include <ostream>
 #include <map>
-#include "lomse_document.h"
-#include "lomse_time.h"
-
-using namespace std;
 
 namespace lomse
 {
@@ -44,15 +24,17 @@ namespace lomse
 #define LOMSE_NO_NOTE_DURATION  100000000.0f    //any too high value for note/rest
 
 //forward declarations
-class ImoObj;
-class ImoStaffObj;
-class ImoGoBackFwd;
+class DivisionsComputer;
 class ImoAuxObj;
 class ImoDirection;
-class ImoScore;
-class ImoTimeSignature;
 class ImoGoBackFwd;
+class ImoGraceNote;
+class ImoGraceRelObj;
 class ImoMusicData;
+class ImoObj;
+class ImoScore;
+class ImoStaffObj;
+class ImoTimeSignature;
 
 
 //---------------------------------------------------------------------------------------
@@ -80,6 +62,7 @@ public:
         , m_pNext(nullptr)
         , m_pPrev(nullptr)
     {
+        m_pImo->set_colstaffobjs_entry(this);
     }
 
     //getters
@@ -92,13 +75,8 @@ public:
     inline long element_id() { return m_pImo->get_id(); }
     inline TimeUnits duration() const { return m_pImo->get_duration(); }
 
-    //setters
-    inline void decrement_time(TimeUnits timeShift) {
-        m_pImo->set_time( m_pImo->get_time() - timeShift );
-    }
-
     //debug
-    string dump(bool fWithIds=true);
+    std::string dump(bool fWithIds=true);
     std::string to_string();
     std::string to_string_with_ids();
 
@@ -118,16 +96,19 @@ protected:
 //---------------------------------------------------------------------------------------
 // ColStaffObjs: encapsulates the staff objects collection for a score
 //---------------------------------------------------------------------------------------
-
-//typedef  vector<ColStaffObjsEntry*>::iterator      ColStaffObjsIterator;
-
 class ColStaffObjs
 {
 protected:
     int m_numLines;
     int m_numEntries;
     TimeUnits m_rMissingTime;
+    TimeUnits m_rAnacrusisExtraTime;    //extra anacrusis time introduced by grace notes
     TimeUnits m_minNoteDuration;
+    int m_numHalf;
+    int m_numQuarter;
+    int m_numEighth;
+    int m_num16th;
+    int m_divisions = 480;
 
     ColStaffObjsEntry* m_pFirst;
     ColStaffObjsEntry* m_pLast;
@@ -137,14 +118,21 @@ public:
     ~ColStaffObjs();
 
     //table info
-    inline int num_entries() { return m_numEntries; }
-    inline int num_lines() { return m_numLines; }
-    inline bool is_anacrusis_start() { return is_greater_time(m_rMissingTime, 0.0); }
-    inline TimeUnits anacrusis_missing_time() { return m_rMissingTime; }
-    inline TimeUnits min_note_duration() { return m_minNoteDuration; }
+    inline int num_entries() const { return m_numEntries; }
+    inline int num_lines() const { return m_numLines; }
+    inline bool is_anacrusis_start() const { return is_greater_time(m_rMissingTime, 0.0); }
+    inline TimeUnits anacrusis_missing_time() const { return m_rMissingTime; }
+    inline TimeUnits anacrusis_extra_time() const { return m_rAnacrusisExtraTime; }
+    inline TimeUnits min_note_duration() const { return m_minNoteDuration; }
+    inline int num_half_noterests() const { return m_numHalf; }
+    inline int num_quarter_noterests() const { return m_numQuarter; }
+    inline int num_eighth_noterests() const { return m_numEighth; }
+    inline int num_16th_noterests() const { return m_num16th; }
+    inline int get_divisions() const { return m_divisions; }
 
     //table management
-    void add_entry(int measure, int instr, int voice, int staff, ImoStaffObj* pImo);
+    ColStaffObjsEntry* add_entry(int measure, int instr, int voice, int staff,
+                                 ImoStaffObj* pImo);
     void delete_entry_for(ImoStaffObj* pSO);
 
     //iterator related
@@ -174,15 +162,6 @@ public:
                     m_pPrev = nullptr;
                     m_pNext = nullptr;
                 }
-            }
-
-            virtual ~iterator() {}
-
-            iterator& operator =(const iterator& it) {
-                m_pCurrent = it.m_pCurrent;
-                m_pNext = it.m_pNext;
-                m_pPrev = it.m_pPrev;
-                return *this;
             }
 
 	        ColStaffObjsEntry* operator *() const { return m_pCurrent; }
@@ -226,7 +205,7 @@ public:
     inline iterator find(ImoStaffObj* pSO) { return iterator(find_entry_for(pSO)); }
 
     //debug
-    string dump(bool fWithIds=true);
+    std::string dump(bool fWithIds=true);
 
 protected:
 
@@ -237,9 +216,12 @@ protected:
 
     inline void set_total_lines(int number) { m_numLines = number; }
     inline void set_anacrusis_missing_time(TimeUnits rTime) { m_rMissingTime = rTime; }
+    inline void set_anacrusis_extra_time(TimeUnits rTime) { m_rAnacrusisExtraTime = rTime; }
     void sort_table();
     static bool is_lower_entry(ColStaffObjsEntry* b, ColStaffObjsEntry* a);
     inline void set_min_note(TimeUnits duration) { m_minNoteDuration = duration; }
+    void count_noterest(ImoNoteRest* pNR);
+    inline void set_divisions(int div) { m_divisions = div; }
 
     void add_entry_to_list(ColStaffObjsEntry* pEntry);
     ColStaffObjsEntry* find_entry_for(ImoStaffObj* pSO);
@@ -250,21 +232,26 @@ typedef  ColStaffObjs::iterator      ColStaffObjsIterator;
 
 
 //---------------------------------------------------------------------------------------
-// StaffVoiceLineTable: algorithm assign line number to voices/staves
-//---------------------------------------------------------------------------------------
+/** StaffVoiceLineTable: algorithm assign line number to voices/staves
+    The algorithm is very simple:
+    - It assigns a default voice to each staff, to be used when no voice (voice == 0)
+      and for first voice defined in that staff.
+    - All other voices receive a different line number
+*/
 class StaffVoiceLineTable
 {
 protected:
-    int                 m_lastAssignedLine;
-    std::map<int, int>  m_lineForStaffVoice;    //key = 100*staff + voice
-    std::vector<int>    m_firstVoiceForStaff;   //key = staff
+    int                 m_lastDefinedLine;      //number of the last defined line, initially -1
+    std::vector<int>    m_firstVoiceForStaff;   //default line assigned to each staff
+    std::map<int, int>  m_lineForStaffVoice;    //voice assigned to each (staff, voice) combination.
+                                                //The key for the map is key = 100*staff + voice
 
 public:
     StaffVoiceLineTable();
 
     int get_line_assigned_to(int nVoice, int nStaff);
     void new_instrument();
-    inline int get_number_of_lines() { return m_lastAssignedLine; }
+    inline int get_number_of_lines() { return m_lastDefinedLine; }
 
 private:
     int assign_line_to(int nVoice, int nStaff);
@@ -277,6 +264,7 @@ private:
 // ColStaffObjsBuilder: generic algorithm to create a ColStaffObjs table
 //---------------------------------------------------------------------------------------
 class ColStaffObjsBuilderEngine;
+
 
 class ColStaffObjsBuilder
 {
@@ -297,41 +285,59 @@ protected:
 class ColStaffObjsBuilderEngine
 {
 protected:
-    ColStaffObjs* m_pColStaffObjs;
-    ImoScore* m_pImScore;
+    ColStaffObjs* m_pColStaffObjs = nullptr;
+    ImoScore* m_pImScore = nullptr;
+    DivisionsComputer* m_pDivComputer = nullptr;    //for computing MusicXML divisions
 
-    int         m_nCurMeasure;
-    TimeUnits   m_rMaxSegmentTime;
-    TimeUnits   m_rStartSegmentTime;
-    TimeUnits   m_minNoteDuration;
+    int         m_nCurMeasure = 0;
+    TimeUnits   m_rMaxSegmentTime = 0.0;
+    TimeUnits   m_rStartSegmentTime = 0.0;
+    TimeUnits   m_minNoteDuration = LOMSE_NO_NOTE_DURATION;
+    TimeUnits   m_gracesAnacrusisTime = 0.0;
     StaffVoiceLineTable  m_lines;
+    std::vector<ColStaffObjsEntry*> m_graces;   //entries for grace notes
+    std::vector<ImoNote*> m_arpeggios;          //chord base notes for arpeggiated chords
 
-    ColStaffObjsBuilderEngine(ImoScore* pScore)
-        : m_pColStaffObjs(nullptr)
-        , m_pImScore(pScore)
-        , m_nCurMeasure(0)
-        , m_rMaxSegmentTime(0.0)
-        , m_rStartSegmentTime(0.0)
-        , m_minNoteDuration(LOMSE_NO_NOTE_DURATION)
-    {}
+
+    ColStaffObjsBuilderEngine(ImoScore* pScore);
 
 public:
-    virtual ~ColStaffObjsBuilderEngine() {}
+    virtual ~ColStaffObjsBuilderEngine();
+    ColStaffObjsBuilderEngine(const ColStaffObjsBuilderEngine&) = delete;
+    ColStaffObjsBuilderEngine& operator= (const ColStaffObjsBuilderEngine&) = delete;
+    ColStaffObjsBuilderEngine(ColStaffObjsBuilderEngine&&) = delete;
+    ColStaffObjsBuilderEngine& operator= (ColStaffObjsBuilderEngine&&) = delete;
 
     ColStaffObjs* do_build();
+
+    //debug
+    std::string dump_divisions_data() const;
 
 protected:
     virtual void initializations()=0;
     virtual void determine_timepos(ImoStaffObj* pSO)=0;
-    virtual void create_entries(int nInstr)=0;
+    virtual void create_entries_for_instrument(int nInstr)=0;
     virtual void prepare_for_next_instrument()=0;
 
     void create_table();
     void collect_anacrusis_info();
+    void collect_note_rest_info(ImoNoteRest* pNR);
     int get_line_for(int nVoice, int nStaff);
     void set_num_lines();
     void add_entries_for_key_or_time_signature(ImoObj* pImo, int nInstr);
     void set_min_note_duration();
+    void compute_grace_notes_playback_time();
+    void process_grace_relobj(ImoGraceNote* pGrace, ImoGraceRelObj* pGRO,
+                              ColStaffObjsEntry* pEntry);
+    ImoNote* locate_grace_principal_note(ColStaffObjsEntry* pEntry);
+    ImoNote* locate_grace_previous_note(ColStaffObjsEntry* pEntry);
+    void fix_negative_playback_times();
+    void compute_arpeggiated_chords_playback_time();
+    void compute_divisions();
+
+    static void save_arpeggiated_note(ImoNote* pNote, bool fBottomUp,
+                                      list<ImoNote*>& chordNotes);
+
 
 };
 
@@ -350,23 +356,30 @@ public:
     ColStaffObjsBuilderEngine1x(ImoScore* pScore)
         : ColStaffObjsBuilderEngine(pScore)
         , m_rCurTime(0.0)
+        , m_rCurAlignTime(0.0)
+        , m_pLastBarline(nullptr)
     {
     }
-    virtual ~ColStaffObjsBuilderEngine1x() {}
+    ~ColStaffObjsBuilderEngine1x() override {}
 
 private:
     TimeUnits   m_rCurTime;
+    TimeUnits   m_rCurAlignTime;
+    ImoBarline* m_pLastBarline;
 
-    void initializations();
-    void create_entries(int nInstr);
+    //overrides for base class ColStaffObjsBuilderEngine
+    void initializations() override;
+    void determine_timepos(ImoStaffObj* pSO) override;
+    void create_entries_for_instrument(int nInstr) override;
+    void prepare_for_next_instrument() override;
+
+    //specific
     void reset_counters();
-    void determine_timepos(ImoStaffObj* pSO);
     void update_measure(ImoStaffObj* pSO);
     void update_time_counter(ImoGoBackFwd* pGBF);
     void add_entry_for_staffobj(ImoObj* pImo, int nInstr);
     ImoDirection* anchor_object(ImoAuxObj* pImo);
     void delete_node(ImoGoBackFwd* pGBF, ImoMusicData* pMusicData);
-    void prepare_for_next_instrument();
 
 };
 
@@ -380,25 +393,32 @@ private:
 class ColStaffObjsBuilderEngine2x : public ColStaffObjsBuilderEngine
 {
 protected:
-    vector<TimeUnits> m_rCurTime;
-    int m_curVoice;
+    std::vector<TimeUnits> m_rCurTime;      //time for each voice
+    std::vector<TimeUnits> m_rStaffTime;    //time for each staff
+    std::list< std::pair<ImoStaffObj*, int> > m_pendingObjs;
+    int         m_curVoice = 0;
+    int         m_prevVoice = 0;
+    int         m_numStaves = 1;            //in current instrument
+    TimeUnits   m_rCurAlignTime = 0.0;
+    TimeUnits   m_instrTime = 0.0;        //current timepos for this instrument
+    ImoBarline* m_pLastBarline = nullptr;
 
 public:
-    ColStaffObjsBuilderEngine2x(ImoScore* pScore)
-        : ColStaffObjsBuilderEngine(pScore)
-        , m_curVoice(0)
-    {
-    }
-    virtual ~ColStaffObjsBuilderEngine2x() {}
+    ColStaffObjsBuilderEngine2x(ImoScore* pScore) : ColStaffObjsBuilderEngine(pScore) {}
+    ~ColStaffObjsBuilderEngine2x() override {}
 
 private:
-    void initializations();
-    void create_entries(int nInstr);
+
+    //overrides for base class ColStaffObjsBuilderEngine
+    void initializations() override;
+    void determine_timepos(ImoStaffObj* pSO) override;
+    void create_entries_for_instrument(int nInstr) override;
+    void prepare_for_next_instrument() override;
+
+    //specific
     void reset_counters();
-    void determine_timepos(ImoStaffObj* pSO);
     void update_measure();
     void add_entry_for_staffobj(ImoObj* pImo, int nInstr);
-    void prepare_for_next_instrument();
 
 };
 

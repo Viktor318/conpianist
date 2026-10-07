@@ -1,30 +1,10 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2019. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #include "lomse_tuplet_engraver.h"
@@ -69,73 +49,60 @@ TupletEngraver::~TupletEngraver()
 }
 
 //---------------------------------------------------------------------------------------
-void TupletEngraver::set_start_staffobj(ImoRelObj* pRO, ImoStaffObj* pSO,
-                                        GmoShape* pStaffObjShape, int iInstr, int iStaff,
-                                        int UNUSED(iSystem), int UNUSED(iCol),
-                                        LUnits UNUSED(xStaffLeft),
-                                        LUnits UNUSED(xStaffRight), LUnits UNUSED(yStaffTop),
-                                        int idxStaff, VerticalProfile* pVProfile)
+void TupletEngraver::set_start_staffobj(ImoRelObj* pRO, const AuxObjContext& aoc)
 {
-    m_iInstr = iInstr;
-    m_iStaff = iStaff;
+    m_iInstr = aoc.iInstr;
+    m_iStaff = aoc.iStaff;
+    m_idxStaff = aoc.idxStaff;
+
     m_pTuplet = dynamic_cast<ImoTuplet*>( pRO );
 
-    ImoNoteRest* pNR = dynamic_cast<ImoNoteRest*>(pSO);
-    m_noteRests.push_back( make_pair(pNR, pStaffObjShape) );
-
-    m_idxStaff = idxStaff;
-    m_pVProfile = pVProfile;
+    ImoNoteRest* pNR = dynamic_cast<ImoNoteRest*>(aoc.pSO);
+    m_noteRests.push_back( make_pair(pNR, aoc.pStaffObjShape) );
 }
 
 //---------------------------------------------------------------------------------------
-void TupletEngraver::set_middle_staffobj(ImoRelObj* UNUSED(pRO), ImoStaffObj* pSO,
-                                         GmoShape* pStaffObjShape, int UNUSED(iInstr),
-                                         int UNUSED(iStaff), int UNUSED(iSystem),
-                                         int UNUSED(iCol), LUnits UNUSED(xStaffLeft),
-                                         LUnits UNUSED(xStaffRight), LUnits UNUSED(yStaffTop),
-                                         int idxStaff, VerticalProfile* pVProfile)
+void TupletEngraver::set_middle_staffobj(ImoRelObj* UNUSED(pRO), const AuxObjContext& aoc)
 {
-    ImoNoteRest* pNR = dynamic_cast<ImoNoteRest*>(pSO);
-    m_noteRests.push_back( make_pair(pNR, pStaffObjShape) );
-
-    m_idxStaff = idxStaff;
-    m_pVProfile = pVProfile;
+    ImoNoteRest* pNR = dynamic_cast<ImoNoteRest*>(aoc.pSO);
+    m_noteRests.push_back( make_pair(pNR, aoc.pStaffObjShape) );
 }
 
 //---------------------------------------------------------------------------------------
-void TupletEngraver::set_end_staffobj(ImoRelObj* UNUSED(pRO), ImoStaffObj* pSO,
-                                      GmoShape* pStaffObjShape, int UNUSED(iInstr),
-                                      int UNUSED(iStaff), int UNUSED(iSystem),
-                                      int UNUSED(iCol), LUnits UNUSED(xStaffLeft),
-                                      LUnits UNUSED(xStaffRight), LUnits UNUSED(yStaffTop),
-                                      int idxStaff, VerticalProfile* pVProfile)
+void TupletEngraver::set_end_staffobj(ImoRelObj* UNUSED(pRO), const AuxObjContext& aoc)
 {
-    ImoNoteRest* pNR = dynamic_cast<ImoNoteRest*>(pSO);
-    m_noteRests.push_back( make_pair(pNR, pStaffObjShape) );
-
-    m_idxStaff = idxStaff;
-    m_pVProfile = pVProfile;
+    ImoNoteRest* pNR = dynamic_cast<ImoNoteRest*>(aoc.pSO);
+    m_noteRests.push_back( make_pair(pNR, aoc.pStaffObjShape) );
 }
 
 //---------------------------------------------------------------------------------------
-GmoShape* TupletEngraver::create_first_or_intermediate_shape(Color color)
+GmoShape* TupletEngraver::create_first_or_intermediate_shape(const RelObjEngravingContext& ctx)
 {
     //TODO: It has been assumed that a tuplet cannot be split. This has to be revised
-    m_color = color;
+    m_color = ctx.color;
+    m_pVProfile = ctx.pVProfile;
+
     return nullptr;
 }
 
 //---------------------------------------------------------------------------------------
-GmoShape* TupletEngraver::create_last_shape(Color color)
+GmoShape* TupletEngraver::create_last_shape(const RelObjEngravingContext& ctx)
 {
-    m_color = color;
+    GmoShapeNote* pStart = get_first_note();
+    GmoShapeNote* pEnd = get_last_note();
+    if (!pStart || !pEnd)
+        return nullptr;     //all group are rests or notes longer than quarter note!
+
+    m_color = ctx.color;
+    m_pVProfile = ctx.pVProfile;
+
     decide_tuplet_placement();
     decide_if_show_bracket();
     determine_tuplet_text();
 
     if (m_fDrawNumber || m_fDrawBracket)
     {
-        compute_y_coordinates();
+        compute_y_coordinates(pStart, pEnd);
         create_shape();
         set_shape_details();
         m_numShapes = 1;
@@ -212,20 +179,15 @@ void TupletEngraver::decide_tuplet_placement()
 //---------------------------------------------------------------------------------------
 void TupletEngraver::add_text_shape()
 {
-    TextEngraver engr(m_libraryScope, m_pMeter, m_label, "", m_pStyle);
-    GmoShapeText* pShape = engr.create_shape(m_pTuplet, 0.0f, 0.0f);
+    TextEngraver engr(m_libraryScope, m_pMeter, m_label, "", m_pStyle,
+                      TextEngraver::k_class_tuplet_text);
+    GmoShapeText* pShape = engr.create_shape(m_pTuplet, 0, 0.0f, 0.0f);
     m_pTupletShape->add_label(pShape);
 }
 
 //---------------------------------------------------------------------------------------
-void TupletEngraver::compute_y_coordinates()
+void TupletEngraver::compute_y_coordinates(GmoShapeNote* pStart, GmoShapeNote* pEnd)
 {
-    GmoShapeNote* pStart = get_first_note();
-    GmoShapeNote* pEnd = get_last_note();
-
-    if (!pStart || !pEnd)
-    	return;     //all group are rests or notes longer than quarter note!
-
     GmoShapeBeam* pBeamShapeStart = static_cast<GmoShapeBeam*>(
                                     pStart->find_related_shape(GmoObj::k_shape_beam) );
     GmoShapeBeam* pBeamShapeEnd = static_cast<GmoShapeBeam*>(
@@ -269,12 +231,31 @@ void TupletEngraver::compute_y_coordinates()
                     {
                         GmoShapeBeam* pBeamShape = static_cast<GmoShapeBeam*>(
                                           pNoteShape->find_related_shape(GmoObj::k_shape_beam) );
+                        //TODO bug bypass: forget about the beam if beam is nullptr.
+                        //Why is nullptr? tuplet in chord ? Is pNote a chord base note?
+                        if (pBeamShape == nullptr)
+                        {
+                            //not beamed note
+                            if (m_fAbove)
+                            {
+                                yMax = max(yMax, pNoteShape->get_top());
+                                yMin = min(yMin, pNoteShape->get_top());
+                            }
+                            else
+                            {
+                                yMax = max(yMax, pNoteShape->get_bottom());
+                                yMin = min(yMin, pNoteShape->get_bottom());
+                            }
+                        }
+                        else
+                        {
                         UPoint pos = pBeamShape->get_outer_right_reference_point();
                         yMax = max(yMax, pos.y);
                         yMin = min(yMin, pos.y);
                         pos = pBeamShape->get_outer_left_reference_point();
                         yMax = max(yMax, pos.y);
                         yMin = min(yMin, pos.y);
+                        }
                     }
                 }
                 else
@@ -327,8 +308,8 @@ GmoShapeNote* TupletEngraver::get_first_note()
     std::list< pair<ImoNoteRest*, GmoShape*> >::iterator it;
     for (it = m_noteRests.begin(); it != m_noteRests.end(); ++it)
     {
-        if ((*it).first->is_note())
-            return dynamic_cast<GmoShapeNote*>((*it).second);
+        if ((*it).second->is_shape_note())
+            return static_cast<GmoShapeNote*>((*it).second);
     }
     return nullptr;    //imposible case unless all group are rests!
 }
@@ -339,8 +320,8 @@ GmoShapeNote* TupletEngraver::get_last_note()
     std::list< pair<ImoNoteRest*, GmoShape*> >::reverse_iterator it;
     for (it = m_noteRests.rbegin(); it != m_noteRests.rend(); ++it)
     {
-        if ((*it).first->is_note())
-            return dynamic_cast<GmoShapeNote*>((*it).second);
+        if ((*it).second->is_shape_note())
+            return static_cast<GmoShapeNote*>((*it).second);
     }
     return nullptr;    //imposible case unless all group are rests!
 }
@@ -369,17 +350,21 @@ int TupletEngraver::count_nested_tuplets()
         ImoNoteRest* pNR = static_cast<ImoNoteRest*>((*it).first);
         if (pNR->get_num_relations() > 0)
         {
-            ImoRelations* pRelObjs = pNR->get_relations();
-            int size = pRelObjs->get_num_items();
-            for (int i=0; i < size; ++i)
+            ImoRelations* pRels = pNR->get_relations();
+            list<ImoRelObj*>& relobjs = pRels->get_relobjs();
+            if (relobjs.size() > 0)
             {
-                ImoRelObj* pRO = pRelObjs->get_item(i);
-                if (pRO->is_tuplet())
+                list<ImoRelObj*>::iterator it;
+                for (it = relobjs.begin(); it != relobjs.end(); ++it)
                 {
-                    if (pRO->get_start_object() == pNR)
-                        openTuplets++;
-                    else if (pRO->get_end_object() == pNR)
-                        openTuplets--;
+                    ImoRelObj* pRO = static_cast<ImoRelObj*>(*it);
+                    if (pRO->is_tuplet())
+                    {
+                        if (pRO->get_start_object() == pNR)
+                            openTuplets++;
+                        else if (pRO->get_end_object() == pNR)
+                            openTuplets--;
+                    }
                 }
             }
         }

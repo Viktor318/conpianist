@@ -1,30 +1,10 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2018. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #ifndef __LOMSE_GM_BASIC_H__
@@ -38,7 +18,6 @@
 #include <list>
 #include <ostream>
 #include <map>
-using namespace std;
 
 namespace lomse
 {
@@ -82,7 +61,7 @@ class ScoreStub
 {
 protected:
     ImoId m_scoreId;
-    vector<GmoBoxScorePage*> m_pages;
+    std::vector<GmoBoxScorePage*> m_pages;
     GmMeasuresTable* m_measures;
 
 public:
@@ -90,7 +69,7 @@ public:
     ~ScoreStub();
 
     inline void add_page(GmoBoxScorePage* pPage) { m_pages.push_back(pPage); }
-    inline vector<GmoBoxScorePage*>& get_pages() { return m_pages; }
+    inline std::vector<GmoBoxScorePage*>& get_pages() { return m_pages; }
 
     /** Returns the GmoBoxScorePage containing timepos @c time. If @c time is not in
         the score, returns @nullptr. This method gives preference to find pages for
@@ -171,25 +150,26 @@ public:
                 k_box_control, k_box_table, k_box_table_rows,
            k_shape,
                 k_shape_accidentals, k_shape_accidental_sign,
+                k_shape_arpeggio,
                 k_shape_articulation,
                 k_shape_barline, k_shape_beam, k_shape_brace,
-                k_shape_bracket, k_shape_button,
-                k_shape_clef, k_shape_coda_segno,
+                k_shape_bracket, k_shape_clef, k_shape_coda_segno,
                 k_shape_debug, k_shape_dot, k_shape_dynamics_mark,
-                k_shape_fermata, k_shape_flag, k_shape_image,
-                k_shape_invisible, k_shape_key_signature, k_shape_lyrics,
+                k_shape_fermata, k_shape_fingering_box, k_shape_fingering,
+                k_shape_flag, k_shape_grace_stroke, k_shape_image,
+                k_shape_invisible, k_shape_key_signature, k_shape_line, k_shape_lyrics,
                 k_shape_metronome_glyph, k_shape_metronome_mark,
-                k_shape_line, k_shape_note, k_shape_chord_base_note, k_shape_notehead,
+                k_shape_note, k_shape_chord_base_note, k_shape_notehead,
                 k_shape_octave_shift, k_shape_octave_glyph, k_shape_ornament,
+                k_shape_pedal_glyph, k_shape_pedal_line,
                 k_shape_rectangle, k_shape_rest, k_shape_rest_glyph,
                 k_shape_slur, k_shape_squared_bracket,
-                k_shape_stem, k_shape_staff,
+                k_shape_staff, k_shape_stem,
                 k_shape_technical,
                 k_shape_text,
                 k_shape_text_box,
-                k_shape_time_signature,
-                k_shape_tie,
-                k_shape_time_signature_glyph, k_shape_tuplet,
+                k_shape_tie, k_shape_time_signature_glyph,
+                k_shape_time_signature, k_shape_tuplet,
                 k_shape_volta_bracket, k_shape_wedge, k_shape_word,
             k_max
          };
@@ -221,6 +201,7 @@ public:
     inline bool is_box_system() { return m_objtype == k_box_system; }
     inline bool is_box_table_rows() { return m_objtype == k_box_table_rows; }
 
+    bool is_shape_arpeggio() const { return m_objtype == k_shape_arpeggio; }
     inline bool is_shape_articulation() { return m_objtype == k_shape_articulation; }
     inline bool is_shape_accidentals() { return m_objtype == k_shape_accidentals; }
     inline bool is_shape_accidental_sign() { return m_objtype == k_shape_accidental_sign; }
@@ -228,14 +209,16 @@ public:
     inline bool is_shape_beam() { return m_objtype == k_shape_beam; }
     inline bool is_shape_brace() { return m_objtype == k_shape_brace; }
     inline bool is_shape_bracket() { return m_objtype == k_shape_bracket; }
-    inline bool is_shape_button() { return m_objtype == k_shape_button; }
     inline bool is_shape_clef() { return m_objtype == k_shape_clef; }
     inline bool is_shape_coda_segno() { return m_objtype == k_shape_coda_segno; }
     inline bool is_shape_debug() { return m_objtype == k_shape_debug; }
     inline bool is_shape_dot() { return m_objtype == k_shape_dot; }
     inline bool is_shape_dynamics_mark() { return m_objtype == k_shape_dynamics_mark; }
     inline bool is_shape_fermata() { return m_objtype == k_shape_fermata; }
+    inline bool is_shape_fingering_box() { return m_objtype == k_shape_fingering_box; }
+    inline bool is_shape_fingering() { return m_objtype == k_shape_fingering; }
     inline bool is_shape_flag() { return m_objtype == k_shape_flag; }
+    inline bool is_shape_grace_stroke() { return m_objtype == k_shape_grace_stroke; }
     inline bool is_shape_image() { return m_objtype == k_shape_image; }
     inline bool is_shape_invisible() { return m_objtype == k_shape_invisible; }
     inline bool is_shape_key_signature() { return m_objtype == k_shape_key_signature; }
@@ -250,6 +233,8 @@ public:
     inline bool is_shape_octave_shift() { return m_objtype == k_shape_octave_shift; }
     inline bool is_shape_octave_num() { return m_objtype == k_shape_octave_glyph; }
     inline bool is_shape_ornament() { return m_objtype == k_shape_ornament; }
+    inline bool is_shape_pedal_glyph() const { return m_objtype == k_shape_pedal_glyph; }
+    inline bool is_shape_pedal_line() const { return m_objtype == k_shape_pedal_line; }
     inline bool is_shape_rectangle() { return m_objtype == k_shape_rectangle; }
     inline bool is_shape_rest() { return m_objtype == k_shape_rest; }
     inline bool is_shape_rest_glyph() { return m_objtype == k_shape_rest_glyph; }
@@ -275,17 +260,16 @@ public:
     inline void set_height(LUnits height) { m_size.height = height; }
 
     //position
-    inline LUnits get_left() { return m_origin.x; }
-    inline LUnits get_top() { return m_origin.y; }
-    inline LUnits get_right() { return m_origin.x + m_size.width; }
-    inline LUnits get_bottom() { return m_origin.y + m_size.height; }
+    LUnits get_left() const { return m_origin.x; }
+    LUnits get_top() const { return m_origin.y; }
+    LUnits get_right() const { return m_origin.x + m_size.width; }
+    LUnits get_bottom() const { return m_origin.y + m_size.height; }
     void set_origin(UPoint& pos);
     void set_origin(const UPoint& pos);
     void set_origin(LUnits xLeft, LUnits yTop);
     void set_left(LUnits xLeft);
     void set_top(LUnits yTop);
     virtual void shift_origin(const USize& shift);
-    void shift_origin(LUnits x, LUnits y);
 
     //bounds
     bool bounds_contains_point(UPoint& p);
@@ -298,8 +282,8 @@ public:
     inline ImoObj* get_creator_imo() { return m_pCreatorImo; }
 
     //parent
-    inline void set_owner_box(GmoBox* pBox) { m_pParentBox = pBox; };
-    inline GmoBox* get_owner_box() { return m_pParentBox; };
+    inline void set_owner_box(GmoBox* pBox) { m_pParentBox = pBox; }
+    inline GmoBox* get_owner_box() { return m_pParentBox; }
     GmoBoxDocPage* get_page_box();
 
     //support for handlers
@@ -309,10 +293,14 @@ public:
     virtual void on_handler_dragged(int UNUSED(iHandler), UPoint UNUSED(newPos)) {}
     virtual void on_end_of_handler_drag(int UNUSED(iHandler), UPoint UNUSED(newPos)) {}
 
+    //info
+    const std::string get_notation_id(const std::string& prefix="");
+    const std::string get_notation_class();
+
     //tests & debug
     virtual void dump(ostream& outStream, int level);
-    static const string& get_name(int objtype);
-    inline const string& get_name() { return get_name(m_objtype); }
+    static const std::string& get_name(int objtype);
+    inline const std::string& get_name() { return get_name(m_objtype); }
 
 protected:
     GmoObj(int objtype, ImoObj* pCreatorImo);
@@ -330,7 +318,7 @@ protected:
     std::list<GmoShape*>* m_pRelatedShapes;
 
 public:
-    virtual ~GmoShape();
+    ~GmoShape() override;
 
     virtual void on_draw(Drawer* pDrawer, RenderOptions& opt);
 
@@ -357,6 +345,7 @@ public:
     void set_origin_and_notify_observers(LUnits xLeft, LUnits yTop);
     virtual bool hit_test(LUnits x, LUnits y);
     virtual void reposition_shape(LUnits yShift);
+    virtual LUnits get_baseline_y() const { return get_bottom(); }
 
     //related shapes
     inline std::list<GmoShape*>* get_related_shapes() { return m_pRelatedShapes; }
@@ -364,8 +353,8 @@ public:
     GmoShape* find_related_shape(int type);
 
     //other flags
-    void set_hover(bool value) { value ? m_flags |= k_hover : m_flags &= ~k_hover; }
-    void set_in_link(bool value) { value ? m_flags |= k_in_link : m_flags &= ~k_in_link; }
+    void set_hover(bool value) override { value ? m_flags |= k_hover : m_flags &= ~k_hover; }
+    void set_in_link(bool value) override { value ? m_flags |= k_in_link : m_flags &= ~k_in_link; }
     void set_flag_value(bool value, unsigned int flag) {
         value ? m_flags |= flag : m_flags &= ~flag;
     }
@@ -380,18 +369,18 @@ public:
     }
     inline void assign_id_as_prolog_shape(int iSystem, int iStaff, int numStaves)
     {
-        m_idx = (2 + iSystem) * numStaves + iStaff;
+        m_idx = iSystem * numStaves + iStaff;
     }
     static ShapeId generate_main_or_implicity_shape_id(int iStaff) { return iStaff; }
 
     //test and debug
-    void dump(ostream& outStream, int level);
-    void set_color(Color color) { m_color = color; }
+    void dump(ostream& outStream, int level) override;
+    virtual void set_color(Color color) { m_color = color; }
+    virtual Color get_normal_color() { return m_color; }
 
 protected:
     GmoShape(ImoObj* pCreatorImo, int objtype, ShapeId idx, Color color);
     virtual Color determine_color_to_use(RenderOptions& opt);
-    virtual Color get_normal_color() { return m_color; }
 
 };
 
@@ -412,13 +401,13 @@ protected:
     LUnits m_uRightMargin;
 
 public:
-    virtual ~GmoBox();
+    ~GmoBox() override;
 
     //child boxes
     inline int get_num_boxes() { return static_cast<int>( m_childBoxes.size() ); }
     void add_child_box(GmoBox* child);
     GmoBox* get_child_box(int i);  //i = 0..n-1
-    inline vector<GmoBox*>& get_child_boxes() { return m_childBoxes; }
+    inline std::vector<GmoBox*>& get_child_boxes() { return m_childBoxes; }
 
     //parent
     GmoBox* get_parent_box() { return m_pParentBox; }
@@ -430,8 +419,8 @@ public:
     GmoShape* get_shape(int i);  //i = 0..n-1
 
     //flags
-    void set_hover(bool value) { set_flag_value(value, k_hover); }
-    void set_in_link(bool value) { set_flag_value(value, k_in_link); }
+    void set_hover(bool value) override { set_flag_value(value, k_hover); }
+    void set_in_link(bool value) override { set_flag_value(value, k_in_link); }
     void set_has_edit_focus(bool value) { set_flag_value(value, k_has_edit_focus); }
     void set_flag_value(bool value, unsigned int flag);
 
@@ -484,14 +473,37 @@ protected:
     void draw_border(Drawer* pDrawer, RenderOptions& opt);
     bool must_draw_bounds(RenderOptions& opt);
     Color get_box_color();
-    void draw_box_bounds(Drawer* pDrawer, double xorg, double yorg, Color& color);
+    virtual void draw_box_bounds(Drawer* pDrawer, double xorg, double yorg, Color& color);
     void draw_shapes(Drawer* pDrawer, RenderOptions& opt);
     void add_shapes_to_tables_in(GmoBoxDocPage* pPage);
 
+    friend class StaffObjShapeCursor;
     friend class GraphicModel;
     void add_boxes_to_map_imo_to_box(GraphicModel* pGM);
     void add_boxes_to_controls_map(GraphicModel* pGM);
 
+};
+
+//---------------------------------------------------------------------------------------
+class StaffObjShapeCursor {
+public:
+    explicit StaffObjShapeCursor(GmoBox* pBox);
+    explicit StaffObjShapeCursor(GmoShape* pShape);
+
+    GmoShape* get_shape() const { return (*m_it); }
+    TimeUnits get_time() const;
+
+    bool next();
+    bool next(TimeUnits maxTime);
+    bool nextAfter(TimeUnits time);
+
+    bool prev();
+    bool prev(TimeUnits minTime);
+    bool prevBefore(TimeUnits time);
+
+protected:
+    GmoBox* m_pCurrentBox;
+    std::list<GmoShape*>::const_iterator m_it;
 };
 
 //---------------------------------------------------------------------------------------
@@ -503,7 +515,7 @@ protected:
 
 public:
     GmoBoxDocument(GraphicModel* pGModel, ImoObj* pCreatorImo);
-    virtual ~GmoBoxDocument() {}
+    ~GmoBoxDocument() override {}
 
     //doc pages
     GmoBoxDocPage* add_new_page();
@@ -513,7 +525,7 @@ public:
     int get_page_number(GmoBoxDocPage* pBoxPage);
 
     //overrides
-    GraphicModel* get_graphic_model() { return m_pGModel; }
+    GraphicModel* get_graphic_model() override { return m_pGModel; }
 
 };
 
@@ -526,14 +538,14 @@ protected:
 
 public:
     GmoBoxDocPage(ImoObj* pCreatorImo);
-    virtual ~GmoBoxDocPage() {}
+    ~GmoBoxDocPage() override {}
 
     //page number
     inline void set_number(int num) { m_numPage = num; }
     inline int get_number() { return m_numPage; }
 
     //renderization
-    void on_draw(Drawer* pDrawer, RenderOptions& opt);
+    void on_draw(Drawer* pDrawer, RenderOptions& opt) override;
 
     //shapes
     void add_to_tables(GmoShape* pShape);
@@ -568,9 +580,10 @@ public:
 class GmoBoxScorePage : public GmoBox
 {
 protected:
-    int m_iFirstSystem;     //0..n-1
-    int m_iLastSystem;      //0..n-1
-    int m_iPage;            //0..n-1        number of this score page
+    int m_iFirstSystem;         //0..n-1
+    int m_iLastSystem;          //0..n-1
+    int m_iPage;                //0..n-1        number of this score-page
+    LUnits m_maxSystemHeight;   //height of highest system in this page
 
 public:
     GmoBoxScorePage(ImoScore* pScore);
@@ -587,6 +600,7 @@ public:
     }
 	GmoBoxSystem* get_system(int iSystem);		//nSystem = 0..n-1
 	inline int get_page_number() { return m_iPage; }
+    LUnits get_max_system_height() { return m_maxSystemHeight; }
 
 	//timepos information
 	TimeUnits end_time();
@@ -643,20 +657,20 @@ public:
     GmoBoxControl(Control* ctrl, const UPoint& origin, LUnits width, LUnits height,
                   ImoStyle* style=nullptr);
 
-    virtual ~GmoBoxControl() {}
+    ~GmoBoxControl() override {}
 
     inline void set_style(ImoStyle* pStyle) { m_pStyle = pStyle; }
     void notify_event(SpEventInfo pEvent);
 
     //GmoBox override
-    void on_draw(Drawer* pDrawer, RenderOptions& opt);
+    void on_draw(Drawer* pDrawer, RenderOptions& opt) override;
 
     //accessors
     inline Control* get_creator_control() { return m_pControl; }
 
 protected:
     //overrides
-    ImoStyle* get_style() { return m_pStyle; }
+    ImoStyle* get_style() override { return m_pStyle; }
 };
 
 //---------------------------------------------------------------------------------------

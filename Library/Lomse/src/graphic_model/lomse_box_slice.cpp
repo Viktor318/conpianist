@@ -1,30 +1,10 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2019. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #include "lomse_box_slice.h"
@@ -65,8 +45,10 @@ GmoBoxSliceInstr* GmoBoxSlice::add_box_for_instrument(ImoInstrument* pInstr,
 
 //---------------------------------------------------------------------------------------
 void GmoBoxSlice::reposition_slices_and_shapes(const vector<LUnits>& yOrgShifts,
-                                               vector<LUnits>& heights,
-                                               vector<LUnits>& barlinesHeight,
+                                               const vector<LUnits>& heights,
+                                               const vector<LUnits>& barlinesHeight,
+                                               const vector<vector<LUnits>>& relStaffTopPositions,
+                                               LUnits bottomMarginIncr,
                                                SystemLayouter* pSysLayouter)
 
 {
@@ -76,18 +58,43 @@ void GmoBoxSlice::reposition_slices_and_shapes(const vector<LUnits>& yOrgShifts,
     {
         GmoBoxSliceInstr* pSlice = static_cast<GmoBoxSliceInstr*>(*it);
         pSlice->reposition_slices_and_shapes(yOrgShifts, heights,
-                                             barlinesHeight[iInstr], pSysLayouter);
+                                             barlinesHeight[iInstr], relStaffTopPositions[iInstr],
+                                             pSysLayouter);
     }
 
-    //shift origin and increase height
-    m_origin.y += yOrgShifts[0];
-    m_size.height += yOrgShifts.back() + heights[0];
+    //increase height
+    m_size.height += (yOrgShifts.back() + bottomMarginIncr);
+}
+
+//---------------------------------------------------------------------------------------
+void GmoBoxSlice::reduce_last_instrument_height(LUnits space)
+{
+    //reduce height of this slice
+    m_size.height -= space;
+
+    //reduce height of last instrument slice
+    GmoBoxSliceInstr* pSlice = static_cast<GmoBoxSliceInstr*>(m_childBoxes.back());
+    pSlice->set_height( pSlice->get_height() - space );
 }
 
 //---------------------------------------------------------------------------------------
 GmoBoxSliceInstr* GmoBoxSlice::get_instr_slice(int iInstr)
 {
     return static_cast<GmoBoxSliceInstr*>(m_childBoxes[iInstr]);
+}
+
+//---------------------------------------------------------------------------------------
+GmoBoxSliceInstr* GmoBoxSlice::find_instr_slice_at(LUnits x, LUnits y)
+{
+    vector<GmoBox*>::iterator it;
+    for (it=m_childBoxes.begin(); it != m_childBoxes.end(); ++it)
+    {
+        GmoBoxSliceInstr* pISlice = static_cast<GmoBoxSliceInstr*>(*it);
+        URect bbox = pISlice->get_bounds();
+        if (bbox.contains(x, y))
+            return pISlice;
+    }
+    return nullptr;
 }
 
 //---------------------------------------------------------------------------------------

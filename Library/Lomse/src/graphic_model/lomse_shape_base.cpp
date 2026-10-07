@@ -1,30 +1,10 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2016. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #include "lomse_shape_base.h"
@@ -127,7 +107,7 @@ void GmoShape::set_origin_and_notify_observers(LUnits xLeft, LUnits yTop)
 //---------------------------------------------------------------------------------------
 void GmoShape::reposition_shape(LUnits yShift)
 {
-    shift_origin(0.0f, yShift);
+    shift_origin(USize(0.0f, yShift));
 }
 
 //---------------------------------------------------------------------------------------
@@ -200,7 +180,6 @@ GmoSimpleShape::~GmoSimpleShape()
 GmoCompositeShape::GmoCompositeShape(ImoObj* pCreatorImo, int objtype, ShapeId idx,
                                      Color color)
     : GmoShape(pCreatorImo, objtype, idx, color)
-    , m_fLocked(true)
 {
 }
 
@@ -228,11 +207,6 @@ int GmoCompositeShape::add(GmoShape* pShape)
 	}
 	else
 	{
-	    //TODO: Note from LenMus:
-//        lmCompositeShape: the selection rectangle should not be the boundling rectangle
-//        but each rectangle of each component shape. This will save the need to define
-//        specific shapes just to override selection rectangle. i.i. metronome marks
-
 		//compute new selection rectangle by union of individual selection rectangles
 		URect bbox = get_bounds();
 		bbox.Union(pShape->get_bounds());
@@ -248,13 +222,13 @@ int GmoCompositeShape::add(GmoShape* pShape)
 //---------------------------------------------------------------------------------------
 void GmoCompositeShape::shift_origin(const USize& shift)
 {
-    m_origin.x += shift.width;
-    m_origin.y += shift.height;
-
     //shift components
     std::list<GmoShape*>::iterator it;
     for (it = m_components.begin(); it != m_components.end(); ++it)
         (*it)->shift_origin(shift);
+
+    //shift this container class
+    GmoShape::shift_origin(shift);
 }
 
 //---------------------------------------------------------------------------------------
@@ -269,6 +243,14 @@ void GmoCompositeShape::reposition_shape(LUnits yShift)
 }
 
 //---------------------------------------------------------------------------------------
+void GmoCompositeShape::set_color(Color color)
+{
+    std::list<GmoShape*>::iterator it;
+    for (it = m_components.begin(); it != m_components.end(); ++it)
+        (*it)->set_color(color);
+}
+
+//---------------------------------------------------------------------------------------
 void GmoCompositeShape::on_draw(Drawer* pDrawer, RenderOptions& opt)
 {
     GmoShape::on_draw(pDrawer, opt);
@@ -277,13 +259,6 @@ void GmoCompositeShape::on_draw(Drawer* pDrawer, RenderOptions& opt)
     std::list<GmoShape*>::iterator it;
     for (it = m_components.begin(); it != m_components.end(); ++it)
         (*it)->on_draw(pDrawer, opt);
-}
-
-//---------------------------------------------------------------------------------------
-void GmoCompositeShape::lock()
-{
-    m_fLocked = true;
-    recompute_bounds();
 }
 
 //---------------------------------------------------------------------------------------

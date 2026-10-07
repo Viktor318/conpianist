@@ -1,30 +1,10 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2019. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #ifndef __LOMSE_BOX_SLICE_INSTR_H__
@@ -57,12 +37,15 @@ public:
     GmoBoxSystem* get_system_box();
 
     void add_shape(GmoShape* pShape, int layer, int iStaff);
+    GmoShape* find_staffobj_shape_before(LUnits x);
+    GmoShape* find_staffobj_shape_after(LUnits x);
 
     //helpers for layout
     /**  Move boxes and shapes to theirs final 'y' positions. */
     void reposition_slices_and_shapes(const std::vector<LUnits>& yOrgShifts,
-                                      std::vector<LUnits>& heights,
+                                      const std::vector<LUnits>& heights,
                                       LUnits barlinesHeight,
+                                      const std::vector<LUnits>& relStaffTopPositions,
                                       SystemLayouter* pSysLayouter);
     GmoBoxSliceStaff* get_slice_staff_for(int iStaff);
 
@@ -72,7 +55,7 @@ public:
 //---------------------------------------------------------------------------------------
 /** Class GmoBoxSliceStaff represents one staff in a SliceInstr. It is a container
     for the shapes associated to a staff, to simplify tasks requiring to access the
-    shapes for one staff, such as moving them when thet staff is moved.
+    shapes for one staff, such as moving them when the staff is moved.
 
     The bounding box is not relevant for any task, so it is not computed.
 */
@@ -85,10 +68,14 @@ public:
     GmoBoxSliceStaff(ImoInstrument* pInstr, int idxStaff);
     ~GmoBoxSliceStaff();
 
+    GmoShape* find_staffobj_shape_before(LUnits x);
+    GmoShape* find_staffobj_shape_after(LUnits x);
+
     //helpers for layout
     /**  Move shapes to theirs final 'y' positions and increment barlines height. */
     void reposition_shapes(const vector<LUnits>& yShifts, LUnits barlinesHeight,
-                           SystemLayouter* pSysLayouter);
+                           const std::vector<LUnits>& relStaffTopPositions,
+                           SystemLayouter* pSysLayouter, int staff);
 
 protected:
     void dump(ostream& outStream, int level) override;

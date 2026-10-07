@@ -1,30 +1,10 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2018. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #ifndef __LOMSE_PITCH_H__
@@ -41,74 +21,6 @@ namespace lomse
 {
 ///@endcond
 
-
-//---------------------------------------------------------------------------------------
-// Note steps: 'step' refers to the diatonic note name in the octave
-/** @ingroup enumerations
-
-    This enum describes valid note steps. 'step' refers to the diatonic note name in the octave
-
-    @#include <lomse_pitch.h>
-*/
-enum ESteps
-{
-    k_no_pitch = -1,    ///< No pitch assigned
-    k_step_C = 0,       ///< C note (Do)
-    k_step_D,           ///< D note (Re)
-    k_step_E,           ///< E note (Mi)
-    k_step_F,           ///< F note (Fa)
-    k_step_G,           ///< G note (Sol)
-    k_step_A,           ///< A note (La)
-    k_step_B,           ///< B note (Si)
-};
-
-//---------------------------------------------------------------------------------------
-/** @ingroup enumerations
-
-    This enum describes valid octave numbers.
-    The octave is represented by a number in the range 0..9 (scientific notation).
-    This is the same meaning as in MIDI (note A in octave 4 = 440Hz).
-    The lowest MIDI octave (-1) is not defined.
-
-    @#include <lomse_pitch.h>
-*/
-enum EOctave
-{
-    k_octave_0 = 0,     ///< Octave 0. C0 = 16.352 Hz
-    k_octave_1,         ///< Octave 1 (first octave, contra octave). C1 = 32.703 Hz
-    k_octave_2,         ///< Octave 2
-    k_octave_3,         ///< Octave 3
-    k_octave_4,         ///< Octave 4. C4 = middle C. A4 = 440 Hz
-    k_octave_5,         ///< Octave 5
-    k_octave_6,         ///< Octave 6
-    k_octave_7,         ///< Octave 7
-    k_octave_8,         ///< Octave 8
-    k_octave_9,         ///< Octave 9. B9 = 15,804.3 Hz
-};
-
-
-//---------------------------------------------------------------------------------------
-// Accidentals
-/** @ingroup enumerations
-
-    This enum describes valid accidental signs.
-    No microtonal accidentals are considered, only traditional ones.
-
-    @#include <lomse_pitch.h>
-*/
-enum EAccidentals
-{
-    k_invalid_accidentals = -1,     ///< Invalid value for accidentals
-    k_no_accidentals = 0,           ///< No accidental sign
-    k_natural,                      ///< Natural accidental sign
-    k_flat,                         ///< Flat accidental sign (b)
-    k_sharp,                        ///< Natural accidental sign (#)
-    k_flat_flat,                    ///< Two consecutive flat signs (bb)
-    k_double_sharp,                 ///< The double sharp symbol (x)
-    k_sharp_sharp,                  ///< Two consecutive sharp signs (##)
-    k_natural_flat,                 ///< Natural sign followed by flat sign
-    k_natural_sharp,                ///< Natural sign followed by sharp sign
-};
 
 //---------------------------------------------------------------------------------------
 // global functions
@@ -298,7 +210,7 @@ public:
     /// Operator to cast to an int
     operator int() { return m_pitch; }
 
-    /** Returns the name of this pitch in LPD format, i.e. MidiPitch 60 will
+    /** Returns the name of this pitch in LPD format, e.g., MidiPitch 60 will
         return "c4".    */
     string get_ldp_name();
 
@@ -360,7 +272,7 @@ public:
     FPitch(DiatonicPitch dp, int nAcc);
     /// Constructor from pitch components.
     FPitch(int nStep, int nOctave, int nAcc);
-    /// Constructor from an string representing the pitch in LDP name, i.e. "+c4".
+    /// Constructor from an string representing the pitch in LDP name, e.g., "+c4".
     FPitch(const string& note);
 //    FPitch(int nStep, int nOctave, EKeySignature nKey);
 

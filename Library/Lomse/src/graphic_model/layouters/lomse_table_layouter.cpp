@@ -1,30 +1,10 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2018. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #include "lomse_table_layouter.h"
@@ -210,7 +190,7 @@ void TableLayouter::determine_width_for_columns()
 
     m_columnsWidth.resize(m_numCols);
     m_tableWidth = 0.0f;
-    std::list<ImoStyle*>& cols = m_pTable->get_column_styles();
+    std::list<ImoStyle*> cols = m_pTable->get_column_styles();
     std::list<ImoStyle*>::iterator it;
     int iCol = 0;
     for (it = cols.begin(); it != cols.end(); ++it, ++iCol)
@@ -360,7 +340,7 @@ void TableSectionLayouter::create_cell_layouters()
         for (itCell = pWrapper->begin(); itCell != pWrapper->end(); ++itCell, ++iCell, ++iCol)
         {
             while( iCell < numCells && !freeCell[iCell])
-            {    ++iCell; ++iCol; }
+                ++iCell, ++iCol;
 
             ImoTableCell* pCell = static_cast<ImoTableCell*>( *itCell );
             iLastCell = iCell;
@@ -637,7 +617,7 @@ LUnits TableCellSizer::get_total_height()
 //---------------------------------------------------------------------------------------
 void TableCellSizer::create_rowspan_table()
 {
-    m_rowspan.assign(m_numRows * m_numColumns, 0);
+    m_rowspan.assign(size_t(m_numRows) * size_t(m_numColumns), 0);
     for (int iRow=0; iRow < m_numRows; ++iRow)
     {
         int iCell = (m_iFirstRow + iRow) * m_numColumns;

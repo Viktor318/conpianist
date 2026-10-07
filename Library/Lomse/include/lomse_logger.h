@@ -1,30 +1,10 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2018. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #ifndef __LOMSE_LOGGER_H__
@@ -42,8 +22,6 @@ using namespace std;
 namespace lomse
 {
 
-extern ofstream dbgLogger;
-
 #if (LOMSE_COMPILER_MSVC == 1)
     #define __PRETTY_FUNCTION__       __FUNCTION__
 #endif
@@ -55,12 +33,12 @@ extern ofstream dbgLogger;
 #define PRINTF_SYNTAX(strindex)
 #endif
 
-#define LOMSE_LOG_ERROR(...)            logger.log_error(__FILE__,__LINE__,__PRETTY_FUNCTION__,__VA_ARGS__)
-#define LOMSE_LOG_WARN(...)             logger.log_warn(__FILE__,__LINE__,__PRETTY_FUNCTION__,__VA_ARGS__)
-#define LOMSE_LOG_INFO(...)             logger.log_info(__FILE__,__LINE__,__PRETTY_FUNCTION__,__VA_ARGS__)
+#define LOMSE_LOG_ERROR(...)            glogger.log_error(__FILE__,__LINE__,__PRETTY_FUNCTION__,__VA_ARGS__)
+#define LOMSE_LOG_WARN(...)             glogger.log_warn(__FILE__,__LINE__,__PRETTY_FUNCTION__,__VA_ARGS__)
+#define LOMSE_LOG_INFO(...)             glogger.log_info(__FILE__,__LINE__,__PRETTY_FUNCTION__,__VA_ARGS__)
 #if (LOMSE_ENABLE_DEBUG_LOGS == 1)
-    #define LOMSE_LOG_DEBUG(area, ...)  logger.log_debug(__FILE__,__LINE__,__PRETTY_FUNCTION__,area,__VA_ARGS__)
-    #define LOMSE_LOG_TRACE(area, ...)  logger.log_trace(__FILE__,__LINE__,__PRETTY_FUNCTION__,area,__VA_ARGS__)
+    #define LOMSE_LOG_DEBUG(area, ...)  glogger.log_debug(__FILE__,__LINE__,__PRETTY_FUNCTION__,area,__VA_ARGS__)
+    #define LOMSE_LOG_TRACE(area, ...)  glogger.log_trace(__FILE__,__LINE__,__PRETTY_FUNCTION__,area,__VA_ARGS__)
 #else
     #define LOMSE_LOG_DEBUG(area, ...)  do {} while(0)
     #define LOMSE_LOG_TRACE(area, ...)  do {} while(0)
@@ -82,12 +60,23 @@ enum {
 class Logger
 {
 private:
+    std::ostream* m_logStream;
+    std::ostream* m_customForensicLogStream;
+    std::ofstream m_forensicLogStream;
     int m_mode;
     uint_least32_t m_areas;
+    bool m_initialized = false;
 
 public:
     Logger(int mode=k_normal_mode);
     ~Logger();
+
+    void init(std::ostream* logStream = nullptr, std::ostream* forensicLogStream = nullptr);
+    void deinit();
+    std::ostream& get_stream() { return *m_logStream; }
+
+    std::ostream& get_forensic_log_stream();
+    void close_forensic_log();
 
     inline bool debug_mode_enabled() { return m_mode == k_debug_mode; }
     inline bool trace_mode_enabled() { return m_mode == k_trace_mode; }
@@ -169,10 +158,34 @@ protected:
     void log_message(const string& file, int line, const string& prettyFunction,
                      const string& prefix, const string& msg);
     string format(const char* fmtstr, va_list args);
+
+    void clear_forensic_log();
+
+    std::string get_default_log_path();
 };
 
-extern Logger logger;
+extern Logger glogger;      //logger instance (global)
 
+inline Logger& get_global_logger() { return glogger; }
+
+class StreamLogger
+{
+public:
+    template<typename T>
+    StreamLogger& operator<<(const T& t) {
+        glogger.get_stream() << t;
+        return *this;
+    }
+
+    // Overload for I/O manipulators (e.g. std::endl)
+    StreamLogger& operator<<(std::ostream& (*manip)(std::ostream&)) {
+        glogger.get_stream() << manip;
+        return *this;
+    }
+};
+
+extern StreamLogger dbgLogger;
+extern std::ofstream nullLogger;
 
 }   //namespace lomse
 

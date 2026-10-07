@@ -1,39 +1,18 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2019. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #define LOMSE_INTERNAL_API
 #include "lomse_graphic_view.h"
 
-#include <cstdio>       //for sprintf
 #include "lomse_graphical_model.h"
 #include "lomse_gm_basic.h"
-#include "lomse_screen_drawer.h"
+#include "lomse_bitmap_drawer.h"
 #include "lomse_interactor.h"
 #include "lomse_caret.h"
 #include "lomse_caret_positioner.h"
@@ -48,6 +27,12 @@
 #include "lomse_box_slice_instr.h"
 #include "lomse_box_system.h"
 #include "lomse_timegrid_table.h"
+#include "lomse_half_page_view.h"
+#include "lomse_renderer.h"
+#include "lomse_svg_drawer.h"
+#include "lomse_measure_highlight.h"
+#include "lomse_score_algorithms.h"
+#include "lomse_gm_measures_table.h"
 
 using namespace std;
 
@@ -69,26 +54,58 @@ ViewFactory::~ViewFactory()
 
 //---------------------------------------------------------------------------------------
 View* ViewFactory::create_view(LibraryScope& libraryScope, int viewType,
-                               ScreenDrawer* pDrawer)
+                               Drawer* screenDrawer, Drawer* printDrawer)
 {
+    BitmapDrawer* pScrDrawer = dynamic_cast<BitmapDrawer*>(screenDrawer);
+    BitmapDrawer* pPrtDrawer = dynamic_cast<BitmapDrawer*>(printDrawer);
+    if (!pPrtDrawer)
+    {
+        stringstream msg;
+        msg << "For printing, a BitmapDrawer if for now required. Replaced.";
+        LOMSE_LOG_ERROR(msg.str());
+        delete printDrawer;
+        pPrtDrawer = Injector::inject_BitmapDrawer(libraryScope);
+    }
+
     switch(viewType)
     {
         case k_view_simple:
-            return LOMSE_NEW SimpleView(libraryScope, pDrawer);
+            return LOMSE_NEW SimpleView(libraryScope, screenDrawer, pPrtDrawer);
 
         case k_view_vertical_book:
-            return LOMSE_NEW VerticalBookView(libraryScope, pDrawer);
+            return LOMSE_NEW VerticalBookView(libraryScope, screenDrawer, pPrtDrawer);
 
         case k_view_horizontal_book:
-            return LOMSE_NEW HorizontalBookView(libraryScope, pDrawer);
+            return LOMSE_NEW HorizontalBookView(libraryScope, screenDrawer, pPrtDrawer);
 
         case k_view_single_system:
-            return LOMSE_NEW SingleSystemView(libraryScope, pDrawer);
+            return LOMSE_NEW SingleSystemView(libraryScope, screenDrawer, pPrtDrawer);
+
+        case k_view_single_page:
+            return LOMSE_NEW SinglePageView(libraryScope, screenDrawer, pPrtDrawer);
+
+        case k_view_free_flow:
+            return LOMSE_NEW FreeFlowView(libraryScope, screenDrawer, pPrtDrawer);
+
+        case k_view_half_page:
+        {
+            if (pScrDrawer)
+                return LOMSE_NEW HalfPageView(libraryScope, pScrDrawer, pPrtDrawer);
+            else
+            {
+                stringstream msg;
+                msg << "[ViewFactory::create_view] HalfPageView requires a BitmapDrawer";
+                LOMSE_LOG_ERROR(msg.str());
+                throw runtime_error(msg.str());
+            }
+        }
 
         default:
         {
-            LOMSE_LOG_ERROR("[ViewFactory::create_view] invalid view type");
-            throw runtime_error("[ViewFactory::create_view] invalid view type");
+            stringstream msg;
+            msg << "[ViewFactory::create_view] Invalid view type " << viewType;
+            LOMSE_LOG_ERROR(msg.str());
+            throw runtime_error(msg.str());
         }
     }
     return nullptr;
@@ -98,12 +115,13 @@ View* ViewFactory::create_view(LibraryScope& libraryScope, int viewType,
 //=======================================================================================
 // GraphicView implementation
 //=======================================================================================
-GraphicView::GraphicView(LibraryScope& libraryScope, ScreenDrawer* pDrawer)
+GraphicView::GraphicView(LibraryScope& libraryScope, Drawer* pDrawer,
+                         BitmapDrawer* pPrintDrawer)
     : View()
     , m_libraryScope(libraryScope)
     , m_pDrawer(pDrawer)
+    , m_pPrintDrawer(pPrintDrawer)
     , m_options()
-    , m_pRenderBuf(nullptr)
     , m_pOverlaysGenerator(nullptr)
     , m_expand(0.0)
     , m_gamma(1.0)
@@ -120,7 +138,6 @@ GraphicView::GraphicView(LibraryScope& libraryScope, ScreenDrawer* pDrawer)
     , m_pSelObjects(nullptr)
     , m_pTempoLine(nullptr)
     , m_trackingEffect(k_tracking_highlight_notes)
-    , m_pPrintBuf(nullptr)
     , m_print_ppi(0.0)
     , m_backgroundColor( Color(145, 156, 166) )
     , m_pScrollSystem(nullptr)
@@ -161,6 +178,7 @@ GraphicView::GraphicView(LibraryScope& libraryScope, ScreenDrawer* pDrawer)
 GraphicView::~GraphicView()
 {
     delete m_pDrawer;
+    delete m_pPrintDrawer;
     delete m_pOverlaysGenerator;
 
     //AWARE: ownership of all VisualEffects (m_pCaret, m_pDragImg, m_pHighlighted,
@@ -187,6 +205,13 @@ void GraphicView::use_selection_set(SelectionSet* pSelectionSet)
 void GraphicView::add_visual_effect(VisualEffect* pEffect)
 {
     m_pOverlaysGenerator->add_visual_effect(pEffect);
+}
+
+//---------------------------------------------------------------------------------------
+void GraphicView::on_mode_changed(int mode)
+{
+    set_visual_effects_for_mode(mode);
+    draw_all_visual_effects();
 }
 
 //---------------------------------------------------------------------------------------
@@ -275,7 +300,7 @@ void GraphicView::new_viewport(Pixels x, Pixels y)
 //---------------------------------------------------------------------------------------
 void GraphicView::do_change_viewport(Pixels x, Pixels y)
 {
-    LOMSE_LOG_DEBUG(Logger::k_mvc, string(""));
+    LOMSE_LOG_DEBUG(Logger::k_mvc, "New viewport x=%d, y=%d", x, y);
     std::lock_guard<std::mutex> lock(m_viewportMutex);
 
     m_vxOrg = x;
@@ -283,9 +308,9 @@ void GraphicView::do_change_viewport(Pixels x, Pixels y)
     m_transform.tx = double(-x);
     m_transform.ty = double(-y);
 
-    //ensure drawer has the new information, for pixels <-> LUnits conversions
-    m_pDrawer->set_viewport(m_vxOrg, m_vyOrg);
-    m_pDrawer->set_transform(m_transform);
+    //ensure drawer has the new information, for pixels <-> LUnits conversions and other
+    m_pDrawer->new_viewport_origin(double(m_vxOrg), double(m_vyOrg));
+    m_pDrawer->set_affine_transformation(m_transform);
 }
 
 //---------------------------------------------------------------------------------------
@@ -316,6 +341,8 @@ void GraphicView::move_tempo_line_and_change_viewport(ImoId scoreId, TimeUnits t
 void GraphicView::do_move_tempo_line_and_change_viewport(ImoId scoreId, TimeUnits timepos,
                                                          bool fTempoLine, bool fViewport)
 {
+    LOMSE_LOG_DEBUG(Logger::k_events | Logger::k_score_player, string(""));
+
     if (!determine_page_system_and_position_for(scoreId, timepos))
         return;
 
@@ -365,12 +392,16 @@ bool GraphicView::determine_page_system_and_position_for(ImoId scoreId, TimeUnit
 //    }
 //    //END DEBUG ----------------------------------------------------------
 
+    LOMSE_LOG_DEBUG(Logger::k_events | Logger::k_score_player, "Play system: %d", m_pScrollSystem->get_system_number() );
+
     return true;   //no error
 }
 
 //---------------------------------------------------------------------------------------
 void GraphicView::change_viewport_if_necessary(ImoId id)
 {
+    LOMSE_LOG_DEBUG(Logger::k_events | Logger::k_score_player, string(""));
+
     //AWARE: This code is executed in the sound thread
 
     std::lock_guard<std::mutex> lock(m_viewportMutex);
@@ -397,6 +428,8 @@ void GraphicView::change_viewport_if_necessary(ImoId id)
 //---------------------------------------------------------------------------------------
 void GraphicView::do_change_viewport_if_necessary()
 {
+    LOMSE_LOG_DEBUG(Logger::k_events | Logger::k_score_player, string(""));
+
     bool fDoScroll = do_determine_if_scroll_needed();
 
     if (fDoScroll)
@@ -479,8 +512,8 @@ bool GraphicView::do_determine_if_scroll_needed()
 //---------------------------------------------------------------------------------------
 void GraphicView::do_change_viewport()
 {
-//    LOMSE_LOG_DEBUG(Logger::k_events | Logger::k_score_player,
-//        "Requesting scroll to m_vxNew=%d, m_vyNew=%d", m_vxNew, m_vyNew);
+    LOMSE_LOG_DEBUG(Logger::k_events | Logger::k_score_player,
+        "Requesting scroll to m_vxNew=%d, m_vyNew=%d", m_vxNew, m_vyNew);
 
     if (m_vyLast != m_vyNew || m_vxLast != m_vxNew)
     {
@@ -531,7 +564,7 @@ void GraphicView::do_determine_new_scroll_position()
     //model point to screen returns shift from current viewport origin
     double xLeft = double(m_pScrollSystem->get_left());
     double yTop = ySysTop;
-    model_point_to_screen(&xLeft, &yTop, m_iScrollPage);
+    model_point_to_device(&xLeft, &yTop, m_iScrollPage);
     //AWARE: The next variables are relative: shift from current viewport origin
     m_vxSysLeft = Pixels(xLeft);
     m_vySysTop = Pixels(yTop);
@@ -539,7 +572,7 @@ void GraphicView::do_determine_new_scroll_position()
     //model point to screen returns shift from current viewport origin
     double xRight = double(m_pScrollSystem->get_right());
     double yBottom = ySysBottom;
-    model_point_to_screen(&xRight, &yBottom, m_iScrollPage);
+    model_point_to_device(&xRight, &yBottom, m_iScrollPage);
     //AWARE: The next variables are relative: shift from current viewport origin
     m_vxSysRight = Pixels(xRight);
     m_vySysBottom = Pixels(yBottom);
@@ -547,14 +580,14 @@ void GraphicView::do_determine_new_scroll_position()
     //model point to screen returns shift from current viewport origin
     xLeft = xSliceLeft;
     yTop = ySysTop;
-    model_point_to_screen(&xLeft, &yTop, m_iScrollPage);
+    model_point_to_device(&xLeft, &yTop, m_iScrollPage);
     //AWARE: The next variables are relative: shift from current viewport origin
     m_vx_RequiredLeft = Pixels(xLeft);
 
     //model point to screen returns shift from current viewport origin
     xRight = xSliceRight;
     yBottom = ySysBottom;
-    model_point_to_screen(&xRight, &yBottom, m_iScrollPage);
+    model_point_to_device(&xRight, &yBottom, m_iScrollPage);
     //AWARE: The next variables are relative: shift from current viewport origin
     m_vx_RequiredRight = Pixels(xRight);
 
@@ -648,7 +681,7 @@ void GraphicView::set_drag_image(GmoShape* pShape, bool fGetOwnership, UPoint of
 //---------------------------------------------------------------------------------------
 void GraphicView::draw_all()
 {
-    if (m_pRenderBuf)
+    if (m_pDrawer && m_pDrawer->is_ready())
     {
         LOMSE_LOG_DEBUG(Logger::k_mvc, string(""));
 
@@ -670,12 +703,16 @@ void GraphicView::draw_caret()
 {
     LOMSE_LOG_DEBUG(Logger::k_mvc, string(""));
 
-    m_pInteractor->timing_start_measurements();
-    layout_caret();
-    layout_time_grid();                 //depends on caret
-    layout_selection_highlight();       //for hidding Handlers
-    m_pOverlaysGenerator->update_visual_effect(m_pCaret, m_pDrawer);
-    m_pInteractor->timing_renderization_end();
+    BitmapDrawer* pDrawer = dynamic_cast<BitmapDrawer*>(m_pDrawer);
+    if (pDrawer)
+    {
+        m_pInteractor->timing_start_measurements();
+        layout_caret();
+        layout_time_grid();                 //depends on caret
+        layout_selection_highlight();       //for hidding Handlers
+        m_pOverlaysGenerator->update_visual_effect(m_pCaret, pDrawer);
+        m_pInteractor->timing_renderization_end();
+    }
 }
 
 //---------------------------------------------------------------------------------------
@@ -683,10 +720,14 @@ void GraphicView::draw_time_grid()
 {
     LOMSE_LOG_DEBUG(Logger::k_mvc, string(""));
 
-    m_pInteractor->timing_start_measurements();
-    layout_time_grid();
-    m_pOverlaysGenerator->update_visual_effect(m_pTimeGrid, m_pDrawer);
-    m_pInteractor->timing_renderization_end();
+    BitmapDrawer* pDrawer = dynamic_cast<BitmapDrawer*>(m_pDrawer);
+    if (pDrawer)
+    {
+        m_pInteractor->timing_start_measurements();
+        layout_time_grid();
+        m_pOverlaysGenerator->update_visual_effect(m_pTimeGrid, pDrawer);
+        m_pInteractor->timing_renderization_end();
+    }
 }
 
 //---------------------------------------------------------------------------------------
@@ -731,25 +772,88 @@ VisualEffect* GraphicView::get_tracking_effect(int effect)
 }
 
 //---------------------------------------------------------------------------------------
-void GraphicView::print_page(int page, VPoint viewport)
+void GraphicView::render_as_svg(SvgDrawer& drawer, int page)
 {
-    //save and replace scale
-    double screenScale = get_scale();
-    double scale = m_print_ppi / get_resolution();
-    set_scale(scale);
+    if (!drawer.is_ready())
+        return;
 
-    //draw page
-    m_pDrawer->reset(*m_pPrintBuf, Color(255, 255, 255));
-    m_pDrawer->set_viewport(viewport.x, viewport.y);
-    m_pDrawer->set_transform(m_transform);
+    drawer.reset(Color(255, 255, 255));
 
     UPoint origin(0.0f, 0.0f);
     GraphicModel* pGModel = get_graphic_model();
-    pGModel->draw_page(page, origin, m_pDrawer, m_options);
-    m_pDrawer->render();
+    pGModel->draw_page(page, origin, &drawer, m_options);
+    drawer.render();
+}
 
-    //restore scale
-    set_scale(screenScale);
+//---------------------------------------------------------------------------------------
+void GraphicView::set_svg_canvas_width(Pixels x)
+{
+    m_viewportSize.width = x;
+}
+
+//---------------------------------------------------------------------------------------
+void GraphicView::print_page(int page, VPoint viewport)
+{
+    if (!m_pPrintDrawer->is_ready())
+        return;
+
+    if (m_print_ppi != 0.0)
+    {
+        //old deprecated code, to be removed
+
+        //save and replace scale
+        double screenScale = get_scale();
+        double scale = m_print_ppi / get_resolution();
+        set_scale(scale);
+
+        stringstream msg;
+        msg << "scale=" << scale;
+        LOMSE_LOG_INFO(msg.str());
+
+        //draw page
+        m_pPrintDrawer->reset(Color(255, 255, 255));
+        m_pPrintDrawer->new_viewport_origin(double(viewport.x), double(viewport.y));
+        m_pPrintDrawer->set_affine_transformation(m_transform);
+
+        UPoint origin(0.0f, 0.0f);
+        GraphicModel* pGModel = get_graphic_model();
+        pGModel->draw_page(page, origin, m_pPrintDrawer, m_options);
+        m_pPrintDrawer->render();
+
+        //restore scale
+        set_scale(screenScale);
+    }
+    else
+    {
+        //new code
+
+        m_pPrintDrawer->new_viewport_origin(double(viewport.x), double(viewport.y));
+        m_pPrintDrawer->reset(Color(255, 255, 255));
+
+        UPoint origin(0.0f, 0.0f);
+        GraphicModel* pGModel = get_graphic_model();
+        pGModel->draw_page(page, origin, m_pPrintDrawer, m_options);
+        m_pPrintDrawer->render();
+    }
+}
+
+//---------------------------------------------------------------------------------------
+void GraphicView::set_print_page_size(Pixels width, Pixels height)
+{
+    m_print_ppi = 0.0;      //force to use new print code
+
+    GraphicModel* pGModel = get_graphic_model();
+    GmoBoxDocPage* pPage = pGModel->get_page(0);
+    URect rect = pPage->get_bounds();
+    double scaleX = m_pPrintDrawer->device_units_to_model(width) / rect.width;
+    double scaleY = m_pPrintDrawer->device_units_to_model(height) / rect.height;
+    double scale = min(scaleX, scaleY);
+
+    TransAffine affTransform;
+    affTransform.scale(scale);
+
+    //set scale
+    m_pPrintDrawer->set_affine_transformation(affTransform);
 }
 
 //---------------------------------------------------------------------------------------
@@ -763,12 +867,15 @@ void GraphicView::draw_graphic_model()
     m_options.draw_anchor_objects = m_libraryScope.draw_anchor_objects();
     m_options.draw_anchor_lines = m_libraryScope.draw_anchor_lines();
     m_options.draw_shape_bounds = m_libraryScope.draw_shape_bounds();
+    m_options.draw_slur_points = m_libraryScope.draw_slur_ctrol_points();
+    m_options.draw_vertical_profile = m_libraryScope.draw_vertical_profile();
+    m_options.draw_chords_coloured = m_libraryScope.draw_chords_coloured();
     m_options.read_only_mode =
         m_pInteractor->get_operating_mode() != Interactor::k_mode_edition;
 
-    m_pDrawer->reset(*m_pRenderBuf, m_options.background_color);
-    m_pDrawer->set_viewport(m_vxOrg, m_vyOrg);
-    m_pDrawer->set_transform(m_transform);
+    m_pDrawer->reset(m_options.background_color);
+    m_pDrawer->new_viewport_origin(double(m_vxOrg), double(m_vyOrg));
+    m_pDrawer->set_affine_transformation(m_transform);
 
     generate_paths();
     m_pDrawer->render();
@@ -779,10 +886,14 @@ void GraphicView::draw_all_visual_effects()
 {
     LOMSE_LOG_DEBUG(Logger::k_mvc, string(""));
 
-    layout_caret();
-    layout_time_grid();
-    layout_selection_highlight();
-    m_pOverlaysGenerator->update_all_visual_effects(m_pDrawer);
+    BitmapDrawer* pDrawer = dynamic_cast<BitmapDrawer*>(m_pDrawer);
+    if (pDrawer)
+    {
+        layout_caret();
+        layout_time_grid();
+        layout_selection_highlight();
+        m_pOverlaysGenerator->update_all_visual_effects(pDrawer);
+    }
 }
 
 //---------------------------------------------------------------------------------------
@@ -790,9 +901,13 @@ void GraphicView::draw_selection_rectangle()
 {
     LOMSE_LOG_DEBUG(Logger::k_mvc, string(""));
 
-    m_pInteractor->timing_start_measurements();
-    m_pOverlaysGenerator->update_visual_effect(m_pSelRect, m_pDrawer);
-    m_pInteractor->timing_renderization_end();
+    BitmapDrawer* pDrawer = dynamic_cast<BitmapDrawer*>(m_pDrawer);
+    if (pDrawer)
+    {
+        m_pInteractor->timing_start_measurements();
+        m_pOverlaysGenerator->update_visual_effect(m_pSelRect, pDrawer);
+        m_pInteractor->timing_renderization_end();
+    }
 }
 
 //---------------------------------------------------------------------------------------
@@ -800,12 +915,16 @@ void GraphicView::draw_visual_tracking()
 {
     LOMSE_LOG_DEBUG(Logger::k_mvc, string(""));
 
-    m_pInteractor->timing_start_measurements();
-    if (m_trackingEffect & k_tracking_highlight_notes)
-        m_pOverlaysGenerator->update_visual_effect(m_pHighlighted, m_pDrawer);
-    if (m_trackingEffect & k_tracking_tempo_line)
-        m_pOverlaysGenerator->update_visual_effect(m_pTempoLine, m_pDrawer);
-    m_pInteractor->timing_renderization_end();
+    BitmapDrawer* pDrawer = dynamic_cast<BitmapDrawer*>(m_pDrawer);
+    if (pDrawer)
+    {
+        m_pInteractor->timing_start_measurements();
+        if (m_trackingEffect & k_tracking_highlight_notes)
+            m_pOverlaysGenerator->update_visual_effect(m_pHighlighted, pDrawer);
+        if (m_trackingEffect & k_tracking_tempo_line)
+            m_pOverlaysGenerator->update_visual_effect(m_pTempoLine, pDrawer);
+        m_pInteractor->timing_renderization_end();
+    }
 }
 
 //---------------------------------------------------------------------------------------
@@ -813,9 +932,13 @@ void GraphicView::draw_dragged_image()
 {
     LOMSE_LOG_DEBUG(Logger::k_mvc, string(""));
 
-    m_pInteractor->timing_start_measurements();
-    m_pOverlaysGenerator->update_visual_effect(m_pDragImg, m_pDrawer);
-    m_pInteractor->timing_renderization_end();
+    BitmapDrawer* pDrawer = dynamic_cast<BitmapDrawer*>(m_pDrawer);
+    if (pDrawer)
+    {
+        m_pInteractor->timing_start_measurements();
+        m_pOverlaysGenerator->update_visual_effect(m_pDragImg, pDrawer);
+        m_pInteractor->timing_renderization_end();
+    }
 }
 
 //---------------------------------------------------------------------------------------
@@ -823,9 +946,13 @@ void GraphicView::draw_handler(Handler* pHandler)
 {
     LOMSE_LOG_DEBUG(Logger::k_mvc, string(""));
 
-    m_pInteractor->timing_start_measurements();
-    m_pOverlaysGenerator->update_visual_effect(pHandler, m_pDrawer);
-    m_pInteractor->timing_renderization_end();
+    BitmapDrawer* pDrawer = dynamic_cast<BitmapDrawer*>(m_pDrawer);
+    if (pDrawer)
+    {
+        m_pInteractor->timing_start_measurements();
+        m_pOverlaysGenerator->update_visual_effect(pHandler, pDrawer);
+        m_pInteractor->timing_renderization_end();
+    }
 }
 
 //---------------------------------------------------------------------------------------
@@ -833,10 +960,14 @@ void GraphicView::draw_selected_objects()
 {
     LOMSE_LOG_DEBUG(Logger::k_mvc, string(""));
 
-    m_pInteractor->timing_start_measurements();
-    layout_selection_highlight();
-    m_pOverlaysGenerator->update_visual_effect(m_pSelObjects, m_pDrawer);
-    m_pInteractor->timing_renderization_end();
+    BitmapDrawer* pDrawer = dynamic_cast<BitmapDrawer*>(m_pDrawer);
+    if (pDrawer)
+    {
+        m_pInteractor->timing_start_measurements();
+        layout_selection_highlight();
+        m_pOverlaysGenerator->update_visual_effect(m_pSelObjects, pDrawer);
+        m_pInteractor->timing_renderization_end();
+    }
 }
 
 //---------------------------------------------------------------------------------------
@@ -850,14 +981,14 @@ VRect GraphicView::get_damaged_rectangle()
     double top = uRect.top();
     double right = uRect.right();
     double bottom = uRect.bottom();
-    m_pDrawer->model_point_to_screen(&left, &top);
-    m_pDrawer->model_point_to_screen(&right, &bottom);
+    m_pDrawer->model_point_to_device(&left, &top);
+    m_pDrawer->model_point_to_device(&right, &bottom);
 
     //trim rectangle
     Pixels x1 = max(0, Pixels(left));
     Pixels y1 = max(0, Pixels(top));
-    Pixels x2 = min(Pixels(right), int(m_pRenderBuf->width()) );
-    Pixels y2 = min(Pixels(bottom), int(m_pRenderBuf->height()) );
+    Pixels x2 = min(Pixels(right), m_viewportSize.width);
+    Pixels y2 = min(Pixels(bottom), m_viewportSize.height);
 
     return VRect(VPoint(x1, y1), VPoint(x2, y2));
 }
@@ -994,6 +1125,11 @@ void GraphicView::zoom_out(Pixels x, Pixels y)
 //---------------------------------------------------------------------------------------
 void GraphicView::zoom_fit_full(Pixels screenWidth, Pixels screenHeight)
 {
+    LOMSE_LOG_DEBUG(Logger::k_events | Logger::k_score_player, string(""));
+
+    if (screenWidth < 10 || screenHeight < 10)
+        return;
+
     //move viewport origin (left-top window corner) to top screen, center
     double rx(double(screenWidth)/2.0);
     double ry(0);
@@ -1007,13 +1143,13 @@ void GraphicView::zoom_fit_full(Pixels screenWidth, Pixels screenHeight)
     GmoBoxDocPage* pPage = pGModel->get_page(0);
     URect rect = pPage->get_bounds();
     double margin = 0.05 * rect.width;      //5% margin, 2.5 at each side
-    double xScale = double(m_pDrawer->Pixels_to_LUnits(screenWidth) / (rect.width + margin));
-    double yScale = double(m_pDrawer->Pixels_to_LUnits(screenHeight) / (rect.height + margin));
+    double xScale = m_pDrawer->device_units_to_model(double(screenWidth)) / (rect.width + margin);
+    double yScale = m_pDrawer->device_units_to_model(double(screenWidth)) / (rect.height + margin);
     double scale = min (xScale, yScale);
 
     //apply new user scaling factor
     m_transform.scale(scale);
-    m_pDrawer->set_transform(m_transform);
+    m_pDrawer->set_affine_transformation(m_transform);
 
     //move origin back to (rx, ry) so this point remains un-moved
     m_transform *= agg::trans_affine_translation(rx, ry);
@@ -1026,6 +1162,9 @@ void GraphicView::zoom_fit_full(Pixels screenWidth, Pixels screenHeight)
 //---------------------------------------------------------------------------------------
 void GraphicView::zoom_fit_width(Pixels screenWidth)
 {
+    if (screenWidth < 10)
+        return;
+
     //move viewport origin (left-top window corner) to top screen, center
     double rx(double(screenWidth)/2.0);
     double ry(0);
@@ -1036,11 +1175,11 @@ void GraphicView::zoom_fit_width(Pixels screenWidth)
     GmoBoxDocPage* pPage = pGModel->get_page(0);
     URect rect = pPage->get_bounds();
     double margin = 0.05 * rect.width;      //5% margin, 2.5 at each side
-    double scale = double(m_pDrawer->Pixels_to_LUnits(screenWidth) / (rect.width + margin));
+    double scale = m_pDrawer->device_units_to_model(double(screenWidth)) / (rect.width + margin);
 
     //apply new user scaling factor
     m_transform.scale(scale);
-    m_pDrawer->set_transform(m_transform);
+    m_pDrawer->set_affine_transformation(m_transform);
 
     //move origin back to (rx, ry) so this point remains un-moved
     m_transform *= agg::trans_affine_translation(rx, ry);
@@ -1051,8 +1190,33 @@ void GraphicView::zoom_fit_width(Pixels screenWidth)
 }
 
 //---------------------------------------------------------------------------------------
+LUnits GraphicView::get_viewport_width()
+{
+    if (m_pDrawer)  //in unit test it can not exist
+        return m_pDrawer->device_units_to_model( double(m_viewportSize.width) );
+    else
+        return 0.0f;
+}
+
+//---------------------------------------------------------------------------------------
+USize GraphicView::get_page_size(int page)
+{
+    GraphicModel* pGModel = get_graphic_model();
+    if (pGModel)
+    {
+        GmoBoxDocPage* pPage = pGModel->get_page(page);
+        URect rect = pPage->get_bounds();
+        return USize(rect.width, rect.height);
+    }
+    else
+        return USize(0.0, 0.0);
+}
+
+//---------------------------------------------------------------------------------------
 void GraphicView::set_viewport_at_page_center(Pixels screenWidth)
 {
+    LOMSE_LOG_DEBUG(Logger::k_events | Logger::k_score_player, string(""));
+
     //get page width
     //TODO: Width taken for first page. Change this to use currently displayed page
     GraphicModel* pGModel = get_graphic_model();
@@ -1060,7 +1224,7 @@ void GraphicView::set_viewport_at_page_center(Pixels screenWidth)
     URect rect = pPage->get_bounds();
 
     //determine new viewport origin to center page on screen
-    Pixels pageWidth = m_pDrawer->LUnits_to_Pixels(rect.width);
+    Pixels pageWidth = Pixels(m_pDrawer->model_to_device_units(rect.width));
     Pixels left = (pageWidth - screenWidth) / 2;
 
     //force new viewport
@@ -1102,7 +1266,7 @@ double GraphicView::get_resolution()
 //---------------------------------------------------------------------------------------
 void GraphicView::screen_point_to_page_point(double* x, double* y)
 {
-    m_pDrawer->screen_point_to_model(x, y);
+    m_pDrawer->device_point_to_model(x, y);
     int iPage = find_page_at_point(LUnits(*x), LUnits(*y));
     if (iPage != -1)
     {
@@ -1118,12 +1282,12 @@ void GraphicView::screen_point_to_page_point(double* x, double* y)
 }
 
 //---------------------------------------------------------------------------------------
-void GraphicView::model_point_to_screen(double* x, double* y, int iPage)
+void GraphicView::model_point_to_device(double* x, double* y, int iPage)
 {
     URect pageBounds = get_page_bounds(iPage);
     *x += pageBounds.left();
     *y += pageBounds.top();
-    m_pDrawer->model_point_to_screen(x, y);
+    m_pDrawer->model_point_to_device(x, y);
 }
 
 //---------------------------------------------------------------------------------------
@@ -1131,14 +1295,14 @@ UPoint GraphicView::screen_point_to_model_point(Pixels x, Pixels y)
 {
     double xm = double(x);
     double ym = double(y);
-    m_pDrawer->screen_point_to_model(&xm, &ym);
+    m_pDrawer->device_point_to_model(&xm, &ym);
     return UPoint(Tenths(xm), Tenths(ym));
 }
 
 //---------------------------------------------------------------------------------------
 LUnits GraphicView::pixels_to_lunits(Pixels pixels)
 {
-    return m_pDrawer->Pixels_to_LUnits(pixels);
+    return m_pDrawer->device_units_to_model( double(pixels) );
 }
 
 //---------------------------------------------------------------------------------------
@@ -1157,7 +1321,7 @@ int GraphicView::page_at_screen_point(double x, double y)
 
     double ux = x;
     double uy = y;
-    m_pDrawer->screen_point_to_model(&ux, &uy);
+    m_pDrawer->device_point_to_model(&ux, &uy);
 
     return find_page_at_point(LUnits(ux), LUnits(uy));
 }
@@ -1185,8 +1349,8 @@ void GraphicView::screen_rectangle_to_page_rectangles(Pixels x1, Pixels y1,
     double xRight = double(x2);
     double yTop = double(y1);
     double yBottom = double(y2);
-    m_pDrawer->screen_point_to_model(&xLeft, &yTop);
-    m_pDrawer->screen_point_to_model(&xRight, &yBottom);
+    m_pDrawer->device_point_to_model(&xLeft, &yTop);
+    m_pDrawer->device_point_to_model(&xRight, &yBottom);
 
     normalize_rectangle(&xLeft, &yTop, &xRight, &yBottom);
 
@@ -1525,22 +1689,94 @@ UPoint GraphicView::get_page_origin_for(int iPage)
 }
 
 //---------------------------------------------------------------------------------------
+void GraphicView::set_rendering_buffer(unsigned char* buf, unsigned width, unsigned height)
+{
+    if (m_viewportSize.width != int(width))
+        m_fUpdateGModel = true;
+
+
+    if (buf && width > 0 && height > 0)
+    {
+        BitmapDrawer* pScreenDrawer = dynamic_cast<BitmapDrawer*>(m_pDrawer);
+        if (pScreenDrawer)
+        {
+            pScreenDrawer->set_rendering_buffer(buf, width, height);
+            m_pOverlaysGenerator->set_rendering_buffer(buf, width, height);
+        }
+
+        m_viewportSize.width = width;
+        m_viewportSize.height = height;
+
+        m_pDrawer->new_viewport_size(double(width), double(height));
+    }
+    else
+    {
+        m_pDrawer->new_viewport_size(0.0, 0.0);
+        m_viewportSize.width = 0;
+        m_viewportSize.height = 0;
+    }
+}
+
+//---------------------------------------------------------------------------------------
 void GraphicView::set_rendering_buffer(RenderingBuffer* rbuf)
 {
-    m_pRenderBuf = rbuf;
-    m_pOverlaysGenerator->set_rendering_buffer(rbuf);
+    //DEPRECATED method Jan/2021
+
+    if (m_viewportSize.width != int(rbuf->width()))
+        m_fUpdateGModel = true;
+
+    BitmapDrawer* pScreenDrawer = dynamic_cast<BitmapDrawer*>(m_pDrawer);
+    if (pScreenDrawer)
+    {
+        pScreenDrawer->set_rendering_buffer(rbuf->buf(), rbuf->width(), rbuf->height());
+        m_pOverlaysGenerator->set_rendering_buffer(rbuf->buf(), rbuf->width(), rbuf->height());
+    }
+    else
+    {
+        m_pDrawer->new_viewport_size(rbuf->width(), rbuf->height());
+    }
+
+    m_viewportSize.width = rbuf->width();
+    m_viewportSize.height = rbuf->height();
+}
+
+//---------------------------------------------------------------------------------------
+void GraphicView::set_print_buffer(unsigned char* buf, unsigned width, unsigned height)
+{
+    BitmapDrawer* pDrawer = dynamic_cast<BitmapDrawer*>(m_pPrintDrawer);
+    if (pDrawer)
+    {
+        pDrawer->set_rendering_buffer(buf, width, height);
+        pDrawer->new_viewport_size(double(width), double(height));
+    }
+}
+
+//---------------------------------------------------------------------------------------
+void GraphicView::set_print_buffer(RenderingBuffer* rbuf)
+{
+    //DEPRECATED method Jan/2021
+
+    BitmapDrawer* pDrawer = dynamic_cast<BitmapDrawer*>(m_pPrintDrawer);
+    if (pDrawer)
+    {
+        pDrawer->set_rendering_buffer(rbuf->buf(), rbuf->width(), rbuf->height());
+        pDrawer->new_viewport_size(rbuf->width(), rbuf->height());
+    }
+}
+
+//---------------------------------------------------------------------------------------
+void GraphicView::set_view_area(unsigned width, unsigned height, unsigned xShift,
+                                unsigned yShift)
+{
+    BitmapDrawer* pScreenDrawer = dynamic_cast<BitmapDrawer*>(m_pDrawer);
+    if (pScreenDrawer)
+        pScreenDrawer->set_view_area(width, height, xShift, yShift);
 }
 
 //---------------------------------------------------------------------------------------
 bool GraphicView::is_valid_viewport()
 {
-    if (m_pRenderBuf)
-    {
-        m_viewportSize.width = m_pRenderBuf->width();
-        m_viewportSize.height = m_pRenderBuf->height();
-        return m_viewportSize.width > 0 && m_viewportSize.height > 0;
-    }
-    return false;
+    return m_viewportSize.width > 0 && m_viewportSize.height > 0;
 }
 
 //---------------------------------------------------------------------------------------
@@ -1604,6 +1840,31 @@ void GraphicView::remove_mark(VisualEffect* mark)
     m_pOverlaysGenerator->remove_visual_effect(mark);
 }
 
+//---------------------------------------------------------------------------------------
+MeasureHighlight* GraphicView::add_measure_highlight(ImoScore* pScore,
+                                                     const MeasureLocator& ml)
+{
+    GraphicModel* pGModel = get_graphic_model();
+    if (!pGModel)
+        return nullptr;
+
+    GmoBoxSystem* pBoxSystem = pGModel->get_system_for(pScore, ml);
+    if (!pBoxSystem)
+        return nullptr;
+
+    GmMeasuresTable* measures = pGModel->get_measures_table(pScore->get_id());
+    LUnits xLeft = measures->get_start_barline_right(ml.iInstr, ml.iMeasure, pBoxSystem);
+    LUnits xRight = measures->get_end_barline_left(ml.iInstr, ml.iMeasure, pBoxSystem);
+
+    MeasureHighlight* pMarker = LOMSE_NEW MeasureHighlight(this, m_libraryScope);
+    pMarker->initialize(xLeft, xRight, pBoxSystem);
+    pMarker->set_visible(true);
+
+    add_visual_effect(pMarker);
+    return pMarker;
+}
+
+
 ////---------------------------------------------------------------------------------------
 //void GraphicView::caret_right()
 //{
@@ -1626,10 +1887,11 @@ void GraphicView::remove_mark(VisualEffect* mark)
 
 //=======================================================================================
 // SimpleView implementation
-// A graphic view with one page, no margins (i.e. LenMus ScoreAuxCtrol)
+// A graphic view with one page, no margins (e.g., LenMus ScoreAuxCtrol)
 //=======================================================================================
-SimpleView::SimpleView(LibraryScope& libraryScope, ScreenDrawer* pDrawer)
-    : GraphicView(libraryScope, pDrawer)
+SimpleView::SimpleView(LibraryScope& libraryScope, Drawer* pDrawer,
+                       BitmapDrawer* pPrintDrawer)
+    : GraphicView(libraryScope, pDrawer, pPrintDrawer)
 {
 }
 
@@ -1670,18 +1932,19 @@ void SimpleView::get_view_size(Pixels* xWidth, Pixels* yHeight)
     {
         GmoBoxDocPage* pPage = pGModel->get_page(0);
         URect rect = pPage->get_bounds();
-        *xWidth = m_pDrawer->LUnits_to_Pixels(rect.width);
-        *yHeight = m_pDrawer->LUnits_to_Pixels(rect.height);
+        *xWidth = Pixels(m_pDrawer->model_to_device_units(rect.width));
+        *yHeight = Pixels(m_pDrawer->model_to_device_units(rect.height));
     }
 }
 
 
 //=======================================================================================
 // VerticalBookView implementation
-// A graphic view with pages in vertical (i.e. Adobe PDF Reader, MS Word)
+// A graphic view with pages in vertical (e.g., Adobe PDF Reader, MS Word)
 //=======================================================================================
-VerticalBookView::VerticalBookView(LibraryScope& libraryScope, ScreenDrawer* pDrawer)
-    : GraphicView(libraryScope, pDrawer)
+VerticalBookView::VerticalBookView(LibraryScope& libraryScope, Drawer* pDrawer,
+                                   BitmapDrawer* pPrintDrawer)
+    : GraphicView(libraryScope, pDrawer, pPrintDrawer)
 {
 }
 
@@ -1734,18 +1997,19 @@ void VerticalBookView::get_view_size(Pixels* xWidth, Pixels* yHeight)
         }
         LUnits margin = 0.05f * width;      //5% margin, 2.5 at each side
 
-        *xWidth = m_pDrawer->LUnits_to_Pixels(width + margin);
-        *yHeight = m_pDrawer->LUnits_to_Pixels(height + margin);
+        *xWidth = Pixels(m_pDrawer->model_to_device_units(width + margin));
+        *yHeight = Pixels(m_pDrawer->model_to_device_units(height + margin));
     }
 }
 
 
 //=======================================================================================
 // HorizontalBookView implementation
-// A graphic view with pages in horizontal (i.e. Sibelius)
+// A graphic view with pages in horizontal (e.g., Sibelius)
 //=======================================================================================
-HorizontalBookView::HorizontalBookView(LibraryScope& libraryScope, ScreenDrawer* pDrawer)
-    : GraphicView(libraryScope, pDrawer)
+HorizontalBookView::HorizontalBookView(LibraryScope& libraryScope, Drawer* pDrawer,
+                                       BitmapDrawer* pPrintDrawer)
+    : GraphicView(libraryScope, pDrawer, pPrintDrawer)
 {
 }
 
@@ -1789,7 +2053,7 @@ void HorizontalBookView::set_viewport_for_page_fit_full(Pixels UNUSED(screenWidt
 //        left += 1500;   //TODO named constant
 //    }
 //
-//    m_vxOrg = - m_pDrawer->LUnits_to_Pixels(left);
+//    m_vxOrg = - Pixels(m_pDrawer->model_to_device_units(left));
 //    m_transform.tx = double(m_vxOrg);
 }
 
@@ -1808,16 +2072,17 @@ void HorizontalBookView::get_view_size(Pixels* xWidth, Pixels* yHeight)
         width += rect.width + 1500;
     }
 
-    *xWidth = m_pDrawer->LUnits_to_Pixels(width);
-    *yHeight = m_pDrawer->LUnits_to_Pixels(height);
+    *xWidth = Pixels(m_pDrawer->model_to_device_units(width));
+    *yHeight = Pixels(m_pDrawer->model_to_device_units(height));
 }
 
 
 //=======================================================================================
 // SingleSystemView implementation
 //=======================================================================================
-SingleSystemView::SingleSystemView(LibraryScope& libraryScope, ScreenDrawer* pDrawer)
-    : GraphicView(libraryScope, pDrawer)
+SingleSystemView::SingleSystemView(LibraryScope& libraryScope, Drawer* pDrawer,
+                                   BitmapDrawer* pPrintDrawer)
+    : GraphicView(libraryScope, pDrawer, pPrintDrawer)
 {
 }
 
@@ -1858,8 +2123,8 @@ void SingleSystemView::get_view_size(Pixels* xWidth, Pixels* yHeight)
     {
         GmoBoxDocPage* pPage = pGModel->get_page(0);
         URect rect = pPage->get_bounds();
-        *xWidth = m_pDrawer->LUnits_to_Pixels(rect.width);
-        *yHeight = m_pDrawer->LUnits_to_Pixels(rect.height);
+        *xWidth = Pixels(m_pDrawer->model_to_device_units(rect.width));
+        *yHeight = Pixels(m_pDrawer->model_to_device_units(rect.height));
     }
 }
 
@@ -1868,6 +2133,134 @@ bool SingleSystemView::is_valid_for_this_view(Document* pDoc)
 {
     return pDoc->get_num_content_items() == 1
             && pDoc->get_content_item(0)->is_score();
+}
+
+
+//=======================================================================================
+// SinglePageView implementation
+// A graphic view with a single page having as much height as necessary (e.g., an HTML
+// page having a fixed <body> width)
+//=======================================================================================
+SinglePageView::SinglePageView(LibraryScope& libraryScope, Drawer* pDrawer,
+                               BitmapDrawer* pPrintDrawer)
+    : GraphicView(libraryScope, pDrawer, pPrintDrawer)
+{
+    m_backgroundColor = Color(255, 255, 255);
+}
+
+//---------------------------------------------------------------------------------------
+void SinglePageView::collect_page_bounds()
+{
+    //OPTIMIZATION: this could be computed only once instead of each time the view
+    //is repainted.
+
+    GraphicModel* pGModel = get_graphic_model();
+    UPoint origin(0.0f, 0.0f);
+
+    m_pageBounds.clear();
+    GmoBoxDocPage* pPage = pGModel->get_page(0);
+    URect rect = pPage->get_bounds();
+    UPoint bottomRight(origin.x+rect.width, origin.y+rect.height);
+    m_pageBounds.push_back( URect(origin, bottomRight) );
+}
+
+//---------------------------------------------------------------------------------------
+void SinglePageView::set_viewport_for_page_fit_full(Pixels screenWidth)
+{
+    set_viewport_at_page_center(screenWidth);
+}
+
+//---------------------------------------------------------------------------------------
+void SinglePageView::get_view_size(Pixels* xWidth, Pixels* yHeight)
+{
+    *xWidth = 0;
+    *yHeight = 0;
+
+    GraphicModel* pGModel = get_graphic_model();
+    if (pGModel && pGModel->get_num_pages() > 0)
+    {
+        GmoBoxDocPage* pPage = pGModel->get_page(0);
+        URect rect = pPage->get_bounds();
+        *xWidth = Pixels(m_pDrawer->model_to_device_units(rect.width));
+        *yHeight = Pixels(m_pDrawer->model_to_device_units(rect.height));
+    }
+}
+
+//---------------------------------------------------------------------------------------
+int SinglePageView::page_at_screen_point(double UNUSED(x), double UNUSED(y))
+{
+    return 0;       //SinglePageView is only one page
+}
+
+
+//=======================================================================================
+// FreeFlowView implementation
+// A graphic view with a single page having as much height as necessary and having the
+// width implied by the viewport. (e.g., an HTML page, with no width constrains)
+//=======================================================================================
+FreeFlowView::FreeFlowView(LibraryScope& libraryScope, Drawer* pDrawer,
+                           BitmapDrawer* pPrintDrawer)
+    : SinglePageView(libraryScope, pDrawer, pPrintDrawer)
+{
+    m_backgroundColor = Color(255, 255, 255);
+}
+
+//---------------------------------------------------------------------------------------
+bool FreeFlowView::graphic_model_must_be_updated()
+{
+    //update GM when using a free-flow view and the viewport width has changed
+    bool value = m_fUpdateGModel;
+    m_fUpdateGModel = false;
+    return value;
+}
+
+//---------------------------------------------------------------------------------------
+void FreeFlowView::zoom_in(Pixels UNUSED(x), Pixels UNUSED(y))
+{
+    //increase scale
+    m_transform *= agg::trans_affine_scaling(1.05);
+
+    //invalidate view width
+    m_viewportSize.width = 0;
+}
+
+//---------------------------------------------------------------------------------------
+void FreeFlowView::zoom_out(Pixels UNUSED(x), Pixels UNUSED(y))
+{
+    //decrease scale
+    m_transform *= agg::trans_affine_scaling(1.0/1.05);
+
+    //invalidate view width
+    m_viewportSize.width = 0;
+}
+
+//---------------------------------------------------------------------------------------
+void FreeFlowView::zoom_fit_full(Pixels UNUSED(x), Pixels UNUSED(y))
+{
+    //FreeFlowView does not have any specific height, as it depends on width. Also,
+    //it is not possible to compute height for a given width, and thus the only solution
+    //to fit the content in the viewport is by successive approximations. Therefore,
+    //this operation is not supported and will do nothing, but to log an error.
+    LOMSE_LOG_ERROR("Invoking not supported method for FreeFlowView view type. "
+                    "Please review the logic in your application.");
+}
+
+//---------------------------------------------------------------------------------------
+void FreeFlowView::zoom_fit_width(Pixels UNUSED(width))
+{
+    //FreeFlowView does not have any specific width. Therefore, this operation is
+    //non-sense or, alternatively, the view is always satisfying this. Thus, do nothing.
+}
+
+//---------------------------------------------------------------------------------------
+void FreeFlowView::set_scale(double scale, Pixels UNUSED(x), Pixels UNUSED(y))
+{
+    //determine and apply scaling
+    double factor = scale / m_transform.scale();
+    m_transform *= agg::trans_affine_scaling(factor);
+
+    //invalidate view width
+    m_viewportSize.width = 0;
 }
 
 

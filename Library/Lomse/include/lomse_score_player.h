@@ -1,36 +1,19 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2018. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #ifndef __LOMSE_SCORE_PLAYER_H__        //to avoid nested includes
 #define __LOMSE_SCORE_PLAYER_H__
 
+#if (LOMSE_ENABLE_THREADS == 1)
+
 #include "lomse_basic.h"
+#include "lomse_internal_model.h"
 
 
 #include <vector>
@@ -168,7 +151,7 @@ class ScorePlayer
 {
 protected:
     LibraryScope&       m_libScope;
-    SoundThread*        m_pThread;      //execution thread
+    std::unique_ptr<SoundThread> m_pThread;      //execution thread
     std::mutex          m_startMutex;   //mutex so synchronize thread start
     MidiServerBase*     m_pMidi;        //MIDI server to receive MIDI events
     bool                m_fPaused;      //execution is paused
@@ -204,7 +187,7 @@ public:
 
     /** Load the score to play and set some options. Playback does not start until you
         invoke any of the play methods: play(), play_measure(), etc.
-        @param pScore A pointer to the score to play.
+        @param score The score to play.
         @param pPlayerGui
         @param metronomeChannel Midi channel (0..15) to use for metronome clicks.
             Default value is channel 9, normally used for percussion.
@@ -217,9 +200,19 @@ public:
             Default value is 77. When using channel 9 this value corresponds to the
             'Low Wood Block' sound.
     */
+    void load_score(AScore score, PlayerGui* pPlayerGui,
+                    int metronomeChannel=9, int metronomeInstr=0,
+                    int tone1=60, int tone2=77);
+
+///@cond INTERNAL
+    //TODO: Not possible to deprecate for now. Events still passes a ptr to the score
+    //instead of a AScore object
+    //LOMSE_DEPRECATED_MSG("use method receiving AScore instead of ptr.to score");
     void load_score(ImoScore* pScore, PlayerGui* pPlayerGui,
                     int metronomeChannel=9, int metronomeInstr=0,
                     int tone1=60, int tone2=77);
+///@endcond
+
 
     // methods to start playback
     /** @name Methods to start playback   */
@@ -346,18 +339,26 @@ protected:
 
     //helper, for do_play()
     //-----------------------------------------------------------------------------------
+    int m_beatType;     //beat definition to use, from EBeatDuration: k_beat_specified,
+                        //  k_beat_implied or k_beat_bottom_ts
+    long m_prevGuiBpm;      //last known value of metronome setting in GUI, for detecting
+                            // user changes in metronome setting during playback
     long m_nMtrPulseDuration;       //a beat duration, in Time Units
-    int m_beatType;                 //beat definition to use
-    TimeUnits m_beatDuration;       //for no time signature or beatType == k_beat_specified
     float m_conversionFactor;       //to convert TimeUnits (delta time) to millisecs
-    long m_nPrevMeasureDuration;    //previous TS: measure duration, in TU
-    long m_nCurMeasureDuration;     //current TS: measure duration, in TU
-    long m_nPrevNumPulses;          //previous TS: number of metronome pulses per measure                                            //assume 4/4 time signature
-    long m_nCurNumPulses;           //current TS: number of metronome pulses per measure                                            //assume 4/4 time signature
-    long m_nPrevMtrIntval;          //previous TS: metronome click interval, in milliseconds
-    long m_nCurMtrIntval;           //current TS: metronome click interval, in milliseconds
-    long m_prevGuiBpm;              //last known value of metronome setting in GUI
 
+    //current time signature (TS) info
+    long m_nCurMeasureDuration;     //current TS: measure duration, in TU
+    long m_nCurNumPulses;           //current TS: number of beats per measure
+    long m_nCurMtrIntval;           //current TS: metronome click interval, in milliseconds
+
+    //previous TS info, required to adjust metronome clicks interval for maintaining
+    //notes duration equivalence when a time signature change.
+    long m_nPrevMeasureDuration;    //previous TS: measure duration, in TU
+    long m_nPrevNumPulses;          //previous TS: number of beats per measure
+    long m_nPrevMtrIntval;          //previous TS: metronome click interval, in milliseconds
+
+
+    //helper, to conver TimeUnits to milliseconds. Depends on current metronome setting
     inline long time_units_to_milliseconds(long deltaTime) {
         return long( float(deltaTime) * m_conversionFactor );
     }
@@ -367,5 +368,7 @@ protected:
 
 
 }   //namespace lomse
+
+#endif   //LOMSE_ENABLE_THREADS == 1
 
 #endif  // __LOMSE_SCORE_PLAYER_H__

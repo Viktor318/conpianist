@@ -1,30 +1,10 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2019. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #include "lomse_box_system.h"
@@ -100,8 +80,10 @@ GmoShapeStaff* GmoBoxSystem::get_staff_shape(int iInstr, int iStaff)
 
 //---------------------------------------------------------------------------------------
 void GmoBoxSystem::reposition_slices_and_shapes(const vector<LUnits>& yOrgShifts,
-                                                vector<LUnits>& heights,
-                                                vector<LUnits>& barlinesHeight,
+                                                const vector<LUnits>& heights,
+                                                const vector<LUnits>& barlinesHeight,
+                                                const vector<vector<LUnits>>& relStaffTopPositions,
+                                                LUnits bottomMarginIncr,
                                                 SystemLayouter* pSysLayouter)
 
 {
@@ -110,12 +92,43 @@ void GmoBoxSystem::reposition_slices_and_shapes(const vector<LUnits>& yOrgShifts
     {
         GmoBoxSlice* pSlice = static_cast<GmoBoxSlice*>(*it);
         pSlice->reposition_slices_and_shapes(yOrgShifts, heights, barlinesHeight,
+                                             relStaffTopPositions, bottomMarginIncr,
                                              pSysLayouter);
     }
 
-    //shift origin and increase height
-    m_origin.y += yOrgShifts[0];
-    m_size.height += yOrgShifts.back() + heights[0];
+    //increase height
+    m_size.height += (yOrgShifts.back() + bottomMarginIncr);
+}
+
+//---------------------------------------------------------------------------------------
+void GmoBoxSystem::reposition_slices(USize shift)
+{
+    vector<GmoBox*>::iterator it;
+    for (it=m_childBoxes.begin(); it != m_childBoxes.end(); ++it)
+    {
+        GmoBoxSlice* pSlice = static_cast<GmoBoxSlice*>(*it);
+        pSlice->shift_origin(shift);
+    }
+
+    //shift origin
+    m_origin.y += shift.height;
+}
+
+//---------------------------------------------------------------------------------------
+void GmoBoxSystem::remove_free_space_at_bottom_and_adjust_slices()
+{
+    //remove free space at bottom
+    LUnits space = m_uFreeAtBottom;
+    set_height( get_height() - m_uFreeAtBottom );
+    m_uFreeAtBottom = 0.0f;
+
+    //reduce height of slices
+    vector<GmoBox*>::iterator it;
+    for (it=m_childBoxes.begin(); it != m_childBoxes.end(); ++it)
+    {
+        GmoBoxSlice* pSlice = static_cast<GmoBoxSlice*>(*it);
+        pSlice->reduce_last_instrument_height(space);
+    }
 }
 
 //---------------------------------------------------------------------------------------
@@ -123,6 +136,20 @@ GmoBoxSliceInstr* GmoBoxSystem::get_first_instr_slice(int iInstr)
 {
     GmoBoxSlice* pSlice = static_cast<GmoBoxSlice*>(m_childBoxes[0]);
     return pSlice->get_instr_slice(iInstr);
+}
+
+//---------------------------------------------------------------------------------------
+GmoBoxSliceInstr* GmoBoxSystem::find_instr_slice_at(LUnits x, LUnits y)
+{
+    vector<GmoBox*>::iterator it;
+    for (it=m_childBoxes.begin(); it != m_childBoxes.end(); ++it)
+    {
+        GmoBoxSlice* pSlice = static_cast<GmoBoxSlice*>(*it);
+        URect bbox = pSlice->get_bounds();
+        if (bbox.contains(x, y))
+            return pSlice->find_instr_slice_at(x, y);
+    }
+    return nullptr;
 }
 
 //---------------------------------------------------------------------------------------
@@ -170,7 +197,7 @@ int GmoBoxSystem::staff_number_for(int absStaff, int UNUSED(iInstr))
 }
 
 //---------------------------------------------------------------------------------------
-int GmoBoxSystem::nearest_staff_to_point(LUnits y)
+int GmoBoxSystem::staff_at(LUnits y)
 {
     //The y coordinate should be within system box limits.
 
@@ -262,6 +289,32 @@ string GmoBoxSystem::dump_measures_info()
     }
     s << endl;
     return s.str();
+}
+
+//---------------------------------------------------------------------------------------
+void GmoBoxSystem::draw_box_bounds(Drawer* pDrawer, double xorg, double yorg, Color& color)
+{
+    GmoBox::draw_box_bounds(pDrawer, xorg, yorg, color);
+
+    //draw free space limits
+    if (m_uFreeAtTop != 0.0f || m_uFreeAtBottom != 0.0f)
+    {
+        pDrawer->begin_path();
+        pDrawer->fill( Color(255, 255, 255, 0) );     //background white transparent
+        pDrawer->stroke( color );
+        pDrawer->stroke_width(20.0);    //0.2 mm
+        if (m_uFreeAtTop != 0.0f)
+        {
+            pDrawer->move_to(xorg, yorg + m_uFreeAtTop);
+            pDrawer->hline_to(xorg + get_width());
+        }
+        if (m_uFreeAtBottom != 0.0f)
+        {
+            pDrawer->move_to(xorg, yorg + get_height() - m_uFreeAtBottom);
+            pDrawer->hline_to(xorg + get_width());
+        }
+        pDrawer->end_path();
+    }
 }
 
 

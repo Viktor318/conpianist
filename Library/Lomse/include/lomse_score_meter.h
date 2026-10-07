@@ -1,30 +1,10 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2016. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #ifndef __LOMSE_SCORE_METER_H__        //to avoid nested includes
@@ -41,6 +21,7 @@ namespace lomse
 
 //forward declarations
 class ImoScore;
+class ImoStaffInfo;
 class ImoStyle;
 
 
@@ -65,13 +46,15 @@ protected:
 
     //layout options
     Tenths m_rUpperLegerLinesDisplacement;
-    bool m_fDrawLeftBarline;            //draw left barline joining all system staves
+    bool m_fDrawSystemicBarline;        //draw left barline joining all system staves
     bool m_fFillPageWithEmptyStaves;
     bool m_fHideStaffLines;
     long m_nJustifyLastSystem;
     long m_nTruncateStaffLines;
 
-	std::vector<LUnits> m_lineSpace;    //spacing for each staff
+	std::vector<LUnits> m_lineSpace;        //spacing for each staff
+	std::vector<LUnits> m_lineThickness;    //line thickness for each staff
+	std::vector<double> m_notationScaling;  //notation scaling factor for each staff
     std::vector<int> m_staffIndex;
     LUnits m_maxLineSpace;              //spacing for greatest staff
 
@@ -89,7 +72,7 @@ public:
                 float rSpacingFactor=0.547f,
                 ESpacingMethod nSpacingMethod=k_spacing_proportional,
                 Tenths rSpacingValue=35.0f,
-                bool fDrawLeftBarline=true);
+                bool DrawSystemicBarline=true);
 
     //options
     inline float get_spacing_Fopt() { return m_spacingOptForce; }
@@ -103,7 +86,7 @@ public:
     inline bool is_proportional_spacing() {
         return m_nSpacingMethod == k_spacing_proportional;
     }
-    inline bool must_draw_left_barline() { return m_fDrawLeftBarline; }
+    inline bool must_draw_systemic_barline() { return m_fDrawSystemicBarline; }
     inline Tenths get_upper_ledger_lines_displacement() { return m_rUpperLegerLinesDisplacement; }
     inline bool must_fill_page_with_empty_systems() { return m_fFillPageWithEmptyStaves; }
     inline bool must_hide_stafflines() { return m_fHideStaffLines; }
@@ -112,8 +95,12 @@ public:
 
     //spacing
     LUnits tenths_to_logical(Tenths value, int iInstr=0, int iStaff=0);
+    LUnits tenths_to_logical_for_staff(Tenths value, int idxStaff);
     Tenths logical_to_tenths(LUnits value, int iInstr, int iStaff);
     LUnits line_spacing_for_instr_staff(int iInstr, int iStaff);
+    LUnits line_thickness_for_instr_staff(int iInstr, int iStaff);
+    double notation_scaling_factor(int iInstr, int iStaff);
+    double font_size_for_notation(int iInstr, int iStaff);
     inline LUnits tenths_to_logical_max(Tenths value)     //using biggest staff
     {
         return (value * m_maxLineSpace) / 10.0f;
@@ -122,14 +109,18 @@ public:
     //info about the score
     inline int num_instruments() { return m_numInstruments; }
     inline int num_staves() { return m_numStaves; }
+    int num_lines();
     inline int staff_index(int iInstr, int iStaff) {
         return m_staffIndex[iInstr] + iStaff;
     }
     inline bool is_empty_score() { return m_fScoreIsEmpty; }
+    bool has_tablature();
 
     //info about text styles
     ImoStyle* get_style_info(const string& name);
 
+    //info about staves
+    ImoStaffInfo* get_staff_info(int iInstr, int iStaff);
 
 protected:
     void get_options(ImoScore* pScore);

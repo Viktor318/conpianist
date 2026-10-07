@@ -13,6 +13,10 @@
 #include "../src/platform/lomse_other.cpp"
 #endif
 
+// All sources of Lomse 0.30.0 in one compilation unit.
+// A few file-level names are defined in more than one source file; they are renamed
+// here with macros while the given file is compiled, so the sources stay unchanged.
+
 #include "../src/agg/src/agg_arc.cpp"
 #include "../src/agg/src/agg_bezier_arc.cpp"
 #include "../src/agg/src/agg_curves.cpp"
@@ -26,11 +30,22 @@
 #include "../src/document/lomse_command.cpp"
 #include "../src/document/lomse_document.cpp"
 #include "../src/document/lomse_document_cursor.cpp"
-#include "../src/document/lomse_document_iterator.cpp"
-#include "../src/document/lomse_id_assigner.cpp"
 #include "../src/exporters/lomse_ldp_exporter.cpp"
+#define k_in_same_line k_in_same_line_lmd
+#define k_indent_step k_indent_step_lmd
 #include "../src/exporters/lomse_lmd_exporter.cpp"
+#undef k_in_same_line
+#undef k_indent_step
+#define k_in_same_line k_in_same_line_mnx
+#define k_indent_step k_indent_step_mnx
 #include "../src/exporters/lomse_mnx_exporter.cpp"
+#undef k_in_same_line
+#undef k_indent_step
+#define k_in_same_line k_in_same_line_mxl
+#define k_indent_step k_indent_step_mxl
+#include "../src/exporters/lomse_mxl_exporter.cpp"
+#undef k_in_same_line
+#undef k_indent_step
 #include "../src/file_system/lomse_file_system.cpp"
 #include "../src/file_system/lomse_image_reader.cpp"
 #include "../src/file_system/lomse_zip_stream.cpp"
@@ -45,6 +60,7 @@
 #include "../src/graphic_model/engravers/lomse_engraver.cpp"
 #include "../src/graphic_model/engravers/lomse_engrouters.cpp"
 #include "../src/graphic_model/engravers/lomse_fermata_engraver.cpp"
+#include "../src/graphic_model/engravers/lomse_fingering_engraver.cpp"
 #include "../src/graphic_model/engravers/lomse_instrument_engraver.cpp"
 #include "../src/graphic_model/engravers/lomse_key_engraver.cpp"
 #include "../src/graphic_model/engravers/lomse_line_engraver.cpp"
@@ -53,6 +69,7 @@
 #include "../src/graphic_model/engravers/lomse_note_engraver.cpp"
 #include "../src/graphic_model/engravers/lomse_octave_shift_engraver.cpp"
 #include "../src/graphic_model/engravers/lomse_ornament_engraver.cpp"
+#include "../src/graphic_model/engravers/lomse_pedal_engraver.cpp"
 #include "../src/graphic_model/engravers/lomse_rest_engraver.cpp"
 #include "../src/graphic_model/engravers/lomse_slur_engraver.cpp"
 #include "../src/graphic_model/engravers/lomse_technical_engraver.cpp"
@@ -62,16 +79,17 @@
 #include "../src/graphic_model/engravers/lomse_tuplet_engraver.cpp"
 #include "../src/graphic_model/engravers/lomse_volta_engraver.cpp"
 #include "../src/graphic_model/engravers/lomse_wedge_engraver.cpp"
+#include "../src/graphic_model/layouters/lomse_aux_shapes_aligner.cpp"
 #include "../src/graphic_model/layouters/lomse_blocks_container_layouter.cpp"
 #include "../src/graphic_model/layouters/lomse_document_layouter.cpp"
 #include "../src/graphic_model/layouters/lomse_inlines_container_layouter.cpp"
 #include "../src/graphic_model/layouters/lomse_layouter.cpp"
+#include "../src/graphic_model/layouters/lomse_noterests_collisions_fixer.cpp"
 #include "../src/graphic_model/layouters/lomse_right_aligner.cpp"
 #include "../src/graphic_model/layouters/lomse_score_layouter.cpp"
 #include "../src/graphic_model/layouters/lomse_score_meter.cpp"
 #include "../src/graphic_model/layouters/lomse_spacing_algorithm.cpp"
 #include "../src/graphic_model/layouters/lomse_spacing_algorithm_gourlay.cpp"
-#include "../src/graphic_model/layouters/lomse_staffobjs_cursor.cpp"
 #include "../src/graphic_model/layouters/lomse_system_layouter.cpp"
 #include "../src/graphic_model/layouters/lomse_table_layouter.cpp"
 #include "../src/graphic_model/layouters/lomse_text_splitter.cpp"
@@ -83,11 +101,13 @@
 #include "../src/graphic_model/lomse_caret.cpp"
 #include "../src/graphic_model/lomse_caret_positioner.cpp"
 #include "../src/graphic_model/lomse_engravers_map.cpp"
+#include "../src/graphic_model/lomse_fragment_mark.cpp"
 #include "../src/graphic_model/lomse_glyphs.cpp"
 #include "../src/graphic_model/lomse_gm_basic.cpp"
 #include "../src/graphic_model/lomse_gm_measures_table.cpp"
 #include "../src/graphic_model/lomse_graphical_model.cpp"
 #include "../src/graphic_model/lomse_handler.cpp"
+#include "../src/graphic_model/lomse_measure_highlight.cpp"
 #include "../src/graphic_model/lomse_overlays_generator.cpp"
 #include "../src/graphic_model/lomse_selections.cpp"
 #include "../src/graphic_model/lomse_shape_barline.cpp"
@@ -97,6 +117,7 @@
 #include "../src/graphic_model/lomse_shape_line.cpp"
 #include "../src/graphic_model/lomse_shape_note.cpp"
 #include "../src/graphic_model/lomse_shape_octave_shift.cpp"
+#include "../src/graphic_model/lomse_shape_pedal_line.cpp"
 #include "../src/graphic_model/lomse_shape_staff.cpp"
 #include "../src/graphic_model/lomse_shape_text.cpp"
 #include "../src/graphic_model/lomse_shape_tie.cpp"
@@ -109,23 +130,28 @@
 #include "../src/graphic_model/lomse_time_grid.cpp"
 #include "../src/graphic_model/lomse_timegrid_table.cpp"
 #include "../src/graphic_model/lomse_visual_effect.cpp"
-#include "../src/graphic_model/lomse_fragment_mark.cpp"
 #include "../src/gui_controls/lomse_button_ctrl.cpp"
 #include "../src/gui_controls/lomse_checkbox_ctrl.cpp"
 #include "../src/gui_controls/lomse_hyperlink_ctrl.cpp"
 #include "../src/gui_controls/lomse_progress_bar_ctrl.cpp"
 #include "../src/gui_controls/lomse_score_player_ctrl.cpp"
 #include "../src/gui_controls/lomse_static_text_ctrl.cpp"
+#include "../src/internal_model/lomse_api_internal_model.cpp"
+#include "../src/internal_model/lomse_id_assigner.cpp"
 #include "../src/internal_model/lomse_im_algorithms.cpp"
 #include "../src/internal_model/lomse_im_attributes.cpp"
 #include "../src/internal_model/lomse_im_factory.cpp"
 #include "../src/internal_model/lomse_im_figured_bass.cpp"
 #include "../src/internal_model/lomse_im_measures_table.cpp"
 #include "../src/internal_model/lomse_im_note.cpp"
+#define m_unknown m_unknown_im
 #include "../src/internal_model/lomse_internal_model.cpp"
+#undef m_unknown
 #include "../src/internal_model/lomse_model_builder.cpp"
+#include "../src/internal_model/lomse_relobj_cloner.cpp"
 #include "../src/internal_model/lomse_score_algorithms.cpp"
 #include "../src/internal_model/lomse_score_utilities.cpp"
+#include "../src/internal_model/lomse_staffobjs_cursor.cpp"
 #include "../src/internal_model/lomse_staffobjs_table.cpp"
 #include "../src/module/lomse_doorway.cpp"
 #include "../src/module/lomse_events.cpp"
@@ -137,6 +163,7 @@
 #include "../src/module/lomse_pitch.cpp"
 #include "../src/module/lomse_time.cpp"
 #include "../src/mvc/lomse_graphic_view.cpp"
+#include "../src/mvc/lomse_half_page_view.cpp"
 #include "../src/mvc/lomse_interactor.cpp"
 #include "../src/mvc/lomse_presenter.cpp"
 #include "../src/mvc/lomse_tasks.cpp"
@@ -158,14 +185,15 @@
 #include "../src/parser/lomse_xml_parser.cpp"
 #include "../src/parser/mnx/lomse_mnx_analyser.cpp"
 #include "../src/parser/mnx/lomse_mnx_compiler.cpp"
+#include "../src/parser/mxl/lomse_compressed_mxl_compiler.cpp"
 #include "../src/parser/mxl/lomse_mxl_analyser.cpp"
 #include "../src/parser/mxl/lomse_mxl_compiler.cpp"
+#include "../src/render/lomse_bitmap_drawer.cpp"
 #include "../src/render/lomse_calligrapher.cpp"
 #include "../src/render/lomse_font_freetype.cpp"
 #include "../src/render/lomse_font_storage.cpp"
 #include "../src/render/lomse_renderer.cpp"
-#include "../src/render/lomse_screen_drawer.cpp"
-#include "../src/score/lomse_score_iterator.cpp"
+#include "../src/render/lomse_svg_drawer.cpp"
 #include "../src/sound/lomse_midi_table.cpp"
 #include "../src/sound/lomse_score_player.cpp"
 

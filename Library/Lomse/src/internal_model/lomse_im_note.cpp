@@ -1,35 +1,16 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2016. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #include "lomse_im_note.h"
 
 #include "lomse_im_attributes.h"
+#include "private/lomse_document_p.h"
 
 
 namespace lomse
@@ -39,18 +20,6 @@ namespace lomse
 //=======================================================================================
 // ImoNoteRest implementation
 //=======================================================================================
-ImoNoteRest::ImoNoteRest(int objtype)
-    : ImoStaffObj(objtype)
-    , m_nNoteType(k_quarter)
-    , m_nDots(0)
-    , m_nVoice(1)
-    , m_timeModifierTop(1)
-    , m_timeModifierBottom(1)
-    , m_duration(k_duration_quarter)
-{
-}
-
-//---------------------------------------------------------------------------------------
 int ImoNoteRest::get_beam_type(int level)
 {
     ImoBeam* pBeam = static_cast<ImoBeam*>( find_relation(k_imo_beam) );
@@ -103,13 +72,22 @@ ImoTuplet* ImoNoteRest::get_first_tuplet()
 }
 
 //---------------------------------------------------------------------------------------
-void ImoNoteRest::set_time_modification(int numerator, int denominator)
+void ImoNoteRest::set_time_modifiers_and_duration(int numerator, int denominator)
 {
     m_timeModifierTop = numerator;
     m_timeModifierBottom = denominator;
 
     double modifier = double(m_timeModifierTop) / double(m_timeModifierBottom);
     m_duration = to_duration(m_nNoteType, m_nDots) * modifier;
+    m_playDuration = m_duration;
+    m_eventDuration = m_duration;
+}
+
+//---------------------------------------------------------------------------------------
+void ImoNoteRest::set_time_modifiers(int numerator, int denominator)
+{
+    m_timeModifierTop = numerator;
+    m_timeModifierBottom = denominator;
 }
 
 //---------------------------------------------------------------------------------------
@@ -118,6 +96,8 @@ void ImoNoteRest::set_note_type_and_dots(int noteType, int dots)
     m_nNoteType = noteType;
     m_nDots = dots;
     m_duration = to_duration(m_nNoteType, m_nDots);
+    m_playDuration = m_duration;
+    m_eventDuration = m_duration;
 }
 
 //---------------------------------------------------------------------------------------
@@ -126,6 +106,8 @@ void ImoNoteRest::set_type_dots_duration(int noteType, int dots, TimeUnits durat
     m_nNoteType = noteType;
     m_nDots = dots;
     m_duration = duration;
+    m_playDuration = m_duration;
+    m_eventDuration = m_duration;
 
     m_timeModifierTop = 1;
     m_timeModifierBottom = 1;
@@ -197,32 +179,32 @@ list<TIntAttribute> ImoNoteRest::get_supported_attributes()
 //=======================================================================================
 // ImoNote implementation
 //=======================================================================================
-ImoNote::ImoNote()
-    : ImoNoteRest(k_imo_note)
-    , m_step(k_no_pitch)
-    , m_octave(4)
+ImoNote::ImoNote(int type)
+    : ImoNoteRest(type)
     , m_actual_acc(k_acc_not_computed)
     , m_notated_acc(k_invalid_accidentals)
     , m_options(0)
     , m_stemDirection(k_stem_default)
-    , m_pTieNext(nullptr)
-    , m_pTiePrev(nullptr)
+    , m_idTieNext(k_no_imoid)
+    , m_idTiePrev(k_no_imoid)
+    , m_computedStem(k_computed_stem_undecided)
 {
 }
 
 //---------------------------------------------------------------------------------------
 ImoNote::ImoNote(int step, int octave, int noteType, EAccidentals accidentals, int dots,
                  int staff, int voice, int stem)
-    : ImoNoteRest(k_imo_note)
-    , m_step(step)
-    , m_octave(octave)
+    : ImoNoteRest(k_imo_note_regular)
     , m_actual_acc(k_acc_not_computed)
     , m_notated_acc(accidentals)
     , m_options(0)
     , m_stemDirection(stem)
-    , m_pTieNext(nullptr)
-    , m_pTiePrev(nullptr)
+    , m_idTieNext(k_no_imoid)
+    , m_idTiePrev(k_no_imoid)
+    , m_computedStem(k_computed_stem_undecided)
 {
+    m_step = step;
+    m_octave = octave;
     m_nVoice = voice;
     m_staff = staff;
     set_note_type_and_dots(noteType, dots);
@@ -232,11 +214,44 @@ ImoNote::ImoNote(int step, int octave, int noteType, EAccidentals accidentals, i
 ImoNote::~ImoNote()
 {
     //if tied, inform the other note
-    if (m_pTieNext)
-        m_pTieNext->get_end_note()->set_tie_prev(nullptr);
+    //AWARE: Ties will be deleted in ImoStaffObj destructor. But it is necesary to
+    //inform the other notes to remove the tie Ids
 
-    if (m_pTiePrev)
-        m_pTiePrev->get_start_note()->set_tie_next(nullptr);
+    if (m_idTieNext != k_no_imoid)
+        get_tie_next()->get_end_note()->set_tie_prev(nullptr);
+
+    if (m_idTiePrev != k_no_imoid)
+        get_tie_prev()->get_start_note()->set_tie_next(nullptr);
+}
+
+//---------------------------------------------------------------------------------------
+ImoTie* ImoNote::get_tie_next()
+{
+    if (m_pDocModel && m_idTieNext != k_no_imoid)
+        return static_cast<ImoTie*>( m_pDocModel->get_pointer_to_imo(m_idTieNext) );
+    else
+        return nullptr;
+}
+
+//---------------------------------------------------------------------------------------
+ImoTie* ImoNote::get_tie_prev()
+{
+    if (m_pDocModel && m_idTiePrev != k_no_imoid)
+        return static_cast<ImoTie*>( m_pDocModel->get_pointer_to_imo(m_idTiePrev) );
+    else
+        return nullptr;
+}
+
+//---------------------------------------------------------------------------------------
+void ImoNote::set_tie_next(ImoTie* pStartTie)
+{
+    m_idTieNext = (pStartTie ? pStartTie->get_id() : k_no_imoid);
+}
+
+//---------------------------------------------------------------------------------------
+void ImoNote::set_tie_prev(ImoTie* pEndTie)
+{
+    m_idTiePrev = (pEndTie ? pEndTie->get_id() : k_no_imoid);
 }
 
 //---------------------------------------------------------------------------------------
@@ -266,6 +281,25 @@ bool ImoNote::is_end_of_chord()
 }
 
 //---------------------------------------------------------------------------------------
+bool ImoNote::is_cross_staff_chord()
+{
+    ImoChord* pChord = get_chord();
+    return pChord && pChord->is_cross_staff();
+}
+
+//---------------------------------------------------------------------------------------
+void ImoNote::mute(EMuteType value)
+{
+    m_fMute = (value != k_mute_off);
+}
+
+//---------------------------------------------------------------------------------------
+bool ImoNote::is_muted()
+{
+    return m_fMute != k_mute_off;
+}
+
+//---------------------------------------------------------------------------------------
 bool ImoNote::has_beam()
 {
     ImoChord* pChord = get_chord();
@@ -273,9 +307,21 @@ bool ImoNote::has_beam()
         return is_beamed();
     else
     {
-        ImoNote* pNote = static_cast<ImoNote*>(pChord->get_start_object());
+        ImoNote* pNote = pChord->get_start_note();
         return pNote->is_beamed();
     }
+}
+
+//---------------------------------------------------------------------------------------
+ImoGraceRelObj* ImoNote::get_grace_relobj()
+{
+    return static_cast<ImoGraceRelObj*>( find_relation(k_imo_grace_relobj) );
+}
+
+//---------------------------------------------------------------------------------------
+ImoArpeggio* ImoNote::get_arpeggio()
+{
+    return static_cast<ImoArpeggio*>( find_relation(k_imo_arpeggio) );
 }
 
 //---------------------------------------------------------------------------------------

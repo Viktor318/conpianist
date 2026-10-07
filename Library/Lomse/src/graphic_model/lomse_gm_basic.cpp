@@ -1,30 +1,10 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2018. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #include "lomse_gm_basic.h"
@@ -42,6 +22,7 @@
 
 #include <cstdlib>      //abs
 #include <iomanip>
+using namespace std;
 
 
 namespace lomse
@@ -76,42 +57,32 @@ GmoObj::~GmoObj()
 //---------------------------------------------------------------------------------------
 void GmoObj::set_origin(UPoint& pos)
 {
-    USize shift(pos.x - m_origin.x, pos.y - m_origin.y);
-    shift_origin(shift);
+    set_origin(pos.x, pos.y);
 }
 
 //---------------------------------------------------------------------------------------
 void GmoObj::set_origin(const UPoint& pos)
 {
-    USize shift(pos.x - m_origin.x, pos.y - m_origin.y);
-    shift_origin(shift);
+    set_origin(pos.x, pos.y);
 }
 
 //---------------------------------------------------------------------------------------
 void GmoObj::set_origin(LUnits xLeft, LUnits yTop)
 {
-    if (xLeft == 0.0f && yTop == 0.0f) return;
-
-    USize shift(xLeft - m_origin.x, yTop - m_origin.y);
-    shift_origin(shift);
+    m_origin.x = xLeft;
+    m_origin.y = yTop;
 }
 
 //---------------------------------------------------------------------------------------
 void GmoObj::set_left(LUnits xLeft)
 {
-    if (xLeft == 0.0f) return;
-
-    USize shift(xLeft - m_origin.x, 0.0f);
-    shift_origin(shift);
+    set_origin(xLeft, m_origin.y);
 }
 
 //---------------------------------------------------------------------------------------
 void GmoObj::set_top(LUnits yTop)
 {
-    if (yTop == 0.0f) return;
-
-    USize shift(0.0f, yTop - m_origin.y);
-    shift_origin(shift);
+    set_origin(m_origin.x, yTop);
 }
 
 //---------------------------------------------------------------------------------------
@@ -134,20 +105,13 @@ void GmoObj::shift_origin(const USize& shift)
 }
 
 //---------------------------------------------------------------------------------------
-void GmoObj::shift_origin(LUnits x, LUnits y)
-{
-    m_origin.x += x;
-    m_origin.y += y;
-}
-
-//---------------------------------------------------------------------------------------
 void GmoObj::dump(ostream& outStream, int level)
 {
     std::ios_base::fmtflags f( outStream.flags() );  //save formating options
 
     outStream << setw(level*3) << level << " [" << setw(3) << m_objtype << "] "
-              << get_name(m_objtype)
-              << fixed << setprecision(2) << setfill(' ')
+              << setw(15) << setfill(' ') << get_name(m_objtype)
+              << fixed << setprecision(2)
               << setw(10) << round_half_up(m_origin.x) << ", "
               << setw(10) << round_half_up(m_origin.y) << ", "
               << setw(10) << round_half_up(m_size.width) << ", "
@@ -161,70 +125,75 @@ const string& GmoObj::get_name(int objtype)
 {
     if (!m_fNamesLoaded)
     {
-        m_typeToName[k_box]                     = "box (A)        ";
-        m_typeToName[k_box_control]             = "box-control    ";
-        m_typeToName[k_box_document]            = "box-document   ";
-        m_typeToName[k_box_doc_page]            = "box-doc-page   ";
+        m_typeToName[k_box]                     = "box (A)";
+        m_typeToName[k_box_control]             = "box-control";
+        m_typeToName[k_box_document]            = "box-document";
+        m_typeToName[k_box_doc_page]            = "box-doc-page";
         m_typeToName[k_box_doc_page_content]    = "box-docpg-cont.";
-        m_typeToName[k_box_inline]              = "box-inline     ";
-        m_typeToName[k_box_link]                = "box-link       ";
-        m_typeToName[k_box_paragraph]           = "box-paragraph  ";
-        m_typeToName[k_box_score_page]          = "box-score-page ";
-        m_typeToName[k_box_slice]               = "box-slice      ";
-        m_typeToName[k_box_slice_instr]         = "box-slice-intr ";
+        m_typeToName[k_box_inline]              = "box-inline";
+        m_typeToName[k_box_link]                = "box-link";
+        m_typeToName[k_box_paragraph]           = "box-paragraph";
+        m_typeToName[k_box_score_page]          = "box-score-page";
+        m_typeToName[k_box_slice]               = "box-slice";
+        m_typeToName[k_box_slice_instr]         = "box-slice-intr";
         m_typeToName[k_box_slice_staff]         = "box-slice-staff";
-        m_typeToName[k_box_system]              = "box-system     ";
-        m_typeToName[k_box_table]               = "box-table      ";
-        m_typeToName[k_box_table_rows]          = "box-table-rows ";
+        m_typeToName[k_box_system]              = "box-system";
+        m_typeToName[k_box_table]               = "box-table";
+        m_typeToName[k_box_table_rows]          = "box-table-rows";
 
         // shapes
-        m_typeToName[k_shape]                   = "shape (A)      ";
-        m_typeToName[k_shape_accidentals]       = "accidentals    ";
+        m_typeToName[k_shape]                   = "shape (A)";
+        m_typeToName[k_shape_accidentals]       = "accidentals";
         m_typeToName[k_shape_accidental_sign]   = "accidental-sign";
-        m_typeToName[k_shape_articulation]      = "articulation   ";
-        m_typeToName[k_shape_barline]           = "barline        ";
-        m_typeToName[k_shape_beam]              = "beam           ";
-        m_typeToName[k_shape_brace]             = "brace          ";
-        m_typeToName[k_shape_bracket]           = "bracket        ";
-        m_typeToName[k_shape_button]            = "button         ";
-        m_typeToName[k_shape_clef]              = "clef           ";
-        m_typeToName[k_shape_coda_segno]        = "coda-segno     ";
-        m_typeToName[k_shape_debug]             = "shape-debug    ";
-        m_typeToName[k_shape_dot]               = "dot            ";
-        m_typeToName[k_shape_dynamics_mark]     = "dynamics-mark  ";
-        m_typeToName[k_shape_fermata]           = "fermata        ";
-        m_typeToName[k_shape_flag]              = "flag           ";
-        m_typeToName[k_shape_image]             = "image          ";
-        m_typeToName[k_shape_invisible]         = "invisible      ";
-        m_typeToName[k_shape_key_signature]     = "key            ";
-        m_typeToName[k_shape_line]              = "line           ";
-        m_typeToName[k_shape_lyrics]            = "lyrics         ";
+        m_typeToName[k_shape_arpeggio]          = "arpeggio";
+        m_typeToName[k_shape_articulation]      = "articulation";
+        m_typeToName[k_shape_barline]           = "barline";
+        m_typeToName[k_shape_beam]              = "beam";
+        m_typeToName[k_shape_brace]             = "brace";
+        m_typeToName[k_shape_bracket]           = "bracket";
+        m_typeToName[k_shape_clef]              = "clef";
+        m_typeToName[k_shape_coda_segno]        = "coda-segno";
+        m_typeToName[k_shape_debug]             = "shape-debug";
+        m_typeToName[k_shape_dot]               = "dot";
+        m_typeToName[k_shape_dynamics_mark]     = "dynamics-mark";
+        m_typeToName[k_shape_fermata]           = "fermata";
+        m_typeToName[k_shape_fingering_box]     = "fingering-box";
+        m_typeToName[k_shape_fingering]         = "fingering";
+        m_typeToName[k_shape_flag]              = "flag";
+        m_typeToName[k_shape_grace_stroke]      = "grace-stroke";
+        m_typeToName[k_shape_image]             = "image";
+        m_typeToName[k_shape_invisible]         = "invisible";
+        m_typeToName[k_shape_key_signature]     = "key";
+        m_typeToName[k_shape_line]              = "line";
+        m_typeToName[k_shape_lyrics]            = "lyrics";
         m_typeToName[k_shape_metronome_glyph]   = "metronome-glyph";
-        m_typeToName[k_shape_metronome_mark]    = "metronome-mark ";
-        m_typeToName[k_shape_note]              = "note           ";
-        m_typeToName[k_shape_chord_base_note]   = "base-note      ";
-        m_typeToName[k_shape_notehead]          = "notehead       ";
-        m_typeToName[k_shape_octave_shift]      = "octave-shift   ";
-        m_typeToName[k_shape_octave_glyph]      = "octave-glyph   ";
-        m_typeToName[k_shape_ornament]          = "ornament       ";
-        m_typeToName[k_shape_rectangle]         = "rectangle      ";
-        m_typeToName[k_shape_rest]              = "rest           ";
-        m_typeToName[k_shape_rest_glyph]        = "rest-glyph     ";
-        m_typeToName[k_shape_slur]              = "slur           ";
-        m_typeToName[k_shape_stem]              = "stem           ";
+        m_typeToName[k_shape_metronome_mark]    = "metronome-mark";
+        m_typeToName[k_shape_note]              = "note";
+        m_typeToName[k_shape_chord_base_note]   = "chord-base-note";
+        m_typeToName[k_shape_notehead]          = "notehead";
+        m_typeToName[k_shape_octave_shift]      = "octave-shift";
+        m_typeToName[k_shape_octave_glyph]      = "octave-glyph";
+        m_typeToName[k_shape_ornament]          = "ornament";
+        m_typeToName[k_shape_pedal_glyph]       = "pedal-glyph";
+        m_typeToName[k_shape_pedal_line]        = "pedal-line";
+        m_typeToName[k_shape_rectangle]         = "rectangle";
+        m_typeToName[k_shape_rest]              = "rest";
+        m_typeToName[k_shape_rest_glyph]        = "rest-glyph";
+        m_typeToName[k_shape_slur]              = "slur";
+        m_typeToName[k_shape_stem]              = "stem";
         m_typeToName[k_shape_squared_bracket]   = "squared-bracket";
-        m_typeToName[k_shape_staff]             = "staff          ";
-        m_typeToName[k_shape_technical]         = "technical      ";
-        m_typeToName[k_shape_text]              = "text           ";
-        m_typeToName[k_shape_text_box]          = "text-box       ";
-        m_typeToName[k_shape_time_signature]    = "time           ";
-        m_typeToName[k_shape_tie]               = "tie            ";
+        m_typeToName[k_shape_staff]             = "staff";
+        m_typeToName[k_shape_technical]         = "technical";
+        m_typeToName[k_shape_text]              = "text";
+        m_typeToName[k_shape_text_box]          = "text-box";
+        m_typeToName[k_shape_time_signature]    = "time";
+        m_typeToName[k_shape_tie]               = "tie";
         m_typeToName[k_shape_time_signature_glyph]
-                                                = "time-glyph     ";
-        m_typeToName[k_shape_tuplet]            = "tuplet         ";
-        m_typeToName[k_shape_volta_bracket]     = "volta-bracket  ";
-        m_typeToName[k_shape_word]              = "word           ";
-        m_typeToName[k_shape_wedge]             = "wedge          ";
+                                                = "time-glyph";
+        m_typeToName[k_shape_tuplet]            = "tuplet";
+        m_typeToName[k_shape_volta_bracket]     = "volta-bracket";
+        m_typeToName[k_shape_word]              = "word";
+        m_typeToName[k_shape_wedge]             = "wedge";
 
         m_fNamesLoaded = true;
     }
@@ -308,6 +277,32 @@ GmoBoxDocPage* GmoObj::get_page_box()
     }
 }
 
+//---------------------------------------------------------------------------------------
+const string GmoObj::get_notation_id(const string& prefix)
+{
+    ImoObj* pImo = get_creator_imo();
+    if (pImo)
+    {
+        stringstream ss;
+        ss << "m" << pImo->get_id();
+        if (!prefix.empty())
+            ss << "-" << prefix;
+        if (is_shape() && static_cast<GmoShape*>(this)->get_shape_id() != 0)
+            ss << "-" << static_cast<GmoShape*>(this)->get_shape_id();
+        return ss.str();
+    }
+    return string();
+}
+
+//---------------------------------------------------------------------------------------
+const string GmoObj::get_notation_class()
+{
+    ImoObj* pImo = get_creator_imo();
+    if (pImo)
+        return pImo->get_name();
+
+    return string();
+}
 
 
 //=======================================================================================
@@ -733,6 +728,96 @@ void GmoBox::add_boxes_to_map_imo_to_box(GraphicModel* pGM)
 
 
 //=======================================================================================
+// StaffObjShapeCursor
+//=======================================================================================
+StaffObjShapeCursor::StaffObjShapeCursor(GmoBox* pBox)
+    : m_pCurrentBox(pBox), m_it(pBox->m_shapes.begin())
+{
+}
+
+//---------------------------------------------------------------------------------------
+StaffObjShapeCursor::StaffObjShapeCursor(GmoShape* pShape)
+    : m_pCurrentBox(pShape->get_owner_box())
+{
+    std::list<GmoShape*>& shapes = m_pCurrentBox->m_shapes;
+    m_it = std::find(shapes.begin(), shapes.end(), pShape);
+}
+
+//---------------------------------------------------------------------------------------
+TimeUnits StaffObjShapeCursor::get_time() const
+{
+    return static_cast<ImoStaffObj*>(get_shape()->get_creator_imo())->get_time();
+}
+
+//---------------------------------------------------------------------------------------
+bool StaffObjShapeCursor::next()
+{
+    ++m_it;
+    return m_it != m_pCurrentBox->m_shapes.end() && (*m_it)->get_creator_imo()->is_staffobj();
+}
+
+//---------------------------------------------------------------------------------------
+bool StaffObjShapeCursor::next(TimeUnits maxTime)
+{
+    if (!next())
+        return false;
+
+    //next() ensures that we have a staffobj shape
+    ImoStaffObj* pSO = static_cast<ImoStaffObj*>(get_shape()->get_creator_imo());
+    return pSO->get_time() <= maxTime;
+}
+
+//---------------------------------------------------------------------------------------
+bool StaffObjShapeCursor::nextAfter(TimeUnits time)
+{
+    while (next())
+    {
+        //next() ensures that we have a staffobj shape
+        ImoStaffObj* pSO = static_cast<ImoStaffObj*>(get_shape()->get_creator_imo());
+        if (pSO->get_time() > time)
+            return true;
+    }
+
+    return false;
+}
+
+//---------------------------------------------------------------------------------------
+bool StaffObjShapeCursor::prev()
+{
+    if (m_it == m_pCurrentBox->m_shapes.begin())
+        return false;
+
+    --m_it;
+    return (*m_it)->get_creator_imo()->is_staffobj();
+}
+
+//---------------------------------------------------------------------------------------
+bool StaffObjShapeCursor::prev(TimeUnits minTime)
+{
+    if (!prev())
+        return false;
+
+    //prev() ensures that we have a staffobj shape
+    ImoStaffObj* pSO = static_cast<ImoStaffObj*>(get_shape()->get_creator_imo());
+    return pSO->get_time() >= minTime;
+}
+
+//---------------------------------------------------------------------------------------
+bool StaffObjShapeCursor::prevBefore(TimeUnits time)
+{
+    while (prev())
+    {
+        //prev() ensures that we have a staffobj shape
+        ImoStaffObj* pSO = static_cast<ImoStaffObj*>(get_shape()->get_creator_imo());
+        if (pSO->get_time() < time)
+            return true;
+    }
+
+    return false;
+}
+
+
+//=======================================================================================
 // GmoLayer: helper class. A collection of GmoShape objects
 //=======================================================================================
 
@@ -834,6 +919,13 @@ GmoBoxDocPage::GmoBoxDocPage(ImoObj* pCreatorImo)
 //---------------------------------------------------------------------------------------
 void GmoBoxDocPage::on_draw(Drawer* pDrawer, RenderOptions& opt)
 {
+    if (pDrawer->accepts_id_class())
+    {
+        stringstream ss;
+        ss << "page-" << m_numPage;
+        pDrawer->start_simple_notation(get_notation_id(ss.str()), "background");
+    }
+
     draw_page_background(pDrawer, opt);
     GmoBox::on_draw(pDrawer, opt);
 }
@@ -975,7 +1067,7 @@ GmoBoxDocument::GmoBoxDocument(GraphicModel* pGModel, ImoObj* pCreatorImo)
 //---------------------------------------------------------------------------------------
 GmoBoxDocPage* GmoBoxDocument::add_new_page()
 {
-    m_pLastPage = LOMSE_NEW GmoBoxDocPage(nullptr);      //TODO creator imo?
+    m_pLastPage = LOMSE_NEW GmoBoxDocPage(m_pCreatorImo);
     add_child_box(m_pLastPage);
     m_pLastPage->set_number(get_num_pages());
     return m_pLastPage;

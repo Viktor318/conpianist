@@ -1,53 +1,16 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2016. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #ifndef __LOMSE_TREE_H__
 #define __LOMSE_TREE_H__
 
 #include <iostream>
-#include <stack>
-#include <vector>
-#include <iterator>
-#include <stdexcept>
-
-#include "lomse_visitor.h"
-
-//---------------------------------------------------------------------------------------
-// macro for avoiding warnings when a parameter is not used
-#ifdef UNUSED
-#elif defined(__GNUC__)
-    #define UNUSED(x) UNUSED_ ## x __attribute__((unused))
-#elif defined(__LCLINT__)
-    #define UNUSED(x) /*@unused@*/ x
-#else
-    #define UNUSED(x) /* x */
-#endif
 
 
 namespace lomse
@@ -63,6 +26,13 @@ protected:
 public:
     Tree() : m_root(nullptr) {}
     Tree(T* node) : m_root(node) {}
+
+    //the five special
+    ~Tree() {}
+    Tree(const Tree& a) { clone(a); }
+    Tree& operator= (const Tree& a)  { clone(a); return *this; }
+    Tree(Tree&&) = delete;
+    Tree& operator= (Tree&&) = delete;
 
     void set_root(T* node) { m_root = node; }
     T* get_root() { return m_root; }
@@ -169,6 +139,9 @@ public:
     /// Insert a node newNode as previous sibling of given node curNode. Returns an
     /// iterator that points to the newly inserted element
     iterator insert(T* curNode, T* newNode);
+
+protected:
+    Tree<T>& clone(const Tree<T>& tree);
 };
 
 
@@ -187,11 +160,16 @@ protected:
     T* m_nextSibling;
     int m_nModified;
 
-    TreeNode() : m_parent(nullptr), m_firstChild(nullptr), m_lastChild(nullptr),
-                   m_prevSibling(nullptr), m_nextSibling(nullptr), m_nModified(0) {};
+    TreeNode() : Tree<T>(), m_parent(nullptr), m_firstChild(nullptr), m_lastChild(nullptr),
+                 m_prevSibling(nullptr), m_nextSibling(nullptr), m_nModified(0) {}
 
 public:
+    //the five specials
     virtual ~TreeNode() {}
+    TreeNode(const TreeNode& a) : Tree<T>(a) { clone(a); }
+    TreeNode& operator= (const TreeNode& a) { clone(a); return *this; }
+    TreeNode(TreeNode&&) = delete;
+    TreeNode& operator= (TreeNode&&) = delete;
 
     //getters
     virtual T* get_parent() { return m_parent; }
@@ -230,7 +208,7 @@ public:
     virtual T* get_child(int i);
     virtual void remove_child(T* child);
 
-
+    //-----------------------------------------------------------------------------------
     class children_iterator
     {
         protected:
@@ -270,6 +248,12 @@ public:
     children_iterator begin() { return children_iterator(m_firstChild); }
     children_iterator end() { return children_iterator(); }
 
+protected:
+    TreeNode<T>& clone(const TreeNode<T>& a);
+    void clone_children(T* parent);
+
+    friend class Tree<T>;
+    T* deep_clone(TreeNode<T>* parent=nullptr);
 };
 
 
@@ -314,8 +298,6 @@ int TreeNode<T>::get_num_children()
 	int numChildren = 0;
     for (it=this->begin(); it != this->end(); ++it)
     {
-        //cout << "it=" << (*it).get_p() << endl;
-        //cout << "this.end=" << *(this->end()) << endl;
         numChildren++;
     }
     return numChildren;
@@ -549,6 +531,64 @@ typename Tree<T>::depth_first_iterator Tree<T>::insert(T* curNode, T* newNode)
         parent->set_first_child( newNode );
 
     return newNode;
+}
+
+//---------------------------------------------------------------------------------------
+/// Clone a tree
+template <class T>
+Tree<T>& Tree<T>::clone(const Tree<T>& tree)
+{
+    if (tree.m_root == nullptr)
+	    m_root = nullptr;
+    else
+	    m_root = tree.m_root->deep_clone();
+
+    return *this;
+}
+
+//---------------------------------------------------------------------------------------
+/// Clone a node. Shallow clone
+template <class T>
+TreeNode<T>& TreeNode<T>::clone(const TreeNode<T>& a)
+{
+    m_parent = nullptr;
+    m_firstChild = nullptr;
+    m_lastChild = nullptr;
+    m_prevSibling = nullptr;
+    m_nextSibling = nullptr;
+    m_nModified = a.m_nModified;
+
+    return *this;
+}
+
+//---------------------------------------------------------------------------------------
+///clone a node and its children. Set node parent and prev sibling
+template <class T>
+T* TreeNode<T>::deep_clone(TreeNode<T>* parent)
+{
+    //the instance of T to clone
+    T* oldT = dynamic_cast<T*>(this);
+
+    //clone the instance of T
+    T* newT = LOMSE_NEW T(*oldT);
+    std::cout << "TreeNode<T>::deep_clone. old=" << oldT << ", new=" << newT << std::endl;
+    if (parent)
+        parent->append_child(newT);
+
+    //clone the children of this node (oldT) and set newT as parent of cloned children
+    this->clone_children(newT);
+
+    return newT;
+}
+
+//---------------------------------------------------------------------------------------
+///clone all children of this node and attach clones as children of 'parent'
+template <class T>
+void TreeNode<T>::clone_children(T* parent)
+{
+    TreeNode<T>::children_iterator it;
+    for (it=this->begin(); it != this->end(); ++it)
+        (*it)->deep_clone(parent);
 }
 
 

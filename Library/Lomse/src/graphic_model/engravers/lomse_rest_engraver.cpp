@@ -1,34 +1,15 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2018. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #include "lomse_rest_engraver.h"
 
+#include "lomse_note_engraver.h"
 #include "lomse_im_note.h"
 #include "lomse_engraving_options.h"
 #include "lomse_glyphs.h"
@@ -46,10 +27,13 @@ namespace lomse
 // RestEngraver implementation
 //---------------------------------------------------------------------------------------
 RestEngraver::RestEngraver(LibraryScope& libraryScope, ScoreMeter* pScoreMeter,
-                           EngraversMap* UNUSED(pEngravers), int iInstr, int iStaff)
-    : Engraver(libraryScope, pScoreMeter, iInstr, iStaff)
+                           EngraversMap* UNUSED(pEngravers), int iInstr, int iStaff,
+                           int clefType, int octaveShift)
+    : StaffObjEngraver(libraryScope, pScoreMeter, iInstr, iStaff)
     , m_restType(k_quarter)
     , m_numDots(0)
+    , m_clefType(clefType)
+    , m_octaveShift(octaveShift)
     , m_pRest(nullptr)
     , m_fontSize(0.0)
     , m_uxLeft(0.0f)
@@ -118,7 +102,7 @@ void RestEngraver::determine_position()
 void RestEngraver::create_main_shape()
 {
     ShapeId idx = 0;
-    m_pRestShape = LOMSE_NEW GmoShapeRest(m_pRest, idx, m_uxLeft, m_uyTop, m_color,
+    m_pRestShape = LOMSE_NEW GmoShapeRest(m_pRest, idx++, m_uxLeft, m_uyTop, m_color,
                                     m_libraryScope);
     add_voice(m_pRestShape);
 
@@ -127,6 +111,7 @@ void RestEngraver::create_main_shape()
                                              m_color, m_libraryScope, m_fontSize);
     add_voice(m_pRestGlyphShape);
     m_pRestShape->add(m_pRestGlyphShape);
+    m_pRestShape->set_pos_on_staff( determine_pos_on_staff(m_iGlyph) );
     m_uxLeft += m_pRestGlyphShape->get_width();
 }
 
@@ -160,17 +145,57 @@ int RestEngraver::find_glyph()
 }
 
 //---------------------------------------------------------------------------------------
+int RestEngraver::determine_pos_on_staff(int iGlyph)
+{
+    // Returns the position on the staff (line/space) referred to the first ledger line of
+    // the staff:
+    //        0 - on first ledger line (C note in G clef)
+    //        1 - on next space (D in G clef)
+    //        2 - on first line (E not in G clef)
+    //        3 - on first space
+    //        4 - on second line
+    //        5 - on second space
+    //        etc.
+    //
+    //Default placement is on the center line of a five-line staff,
+    //with the exception of the whole note rest, which should hang from the
+    //font baseline.
+    //
+    //if rest placement is defined, it is controlled by step and octave values
+
+    int posOnStaff = 6;     //third line (center)
+    if (iGlyph == k_glyph_whole_rest)
+        posOnStaff = 8;     //fourth line
+
+    //if rest placement is defined, it is controlled by step and octave values
+    if (m_pRest->get_step() != k_step_undefined)
+    {
+        int pos = NoteEngraver::pitch_to_pos_on_staff(m_pRest, m_clefType, m_octaveShift);
+        posOnStaff = (6 - pos);
+    }
+
+    return posOnStaff;
+}
+
+//---------------------------------------------------------------------------------------
 LUnits RestEngraver::get_glyph_offset(int iGlyph)
 {
-    //AWARE: Rest registration is as follows:
-    // * Rests are registered on the center line of a five-line staff.
-    // * with the exception of the whole note rest, which should hang from the font baseline.
-
+    //default placement: rests are placed on the center line of a five-line staff,
+    //with the exception of the whole note rest, which should hang from the
+    //font baseline.
     Tenths offset = m_libraryScope.get_glyphs_table()->glyph_offset(iGlyph);
     if (iGlyph == k_glyph_whole_rest)
-        return tenths_to_logical(offset + 10.0f);
+        offset += 10.0f;
     else
-        return tenths_to_logical(offset + 20.0f);
+        offset += 20.0f;
+
+    //if rest placement is defined, it is controlled by step and octave values
+    if (m_pRest->get_step() != k_step_undefined)
+    {
+        int pos = NoteEngraver::pitch_to_pos_on_staff(m_pRest, m_clefType, m_octaveShift);
+        offset += (6 - pos)*5.0f;
+    }
+    return tenths_to_logical(offset);
 }
 
 //---------------------------------------------------------------------------------------
@@ -194,8 +219,8 @@ void RestEngraver::add_shapes_for_dots_if_required()
 LUnits RestEngraver::add_dot_shape(LUnits x, LUnits y, Color color)
 {
     y += get_glyph_offset(k_glyph_dot);
-    GmoShapeDot* pShape = LOMSE_NEW GmoShapeDot(m_pRest, 0, k_glyph_dot, UPoint(x, y),
-                                                color, m_libraryScope, m_fontSize);
+    GmoShapeDot* pShape = LOMSE_NEW GmoShapeDot(m_pRest, 0, UPoint(x, y), color,
+                                                m_libraryScope, m_fontSize);
     add_voice(pShape);
 	m_pRestShape->add(pShape);
     return pShape->get_width();

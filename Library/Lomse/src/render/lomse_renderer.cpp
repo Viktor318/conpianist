@@ -1,30 +1,10 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2016. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 //  This file is based on Anti-Grain Geometry version 2.4 examples' code and on
@@ -40,7 +20,9 @@
 //---------------------------------------------------------------------------------------
 
 #include "lomse_renderer.h"
+#include "lomse_logger.h"
 
+#include <sstream>
 using namespace std;
 
 namespace lomse
@@ -136,7 +118,13 @@ Renderer* RendererFactory::create_renderer(LibraryScope& libraryScope,
         //    return LOMSE_NEW RendererTemplate<PixFormat_bgra64>(libraryScope.get_screen_ppi(),
         //                                                 attr_storage, path);
         default:
-            return nullptr;
+        {
+            stringstream s;
+            s << "[RendererFactory::create_renderer] Pixel format '" << pixelFmt
+              << "' not yet supported. Aborting.";
+            LOMSE_LOG_ERROR(s.str());
+            throw runtime_error(s.str());
+        }
     }
 }
 
@@ -216,6 +204,49 @@ void Renderer::reset()
 {
     m_path.remove_all();
     m_attr_storage.remove_all();
+}
+
+//---------------------------------------------------------------------------------------
+int Renderer::bytesPerPixel(int pixFmt)
+{
+    switch(pixFmt)
+    {
+        case k_pix_format_gray8:     // Simple 256 level grayscale
+            return 1;
+        case k_pix_format_gray16:    // Simple 65535 level grayscale
+        case k_pix_format_rgb555:    // 15 bit rgb. Architecture dependent due to byte ordering!
+        case k_pix_format_rgb565:    // 16 bit rgb. Architecture dependent due to byte ordering!
+            return 2;
+        case k_pix_format_rgb24:     // R-G-B, one byte per color component
+        case k_pix_format_bgr24:     // B-G-R, native win32 BMP format
+            return 3;
+        case k_pix_format_rgbAAA:    // 30 bit rgb. Architecture dependent due to byte ordering!
+        case k_pix_format_rgbBBA:    // 32 bit rgb. Architecture dependent due to byte ordering!
+        case k_pix_format_bgrAAA:    // 30 bit bgr. Architecture dependent due to byte ordering!
+        case k_pix_format_bgrABB:    // 32 bit bgr. Architecture dependent due to byte ordering!
+        case k_pix_format_rgba32:    // R-G-B-A, one byte per color component
+        case k_pix_format_argb32:    // A-R-G-B, native MAC format
+        case k_pix_format_abgr32:    // A-B-G-R, one byte per color component
+        case k_pix_format_bgra32:    // B-G-R-A, native win32 BMP format
+            return 4;
+        case k_pix_format_rgb48:     // R-G-B, 16 bits per color component
+        case k_pix_format_bgr48:     // B-G-R, native win32 BMP format
+            return 6;
+        case k_pix_format_rgba64:    // R-G-B-A, 16 bits byte per color component
+        case k_pix_format_argb64:    // A-R-G-B, native MAC format
+        case k_pix_format_abgr64:    // A-B-G-R, one byte per color component
+        case k_pix_format_bgra64:    // B-G-R-A, native win32 BMP format
+            return 8;
+
+        default:
+        {
+            stringstream s;
+            s << "[Renderer::bytesPerPixel] Program bug: No data for pixel format '"
+              << pixFmt << "'. Aborting.";
+            LOMSE_LOG_ERROR(s.str());
+            throw runtime_error(s.str());
+        }
+    }
 }
 
 

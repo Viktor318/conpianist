@@ -1,30 +1,10 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2018. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #include "lomse_volta_engraver.h"
@@ -49,65 +29,35 @@ namespace lomse
 VoltaBracketEngraver::VoltaBracketEngraver(LibraryScope& libraryScope,
                                            ScoreMeter* pScoreMeter)
     : RelObjEngraver(libraryScope, pScoreMeter)
-    , m_numShapes(0)
-    , m_pVolta(nullptr)
-    , m_uStaffTop(0.0f)
-    , m_uStaffLeft(0.0f)
-    , m_uStaffRight(0.0f)
-    , m_pStyle(nullptr)
-    , m_pStartBarline(nullptr)
-    , m_pStopBarline(nullptr)
-    , m_pStartBarlineShape(nullptr)
-    , m_pStopBarlineShape(nullptr)
 {
     m_pStyle = m_pMeter->get_style_info("Volta brackets");
 }
 
 //---------------------------------------------------------------------------------------
-void VoltaBracketEngraver::set_start_staffobj(ImoRelObj* pRO, ImoStaffObj* pSO,
-                                      GmoShape* pStaffObjShape, int iInstr, int iStaff,
-                                      int UNUSED(iSystem), int UNUSED(iCol),
-                                      LUnits xStaffLeft, LUnits xStaffRight, LUnits yStaffTop,
-                                      int idxStaff, VerticalProfile* pVProfile)
+void VoltaBracketEngraver::set_start_staffobj(ImoRelObj* pRO, const AuxObjContext& aoc)
 {
-    m_iInstr = iInstr;
-    m_iStaff = iStaff;
+    m_iInstr = aoc.iInstr;
+    m_iStaff = aoc.iStaff;
+    m_idxStaff = aoc.idxStaff;
+
     m_pVolta = dynamic_cast<ImoVoltaBracket*>(pRO);
 
-    m_pStartBarline = dynamic_cast<ImoBarline*>(pSO);
-    m_pStartBarlineShape = dynamic_cast<GmoShapeBarline*>(pStaffObjShape);
-
-    m_uStaffLeft = xStaffLeft;
-    m_uStaffRight = xStaffRight;
-    m_uStaffTop = yStaffTop;
-
-    m_idxStaff = idxStaff;
-    m_pVProfile = pVProfile;
+    m_pStartBarline = dynamic_cast<ImoBarline*>(aoc.pSO);
+    m_pStartBarlineShape = dynamic_cast<GmoShapeBarline*>(aoc.pStaffObjShape);
 }
 
 //---------------------------------------------------------------------------------------
-void VoltaBracketEngraver::set_end_staffobj(ImoRelObj* UNUSED(pRO), ImoStaffObj* pSO,
-                                    GmoShape* pStaffObjShape, int UNUSED(iInstr),
-                                    int UNUSED(iStaff), int UNUSED(iSystem),
-                                    int UNUSED(iCol), LUnits xStaffLeft,
-                                    LUnits xStaffRight, LUnits yStaffTop,
-                                    int idxStaff, VerticalProfile* pVProfile)
+void VoltaBracketEngraver::set_end_staffobj(ImoRelObj* UNUSED(pRO), const AuxObjContext& aoc)
 {
-    m_pStopBarline = dynamic_cast<ImoBarline*>(pSO);
-    m_pStopBarlineShape = dynamic_cast<GmoShapeBarline*>(pStaffObjShape);
-
-    m_uStaffLeft = xStaffLeft;
-    m_uStaffRight = xStaffRight;
-    m_uStaffTop = yStaffTop;
-
-    m_idxStaff = idxStaff;
-    m_pVProfile = pVProfile;
+    m_pStopBarline = dynamic_cast<ImoBarline*>(aoc.pSO);
+    m_pStopBarlineShape = dynamic_cast<GmoShapeBarline*>(aoc.pStaffObjShape);
 }
 
 //---------------------------------------------------------------------------------------
-GmoShape* VoltaBracketEngraver::create_first_or_intermediate_shape(Color color)
+GmoShape* VoltaBracketEngraver::create_first_or_intermediate_shape(const RelObjEngravingContext& ctx)
 {
-    m_color = color;
+    save_context_parameters(ctx);
+
     if (m_numShapes == 0)
         return create_first_shape();
     else
@@ -115,9 +65,10 @@ GmoShape* VoltaBracketEngraver::create_first_or_intermediate_shape(Color color)
 }
 
 //---------------------------------------------------------------------------------------
-GmoShape* VoltaBracketEngraver::create_last_shape(Color color)
+GmoShape* VoltaBracketEngraver::create_last_shape(const RelObjEngravingContext& ctx)
 {
-    m_color = color;
+    save_context_parameters(ctx);
+
     if (m_numShapes == 0)
         return create_single_shape();
     return create_final_shape();
@@ -134,6 +85,7 @@ GmoShape* VoltaBracketEngraver::create_intermediate_shape()
     set_shape_details(pShape, k_intermediate_shape);
     pShape->set_two_brackets();
 
+    add_to_aux_shapes_aligner(pShape, true);
     ++m_numShapes;
     return pShape;
 }
@@ -150,12 +102,14 @@ GmoShape* VoltaBracketEngraver::create_single_shape()
     string text = m_pVolta->get_volta_text();
     if (text.empty())
         text = m_pVolta->get_volta_number();
-    TextEngraver engr(m_libraryScope, m_pMeter, text, "", m_pStyle);
-    GmoShapeText* pTextShape = engr.create_shape(m_pVolta, 0.0f, 0.0f);
+    TextEngraver engr(m_libraryScope, m_pMeter, text, "", m_pStyle,
+                      TextEngraver::k_class_volta_text);
+    GmoShapeText* pTextShape = engr.create_shape(m_pVolta, 0, 0.0f, 0.0f);
     pShape->add_label(pTextShape);
 
     set_shape_details(pShape, k_single_shape);
 
+    add_to_aux_shapes_aligner(pShape, true);
     m_numShapes++;
     return pShape;
 }
@@ -165,6 +119,15 @@ GmoShape* VoltaBracketEngraver::create_first_shape()
 {
     //first shape when there are more than one
 
+    LUnits minLength = tenths_to_logical(10.0f);
+    if (!m_fFirstShapeAtSystemStart
+        && m_uStaffRight - m_pStartBarlineShape->get_x_right_line() < minLength)
+    {
+        //start barline is at the end of a system, create first shape at next system start instead
+        m_fFirstShapeAtSystemStart = true;
+        return nullptr;
+    }
+
     GmoShapeVoltaBracket* pShape = LOMSE_NEW GmoShapeVoltaBracket(m_pVolta, m_numShapes, m_color);
     pShape->enable_final_jog(false);
 
@@ -172,14 +135,17 @@ GmoShape* VoltaBracketEngraver::create_first_shape()
     string text = m_pVolta->get_volta_text();
     if (text.empty())
         text = m_pVolta->get_volta_number();
-    TextEngraver engr(m_libraryScope, m_pMeter, text, "", m_pStyle);
-    GmoShapeText* pTextShape = engr.create_shape(m_pVolta, 0.0f, 0.0f);
+    TextEngraver engr(m_libraryScope, m_pMeter, text, "", m_pStyle,
+                      TextEngraver::k_class_volta_text);
+    ShapeId idx = ShapeId(m_numShapes);
+    GmoShapeText* pTextShape = engr.create_shape(m_pVolta, idx, 0.0f, 0.0f);
     pShape->add_label(pTextShape);
 
     //terminate first shape
     set_shape_details(pShape, k_first_shape);
     pShape->set_two_brackets();
 
+    add_to_aux_shapes_aligner(pShape, true);
     m_numShapes++;
     return pShape;
 }
@@ -195,6 +161,7 @@ GmoShape* VoltaBracketEngraver::create_final_shape()
     set_shape_details(pShape, k_final_shape);
     pShape->set_two_brackets();
 
+    add_to_aux_shapes_aligner(pShape, true);
     m_numShapes++;
     return pShape;
 }
@@ -209,31 +176,28 @@ void VoltaBracketEngraver::set_shape_details(GmoShapeVoltaBracket* pShape,
     LUnits uJogLength = tenths_to_logical(LOMSE_VOLTA_JOG_LENGHT);
 
     //determine xStart and xEnd
-    LUnits xStart = m_uStaffLeft;
+    LUnits xStart = m_uStaffLeft + m_uPrologWidth;
     LUnits xEnd = m_uStaffRight;
 
-    if (shapeType == k_single_shape)
+    if (!m_fFirstShapeAtSystemStart && (shapeType == k_single_shape || shapeType == k_first_shape))
     {
         xStart = m_pStartBarlineShape->get_x_right_line();
         if (m_pStartBarlineShape->get_width() < 40.0f)
             xStart += 30.0f;
+    }
 
-        xEnd = m_pStopBarlineShape->get_x_left_line();
-        if (m_pStopBarlineShape->get_width() < 40.0f)
-            xEnd -= 30.0f;
-    }
-    else if (shapeType == k_first_shape)
-    {
-        xStart = m_pStartBarlineShape->get_x_right_line();
-        if (m_pStartBarlineShape->get_width() < 40.0f)
-            xStart += 30.0f;
-    }
-    else if (shapeType == k_final_shape)
+    if (shapeType == k_single_shape || shapeType == k_final_shape)
     {
         xEnd = m_pStopBarlineShape->get_x_left_line();
         if (m_pStopBarlineShape->get_width() < 40.0f)
             xEnd -= 30.0f;
     }
+
+//    if (shapeType == k_intermediate_shape
+//        || (m_fFirstShapeAtSystemStart && (shapeType == k_first_shape )) )
+//    {
+//        xStart += m_uPrologWidth;
+//    }
 
     //determine yPos
     LUnits uDistance = tenths_to_logical(LOMSE_VOLTA_BRACKET_DISTANCE);
@@ -243,7 +207,8 @@ void VoltaBracketEngraver::set_shape_details(GmoShapeVoltaBracket* pShape,
 
     //transfer data to shape
     pShape->set_layout_data(xStart, xEnd, yPos, uDistance, uJogLength, uLineThick,
-                            uLeftSpaceToText, uTopSpaceToText, m_uStaffLeft, m_uStaffRight);
+                            uLeftSpaceToText, uTopSpaceToText,
+                            m_uStaffLeft + m_uPrologWidth, m_uStaffRight);
 }
 
 

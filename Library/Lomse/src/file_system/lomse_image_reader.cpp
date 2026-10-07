@@ -1,30 +1,10 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2016. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #include "lomse_image_reader.h"
@@ -187,12 +167,12 @@ SpImage PngImageDecoder::decode_file(InputStream* file)
     if (!pInfoStruct)
     {
         pImage->set_error_msg("[PngImageDecoder::decode_file] out of memory creating info struct");
-        png_destroy_read_struct(&pReadStruct, 0, 0);
+        png_destroy_read_struct(&pReadStruct, nullptr, nullptr);
         return SpImage(pImage );
     }
 
 
-    png_set_error_fn(pReadStruct, 0, error_callback, warning_callback);
+    png_set_error_fn(pReadStruct, nullptr, error_callback, warning_callback);
 
 
     png_uint_32 width, height;
@@ -240,7 +220,7 @@ SpImage PngImageDecoder::decode_file(InputStream* file)
     //Now allocate a buffer for the full bitmap
     unsigned char* imgbuf = nullptr;
     int stride = int(width) * 4;
-    if ((imgbuf = (unsigned char*)malloc(height * stride)) == nullptr)
+    if ((imgbuf = (unsigned char*)malloc(size_t(height) * size_t(stride)) ) == nullptr)
     {
         pImage->set_error_msg("[PngImageDecoder::decode_file] error allocating memory for image");
         png_destroy_read_struct(&pReadStruct, &pInfoStruct, nullptr);
@@ -283,7 +263,7 @@ SpImage PngImageDecoder::decode_file(InputStream* file)
     pImage = LOMSE_NEW Image(imgbuf, bmpSize, format, imgSize);
 
     //delete helper structs
-    png_destroy_read_struct(&pReadStruct, &pInfoStruct, 0);
+    png_destroy_read_struct(&pReadStruct, &pInfoStruct, nullptr);
 
     //done!
     return SpImage(pImage);

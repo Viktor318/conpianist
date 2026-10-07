@@ -1,35 +1,15 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2016. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #include "lomse_caret.h"
 
-#include "lomse_screen_drawer.h"
+#include "lomse_bitmap_drawer.h"
 #include "lomse_graphic_view.h"
 #include "lomse_logger.h"
 #include "lomse_box_system.h"
@@ -54,7 +34,7 @@ Caret::Caret(GraphicView* view, LibraryScope& libraryScope)
 }
 
 //---------------------------------------------------------------------------------------
-void Caret::on_draw(ScreenDrawer* pDrawer)
+void Caret::on_draw(BitmapDrawer* pDrawer)
 {
     if (!is_visible())
         return;
@@ -65,7 +45,7 @@ void Caret::on_draw(ScreenDrawer* pDrawer)
 }
 
 //---------------------------------------------------------------------------------------
-void Caret::draw_caret(ScreenDrawer* pDrawer)
+void Caret::draw_caret(BitmapDrawer* pDrawer)
 {
     switch(m_type)
     {
@@ -82,14 +62,14 @@ void Caret::draw_caret(ScreenDrawer* pDrawer)
 }
 
 //---------------------------------------------------------------------------------------
-void Caret::draw_caret_as_top_level(ScreenDrawer* pDrawer)
+void Caret::draw_caret_as_top_level(BitmapDrawer* pDrawer)
 {
     double x1 = double( m_pos.x - 100 );
     double y1 = double( m_pos.y );
     double x2 = double( m_pos.x - 50 );
     double y2 = double( m_pos.y + 500 );
 
-    double line_width = double( pDrawer->Pixels_to_LUnits(1) );
+    double line_width = pDrawer->device_units_to_model(1.0);
 
     pDrawer->begin_path();
     pDrawer->fill(m_color);
@@ -109,9 +89,9 @@ void Caret::draw_caret_as_top_level(ScreenDrawer* pDrawer)
 }
 
 //---------------------------------------------------------------------------------------
-void Caret::draw_caret_as_line(ScreenDrawer* pDrawer)
+void Caret::draw_caret_as_line(BitmapDrawer* pDrawer)
 {
-    double line_width = double( pDrawer->Pixels_to_LUnits(1) );
+    double line_width = pDrawer->device_units_to_model(1.0);
     double x1 = double( m_pos.x );
     double y1 = double( m_pos.y );
     double x2 = double( m_pos.x + line_width );
@@ -147,16 +127,16 @@ void Caret::draw_caret_as_line(ScreenDrawer* pDrawer)
 }
 
 //---------------------------------------------------------------------------------------
-void Caret::draw_caret_as_block(ScreenDrawer* UNUSED(pDrawer))
+void Caret::draw_caret_as_block(BitmapDrawer* UNUSED(pDrawer))
 {
     //TODO
     m_bounds = m_box;
 }
 
 //---------------------------------------------------------------------------------------
-void Caret::draw_caret_as_box(ScreenDrawer* pDrawer)
+void Caret::draw_caret_as_box(BitmapDrawer* pDrawer)
 {
-    double line_width = double( pDrawer->Pixels_to_LUnits(1) );
+    double line_width = pDrawer->device_units_to_model(1.0);
 
     pDrawer->begin_path();
     pDrawer->fill(Color(0,0,0,0));    //transparent fill
@@ -171,10 +151,10 @@ void Caret::draw_caret_as_box(ScreenDrawer* pDrawer)
 }
 
 //---------------------------------------------------------------------------------------
-void Caret::draw_top_level_box(ScreenDrawer* pDrawer)
+void Caret::draw_top_level_box(BitmapDrawer* pDrawer)
 {
     Color color = (m_type == k_top_level ? m_color : m_topLevelSelected);
-    double line_width = double( pDrawer->Pixels_to_LUnits(1) );
+    double line_width = pDrawer->device_units_to_model(1.0);
 
     pDrawer->begin_path();
     pDrawer->fill(Color(0,0,0,0));    //transparent fill

@@ -1,30 +1,10 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2016. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #ifndef _LOMSE_BUTTON_CTRL_H__
@@ -52,19 +32,18 @@ public:
     ButtonCtrl(LibraryScope& libScope, Control* pParent, Document* pDoc,
                const string& label, LUnits width=-1.0f, LUnits height=-1.0f,
                ImoStyle* pStyle=nullptr);
-    virtual ~ButtonCtrl() {}
 
     //Control mandatory overrides
-    USize measure();
-    GmoBoxControl* layout(LibraryScope& libraryScope, UPoint pos);
-    void on_draw(Drawer* pDrawer, RenderOptions& opt);
-    void handle_event(SpEventInfo pEvent);
-    LUnits width() { return m_width; }
-    LUnits height() { return m_height; }
-    LUnits top() { return m_pos.y; }
-    LUnits bottom() { return m_pos.y + m_height; }
-    LUnits left() { return m_pos.x; }
-    LUnits right() { return m_pos.x + m_width; }
+    USize measure() override;
+    GmoBoxControl* layout(LibraryScope& libraryScope, UPoint pos) override;
+    void on_draw(Drawer* pDrawer, RenderOptions& opt) override;
+    void handle_event(SpEventInfo pEvent) override;
+    LUnits width() override { return m_width; }
+    LUnits height() override { return m_height; }
+    LUnits top() override { return m_pos.y; }
+    LUnits bottom() override { return m_pos.y + m_height; }
+    LUnits left() override { return m_pos.x; }
+    LUnits right() override { return m_pos.x + m_width; }
 
     //specific methods
     void set_label(const string& text);

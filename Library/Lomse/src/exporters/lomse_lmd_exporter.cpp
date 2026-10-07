@@ -1,30 +1,10 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2018. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #include "lomse_lmd_exporter.h"
@@ -89,9 +69,9 @@ protected:
 
 };
 
-//const bool k_in_same_line = false;
+const bool k_in_same_line = false;
 //const bool k_in_new_line = true;
-//const int k_indent_step = 3;
+const int k_indent_step = 3;
 
 //=======================================================================================
 // generators for specific elements
@@ -111,7 +91,7 @@ public:
         //m_pObj = static_cast<ImoXXXXX*>(pImo);
     }
 
-    string generate_source()
+    string generate_source() override
     {
         //start_element("xxxxx", m_pObj);
         close_start_tag();
@@ -133,7 +113,7 @@ public:
         m_pObj = static_cast<ImoBarline*>(pImo);
     }
 
-    string generate_source()
+    string generate_source() override
     {
         start_element("barline", m_pObj);
         close_start_tag();
@@ -165,7 +145,7 @@ public:
         m_pObj = static_cast<ImoClef*>(pImo);
     }
 
-    string generate_source()
+    string generate_source() override
     {
         start_element("clef", m_pObj);
         close_start_tag();
@@ -197,7 +177,7 @@ public:
         m_pObj = static_cast<ImoContent*>(pImo);
     }
 
-    string generate_source()
+    string generate_source() override
     {
         start_element("content", m_pObj);
         add_optional_style(m_pObj);
@@ -235,7 +215,7 @@ public:
         m_pObj = static_cast<ImoControl*>(pImo);
     }
 
-    string generate_source()
+    string generate_source() override
     {
         start_element("control", m_pObj);
         add_optional_style(m_pObj);
@@ -274,7 +254,7 @@ public:
         m_pObj = static_cast<ImoContentObj*>(pImo);
     }
 
-    string generate_source()
+    string generate_source() override
     {
         add_user_location();
         add_attachments();
@@ -364,7 +344,7 @@ public:
         m_pObj = static_cast<ImoStyle*>(pImo);
     }
 
-    string generate_source()
+    string generate_source() override
     {
         start_element("defineStyle", m_pObj);
         close_start_tag();
@@ -661,7 +641,7 @@ public:
         m_pObj = static_cast<ImoDynamic*>(pImo);
     }
 
-    string generate_source()
+    string generate_source() override
     {
         start_element("dynamic", m_pObj);
         add_optional_style(m_pObj);
@@ -700,7 +680,7 @@ public:
     {
     }
 
-    string generate_source()
+    string generate_source() override
     {
         start_element("TODO", m_pImo);
         close_start_tag();
@@ -725,7 +705,7 @@ public:
         m_pObj = pImo;
     }
 
-    string generate_source()
+    string generate_source() override
     {
         return m_source.str();
     }
@@ -744,7 +724,7 @@ public:
         m_pObj = static_cast<ImoInstrument*>(pImo);
     }
 
-    string generate_source()
+    string generate_source() override
     {
         start_element("instrument", m_pObj);
         close_start_tag();
@@ -808,7 +788,7 @@ public:
         m_pObj = static_cast<ImoKeySignature*>(pImo);
     }
 
-    string generate_source()
+    string generate_source() override
     {
         start_element("key", m_pObj);
         close_start_tag();
@@ -873,7 +853,7 @@ public:
         m_pObj = static_cast<ImoDocument*>(pImo);
     }
 
-    string generate_source()
+    string generate_source() override
     {
         m_source << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>";
         start_element("lenmusdoc", m_pObj);
@@ -942,7 +922,7 @@ public:
         m_pObj = static_cast<ImoMusicData*>(pImo);
     }
 
-    string generate_source()
+    string generate_source() override
     {
         start_element("musicData", m_pObj);
         close_start_tag();
@@ -1079,7 +1059,7 @@ public:
         m_pObj = static_cast<ImoNote*>(pImo);
     }
 
-    string generate_source()
+    string generate_source() override
     {
         start_element("note", m_pObj);
         close_start_tag();
@@ -1144,7 +1124,7 @@ public:
         m_pObj = static_cast<ImoParagraph*>(pImo);
     }
 
-    string generate_source()
+    string generate_source() override
     {
         start_element("para", m_pObj);
         add_optional_style(m_pObj);
@@ -1185,7 +1165,7 @@ public:
         m_pObj = static_cast<ImoRest*>(pImo);
     }
 
-    string generate_source()
+    string generate_source() override
     {
         start_element("rest", m_pObj);
         close_start_tag();
@@ -1210,7 +1190,7 @@ public:
         m_pObj = static_cast<ImoScore*>(pImo);
     }
 
-    string generate_source()
+    string generate_source() override
     {
         int format = m_pExporter->get_score_format();
         switch(format)
@@ -1242,7 +1222,7 @@ protected:
         close_start_tag();
 
         LdpExporter exporter;
-        exporter.set_indent( m_pExporter->get_indent() );
+        exporter.set_indent_level( m_pExporter->get_indent() );
         exporter.set_add_id( m_pExporter->get_add_id() );
         m_source << exporter.get_source(m_pObj);
 
@@ -1441,7 +1421,7 @@ public:
         m_pObj = static_cast<ImoScoreObj*>(pImo);
     }
 
-    string generate_source()
+    string generate_source() override
     {
         add_visible();
         add_color();
@@ -1479,7 +1459,7 @@ public:
         m_pObj = static_cast<ImoHeading*>(pImo);
     }
 
-    string generate_source()
+    string generate_source() override
     {
         start_element("section", m_pObj);
         add_level();
@@ -1524,7 +1504,7 @@ public:
         m_pObj = static_cast<ImoDirection*>(pImo);
     }
 
-    string generate_source()
+    string generate_source() override
     {
         start_element("spacer", m_pObj);
         close_start_tag();
@@ -1547,7 +1527,7 @@ public:
         m_pObj = static_cast<ImoStaffObj*>(pImo);
     }
 
-    string generate_source()
+    string generate_source() override
     {
         add_staff_num();
         source_for_base_scoreobj(m_pObj);
@@ -1586,7 +1566,7 @@ public:
         m_pObj = static_cast<ImoStyles*>(pImo);
     }
 
-    string generate_source()
+    string generate_source() override
     {
         if (there_is_any_non_default_style())
         {
@@ -1918,7 +1898,7 @@ LmdGenerator* LmdExporter::new_generator(ImoObj* pImo)
         case k_imo_instrument:      return LOMSE_NEW InstrumentLmdGenerator(pImo, this);
         case k_imo_key_signature:   return LOMSE_NEW KeySignatureLmdGenerator(pImo, this);
         case k_imo_music_data:      return LOMSE_NEW MusicDataLmdGenerator(pImo, this);
-        case k_imo_note:            return LOMSE_NEW NoteLmdGenerator(pImo, this);
+        case k_imo_note_regular:            return LOMSE_NEW NoteLmdGenerator(pImo, this);
         case k_imo_para:            return LOMSE_NEW ParagraphLmdGenerator(pImo, this);
         case k_imo_rest:            return LOMSE_NEW RestLmdGenerator(pImo, this);
         case k_imo_score:           return LOMSE_NEW ScoreLmdGenerator(pImo, this);

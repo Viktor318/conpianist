@@ -1,37 +1,17 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2018. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #define LOMSE_INTERNAL_API
 #include "lomse_presenter.h"
 
 #include "lomse_injectors.h"
-#include "lomse_document.h"
+#include "private/lomse_document_p.h"
 #include "lomse_command.h"
 #include "lomse_view.h"
 #include "lomse_interactor.h"
@@ -69,6 +49,8 @@ public:
             return Document::k_format_lmd;
         else if (ext == "xml" || ext == "musicxml")
             return Document::k_format_mxl;
+        else if (ext == "mxl")
+            return Document::k_format_mxl_compressed;
         else if (ext == "mnx")
             return Document::k_format_mnx;
         else
@@ -105,24 +87,43 @@ Presenter* PresenterBuilder::new_document(int viewType, const std::string& conte
 }
 
 //---------------------------------------------------------------------------------------
+Presenter* PresenterBuilder::new_document(int viewType, Drawer* screenDrawer,
+                                          Drawer* printDrawer, const std::string& content,
+                                          ostream& reporter, int format)
+{
+    Document* pDoc = Injector::inject_Document(m_libScope, reporter);
+    if (content != "")
+        pDoc->from_string(content, format);
+    else
+        pDoc->create_empty();
+
+    return Injector::inject_Presenter(m_libScope, viewType, pDoc, screenDrawer,
+                                      printDrawer);
+}
+
+//---------------------------------------------------------------------------------------
 Presenter* PresenterBuilder::open_document(int viewType, const std::string& filename,
+                                           Drawer* screenDrawer, Drawer* printDrawer,
                                            ostream& reporter)
 {
     Document* pDoc = Injector::inject_Document(m_libScope, reporter);
     int format = FileFormatFinder::determine_format(filename);
     pDoc->from_file(filename, format);
 
-    return Injector::inject_Presenter(m_libScope, viewType, pDoc);
+    return Injector::inject_Presenter(m_libScope, viewType, pDoc, screenDrawer,
+                                      printDrawer);
 }
 
 //---------------------------------------------------------------------------------------
 Presenter* PresenterBuilder::open_document(int viewType, LdpReader& reader,
+                                           Drawer* screenDrawer, Drawer* printDrawer,
                                            ostream& reporter)
 {
     Document* pDoc = Injector::inject_Document(m_libScope, reporter);
     pDoc->from_input(reader);
 
-    return Injector::inject_Presenter(m_libScope, viewType, pDoc);
+    return Injector::inject_Presenter(m_libScope, viewType, pDoc, screenDrawer,
+                                      printDrawer);
 }
 
 

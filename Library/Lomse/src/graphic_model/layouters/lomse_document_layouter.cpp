@@ -1,40 +1,21 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2018. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #include "lomse_document_layouter.h"
 
 #include "lomse_graphical_model.h"
 #include "lomse_gm_basic.h"
-#include "lomse_document.h"
+#include "private/lomse_document_p.h"
 #include "lomse_layouter.h"
 #include "lomse_score_layouter.h"
 #include "lomse_calligrapher.h"
+#include "lomse_box_system.h"
 
 
 namespace lomse
@@ -48,13 +29,15 @@ namespace lomse
 //  delegates in specialized layouters.
 //---------------------------------------------------------------------------------------
 
-DocLayouter::DocLayouter(Document* pDoc, LibraryScope& libraryScope, int constrains)
+DocLayouter::DocLayouter(Document* pDoc, LibraryScope& libraryScope, int constrains,
+                         LUnits width)
     : Layouter(libraryScope)
+    , m_pDoc( pDoc->get_im_root() )
+    , m_viewWidth(width)
     , m_pScoreLayouter(nullptr)
 {
-    m_pDoc = pDoc->get_im_root();
     m_pStyles = m_pDoc->get_styles();
-    m_pGModel = LOMSE_NEW GraphicModel();
+    m_pGModel = LOMSE_NEW GraphicModel(m_pDoc);
     m_constrains = constrains;
 }
 
@@ -100,7 +83,7 @@ void DocLayouter::delete_last_trial()
     delete m_pGModel;
 
     m_result = k_layout_not_finished;
-    m_pGModel = LOMSE_NEW GraphicModel();
+    m_pGModel = LOMSE_NEW GraphicModel(m_pDoc);
     m_pParentLayouter = nullptr;
     m_pStyles = nullptr;
     m_pItemMainBox = nullptr;
@@ -137,9 +120,17 @@ GmoBoxDocPage* DocLayouter::create_document_page()
 //---------------------------------------------------------------------------------------
 void DocLayouter::assign_paper_size_to(GmoBox* pBox)
 {
-    m_availableWidth = (m_constrains & k_infinite_width) ? LOMSE_INFINITE_LENGTH
-                        : m_pDoc->get_paper_width() / m_pDoc->get_page_content_scale();
+    //width
+    if (m_constrains & k_infinite_width)
+        m_availableWidth = LOMSE_INFINITE_LENGTH;
+    else if (m_constrains & k_use_viewport_width)
+    {
+        m_availableWidth = m_viewWidth;
+    }
+    else
+        m_availableWidth = m_pDoc->get_paper_width() / m_pDoc->get_page_content_scale();
 
+    //height
     m_availableHeight = (m_constrains & k_infinite_height) ? LOMSE_INFINITE_LENGTH
                          : m_pDoc->get_paper_height() / m_pDoc->get_page_content_scale();
 
@@ -151,14 +142,24 @@ void DocLayouter::assign_paper_size_to(GmoBox* pBox)
 void DocLayouter::add_margins_to_page(GmoBoxDocPage* pPage)
 {
     ImoPageInfo* pInfo = m_pDoc->get_page_info();
-    LUnits top = pInfo->get_top_margin() / m_pDoc->get_page_content_scale();
-    LUnits bottom = pInfo->get_bottom_margin() / m_pDoc->get_page_content_scale();
-    LUnits left = pInfo->get_left_margin() / m_pDoc->get_page_content_scale();
-    LUnits right = pInfo->get_right_margin() / m_pDoc->get_page_content_scale();
+    LUnits top = 0.0f;
+    LUnits bottom = 0.0f;
+    LUnits left = 0.0f;
+    LUnits right = 0.0f;
     if (pPage->get_number() % 2 == 0)
-        left += pInfo->get_binding_margin() / m_pDoc->get_page_content_scale();
+    {
+        top = pInfo->get_top_margin_even() / m_pDoc->get_page_content_scale();
+        bottom = pInfo->get_bottom_margin_even() / m_pDoc->get_page_content_scale();
+        left = pInfo->get_left_margin_even() / m_pDoc->get_page_content_scale();
+        right = pInfo->get_right_margin_even() / m_pDoc->get_page_content_scale();
+    }
     else
-        right += pInfo->get_binding_margin() / m_pDoc->get_page_content_scale();
+    {
+        top = pInfo->get_top_margin_odd() / m_pDoc->get_page_content_scale();
+        bottom = pInfo->get_bottom_margin_odd() / m_pDoc->get_page_content_scale();
+        left = pInfo->get_left_margin_odd() / m_pDoc->get_page_content_scale();
+        right = pInfo->get_right_margin_odd() / m_pDoc->get_page_content_scale();
+    }
 
     m_pageCursor.x = left;
     m_pageCursor.y = top;
@@ -204,7 +205,10 @@ void DocLayouter::fix_document_size()
 
             LUnits height = pBSys->get_size().height + pBSys->get_origin().y;
             ImoPageInfo* pInfo = m_pDoc->get_page_info();
-            height += pInfo->get_bottom_margin() / m_pDoc->get_page_content_scale();
+            if (pPage->get_number() % 2 == 0)
+                height += pInfo->get_bottom_margin_even() / m_pDoc->get_page_content_scale();
+            else
+                height += pInfo->get_bottom_margin_odd() / m_pDoc->get_page_content_scale();
             pPage->set_height(height);
         }
         else
@@ -224,7 +228,12 @@ void DocLayouter::fix_document_size()
 
     if (m_constrains & k_infinite_height)
     {
-        //TODO: free flow view
+        //free flow view, single page view
+        //height determined by BoxDocPageContent
+        GmoBoxDocPage* pPage = static_cast<GmoBoxDocPage*>(m_pItemMainBox);
+        GmoBox* pBDPC = pPage->get_child_box(0);    //DocPageContent
+        LUnits height = pBDPC->get_size().height + 2.0f * pBDPC->get_origin().y;
+        pPage->set_height(height);
     }
 }
 

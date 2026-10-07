@@ -1,30 +1,10 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2019. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #ifndef __LOMSE_INSTRUMENT_ENGRAVER_H__        //to avoid nested includes
@@ -129,7 +109,9 @@ protected:
     void delete_instrument_engravers();
     void determine_staves_vertical_position();
     void measure_groups_name_and_bracket();
+    void add_groups_name_to_aligner();
     void measure_instruments_name_and_bracket();
+    void add_instruments_name_to_aligner();
     void save_names_and_brackets_positions();
 
 };
@@ -190,10 +172,10 @@ public:
     LUnits get_staff_bottom_position() { return m_staffBottom.back()  + m_yShifts.back(); }
     LUnits get_top_line_of_staff(int iStaff);
     LUnits get_bottom_line_of_staff(int iStaff);
-    LUnits get_unshifted_bottom_line_of_staff(int iStaff);
+    void reset_staff_position_shifts();
 
     //shapes
-    void add_staff_lines(GmoBoxSystem* pBox);
+    void add_staff_lines(GmoBoxSystem* pBox, int iSystem);
     void add_name_abbrev(GmoBoxSystem* pBox, int iSystem);
     void add_brace_bracket(GmoBoxSystem* pBox, int iSystem);
     inline LUnits get_staves_bottom() { return get_staff_bottom_position() + m_org.y; }
@@ -208,7 +190,6 @@ public:
     LUnits get_barline_bottom();
 
     //helper
-    LUnits tenths_to_logical(Tenths value, int iStaff=0);
     inline ImoInstrument* get_instrument() { return m_pInstr; }
     int get_num_staves();
 

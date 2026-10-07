@@ -1,36 +1,16 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2016. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #include "lomse_hyperlink_ctrl.h"
 #include "lomse_internal_model.h"
 #include "lomse_shapes.h"
-#include "lomse_document.h"
+#include "private/lomse_document_p.h"
 #include "lomse_gm_basic.h"
 #include "lomse_shape_text.h"
 #include "lomse_drawer.h"
@@ -58,9 +38,10 @@ HyperlinkCtrl::HyperlinkCtrl(LibraryScope& libScope, Control* pParent,
     , m_visitedColor( Color(0, 127, 0) )    //dark green
     , m_visited(false)
 {
-    m_style = (pStyle == nullptr ? create_default_style() : pStyle);
+    pStyle = (pStyle == nullptr ? create_default_style() : pStyle);
+    m_styleId = pStyle->get_id();
 
-    m_normalColor = m_style->color();
+    m_normalColor = pStyle->color();
     m_prevColor = m_normalColor;
     m_currentColor = m_normalColor;
 
@@ -99,7 +80,7 @@ USize HyperlinkCtrl::measure()
 GmoBoxControl* HyperlinkCtrl::layout(LibraryScope& UNUSED(libraryScope), UPoint pos)
 {
     m_pos = pos;
-    m_pMainBox = LOMSE_NEW GmoBoxControl(this, m_pos, m_width, m_height, m_style);
+    m_pMainBox = LOMSE_NEW GmoBoxControl(this, m_pos, m_width, m_height, get_style());
     return m_pMainBox;
 }
 
@@ -148,7 +129,8 @@ void HyperlinkCtrl::change_label(const string& text)
 //---------------------------------------------------------------------------------------
 URect HyperlinkCtrl::determine_text_position_and_size()
 {
-    int align = m_style->text_align();
+    ImoStyle* pStyle = get_style();
+    int align = pStyle->text_align();
     URect pos;
 
     //select_font();    //AWARE: font already selected
@@ -194,7 +176,8 @@ void HyperlinkCtrl::on_draw(Drawer* pDrawer, RenderOptions& UNUSED(opt))
     pDrawer->draw_text(pos.x, pos.y, m_label);
 
     //text decoration
-    if (m_style->text_decoration() == ImoStyle::k_decoration_underline)
+    ImoStyle* pStyle = get_style();
+    if (pStyle->text_decoration() == ImoStyle::k_decoration_underline)
     {
         float factor = (m_language == "zh_CN" ? 0.30f : 0.12f);
         LUnits y = pos.y + pos.height * factor;

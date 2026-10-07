@@ -39,6 +39,7 @@ ScoreComponent* ScoreComponent::Create(Settings& settings, PianoController& pian
 #include <lomse_fragment_mark.h>
 #include <lomse_gm_basic.h>
 #include <lomse_graphical_model.h>
+#include <lomse_im_measures_table.h>
 #include <functional>
 
 #include "GuiHelper.h"
@@ -59,6 +60,7 @@ public:
 	void mouseUp(const MouseEvent& event) override;
 	void mouseMove(const MouseEvent& event) override;
 	void mouseDrag(const MouseEvent& event) override;
+	void mouseDoubleClick(const MouseEvent& event) override;
 	void mouseWheelMove(const MouseEvent& event, const MouseWheelDetails& details) override;
     void buttonClicked (Button* buttonThatWasClicked) override;
 
@@ -68,9 +70,11 @@ public:
 private:
 	Settings& m_settings;
 	PianoController& m_pianoController;
-	lomse::LomseDoorway m_lomse;
+	// Lomse writes its logs into this stream: it has no buffer, so nothing is written
+	// anywhere (by default Lomse creates log files in the home and the current folders).
+	static std::ostream& NullLog() { static std::ostream stream(nullptr); return stream; }
+	lomse::LomseDoorway m_lomse{&NullLog(), &NullLog()};
 	std::unique_ptr<Presenter> m_presenter;
-	RenderingBuffer m_rbuf_window;
 	std::unique_ptr<juce::Image> m_image;
 	float m_scale = 1;
 	float m_docScale = 1;
@@ -98,6 +102,9 @@ private:
 	LUnits ScaledUnits(int pixels);
 	unsigned GetMouseFlags(const MouseEvent& event);
 	void UpdateTempoLine(bool scroll);
+	static TimeUnits BeatLocation(ImoScore* score, int measure, int beat);
+	static TimeUnits BeatTimepos(ImoScore* score, int measure, int beat);
+	int MeasureAtPoint(SpInteractor& interactor, ImoScore* score, int x, int y);
 	void SetViewport(int y);
 	void LimitViewport();
 	int ScoreBottom();
@@ -125,6 +132,9 @@ private:
 		{ static_cast<LomseScoreComponent*>(obj)->UpdateWindow(event); }
 	static void LomseEventWrapper(void* obj, SpEventInfo event)
 		{ static_cast<LomseScoreComponent*>(obj)->LomseEvent(event); }
+	void LomseRequest(Request* request);
+	static void LomseRequestWrapper(void* obj, Request* request)
+		{ static_cast<LomseScoreComponent*>(obj)->LomseRequest(request); }
 };
 
 
@@ -139,7 +149,7 @@ LomseScoreComponent::LomseScoreComponent(Settings& settings, PianoController& pi
 	m_scale = m_settings.zoomUi * Desktop::getInstance().getDisplays().getMainDisplay().scale;
 	int resolution = int(96 * m_scale);
 
-	lomse::logger.set_logging_mode(lomse::Logger::k_trace_mode);
+	lomse::glogger.set_logging_mode(lomse::Logger::k_trace_mode);
 
 	// Lomse knows nothing about windows. It renders everything on a bitmap and the
 	// user application uses this bitmap. For instance, to display it on a window.
@@ -160,6 +170,7 @@ LomseScoreComponent::LomseScoreComponent(Settings& settings, PianoController& pi
 
 	//set required callbacks
 	m_lomse.set_notify_callback(this, LomseEventWrapper);
+	m_lomse.set_request_callback(this, LomseRequestWrapper);
 
 	BuildControls();
 
@@ -244,16 +255,11 @@ void LomseScoreComponent::LoadDocument(String filename)
 		m_presenter.reset(m_lomse.new_document(lomse::k_view_vertical_book));
 	}
 
-	//get the pointer to the interactor, set the rendering buffer and register for
-	//receiving desired events
+	//get the pointer to the interactor and register for receiving desired events
+	//(the rendering buffer is set in PrepareImage, when the image is created)
 	SpInteractor interactor = m_presenter->get_interactor(0).lock();
-	//connect the View with the window buffer
-	interactor->set_rendering_buffer(&m_rbuf_window);
 	//ask to receive desired events
 	interactor->add_event_handler(k_update_window_event, this, UpdateWindowWrapper);
-
-	// beat definition for yamaha
-	interactor->define_beat(k_beat_bottom_ts);
 
 	// visuals
 	interactor->set_view_background(Color(68,62,50)); // dark grey
@@ -289,11 +295,15 @@ void LomseScoreComponent::PrepareImage()
 		imoDoc->set_page_content_scale(1.0); // reset scale
 		pageInfo->set_page_width(ScaledUnits(width));
 		pageInfo->set_page_height(ScaledUnits(height));
-		pageInfo->set_top_margin(500);
-		pageInfo->set_left_margin(300);
-		pageInfo->set_right_margin(300);
-		pageInfo->set_bottom_margin(500);
-		pageInfo->set_binding_margin(0);
+		// the same margins on the odd and the even pages, no binding margin
+		pageInfo->set_top_margin_odd(500);
+		pageInfo->set_left_margin_odd(300);
+		pageInfo->set_right_margin_odd(300);
+		pageInfo->set_bottom_margin_odd(500);
+		pageInfo->set_top_margin_even(500);
+		pageInfo->set_left_margin_even(300);
+		pageInfo->set_right_margin_even(300);
+		pageInfo->set_bottom_margin_even(500);
 
 		interactor->on_document_updated();  //This rebuilds GraphicModel
 
@@ -302,10 +312,11 @@ void LomseScoreComponent::PrepareImage()
 		// create image to fit the whole page
 		m_image.reset(new juce::Image(juce::Image::PixelFormat::ARGB,
 			int(width / m_docScale), int(height / m_docScale), false, SoftwareImageType()));
-		//creates a bitmap of specified size and associates it to the rendering
-		//buffer for the view. Any existing buffer is automatically deleted
+		//connect the view with the pixels of the image. Lomse takes the address and the
+		//size of the buffer when this is called, so it is done for every new image
 		juce::Image::BitmapData bitmap(*m_image, juce::Image::BitmapData::readWrite);
-		m_rbuf_window.attach(bitmap.data, m_image->getWidth(), m_image->getHeight(), bitmap.lineStride);
+		jassert(bitmap.lineStride == m_image->getWidth() * 4);
+		interactor->set_rendering_buffer(bitmap.data, (unsigned)m_image->getWidth(), (unsigned)m_image->getHeight());
 
 		interactor->redraw_bitmap();
 
@@ -347,6 +358,25 @@ void LomseScoreComponent::LomseEvent(SpEventInfo event)
 // score cannot move below the top of the window, and the bottom of the score cannot
 // move above the bottom of the window. There is no horizontal scrolling (the page is
 // as wide as the window).
+// Lomse asks for the file of a text font it does not know (e.g. the "FreeSerif" named
+// in the scores exported by MuseScore). Without an answer the texts of the score (the
+// instrument names, the measure numbers, the tempo) are not drawn at all, so one of the
+// fonts shipped with the program is given.
+void LomseScoreComponent::LomseRequest(Request* request)
+{
+	if (request == nullptr || !request->is_get_font_filename())
+	{
+		return;
+	}
+	RequestFont* fontRequest = static_cast<RequestFont*>(request);
+	const String name(fontRequest->get_fontname());
+	const String family = name.containsIgnoreCase("sans") || name.containsIgnoreCase("arial") ||
+		name.containsIgnoreCase("helvetica") ? "LiberationSans" : "LiberationSerif";
+	const String style = fontRequest->get_bold() ? (fontRequest->get_italic() ? "BoldItalic" : "Bold") :
+		(fontRequest->get_italic() ? "Italic" : "Regular");
+	fontRequest->set_font_fullname((m_settings.resourcesPath + "/fonts/" + family + "-" + style + ".ttf").toStdString());
+}
+
 void LomseScoreComponent::SetViewport(int y)
 {
 	if (!m_presenter || !m_image) return;
@@ -397,7 +427,7 @@ int LomseScoreComponent::ScoreBottom()
 	const LUnits BottomMargin = 500.0f; // the same as the bottom margin of the page
 	double x = 0.0;
 	double y = double(bottom + BottomMargin);
-	interactor->model_point_to_screen(&x, &y, lastPage); // relative to the current viewport
+	interactor->model_point_to_device(&x, &y, lastPage); // relative to the current viewport
 
 	Pixels viewportX = 0, viewportY = 0;
 	interactor->get_viewport(&viewportX, &viewportY);
@@ -516,6 +546,61 @@ void LomseScoreComponent::mouseMove(const MouseEvent& event)
 		int(event.getScreenY() * m_scale), GetMouseFlags(event));
 }
 
+// The measure (0..n) at a point of the score image, -1 if the point is not on a staff.
+// In the first measure of a system Lomse gives measure 0 with the time position counted
+// from the beginning of the score (and nothing at all on the clef and the key signature),
+// so this case is worked out here: the first point to the right with a time position is
+// taken and its measure is looked up by that position.
+int LomseScoreComponent::MeasureAtPoint(SpInteractor& interactor, ImoScore* score, int x, int y)
+{
+	for (int probe = x; probe < m_image->getWidth(); probe += 6)
+	{
+		const MeasureLocator locator = interactor->find_click_info_at(probe, y).ml;
+		if (locator.iMeasure != 0 || score == nullptr)
+		{
+			return locator.iMeasure;
+		}
+		if (locator.location > 0.0)
+		{
+			const TimeUnits secondMeasure = ScoreAlgorithms::get_timepos_for(score, 1, 0);
+			return secondMeasure <= 0.0 || locator.location <= secondMeasure ? 0 :
+				ScoreAlgorithms::get_locator_for(score, locator.location).iMeasure;
+		}
+	}
+	return 0;
+}
+
+// Double click on the score: the playback jumps to the beginning of the clicked measure
+// (with repeats in the score: to its first occurrence).
+void LomseScoreComponent::mouseDoubleClick(const MouseEvent& event)
+{
+	if (!m_presenter || !m_image || getWidth() <= 0 || getHeight() <= 0) return;
+
+	SpInteractor interactor = m_presenter->get_interactor(0).lock();
+
+	// position in the pixels of the score image
+	const int x = event.x * m_image->getWidth() / getWidth();
+	const int y = event.y * m_image->getHeight() / getHeight();
+
+	// Lomse finds the measure only on the staves themselves; for a click between or near
+	// the staves the nearest staff above or below is taken
+	Document* doc = m_presenter->get_document_raw_ptr();
+	ImoScore* score = dynamic_cast<ImoScore*>(doc->get_im_root()->get_content_item(0));
+	const int range = jmax(20, m_image->getHeight() / 12);
+	int measure = -1;
+	for (int distance = 0; distance <= range && measure < 0; distance += 3)
+	{
+		measure = MeasureAtPoint(interactor, score, x, y - distance);
+		if (measure < 0 && distance > 0)
+		{
+			measure = MeasureAtPoint(interactor, score, x, y + distance);
+		}
+	}
+	if (measure < 0) return;
+
+	m_pianoController.SetPosition({measure + 1, 1});
+}
+
 void LomseScoreComponent::mouseDrag(const MouseEvent& event)
 {
 	mouseMove(event);
@@ -582,16 +667,42 @@ void LomseScoreComponent::UpdateTempoLine(bool scroll)
 	// highlight playback position
 	SpInteractor interactor = m_presenter->get_interactor(0).lock();
 	PianoController::Position songPosition = m_pianoController.GetPosition();
+	Document* doc = m_presenter->get_document_raw_ptr();
+	ImoScore* score = dynamic_cast<ImoScore*>(doc->get_im_root()->get_content_item(0));
+	const int measure = songPosition.measure - 1;
+	const TimeUnits location = BeatLocation(score, measure, songPosition.beat - 1);
 	if (scroll)
 	{
-		interactor->move_tempo_line_and_scroll_if_necessary(m_scoreId,
-			songPosition.measure - 1, songPosition.beat - 1);
+		interactor->move_tempo_line_and_scroll_if_necessary(m_scoreId, measure, location);
 	}
 	else
 	{
-		interactor->move_tempo_line(m_scoreId,
-			songPosition.measure - 1, songPosition.beat - 1);
+		interactor->move_tempo_line(m_scoreId, measure, location);
 	}
+}
+
+// The piano counts the beats by the bottom number of the time signature (six beats in
+// 6/8), Lomse by the implied beat (two beats in 6/8). Returns the place of a beat of the
+// piano inside its measure, in Lomse time units.
+TimeUnits LomseScoreComponent::BeatLocation(ImoScore* score, int measure, int beat)
+{
+	if (score == nullptr || score->get_num_instruments() == 0 || measure < 0 || beat <= 0)
+	{
+		return 0.0;
+	}
+	ImMeasuresTable* table = score->get_instrument(0)->get_measures_table();
+	ImMeasuresTableEntry* entry = table != nullptr ? table->get_measure(measure) : nullptr;
+	return entry != nullptr ? entry->get_bottom_ts_beat_duration() * beat : 0.0;
+}
+
+// Time position of a beat of the piano in the score.
+TimeUnits LomseScoreComponent::BeatTimepos(ImoScore* score, int measure, int beat)
+{
+	if (score == nullptr)
+	{
+		return 0.0;
+	}
+	return ScoreAlgorithms::get_timepos_for(score, measure, 0) + BeatLocation(score, measure, beat);
 }
 
 void LomseScoreComponent::UpdateABMarks(bool force)
@@ -613,7 +724,7 @@ void LomseScoreComponent::UpdateABMarks(bool force)
 
 		if (loop.begin.measure > 0 || loopStart.measure > 0)
 		{
-			TimeUnits timepos = ScoreAlgorithms::get_timepos_for(score,
+			TimeUnits timepos = BeatTimepos(score,
 				loop.begin.measure > 0 ? loop.begin.measure - 1 : loopStart.measure - 1,
 				loop.begin.measure > 0 ? loop.begin.beat - 1 : loopStart.beat - 1);
 			loopStartMark = interactor->add_fragment_mark_at_note_rest(m_scoreId, timepos);
@@ -624,7 +735,7 @@ void LomseScoreComponent::UpdateABMarks(bool force)
 
 		if (loop.end.measure > 0)
 		{
-			TimeUnits timepos = ScoreAlgorithms::get_timepos_for(score, loop.end.measure - 1, loop.end.beat - 1);
+			TimeUnits timepos = BeatTimepos(score, loop.end.measure - 1, loop.end.beat - 1);
 			timepos -= 1;
 			loopEndMark = interactor->add_fragment_mark_at_note_rest(m_scoreId, timepos);
 			loopEndMark->color(Color(15, 90, 235, 128)); // light orange
@@ -751,8 +862,8 @@ void LomseScoreComponent::PrepareInstruments()
 		ImoInstrument* instr = score->get_instrument(0);
 
 		m_instruments.push_back(instr);
-		m_instrNames.push_back(instr->get_name().get_text());
-		m_instrAbbrevs.push_back(instr->get_abbrev().get_text());
+		m_instrNames.push_back(instr->get_name().text);
+		m_instrAbbrevs.push_back(instr->get_abbrev().text);
 
 		//show measure numbers
 		instr->set_measures_numbering(ImoInstrument::k_system);
@@ -825,8 +936,8 @@ void LomseScoreComponent::ConfigureInstruments()
 		int midiChannel = MidiChannelOfInstrument(instr);
 		if (midiChannel > 0 && m_settings.scoreShowMidiChannel)
 		{
-			instr->set_name((String("#") + String(midiChannel) + " " + String(instr->get_name().get_text())).toStdString());
-			instr->set_abbrev((String("#") + String(midiChannel) + " " + String(instr->get_abbrev().get_text())).toStdString());
+			instr->set_name((String("#") + String(midiChannel) + " " + String(instr->get_name().text)).toStdString());
+			instr->set_abbrev((String("#") + String(midiChannel) + " " + String(instr->get_abbrev().text)).toStdString());
 		}
 
 		num++;

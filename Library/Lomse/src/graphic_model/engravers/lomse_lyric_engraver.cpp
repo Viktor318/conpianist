@@ -1,30 +1,10 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2019. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #include "lomse_lyric_engraver.h"
@@ -41,6 +21,7 @@
 #include "lomse_shape_text.h"
 #include "lomse_instrument_engraver.h"
 #include "lomse_vertical_profile.h"
+#include "lomse_text_engraver.h"
 
 #include <cmath>        // fabs
 
@@ -71,83 +52,61 @@ LyricEngraver::LyricEngraver(LibraryScope& libraryScope, ScoreMeter* pScoreMeter
 //---------------------------------------------------------------------------------------
 LyricEngraver::~LyricEngraver()
 {
-    m_lyrics.clear();
 }
 
 //---------------------------------------------------------------------------------------
-void LyricEngraver::set_start_staffobj(ImoAuxRelObj* pARO, ImoStaffObj* UNUSED(pSO),
-                                       GmoShape* pStaffObjShape, int iInstr, int iStaff,
-                                       int iSystem, int iCol, LUnits xStaffLeft,
-                                       LUnits xStaffRight, LUnits yStaffTop,
-                                       int idxStaff, VerticalProfile* pVProfile)
+void LyricEngraver::set_start_staffobj(ImoAuxRelObj* pARO, const AuxObjContext& aoc)
 {
-    m_iInstr = iInstr;
-    m_iStaff = iStaff;
+    m_iInstr = aoc.iInstr;
+    m_iStaff = aoc.iStaff;
+    m_idxStaff = aoc.idxStaff;
+
     ImoLyric* pLyric = dynamic_cast<ImoLyric*>(pARO);
-    m_lyrics.push_back( make_pair(pLyric, pStaffObjShape) );
+    m_lyrics.push_back( make_pair(pLyric, aoc.pStaffObjShape) );
 
-    ShapeBoxInfo* pInfo = LOMSE_NEW ShapeBoxInfo(nullptr, iSystem, iCol, iInstr);
+    ShapeBoxInfo* pInfo =
+            LOMSE_NEW ShapeBoxInfo(nullptr, aoc.iCol, aoc.iInstr, aoc.iStaff, aoc.idxStaff);
     m_shapesInfo.push_back(pInfo);
-
-    m_uStaffLeft = xStaffLeft;
-    m_uStaffRight = xStaffRight;
-    m_uStaffTop = yStaffTop;
-
-    m_idxStaff = idxStaff;
-    m_pVProfile = pVProfile;
 }
 
 //---------------------------------------------------------------------------------------
-void LyricEngraver::set_middle_staffobj(ImoAuxRelObj* pARO, ImoStaffObj* UNUSED(pSO),
-                                        GmoShape* pStaffObjShape, int iInstr,
-                                        int UNUSED(iStaff), int iSystem, int iCol,
-                                        LUnits xStaffLeft, LUnits xStaffRight,
-                                        LUnits yStaffTop, int idxStaff,
-                                        VerticalProfile* pVProfile)
-
+void LyricEngraver::set_middle_staffobj(ImoAuxRelObj* pARO, const AuxObjContext& aoc)
 {
     ImoLyric* pLyric = dynamic_cast<ImoLyric*>(pARO);
-    m_lyrics.push_back( make_pair(pLyric, pStaffObjShape) );
+    m_lyrics.push_back( make_pair(pLyric, aoc.pStaffObjShape) );
 
-    ShapeBoxInfo* pInfo = LOMSE_NEW ShapeBoxInfo(nullptr, iSystem, iCol, iInstr);
+    ShapeBoxInfo* pInfo =
+            LOMSE_NEW ShapeBoxInfo(nullptr, aoc.iCol, aoc.iInstr, aoc.iStaff, aoc.idxStaff);
     m_shapesInfo.push_back(pInfo);
-
-    m_uStaffLeft = xStaffLeft;
-    m_uStaffRight = xStaffRight;
-    m_uStaffTop = yStaffTop;
-
-    m_idxStaff = idxStaff;
-    m_pVProfile = pVProfile;
 }
 
 //---------------------------------------------------------------------------------------
-void LyricEngraver::set_end_staffobj(ImoAuxRelObj* pARO, ImoStaffObj* UNUSED(pSO),
-                                     GmoShape* pStaffObjShape, int iInstr,
-                                     int UNUSED(iStaff), int iSystem, int iCol,
-                                     LUnits xStaffLeft, LUnits xStaffRight, LUnits yStaffTop,
-                                     int idxStaff, VerticalProfile* pVProfile)
-
+void LyricEngraver::set_end_staffobj(ImoAuxRelObj* pARO, const AuxObjContext& aoc)
 {
     ImoLyric* pLyric = static_cast<ImoLyric*>(pARO);
-    m_lyrics.push_back( make_pair(pLyric, pStaffObjShape) );
+    m_lyrics.push_back( make_pair(pLyric, aoc.pStaffObjShape) );
 
-    ShapeBoxInfo* pInfo = LOMSE_NEW ShapeBoxInfo(nullptr, iSystem, iCol, iInstr);
+    ShapeBoxInfo* pInfo =
+            LOMSE_NEW ShapeBoxInfo(nullptr, aoc.iCol, aoc.iInstr, aoc.iStaff, aoc.idxStaff);
     m_shapesInfo.push_back(pInfo);
-
-    m_uStaffLeft = xStaffLeft;
-    m_uStaffRight = xStaffRight;
-    m_uStaffTop = yStaffTop;
-
-    m_idxStaff = idxStaff;
-    m_pVProfile = pVProfile;
 }
 
 //---------------------------------------------------------------------------------------
-int LyricEngraver::create_shapes(Color color)
+int LyricEngraver::create_shapes(const RelObjEngravingContext& ctx)
 {
     //Create the shapes for one system
 
-    m_color = color;
+    m_color = ctx.color;
+    m_uStaffLeft = ctx.xStaffLeft;
+    m_uStaffRight = ctx.xStaffRight;
+    m_uStaffTop = ctx.yStaffTop;
+    m_pVProfile = ctx.pVProfile;
+
+    //ConPianist fork: a lyrics line that goes on in the next system may have no syllable
+    //in this system. There is nothing to engrave then (and front() on the empty list
+    //is not allowed)
+    if (m_lyrics.empty())
+        return 0;
 
     //get xLeft and xRight for first and last notes
     LUnits xLeft = m_uStaffLeft;
@@ -180,18 +139,16 @@ int LyricEngraver::create_shapes(Color color)
     int ret = int(m_lyrics.size());
     m_numShapes += ret;
 
-    //NOTE: do NOT clear m_lyrics/m_shapesInfo here. The caller (SystemLayouter)
-    //still needs to read the just-created shapes back out via get_shape_box_info()
-    //after create_shapes() returns; clearing here left it reading an already-empty
-    //vector (crash: "vector subscript out of range"). The reset now happens in
-    //prepare_for_next_system(), called by the caller once it is done reading.
-
     return ret;
 };
 
 //---------------------------------------------------------------------------------------
 void LyricEngraver::prepare_for_next_system()
 {
+    //AWARE: m_shapesInfo cannot be cleared at end of LyricEngraver::create_shapes()
+    //       as it has to be used in SystemLayouter::add_lyrics_shapes_to_model(). Thus
+    //       it will be cleared here and this method will be invoked by
+    //       SystemLayouter::add_lyrics_shapes_to_model() when appropriate.
     m_lyrics.clear();
     m_shapesInfo.clear();
 }
@@ -232,7 +189,7 @@ void LyricEngraver::create_shape(int iNote, GmoShapeNote* pNoteShape, ImoLyric* 
 
     //create container shape
     ShapeId idx = 0;
-    m_pLyricsShape = LOMSE_NEW GmoShapeLyrics(pLyric, idx, Color(0,0,0) /*unused*/,
+    m_pLyricsShape = LOMSE_NEW GmoShapeLyrics(pLyric, idx++, Color(0,0,0) /*unused*/,
                                               m_libraryScope);
 
     //create shapes for syllables and elision symbols and compute its total width
@@ -253,8 +210,9 @@ void LyricEngraver::create_shape(int iNote, GmoShapeNote* pNoteShape, ImoLyric* 
         color = pStyle->color();
 
         //create shape for this syllable
-        pSyllableShape = LOMSE_NEW GmoShapeText(pLyric, idx, text, pStyle,
-                                                language, xCur, yPos, m_libraryScope);
+        pSyllableShape = LOMSE_NEW GmoShapeText(pLyric, idx++, text, pStyle, language,
+                                                TextEngraver::k_class_lyric_syllable,
+                                                xCur, yPos, m_libraryScope);
         m_pLyricsShape->add(pSyllableShape);
         xCur = pSyllableShape->get_right();
 
@@ -265,8 +223,9 @@ void LyricEngraver::create_shape(int iNote, GmoShapeNote* pNoteShape, ImoLyric* 
         if (pText->has_elision())
         {
             const string& elision = pText->get_elision_text();
-            GmoShape* pShape = LOMSE_NEW GmoShapeText(pLyric, idx, elision, pStyle,
-                                                      "en", xCur, yPos, m_libraryScope);
+            GmoShape* pShape = LOMSE_NEW GmoShapeText(pLyric, idx++, elision, pStyle, "en",
+                                                      TextEngraver::k_class_lyric_elision,
+                                                      xCur, yPos, m_libraryScope);
             m_pLyricsShape->add(pShape);
             xCur = pShape->get_right() + tenths_to_logical(2.0);
             syllablesWidth += pShape->get_width() + tenths_to_logical(2.0);
@@ -284,8 +243,9 @@ void LyricEngraver::create_shape(int iNote, GmoShapeNote* pNoteShape, ImoLyric* 
     //add shape for hyphenation, if needed
     if (pLyric->has_hyphenation() && !pLyric->has_melisma())
     {
-        GmoShape* pShape = LOMSE_NEW GmoShapeText(pLyric, idx, "-", pStyle,
-                                                  "en", xCur, yPos, m_libraryScope);
+        GmoShape* pShape = LOMSE_NEW GmoShapeText(pLyric, idx++, "-", pStyle, "en",
+                                                  TextEngraver::k_class_lyric_hyphenation,
+                                                  xCur, yPos, m_libraryScope);
         m_pLyricsShape->add(pShape);
 
         //shift shape to center between this and next syllable
@@ -293,7 +253,7 @@ void LyricEngraver::create_shape(int iNote, GmoShapeNote* pNoteShape, ImoLyric* 
         {
             LUnits space = pNextNoteShape->get_left() - syllablesRight;
             LUnits shift = (space - pShape->get_width()) / 2.0f;
-            pShape->shift_origin(shift, 0.0f);
+            pShape->shift_origin(USize(shift, 0.0f));
         }
 
         xCur = pShape->get_right();
@@ -325,7 +285,8 @@ void LyricEngraver::create_shape(int iNote, GmoShapeNote* pNoteShape, ImoLyric* 
 
         LUnits width = tenths_to_logical(1.0f);     //TODO engraving option
         LUnits boundsExtraWidth = tenths_to_logical(0.5f);
-        GmoShape* pShape = LOMSE_NEW GmoShapeLine(pLyric, idx, xStart, yPos, xEnd, yPos,
+        GmoShape* pShape = LOMSE_NEW GmoShapeLine(pLyric, idx++, GmoObj::k_shape_line,
+                                        xStart, yPos, xEnd, yPos,
                                         width, boundsExtraWidth, k_line_solid, color,
                                         k_edge_normal, k_cap_none, k_cap_none);
         m_pLyricsShape->add(pShape);

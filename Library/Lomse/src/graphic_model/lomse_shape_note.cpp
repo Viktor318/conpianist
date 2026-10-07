@@ -1,30 +1,10 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2016. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #include "lomse_shape_note.h"
@@ -34,6 +14,7 @@
 #include "lomse_internal_model.h"
 #include "lomse_im_note.h"
 #include "lomse_calligrapher.h"
+#include "lomse_time.h"
 
 
 namespace lomse
@@ -44,11 +25,9 @@ namespace lomse
 //=======================================================================================
 GmoShapeNote::GmoShapeNote(ImoObj* pCreatorImo,
                            LUnits UNUSED(x), LUnits UNUSED(y), Color color,
-                           LibraryScope& libraryScope)
+                           LibraryScope& UNUSED(libraryScope))
     : GmoCompositeShape(pCreatorImo, GmoObj::k_shape_note, 0, color)
     , VoiceRelatedShape()
-    , m_pFontStorage( libraryScope.font_storage() )
-    , m_libraryScope(libraryScope)
     , m_pNoteheadShape(nullptr)
 	, m_pStemShape(nullptr)
     , m_pAccidentalsShape(nullptr)
@@ -56,21 +35,23 @@ GmoShapeNote::GmoShapeNote(ImoObj* pCreatorImo,
     , m_uAnchorOffset(0.0f)
     , m_fUpOriented(true)
     , m_nPosOnStaff(1)
+    , m_nTopPosOnStaff(1)
+    , m_nBottomPosOnStaff(1)
     , m_uyStaffTopLine(0)
     , m_uLineOutgoing(0)
     , m_uLineThickness(0)
     , m_lineSpacing(0)
-{
-}
-
-//---------------------------------------------------------------------------------------
-GmoShapeNote::~GmoShapeNote()
+    , m_chordNoteType(k_chord_note_no)
+    , m_pBaseNoteShape(nullptr)
 {
 }
 
 //---------------------------------------------------------------------------------------
 void GmoShapeNote::on_draw(Drawer* pDrawer, RenderOptions& opt)
 {
+    if (pDrawer->accepts_id_class())
+        pDrawer->start_composite_notation(get_notation_id(), get_notation_class());
+
     if (opt.draw_anchor_lines)
     {
         pDrawer->begin_path();
@@ -83,15 +64,52 @@ void GmoShapeNote::on_draw(Drawer* pDrawer, RenderOptions& opt)
     }
 
     draw_leger_lines(pDrawer);
-    GmoCompositeShape::on_draw(pDrawer, opt);
+
+    if (opt.draw_chords_coloured)
+    {
+        Color save = m_pNoteheadShape->get_normal_color();
+        Color dbgColor = save;
+        if (m_chordNoteType == k_chord_note_flag)
+            dbgColor = Color(51,153,51);    //green
+        else if (m_chordNoteType == k_chord_note_link)
+            dbgColor = Color(255,105,180);  //magenta
+        else if (m_chordNoteType == k_chord_note_start)
+            dbgColor = Color(150,200,250);  //cyan
+
+        m_pNoteheadShape->set_color(dbgColor);
+        if (m_pStemShape)
+            m_pStemShape->set_color(dbgColor);
+        if (m_pAccidentalsShape)
+            m_pAccidentalsShape->set_color(dbgColor);
+        if (m_pFlagShape)
+            m_pFlagShape->set_color(dbgColor);
+
+        GmoCompositeShape::on_draw(pDrawer, opt);
+
+        m_pNoteheadShape->set_color(save);
+        if (m_pStemShape)
+            m_pStemShape->set_color(save);
+        if (m_pAccidentalsShape)
+            m_pAccidentalsShape->set_color(save);
+        if (m_pFlagShape)
+            m_pFlagShape->set_color(save);
+    }
+    else
+        GmoCompositeShape::on_draw(pDrawer, opt);
+
+    if (pDrawer->accepts_id_class())
+        pDrawer->end_composite_notation();
 }
 
 //---------------------------------------------------------------------------------------
 void GmoShapeNote::draw_leger_lines(Drawer* pDrawer)
 {
     //if note is on staff, nothing to draw
-    if (m_nPosOnStaff > 0 && m_nPosOnStaff < 12)
+    if (m_nPosOnStaff > m_nBottomPosOnStaff && m_nPosOnStaff < m_nTopPosOnStaff)
         return;
+
+    if (pDrawer->accepts_id_class())
+        pDrawer->start_simple_notation("", "ledger-line");
 
     pDrawer->begin_path();
     pDrawer->fill(Color(0, 0, 0, 0));
@@ -101,10 +119,14 @@ void GmoShapeNote::draw_leger_lines(Drawer* pDrawer)
     LUnits xPos = get_notehead_left() - m_uLineOutgoing;
     LUnits lineLength = get_notehead_width() + 2.0f * m_uLineOutgoing;
 
-    if (m_nPosOnStaff > 11)     //lines at top
+    if (m_nPosOnStaff >= m_nTopPosOnStaff)     //lines at top
 	{
-        LUnits yPos = m_uyStaffTopLine + get_notehead_top() - m_lineSpacing;
-        for (int i=12; i <= m_nPosOnStaff; i+=2)
+        //AWARE: m_uyStaffTopLine refers to the fifth line of a five lines staff. It has
+        //to be corrected when m_nTopPosOnStaff < 12 (less than 5 lines)
+        LUnits yPos = m_uyStaffTopLine + get_notehead_top()
+                      + m_lineSpacing * float((10 - m_nTopPosOnStaff)/2);
+
+        for (int i=m_nTopPosOnStaff; i <= m_nPosOnStaff; i+=2)
         {
             pDrawer->move_to(xPos, yPos);
             pDrawer->hline_to(xPos + lineLength);
@@ -113,8 +135,12 @@ void GmoShapeNote::draw_leger_lines(Drawer* pDrawer)
     }
 	else    //lines at bottom
 	{
-        LUnits yPos = m_uyStaffTopLine + get_notehead_top() + m_lineSpacing * 5.0f;
-        for (int i=0; i >= m_nPosOnStaff; i-=2)
+        //AWARE: m_uyStaffTopLine refers to the fifth line of a five lines staff. It has
+        //to be corrected when m_nBottomPosOnStaff != 0 (no 5 lines)
+        LUnits yPos = m_uyStaffTopLine + get_notehead_top()
+                      + m_lineSpacing * float((10 - m_nBottomPosOnStaff)/2);
+
+        for (int i=m_nBottomPosOnStaff; i >= m_nPosOnStaff; i-=2)
         {
             pDrawer->move_to(xPos, yPos);
             pDrawer->hline_to(xPos + lineLength);
@@ -154,11 +180,14 @@ void GmoShapeNote::add_accidentals(GmoShapeAccidentals* pShape)
 }
 
 //---------------------------------------------------------------------------------------
-void GmoShapeNote::add_leger_lines_info(int posOnStaff, LUnits yStaffTopLine,
+void GmoShapeNote::add_leger_lines_info(int posOnStaff, int topPosOnStaff,
+                                        int bottomPosOnStaff, LUnits yStaffTopLine,
                                         LUnits lineOutgoing, LUnits lineThickness,
                                         LUnits lineSpacing)
 {
 	m_nPosOnStaff = posOnStaff;
+    m_nTopPosOnStaff = topPosOnStaff;
+    m_nBottomPosOnStaff = bottomPosOnStaff;
 	m_uyStaffTopLine = yStaffTopLine;   //relative to notehead top
     m_uLineOutgoing = lineOutgoing;
     m_uLineThickness = lineThickness;
@@ -270,6 +299,12 @@ LUnits GmoShapeNote::get_stem_left() const
 }
 
 //---------------------------------------------------------------------------------------
+LUnits GmoShapeNote::get_stem_right() const
+{
+    return (m_pStemShape ? m_pStemShape->get_right() : 0.0f);
+}
+
+//---------------------------------------------------------------------------------------
 LUnits GmoShapeNote::get_stem_y_flag() const
 {
     return (m_pStemShape ? m_pStemShape->get_y_flag() : 0.0f);
@@ -279,12 +314,6 @@ LUnits GmoShapeNote::get_stem_y_flag() const
 LUnits GmoShapeNote::get_stem_y_note() const
 {
     return (m_pStemShape ? m_pStemShape->get_y_note() : 0.0f);
-}
-
-//---------------------------------------------------------------------------------------
-LUnits GmoShapeNote::get_stem_extra_length() const
-{
-    return (m_pStemShape ? m_pStemShape->get_extra_length() : 0.0f);
 }
 
 //---------------------------------------------------------------------------------------
@@ -306,11 +335,96 @@ bool GmoShapeNote::is_in_chord()
 }
 
 //---------------------------------------------------------------------------------------
-void GmoShapeNote::set_color(Color color)
+bool GmoShapeNote::is_cross_staff_chord()
+{
+    ImoNote* pNote = dynamic_cast<ImoNote*>(m_pCreatorImo);
+    if (pNote)
+        return pNote->is_cross_staff_chord();
+    return false;
+}
+
+//---------------------------------------------------------------------------------------
+void GmoShapeNote::set_notehead_color(Color color)
 {
     m_pNoteheadShape->set_color(color);
 }
 
+//---------------------------------------------------------------------------------------
+void GmoShapeNote::dump(ostream& outStream, int level)
+{
+    std::ios_base::fmtflags f( outStream.flags() );  //save formating options
+
+    outStream << setw(level*3) << level << " [" << setw(3) << m_objtype << "] "
+              << "(" << get_pos_on_staff() << ")"
+              << get_name(m_objtype)
+              << "[" << m_idx << "]"
+              << fixed << setprecision(2) << setfill(' ')
+              << setw(10) << round_half_up(m_origin.x) << ", "
+              << setw(10) << round_half_up(m_origin.y) << ", "
+              << setw(10) << round_half_up(m_size.width) << ", "
+              << setw(10) << round_half_up(m_size.height) << ", s=" << get_stem_height() << endl;
+
+    outStream.flags( f );  //restore formating options
+}
+
+
+//=======================================================================================
+// GmoShapeChordBaseNote implementation
+//=======================================================================================
+void GmoShapeChordBaseNote::set_flag_note(GmoShapeNote* pNote)
+{
+    m_pFlagNote = pNote;
+    pNote->set_chord_note_type(k_chord_note_flag);
+    //pNote->set_color( Color(255,0,0) );
+}
+
+//---------------------------------------------------------------------------------------
+void GmoShapeChordBaseNote::set_link_note(GmoShapeNote* pNote)
+{
+    m_pLinkNote = pNote;
+    pNote->set_chord_note_type(k_chord_note_link);
+}
+
+//---------------------------------------------------------------------------------------
+void GmoShapeChordBaseNote::set_start_note(GmoShapeNote* pNote)
+{
+    m_pStartNote = pNote;
+    pNote->set_chord_note_type(k_chord_note_start);
+}
+
+//---------------------------------------------------------------------------------------
+GmoShapeNote* GmoShapeChordBaseNote::get_top_note()
+{
+    //stem up: flag note
+    //stem down: link note (single staff chords) or start note (cross-staff chords)
+    //no stem: find, based on position
+
+    if (has_stem())
+        return is_up() ? m_pFlagNote
+                       : (m_pStartNote != nullptr ? m_pStartNote : m_pLinkNote);
+
+    //notes without stem: decide based on noteheads position (AWARE: y axis is reversed)
+    GmoShapeNote* pNonFlagNote = (m_pStartNote != nullptr ? m_pStartNote : m_pLinkNote);
+    return pNonFlagNote->m_pNoteheadShape->get_top() <  m_pFlagNote->m_pNoteheadShape->get_top() ?
+                    pNonFlagNote : m_pFlagNote;
+}
+
+//---------------------------------------------------------------------------------------
+GmoShapeNote* GmoShapeChordBaseNote::get_bottom_note()
+{
+    //stem up: link note (single staff chords) or start note (cross-staff chords)
+    //stem down: flag note
+    //no stem: find, based on position
+
+    if (has_stem())
+        return is_up() ? (m_pStartNote != nullptr ? m_pStartNote : m_pLinkNote)
+                       : m_pFlagNote;
+
+    //notes without stem: decide based on noteheads position (AWARE: y axis is reversed)
+    GmoShapeNote* pNonFlagNote = (m_pStartNote != nullptr ? m_pStartNote : m_pLinkNote);
+    return pNonFlagNote->m_pNoteheadShape->get_top() <  m_pFlagNote->m_pNoteheadShape->get_top() ?
+                    m_pFlagNote : pNonFlagNote;
+}
 
 
 //=======================================================================================
@@ -318,10 +432,9 @@ void GmoShapeNote::set_color(Color color)
 //=======================================================================================
 GmoShapeRest::GmoShapeRest(ImoObj* pCreatorImo, ShapeId idx,
                            LUnits UNUSED(x), LUnits UNUSED(y), Color color,
-                           LibraryScope& libraryScope)
+                           LibraryScope& UNUSED(libraryScope))
     : GmoCompositeShape(pCreatorImo, GmoObj::k_shape_rest, idx, color)
     , VoiceRelatedShape()
-    , m_libraryScope(libraryScope)
 	, m_pBeamShape(nullptr)
 {
 }
@@ -329,8 +442,90 @@ GmoShapeRest::GmoShapeRest(ImoObj* pCreatorImo, ShapeId idx,
 //---------------------------------------------------------------------------------------
 void GmoShapeRest::on_draw(Drawer* pDrawer, RenderOptions& opt)
 {
+    if (pDrawer->accepts_id_class())
+        pDrawer->start_composite_notation(get_notation_id(), get_notation_class());
+
     GmoCompositeShape::on_draw(pDrawer, opt);
+
+    if (pDrawer->accepts_id_class())
+        pDrawer->end_composite_notation();
 }
+
+
+//=======================================================================================
+// GmoShapeNotehead implementation
+//=======================================================================================
+void GmoShapeNotehead::on_draw(Drawer* pDrawer, RenderOptions& opt)
+{
+    if (pDrawer->accepts_id_class())
+        pDrawer->start_simple_notation("", get_name());
+
+    GmoShapeGlyph::on_draw(pDrawer, opt);
+}
+
+
+//=======================================================================================
+// GmoShapeFret implementation
+//=======================================================================================
+void GmoShapeFret::on_draw(Drawer* pDrawer, RenderOptions& opt)
+{
+    if (pDrawer->accepts_id_class())
+        pDrawer->start_composite_notation("", "fret");
+
+    Color color(255,255,255);
+    LUnits hair = m_size.width / 8.0f;      //small gap at left and right
+    LUnits x = m_origin.x - hair;
+    pDrawer->fill(color);
+    pDrawer->begin_path();
+    pDrawer->move_to(x, m_origin.y);
+    pDrawer->hline_to(x + m_size.width + hair + hair);
+    pDrawer->vline_to(m_origin.y + m_size.height);
+    pDrawer->hline_to(x);
+    pDrawer->vline_to(m_origin.y);
+    pDrawer->end_path();
+
+    GmoShapeGlyph::on_draw(pDrawer, opt);
+
+    if (pDrawer->accepts_id_class())
+        pDrawer->end_composite_notation();
+}
+
+
+//=======================================================================================
+// GmoShapeDot implementation
+//=======================================================================================
+void GmoShapeDot::on_draw(Drawer* pDrawer, RenderOptions& opt)
+{
+    if (pDrawer->accepts_id_class())
+        pDrawer->start_simple_notation("", get_name());
+
+    GmoShapeGlyph::on_draw(pDrawer, opt);
+}
+
+
+//=======================================================================================
+// GmoShapeFlag implementation
+//=======================================================================================
+void GmoShapeFlag::on_draw(Drawer* pDrawer, RenderOptions& opt)
+{
+    if (pDrawer->accepts_id_class())
+        pDrawer->start_simple_notation("", get_name());
+
+    GmoShapeGlyph::on_draw(pDrawer, opt);
+}
+
+
+//=======================================================================================
+// GmoShapeRestGlyph implementation
+//=======================================================================================
+void GmoShapeRestGlyph::on_draw(Drawer* pDrawer, RenderOptions& opt)
+{
+    if (pDrawer->accepts_id_class())
+        pDrawer->start_simple_notation("", get_name());
+
+    GmoShapeGlyph::on_draw(pDrawer, opt);
+}
+
 
 
 }  //namespace lomse

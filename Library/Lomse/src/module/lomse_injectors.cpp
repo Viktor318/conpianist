@@ -1,30 +1,10 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2020. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #define LOMSE_INTERNAL_API
@@ -39,19 +19,20 @@
 #include "lomse_lmd_compiler.h"
 #include "lomse_mxl_analyser.h"
 #include "lomse_mxl_compiler.h"
+#include "lomse_compressed_mxl_compiler.h"
 #include "lomse_mnx_analyser.h"
 #include "lomse_mnx_compiler.h"
 #include "lomse_model_builder.h"
-#include "lomse_document.h"
+#include "private/lomse_document_p.h"
 #include "lomse_font_storage.h"
 #include "lomse_graphic_view.h"
+#include "lomse_half_page_view.h"
 #include "lomse_interactor.h"
 #include "lomse_presenter.h"
 #include "lomse_doorway.h"
-#include "lomse_screen_drawer.h"
+#include "lomse_bitmap_drawer.h"
 #include "lomse_tasks.h"
 #include "lomse_events.h"
-#include "lomse_score_player.h"
 #include "lomse_metronome.h"
 #include "lomse_id_assigner.h"
 #include "lomse_document_cursor.h"
@@ -59,6 +40,10 @@
 #include "lomse_caret_positioner.h"
 #include "lomse_glyphs.h"
 #include "lomse_engraving_options.h"
+
+#if (LOMSE_ENABLE_THREADS == 1)
+    #include "lomse_score_player.h"
+#endif
 
 #include <sstream>
 using namespace std;
@@ -91,11 +76,13 @@ LibraryScope::LibraryScope(ostream& reporter, LomseDoorway* pDoorway)
     , m_fDrawAnchorObjects(false)
     , m_fDrawAnchorLines(false)
     , m_fShowShapeBounds(false)
+    , m_fDrawSlurCtrolPoints(false)
+    , m_fDrawVerticalProfile(false)
     , m_fUnitTests(false)
     , m_traceLinesBreaker(k_trace_breaks_off)
     , m_fUseDbgValues(false)
-    , m_spacingOptForce(1.0f)
-    , m_spacingAlpha(0.666666667f)
+    , m_spacingOptForce(1.4f)
+    , m_spacingAlpha(0.547f)
     , m_spacingDmin(16.0f)
     , m_spacingSmin(LOMSE_MIN_SPACE)
     , m_renderSpacingOpts(k_render_opt_breaker_optimal)
@@ -103,7 +90,7 @@ LibraryScope::LibraryScope(ostream& reporter, LomseDoorway* pDoorway)
     if (!m_pDoorway)
     {
         m_pNullDoorway = LOMSE_NEW LomseDoorway();
-        m_pNullDoorway->init_library(k_pix_format_rgba32, 96, false);
+        m_pNullDoorway->init_library(k_pix_format_rgba32, 96);
         m_pDoorway = m_pNullDoorway;
     }
 }
@@ -252,7 +239,7 @@ string LibraryScope::get_build_date()
 {
     //__DATE__ string: contains eleven characters and looks like "Feb 12 1996".
     // If the day of the month is less than 10, it is padded with a space on the
-    // left, i.e. "Oct  8 2013"
+    // left, e.g., "Oct  8 2013"
     //__TIME__ : the time at which the preprocessor is being run. The string
     // contains eight characters and looks like "23:59:01"
 
@@ -335,6 +322,14 @@ MxlCompiler* Injector::inject_MxlCompiler(LibraryScope& libraryScope,
 }
 
 //---------------------------------------------------------------------------------------
+CompressedMxlCompiler* Injector::inject_CompressedMxlCompiler(LibraryScope& libraryScope,
+                                                              Document* pDoc)
+{
+    MxlCompiler* pMxlCompiler = Injector::inject_MxlCompiler(libraryScope, pDoc);
+    return LOMSE_NEW CompressedMxlCompiler(pMxlCompiler);
+}
+
+//---------------------------------------------------------------------------------------
 MnxAnalyser* Injector::inject_MnxAnalyser(LibraryScope& libraryScope, Document* pDoc,
                                           XmlParser* pParser)
 {
@@ -366,54 +361,24 @@ Document* Injector::inject_Document(LibraryScope& libraryScope, ostream& reporte
 }
 
 //---------------------------------------------------------------------------------------
-ScreenDrawer* Injector::inject_ScreenDrawer(LibraryScope& libraryScope)
+BitmapDrawer* Injector::inject_BitmapDrawer(LibraryScope& libraryScope)
 {
-    return LOMSE_NEW ScreenDrawer(libraryScope);
-}
-
-////---------------------------------------------------------------------------------------
-//UserCommandExecuter* Injector::inject_UserCommandExecuter(Document* pDoc)
-//{
-//    return LOMSE_NEW UserCommandExecuter(pDoc);
-//}
-
-//---------------------------------------------------------------------------------------
-SimpleView* Injector::inject_SimpleView(LibraryScope& libraryScope, Document* pDoc)
-{
-    return static_cast<SimpleView*>(
-                        inject_View(libraryScope, k_view_simple, pDoc) );
+    return LOMSE_NEW BitmapDrawer(libraryScope);
 }
 
 //---------------------------------------------------------------------------------------
-VerticalBookView* Injector::inject_VerticalBookView(LibraryScope& libraryScope,
-                                                    Document* pDoc)
+View* Injector::inject_View(LibraryScope& libraryScope, int viewType)
 {
-    return static_cast<VerticalBookView*>(
-                        inject_View(libraryScope, k_view_vertical_book, pDoc) );
-}
-
-//---------------------------------------------------------------------------------------
-HorizontalBookView* Injector::inject_HorizontalBookView(LibraryScope& libraryScope,
-                                                        Document* pDoc)
-{
-    return static_cast<HorizontalBookView*>(
-                        inject_View(libraryScope, k_view_horizontal_book, pDoc) );
-}
-
-//---------------------------------------------------------------------------------------
-SingleSystemView* Injector::inject_SingleSystemView(LibraryScope& libraryScope,
-                                                    Document* pDoc)
-{
-    return static_cast<SingleSystemView*>(
-                        inject_View(libraryScope, k_view_single_system, pDoc) );
+    BitmapDrawer* pDrawer = Injector::inject_BitmapDrawer(libraryScope);
+    BitmapDrawer* pPrintDrawer = Injector::inject_BitmapDrawer(libraryScope);
+    return ViewFactory::create_view(libraryScope, viewType, pDrawer, pPrintDrawer);
 }
 
 //---------------------------------------------------------------------------------------
 View* Injector::inject_View(LibraryScope& libraryScope, int viewType,
-                            Document* UNUSED(pDoc))
+                            Drawer* screenDrawer, Drawer* printDrawer)
 {
-    ScreenDrawer* pDrawer = Injector::inject_ScreenDrawer(libraryScope);
-    return ViewFactory::create_view(libraryScope, viewType, pDrawer);
+    return ViewFactory::create_view(libraryScope, viewType, screenDrawer, printDrawer);
 }
 
 //---------------------------------------------------------------------------------------
@@ -430,7 +395,21 @@ Interactor* Injector::inject_Interactor(LibraryScope& libraryScope,
 Presenter* Injector::inject_Presenter(LibraryScope& libraryScope,
                                       int viewType, Document* pDoc)
 {
-    View* pView = Injector::inject_View(libraryScope, viewType, pDoc);
+    View* pView = Injector::inject_View(libraryScope, viewType);
+    DocCommandExecuter* pExec = Injector::inject_DocCommandExecuter(pDoc);
+    SpDocument spDoc(pDoc);
+    WpDocument wpDoc(spDoc);
+    Interactor* pInteractor = Injector::inject_Interactor(libraryScope, wpDoc, pView, pExec);
+    pView->set_interactor(pInteractor);
+    return LOMSE_NEW Presenter(spDoc, pInteractor, pExec);
+}
+
+//---------------------------------------------------------------------------------------
+Presenter* Injector::inject_Presenter(LibraryScope& libraryScope,
+                                      int viewType, Document* pDoc,
+                                      Drawer* screenDrawer, Drawer* printDrawer)
+{
+    View* pView = Injector::inject_View(libraryScope, viewType, screenDrawer, printDrawer);
     DocCommandExecuter* pExec = Injector::inject_DocCommandExecuter(pDoc);
     SpDocument spDoc(pDoc);
     WpDocument wpDoc(spDoc);
@@ -446,11 +425,13 @@ Task* Injector::inject_Task(int taskType, Interactor* pIntor)
 }
 
 //---------------------------------------------------------------------------------------
+#if (LOMSE_ENABLE_THREADS == 1)
 ScorePlayer* Injector::inject_ScorePlayer(LibraryScope& libraryScope,
                                           MidiServerBase* pSoundServer)
 {
     return LOMSE_NEW ScorePlayer(libraryScope, pSoundServer);
 }
+#endif
 
 //---------------------------------------------------------------------------------------
 DocCursor* Injector::inject_DocCursor(Document* pDoc)
@@ -468,22 +449,6 @@ SelectionSet* Injector::inject_SelectionSet(Document* pDoc)
 DocCommandExecuter* Injector::inject_DocCommandExecuter(Document* pDoc)
 {
     return LOMSE_NEW DocCommandExecuter(pDoc);
-}
-
-
-//=======================================================================================
-// DocumentScope implementation
-//=======================================================================================
-DocumentScope::DocumentScope(ostream& reporter)
-    : m_reporter(reporter)
-{
-    m_idAssigner = LOMSE_NEW IdAssigner();
-}
-
-//---------------------------------------------------------------------------------------
-DocumentScope::~DocumentScope()
-{
-    delete m_idAssigner;
 }
 
 

@@ -54,6 +54,12 @@
 #define LOMSE_PLATFORM_UNIX       1
 #endif
 
+#ifdef __APPLE__
+#define LOMSE_PLATFORM_APPLE      1
+#else
+#define LOMSE_PLATFORM_APPLE      0
+#endif
+
 #ifdef _MSC_VER
 #define LOMSE_COMPILER_MSVC       1
 #else
@@ -91,6 +97,9 @@
 
 // Enable png format (requires pnglib and zlib)
 #define LOMSE_ENABLE_PNG    OFF
+
+// Enable threads (needed by the score player)
+#define LOMSE_ENABLE_THREADS    ON
 
 #endif  // __LOMSE_CONFIG_H__
 

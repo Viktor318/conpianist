@@ -1,30 +1,10 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2019. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #ifndef __LOMSE_INTERACTOR_H__
@@ -37,6 +17,8 @@
 #include "lomse_events.h"
 #include "lomse_document_cursor.h"
 #include "lomse_pitch.h"
+#include "lomse_drawer.h"       //for declaration of struct SvgOptions
+
 
 #include <iostream>
 #include <chrono>
@@ -48,21 +30,22 @@ namespace lomse
 ///@endcond
 
 //forward declarations
+class ApplicationMark;
 class CaretPositioner;
 class DocCommandExecuter;
 class DocCommand;
 class DocCursor;
+class FragmentMark;
 class GmoObj;
 class GmoBox;
 class GraphicModel;
 class Handler;
 class ImoScore;
 class ImoStaffObj;
+class MeasureHighlight;
 class PlayerGui;
 class Task;
 class VisualEffect;
-class FragmentMark;
-class ApplicationMark;
 
 class Document;
 typedef std::shared_ptr<Document>     SpDocument;
@@ -142,7 +125,7 @@ struct ptime
 
 	The %Interactor for a %View is provided by the Presenter. It is best practice not
 	to save pointers to the %Interactor because when processing a Lomse event the
-	Document (and thus, the Interactor) could have been deleted (i.e. because your
+	Document (and thus, the Interactor) could have been deleted (e.g., because your
     application has closed the window displaying the document).
 
 	Lomse provides type @b SpInteractor, an smart pointer to the %Interactor. The
@@ -184,6 +167,7 @@ protected:
     GmoRef          m_grefLastMouseOver;
     int             m_operatingMode;
     bool            m_fEditionEnabled;
+    SvgOptions      m_svgOptions;
 
     //for controlling repaints
     bool        m_fViewParamsChanged;       //viewport, scale, ... have been modified
@@ -260,6 +244,7 @@ public:
 
                 pPlayer->play(fVisualTracking, nMM, spInteractor.get());
             }
+        }
         @endcode
     */
     void set_operating_mode(int mode);
@@ -333,20 +318,23 @@ public:
     */
     void switch_task(int taskType);
 
-    /** Define the duration for one beat, for metronome and for methods that use
-        measure/beat parameters to define a location. This value is shared by all
-        scores contained in the document and can be changed at any time.
-        Changes while the score is being played back are ignored until playback finishes.
-        @param beatType A value from enum #EBeatDuration.
-        @param duration The duration (in Lomse Time Units) for one beat. You can use
-            a value from enum ENoteDuration casted to double. This parameter is
-            required only when value for parameter `beatType` is `k_beat_specified`.
-            For all other values, if a non-zero value is specified, the value
-            will be used for the beat duration in scores without time signature.
-    */
-    void define_beat(int beatType, TimeUnits duration=0.0);
-
     //@}    //operating modes
+
+
+    //information about mouse clicked point
+    /** @name Information about mouse clicked point    */
+    //@{
+
+    /** Returns a ClickedDataInfo struct with information about object at x,y position
+        on current bitmap rendition.
+        @param x  The x coordinate (pixels) of the point.
+        @param y  The y coordinate (pixels) of the point.
+    */
+    ClickPointData find_click_info_at(Pixels x, Pixels y);
+
+    //@}    //access to collaborators
+
+
 
 
     //access to collaborators
@@ -440,59 +428,88 @@ public:
         //@{
 
 
-    /** Associate a rendering buffer to the View related to this %Interactor.
-        @param rbuf A ptr to the memory to be used as rendering buffer.
+    /** Associate a rendering buffer to the View related to this %Interactor. This
+        function takes three parameters:
+        @param buf    A ptr to the memory to be used as rendering buffer.
+        @param width  The width of the buffer in pixels.
+        @param height The height of the buffer in pixels.
 
         Invoking this method is mandatory before doing any operation that would require
-        to render the view. Normally this method is invoked when creating a new view.
+        to render the view, and the view area will be the whole rendering bitmap.
+
+        Once invoked, it is not necessary to allocate a new buffer and invoke again this
+        method, unless the application window is resized. So, normally, the creation of
+        the rendering buffer is done in the window resize event handler.
         Example:
 
         @code
-        void DocumentWindow::display_document(const string& filename, int viewType)
+        if (SpInteractor spInteractor = m_pPresenter->get_interactor(0).lock())
         {
-            //stop playback (just in case an score is being played in another window)
-            ScorePlayer* pPlayer  = m_appScope.get_score_player();
-            pPlayer->stop();
-
-            //get lomse reporter
-            ostringstream& reporter = m_appScope.get_lomse_reporter();
-            reporter.str(std::string());      //remove any previous content
-
-            //delete current document, view, etc. associated to this window
-            delete m_pPresenter;
-            //and load file
-            m_pPresenter = m_lomse.new_document(viewType, filename, reporter);
-
-            set_zoom_mode(k_zoom_fit_width);
-            if (SpInteractor spInteractor = m_pPresenter->get_interactor(0).lock())
-            {
-                //connect the View with the window buffer
-                spInteractor->set_rendering_buffer(&m_rbuf_window);
-
-                //register to receive the desired events
-                spInteractor->add_event_handler(k_update_window_event, this, wrapper_update_window);
-                spInteractor->add_event_handler(k_do_play_score_event, this, wrapper_play_score);
-                spInteractor->add_event_handler(k_pause_score_event, this, wrapper_play_score);
-                spInteractor->add_event_handler(k_stop_playback_event, this, wrapper_play_score);
-                spInteractor->add_event_handler(k_control_point_moved_event, this, wrapper_on_command_event);
-                Document* pDoc = m_pPresenter->get_document_raw_ptr();
-                pDoc->add_event_handler(k_on_click_event, this, wrapper_on_click_event);
-
-                // display any errors
-                if (!reporter.str().empty())
-                {
-                    string errorMsg = reporter.str();
-                    ...
-                    ErrorDlg dlg(this, errorMsg, ...);
-                    dlg.ShowModal();
-                }
-                reporter.str(std::string());      //remove any previous content
-
-            }
+            wxImage* buffer = new wxImage(width, height);
+            unsigned char* pdata = buffer->GetData();       //ptr to the real bytes buffer
+            spInteractor->set_print_buffer(pdata, width, height);
         }
         @endcode
+
+        For applications having special requirements, it is possible to restrict
+        Lomse to use only a sub-area of the rendering buffer. See set_view_area()
+        method.
+
     */
+    virtual void set_rendering_buffer(unsigned char* buf, unsigned width, unsigned height);
+
+///@cond INTERNAL
+    //deprecated Jan/2021
+    LOMSE_DEPRECATED_MSG("use instead overloaded version taking bitmap ptr, width and height")
     virtual void set_rendering_buffer(RenderingBuffer* rbuf);
+///@endcond
+
+
+    /** Define a sub-region of the rendering bitmap for the View. This
+        function takes four parameters:
+        @param width  The width of the view area in pixels.
+        @param height The height of the view area in pixels.
+        @param xShift Horizontal shift, in pixels, for view area origin.
+        @param yShift Vertical shift, in pixels, for view area origin.
+
+        Invoking this method is optional. If not invoked, the view area will be the
+        whole rendering bitmap.
+
+        The view area cannot be redefined, so once this method is invoked, if your
+        application would like to use a different sub-region, it is necessary to
+        invoke again the set_rendering_buffer() method.
+
+        For instance, if you have a 200x100 bitmap and you want to draw
+        only on the 80x50 top-right corner:
+
+        @code
+        if (SpInteractor spInteractor = m_pPresenter->get_interactor(0).lock())
+        {
+            wxImage* buffer = LENMUS_NEW wxImage(200, 100);
+            unsigned char* pdata = buffer->GetData();       //ptr to the real bytes buffer
+            spInteractor->set_rendering_buffer(pdata, 200, 100);
+            spInteractor->set_view_area(80, 50);
+        }
+        @endcode
+
+        Parameters <i>xShift</i> and <i>yShift</i> allows to change the origin of the
+        view area. For example, if you have a 200x100 bitmap and you want to draw
+        only an area of 100x50 pixels in the center, you can shift the view area top
+        corner:
+
+        @code
+        if (SpInteractor spInteractor = m_pPresenter->get_interactor(0).lock())
+        {
+            wxImage* buffer = LENMUS_NEW wxImage(200, 100);
+            unsigned char* pdata = buffer->GetData();       //ptr to the real bytes buffer
+            spInteractor->set_rendering_buffer(pdata, 200, 100);
+            spInteractor->set_view_area(100, 50, 50, 25);
+        }
+        @endcode
+
+    */
+    virtual void set_view_area(unsigned width, unsigned height,
+                               unsigned xShift=0, unsigned yShift=0);
 
 
     /** Set/reset a rendering option for the view associated to this %Interactor.
@@ -526,7 +543,6 @@ public:
             m_pPresenter = lomse.open_document(k_view_single_system, filename);
             if (SpInteractor spInteractor = m_pPresenter->get_interactor(0).lock())
             {
-                spInteractor->set_rendering_buffer(&m_rbuf_window);
                 spInteractor->set_view_background( Color(255,255,255) );  //white
                 ...
         @endcode
@@ -576,14 +592,14 @@ public:
             double y = 2700.0;
             if (SpInteractor spInteractor = m_pPresenter->get_interactor(0).lock())
             {
-                spInteractor->model_point_to_screen(&x, &y, iPage);
+                spInteractor->model_point_to_device(&x, &y, iPage);
 
                 //Here @a x and @a y contains pixels relative to
                 //view origin
             }
         @endcode
     */
-    virtual void model_point_to_screen(double* x, double* y, int iPage);
+    virtual void model_point_to_device(double* x, double* y, int iPage);
 
 
     /** Returns the page number (0 .. num_pages - 1) that contains the
@@ -706,6 +722,16 @@ public:
     */
     virtual void get_viewport(Pixels* x, Pixels* y);
 
+    /** Returns the size (logical units) of a page of the rendered document.
+
+        @param page The page (0..num_pages - 1) whose size is requested. This parameter
+        is only meaningful for View types that can generate several pages
+        (<i>k_view_vertical_book</i> and <i>k_view_horizontal_book</i>). For all
+        others there is only one page (page == 0) and the value of this parameter
+        is ignored.
+    */
+    USize get_page_size(int page=0);
+
     /** Returns the total size (pixels) of the whole rendered document (the whole visual
         space, all pages).
         @param xWidth
@@ -715,6 +741,7 @@ public:
 
         @see new_viewport(), set_viewport_at_page_center(), get_viewport()
     */
+
     virtual void get_view_size(Pixels* xWidth, Pixels* yHeight);
 
     /** This method invokes Lomse auto-scrolling algorithm to determine if scroll is
@@ -1066,8 +1093,14 @@ public:
         //when no longer needed remove it
         pInteractor->remove_mark(mark);
 
-        Marks cannot be repositioned. If this is needed, just delete current mark and
-        create a new one at the desired new position.
+        Lomse will retain the ownership of returned pointer to the marker, and will be
+        automatically deleted when the score model is deleted. Nevertheless you can
+        remove a marker at any moment by invoking Interactor::remove_mark() and passing
+        the marker to remove.
+
+        Markers cannot be repositioned. If this is needed, just remove current mark (by
+        invoking Interactor::remove_mark() ) and create a new one at the new desired
+        position.
 
         @endcode
     */
@@ -1092,11 +1125,30 @@ public:
     */
     FragmentMark* add_fragment_mark_at_staffobj(ImoStaffObj* pSO);
 
-    /** Hide the mark and delete it.
-        @param mark  Pointer to the mark to remove. After executing this method the
+    /** Create a new MeasureHighlight on the score at the barline at the given time position.
+        Take into account that barlines have the same timepos than the first
+        note/rest after the barline. If there is no a barline at the given timepos, this
+        method will place the mark on the note/rest position for the passed timepos.
+        @param scoreId  Id. of the score on which the mark will be added.
+        @param ml The position for the mark. Only measure and instrument will be used.
+
+        Lomse will retain the ownership of returned pointer to the marker, and will be
+        automatically deleted when the score model is deleted. Nevertheless you can
+        remove a marker at any moment by invoking Interactor::remove_mark() and passing
+        the marker to remove.
+
+        Markers cannot be repositioned. If this is needed, just remove current mark (by
+        invoking Interactor::remove_mark() ) and create a new one at the new desired
+        position.
+    */
+    MeasureHighlight* add_measure_highlight(ImoId scoreId, const MeasureLocator& ml);
+
+    /** Hide a marker and delete it.
+        @param mark  Pointer to the marker to remove. After executing this method the
             pointer will no longer be valid.
     */
     void remove_mark(ApplicationMark* mark);
+
 
     //@}    //Application markings on the score
 
@@ -1109,17 +1161,35 @@ public:
 
         In order to not interfere with screen display, a different
         rendering buffer is used for printing.
+        @param buf  Pointer to the memory area to be used as rendering buffer
+        @param width    Rendering buffer width, in pixels
+        @param height   Rendering buffer height, in pixels
 
         See @subpage page-printing
     */
+    virtual void set_print_buffer(unsigned char* buf, unsigned width, unsigned height);
+
+
+///@cond INTERNAL
+    //deprecated Jan/2021
+    LOMSE_DEPRECATED_MSG("use instead overloaded version taking bitmap ptr, width and height")
     virtual void set_print_buffer(RenderingBuffer* rbuf);
+///@endcond
 
 
-    /** Sets the resolution (in dots per inch, dpi) to use for printing.
+    /** Sets the resolution to use for printing.
+        @param width    Paper width, in pixels
+        @param height   Paper height, in pixels
 
         See @subpage page-printing
     */
+    virtual void set_print_page_size(Pixels width, Pixels height);
+
+///@cond INTERNAL
+    //deprecated Jan/2021
+    LOMSE_DEPRECATED_MSG("use instead set_print_page_size() method")
     virtual void set_print_ppi(double ppi);
+///@endcond
 
 
     /** Request Lomse to render a page on current print buffer.
@@ -1140,6 +1210,92 @@ public:
     virtual int get_num_pages();
 
     //@}    //interface to GraphicView. Printing
+
+
+
+    //interface to GraphicView. SVG drawing
+    /// @name Interface to GraphicView. SVG drawing
+    //@{
+
+    /** Request Lomse to render a document as SVG stream.
+
+        @param svg The std::ostream in which SVG code will be written.
+        @param page The page to render (0..num_pages - 1). This parameter is only
+        meaningful for View types that can generate several pages
+        (<i>k_view_vertical_book</i> and <i>k_view_horizontal_book</i>). For all
+        others there is only one page (page == 0) and the value of this parameter
+        is ignored.
+
+        See @subpage page-render-svg
+    */
+    void render_as_svg(std::ostream& svg, int page=0);
+
+    /** Lomse normally layouts the score to fit in the page width specified in
+        the document. But when
+        View type <i>k_view_free_flow</i> is selected, it is necessary specify the
+        desired width for the rendered score, and this is the purpose of this method.
+
+        The width must be set before invoking render_as_svg() but this is only needed
+        when using the <i>k_view_free_flow</i> View type. For all other view types any
+        value set using this method will be overriden by the document page width so it
+        is useless to invoke it but does not harm.
+
+        @param x The desired width for the score in pixels. For most applications, this
+        value should be the width of the HTML element in which the generated SVG code
+        will be inserted.
+
+        See @subpage page-render-svg
+    */
+    void set_svg_canvas_width(Pixels x);
+
+    //svg options
+    /** Set the number of spaces for indenting SVG elements.
+
+        @param value The number of spaces for an indentation. Note that a value of
+        zero supress indentation.
+
+        By default, Lomse generates the SVG code to be as compact as possible and,
+        thus, it does not include indentation spaces. So default value is 0.
+
+        See @subpage page-render-svg
+    */
+    inline void svg_indent(int value) { m_svgOptions.indent = value; }
+
+    /** Enable or disable the generation of a line break after each SVG element.
+
+        @param value @TRUE for enabling the generation of line breaks. @FALSE for
+        disabling it.
+
+        By default, Lomse generates the SVG code to be as compact as possible and,
+        thus, it does not include line breaks.
+
+        See @subpage page-render-svg
+    */
+    inline void svg_add_newlines(bool value) { m_svgOptions.add_newlines = value; }
+
+    /** Enable / disable the generation of 'id' attribute in SVG elements.
+
+        @param value @TRUE for enabling the generation of 'id' attributes. @FALSE for
+        disabling it.
+
+        By default, generation of 'id' attributes is disabled.
+
+        See @subpage page-render-svg
+    */
+    inline void svg_add_id(bool value) { m_svgOptions.add_id = value; }
+
+    /** Enable / disable the generation of 'class' attribute in SVG elements.
+
+        @param value @TRUE for enabling the generation of 'class' attributes. @FALSE for
+        disabling it.
+
+        By default, generation of 'class' attributes is disabled.
+
+        See @subpage page-render-svg
+    */
+    inline void svg_add_class(bool value) { m_svgOptions.add_class = value; }
+
+    //@}    //interface to GraphicView. SVG drawing
 
 
 
@@ -1574,18 +1730,18 @@ public:
 	//excluded from public API. Only for internal use.
     Interactor(LibraryScope& libraryScope, WpDocument wpDoc, View* pView,
                DocCommandExecuter* pExec);
-    virtual ~Interactor();
+    ~Interactor() override;
 
     inline std::shared_ptr<Interactor> get_shared_ptr_from_this() { return shared_from_this(); }
 
     //mandatory override required by EventHandler
-	void handle_event(SpEventInfo pEvent);
+	void handle_event(SpEventInfo pEvent) override;
 
     //Deprecated ?
     virtual void highlight_voice(int voice);
 
     //mandatory overrides from Observable
-    EventNotifier* get_event_notifier() { return this; }
+    EventNotifier* get_event_notifier() override { return this; }
 
     //for auto-scroll during playback
     virtual void change_viewport_if_necessary(ImoId id);
@@ -1643,6 +1799,7 @@ protected:
 
     void create_graphic_model();
     void delete_graphic_model();
+    bool graphic_model_must_be_updated();
     void request_window_update();
     VRect get_damaged_rectangle();
     GmoObj* find_object_at(Pixels x, Pixels y);

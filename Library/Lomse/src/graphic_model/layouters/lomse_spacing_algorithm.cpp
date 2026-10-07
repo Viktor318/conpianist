@@ -1,43 +1,21 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2019. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #include "lomse_spacing_algorithm.h"
 
-#include "lomse_staffobjs_table.h"
-#include "lomse_score_iterator.h"
 #include "lomse_internal_model.h"
 #include "lomse_im_note.h"
+#include "lomse_staffobjs_table.h"
+#include "lomse_staffobjs_cursor.h"
 #include "lomse_engraving_options.h"
 #include "lomse_score_meter.h"
 #include "lomse_box_slice_instr.h"
-#include "lomse_score_iterator.h"
-#include "lomse_staffobjs_cursor.h"
 #include "lomse_instrument_engraver.h"
 #include "lomse_score_layouter.h"
 #include "lomse_box_slice.h"
@@ -167,10 +145,10 @@ GmoBoxSlice* SpAlgColumn::get_slice_box(int iCol)
 //---------------------------------------------------------------------------------------
 void SpAlgColumn::save_context(int iCol, int iInstr, int iStaff,
                                ColStaffObjsEntry* pClefEntry,
-                               ColStaffObjsEntry* pKeyEntry)
-
+                               ColStaffObjsEntry* pKeyEntry,
+                               ColStaffObjsEntry* pTimeEntry)
 {
-    m_colsData[iCol]->save_context(iInstr, iStaff, pClefEntry, pKeyEntry);
+    m_colsData[iCol]->save_context(iInstr, iStaff, pClefEntry, pKeyEntry, pTimeEntry);
 }
 
 //---------------------------------------------------------------------------------------
@@ -183,6 +161,12 @@ ColStaffObjsEntry* SpAlgColumn::get_prolog_clef(int iCol, ShapeId idx)
 ColStaffObjsEntry* SpAlgColumn::get_prolog_key(int iCol, ShapeId idx)
 {
     return m_colsData[iCol]->get_prolog_key(idx);
+}
+
+//---------------------------------------------------------------------------------------
+ColStaffObjsEntry* SpAlgColumn::get_prolog_time(int iCol, ShapeId idx)
+{
+    return m_colsData[iCol]->get_prolog_time(idx);
 }
 
 //---------------------------------------------------------------------------------------
@@ -246,18 +230,18 @@ void SpAlgColumn::set_trace_level(int iColumnToTrace, int nTraceLevel)
 // ColumnsBuilder implementation
 //=======================================================================================
 ColumnsBuilder::ColumnsBuilder(ScoreMeter* pScoreMeter, vector<ColumnData*>& colsData,
-                               ScoreLayouter* pScoreLyt, ImoScore* m_pScore,
+                               ScoreLayouter* pScoreLyt, ImoScore* pScore,
                                EngraversMap& engravers,
                                ShapesCreator* pShapesCreator,
                                PartsEngraver* pPartsEngraver,
                                SpAlgColumn* pSpAlgorithm)
     : m_pScoreMeter(pScoreMeter)
     , m_pScoreLyt(pScoreLyt)
-    , m_pScore(m_pScore)
+    , m_pScore(pScore)
     , m_engravers(engravers)
     , m_pShapesCreator(pShapesCreator)
     , m_pPartsEngraver(pPartsEngraver)
-    , m_pSysCursor( LOMSE_NEW StaffObjsCursor(m_pScore) )
+    , m_pSysCursor( LOMSE_NEW StaffObjsCursor(pScore) )
     , m_pBreaker( LOMSE_NEW ColumnBreaker(m_pScoreMeter->num_instruments(),
                                           m_pSysCursor) )
     , m_stavesHeight(0.0f)
@@ -291,8 +275,9 @@ void ColumnsBuilder::create_columns()
     m_iColumn = -1;
     m_iColStartMeasure = 0;
     m_pStartBarlineShape = nullptr;
-    m_fNoSignatures.assign(m_pScore->get_num_instruments(), true);
     m_fClefFound.assign(m_pSysCursor->get_num_staves(), false);
+    m_fSignatures.assign(m_pScore->get_num_instruments(), false);
+    m_fOther.assign(m_pScore->get_num_instruments(), false);
 
     determine_staves_vertical_position();
     while(!m_pSysCursor->is_end())
@@ -309,8 +294,7 @@ void ColumnsBuilder::create_columns()
 //---------------------------------------------------------------------------------------
 void ColumnsBuilder::do_spacing_algorithm()
 {
-    for (m_iColumn=0; m_iColumn <= m_maxColumn; ++m_iColumn)
-        layout_column();
+    m_pSpAlgorithm->do_spacing(m_iColumnToTrace);
 }
 
 //---------------------------------------------------------------------------------------
@@ -347,10 +331,11 @@ void ColumnsBuilder::collect_content_for_this_column()
         pagePos.x = 0.0f;
         pagePos.y = pIE->get_top_line_of_staff(iStaff);
 
-        //if feasible column break, exit loop and finish column
-        if ( m_pBreaker->feasible_break_before_this_obj(pSO, rTime, iInstr, iLine) )
+        //if feasible column break, exit loop and finish column.
+        if (m_pBreaker->feasible_break_before_this_obj(pSO, pPrevSO, rTime, iInstr, iLine))
+        {
             break;
-
+        }
 
         if (pSO->is_system_break())
         {
@@ -364,9 +349,8 @@ void ColumnsBuilder::collect_content_for_this_column()
                 int idx = m_pSysCursor->staff_index();
                 bool fInProlog = determine_if_is_in_prolog(pSO, rTime, iInstr, idx);
                 unsigned flags = fInProlog ? 0 : ShapesCreator::k_flag_small_clef;
-                int clefType = pClef->get_clef_type();
                 pShape = m_pShapesCreator->create_staffobj_shape(pSO, iInstr, iStaff,
-                         pagePos, clefType, 0, flags);
+                         pagePos, pClef, 0, flags);
                 pShape->assign_id_as_main_shape();
                 m_pSpAlgorithm->include_object(m_pSysCursor->cur_entry(), m_iColumn,
                                                iInstr, iStaff, pSO, pShape, fInProlog);
@@ -377,9 +361,9 @@ void ColumnsBuilder::collect_content_for_this_column()
                 unsigned flags = 0;
                 int idx = m_pSysCursor->staff_index();
                 bool fInProlog = determine_if_is_in_prolog(pSO, rTime, iInstr, idx);
-                int clefType = m_pSysCursor->get_applicable_clef_type();
+                ImoClef* pClef = m_pSysCursor->get_applicable_clef();
                 pShape = m_pShapesCreator->create_staffobj_shape(pSO, iInstr, iStaff,
-                         pagePos, clefType, 0, flags);
+                         pagePos, pClef, 0, flags, m_pSysCursor);
                 pShape->assign_id_as_main_or_implicit_shape(iStaff);
                 m_pSpAlgorithm->include_object(m_pSysCursor->cur_entry(), m_iColumn,
                                                iInstr, iStaff, pSO, pShape, fInProlog);
@@ -387,11 +371,11 @@ void ColumnsBuilder::collect_content_for_this_column()
 
             else
             {
-                int clefType = m_pSysCursor->get_applicable_clef_type();
+                m_fOther[iInstr] = true;
                 int octaveShift = m_pSysCursor->get_applicable_octave_shift();
+                ImoClef* pClef = m_pSysCursor->get_applicable_clef();
                 pShape = m_pShapesCreator->create_staffobj_shape(pSO, iInstr, iStaff,
-                         pagePos, clefType, octaveShift);
-                //TimeUnits time = (pSO->is_spacer() ? -1.0f : rTime);
+                         pagePos, pClef, octaveShift, 0, m_pSysCursor);
                 m_pSpAlgorithm->include_object(m_pSysCursor->cur_entry(), m_iColumn,
                                                iInstr, iStaff, pSO, pShape);
 
@@ -481,7 +465,11 @@ void ColumnsBuilder::find_and_save_context_info_for_this_column()
                 m_pSysCursor->get_clef_entry_for_instr_staff(iInstr, iStaff);
             ColStaffObjsEntry* pKeyEntry =
                 m_pSysCursor->get_key_entry_for_instr_staff(iInstr, iStaff);
-            m_pSpAlgorithm->save_context(m_iColumn, iInstr, iStaff, pClefEntry, pKeyEntry);
+            ColStaffObjsEntry* pTimeEntry =
+                m_pSysCursor->get_prolog_time_entry_for_instrument(iInstr);
+
+            m_pSpAlgorithm->save_context(m_iColumn, iInstr, iStaff,
+                                         pClefEntry, pKeyEntry, pTimeEntry);
         }
     }
 }
@@ -496,16 +484,9 @@ void ColumnsBuilder::store_info_about_attached_objects(ImoStaffObj* pSO,
     if (!pAuxObjs && !pRelObjs)
         return;
 
-    PendingAuxObjs* data = LOMSE_NEW PendingAuxObjs(pSO, pMainShape, iInstr, iStaff,
+    AuxObjContext* data = LOMSE_NEW AuxObjContext(pSO, pMainShape, iInstr, iStaff,
                            iCol, iLine, pInstr, idxStaff);
     m_pScoreLyt->m_pendingAuxObjs.push_back(data);
-}
-
-//---------------------------------------------------------------------------------------
-void ColumnsBuilder::layout_column()
-{
-    bool fTrace = (m_iColumnToTrace == m_iColumn);
-    m_pSpAlgorithm->do_spacing(m_iColumn, fTrace);
 }
 
 //---------------------------------------------------------------------------------------
@@ -606,25 +587,33 @@ bool ColumnsBuilder::determine_if_is_in_prolog(ImoStaffObj* pSO, TimeUnits rTime
     // In prolog only any clef, key & time signature at start of score. And only the
     // first clef before key/time signature. Any other clef will be considered a
     // clef change.
+
     // AWARE: Take into account that when the instrument has more than one staff
     // (e.g. piano) there are more than one clef per instrument. Also, take into
     // account that clef for second instrument could be defined after key and time
-    // signatures for first instrument.
+    // signatures for first instrument (e.g. in test score
+    // 43c-MultiStaff-DifferentKeysAfterBackup )
 
-    if (!is_equal_time(rTime, 0.0))
+    //AWARE: Barlines do not arrive to this method, so flag m_fOther is marked
+    // in method collect_content_for_this_column()
+
+    if (!is_equal_time(rTime, 0.0) || m_fOther[iInstr])
         return false;
 
     if (pSO->is_clef())
     {
         bool fFirstClef = !m_fClefFound[idx];
         m_fClefFound[idx] = true;
-        return fFirstClef || m_fNoSignatures[iInstr];
+        return fFirstClef && !m_fOther[iInstr];
     }
-    else if (pSO->is_key_signature() || pSO->is_time_signature())
+    else if ((pSO->is_key_signature() || pSO->is_time_signature()) && !m_fOther[iInstr])
     {
-        m_fNoSignatures[iInstr] = false;
+        m_fSignatures[iInstr] = true;
         return true;
     }
+    else
+        m_fOther[iInstr] = true;
+
     return false;
 }
 
@@ -667,8 +656,8 @@ ColumnData::~ColumnData()
 void ColumnData::reserve_space_for_prolog_clefs_keys(int numStaves)
 {
     m_prologClefs.assign(numStaves, (ColStaffObjsEntry*)nullptr);     //GCC complains if nullptr not casted
-
     m_prologKeys.assign(numStaves, (ColStaffObjsEntry*)nullptr);
+    m_prologTimes.assign(numStaves, (ColStaffObjsEntry*)nullptr);
 }
 
 //---------------------------------------------------------------------------------------
@@ -736,11 +725,13 @@ void ColumnData::set_slice_final_position(LUnits left, LUnits top)
 
 //---------------------------------------------------------------------------------------
 void ColumnData::save_context(int iInstr, int iStaff, ColStaffObjsEntry* pClefEntry,
-                                  ColStaffObjsEntry* pKeyEntry)
+                                  ColStaffObjsEntry* pKeyEntry,
+                                  ColStaffObjsEntry* pTimeEntry)
 {
     int idx = m_pScoreMeter->staff_index(iInstr, iStaff);
     m_prologClefs[idx] = pClefEntry;
     m_prologKeys[idx] = pKeyEntry;
+    m_prologTimes[idx] = pTimeEntry;
 }
 
 

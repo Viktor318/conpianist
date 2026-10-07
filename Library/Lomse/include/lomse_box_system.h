@@ -1,30 +1,10 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2019. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #ifndef __LOMSE_BOX_SYSTEM_H__
@@ -54,28 +34,45 @@ protected:
 	vector<GmoShapeStaff*> m_staffShapes;
 	vector<int> m_firstStaff;       //index to first staff for each instrument
     TimeGridTable* m_pGridTable;
-    int m_iPage;            //number of score page (0..n-1) in which this system is contained
+    int m_iPage;        //index of score page (0..n-1) in which this system is contained
+    int m_iSystem;      //index of this system in the score (0..n-1)
 
 	vector<int> m_iFirstMeasure;    //index to first measure, per instrument
     vector<int> m_nMeasures;        //number of measures in this system, per instrument
     LUnits m_dxFirstMeasure;        //shift from box left (virtual end barline of previous measure)
+
+    //free vertical space at top and bottom
+    LUnits m_uFreeAtTop = 0.0f;
+    LUnits m_uFreeAtBottom = 0.0f;
 
 public:
     GmoBoxSystem(ImoScore* pScore);
     ~GmoBoxSystem();
 
     //helpers for layout
+    inline void set_top_limit(LUnits minLimit) { m_uFreeAtTop = minLimit - get_top(); }
+    inline void set_bottom_limit(LUnits maxLimit) { m_uFreeAtBottom = get_bottom() - maxLimit; }
+    inline LUnits get_free_space_at_top() { return m_uFreeAtTop; }
+    inline LUnits get_free_space_at_bottom() { return m_uFreeAtBottom; }
+    inline void set_free_space_at_top(LUnits space) { m_uFreeAtTop = space; }
+    inline void set_free_space_at_bottom(LUnits space) { m_uFreeAtBottom = space; }
+
     /**  Move boxes and shapes to theirs final 'y' positions. */
     void reposition_slices_and_shapes(const std::vector<LUnits>& yOrgShifts,
-                                      std::vector<LUnits>& heights,
-                                      vector<LUnits>& barlinesHeight,
+                                      const std::vector<LUnits>& heights,
+                                      const std::vector<LUnits>& barlinesHeight,
+                                      const std::vector<std::vector<LUnits>>& relStaffTopPositions,
+                                      LUnits bottomMarginIncr,
                                       SystemLayouter* pSysLayouter);
 
     //slices
 	inline int get_num_slices() const { return (int)m_childBoxes.size(); }
     inline GmoBoxSlice* get_slice(int i) const { return (GmoBoxSlice*)m_childBoxes[i]; }
     GmoBoxSliceInstr* get_first_instr_slice(int iInstr);
+    GmoBoxSliceInstr* find_instr_slice_at(LUnits x, LUnits y);
     GmoBoxSliceStaff* get_first_slice_staff_for(int iInstr, int iStaff);
+    void reposition_slices(USize shift);
+    void remove_free_space_at_bottom_and_adjust_slices();
 
     //grid table: xPositions/timepos
     inline void set_time_grid_table(TimeGridTable* pGridTable) { m_pGridTable = pGridTable; }
@@ -86,6 +83,7 @@ public:
     LUnits get_x_for_barline_at_time(TimeUnits timepos);
 
 	//miscellaneous info
+	inline int get_system_number() { return m_iSystem; }
     GmoShapeStaff* get_staff_shape(int absStaff);
     GmoShapeStaff* get_staff_shape(int iInstr, int iStaff);
     int instr_number_for_staff(int absStaff);
@@ -115,7 +113,7 @@ public:
     inline vector<GmoShapeStaff*>& get_staff_shapes() { return m_staffShapes; }
 
     //hit tests related
-    int nearest_staff_to_point(LUnits y);
+    int staff_at(LUnits y);
 
     //helper. User API related
     int get_num_instruments();
@@ -133,6 +131,11 @@ protected:
     friend class SystemLayouter;
     inline void add_shift_to_start_measure(LUnits width) { m_dxFirstMeasure += width; }
 
+    friend class GmoBoxScorePage;
+    inline void set_system_number(int iSystem) { m_iSystem = iSystem; }
+
+    //overrides
+    void draw_box_bounds(Drawer* pDrawer, double xorg, double yorg, Color& color) override;
 
 };
 

@@ -1,30 +1,10 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2018. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #ifndef __LOMSE_PRESENTER_H__
@@ -33,7 +13,7 @@
 #include <list>
 #include <iostream>
 
-#include "lomse_document.h"
+#include "private/lomse_document_p.h"
 
 using namespace std;
 
@@ -84,9 +64,16 @@ public:
     Presenter* new_document(int viewType, const std::string& content="",
                             ostream& reporter = cout,
                             int format=Document::k_format_lmd);
+    Presenter* new_document(int viewType, Drawer* screenDrawer, Drawer* printDrawer,
+                            const std::string& content="",
+                            ostream& reporter = cout,
+                            int format=Document::k_format_lmd);
+
     Presenter* open_document(int viewType, const std::string& filename,
+                             Drawer* screenDrawer, Drawer* printDrawer,
                              ostream& reporter = cout);
     Presenter* open_document(int viewType, LdpReader& reader,
+                             Drawer* screenDrawer, Drawer* printDrawer,
                              ostream& reporter = cout);
 
 };
@@ -155,13 +142,18 @@ public:
     /** Returns the raw pointer to the Document associated to this %Presenter.    */
     inline Document* get_document_raw_ptr() { return m_spDoc.get(); }
 
+    /** Returns an ADocument object for interacting with the internal model.  */
+    inline ADocument get_document() {
+        return m_spDoc.get()->get_document_api();
+    }
+
 
     //to save user data
     /** Associates the given untyped application data pointer with this %Presenter.
         @param pData	The application data to associate with the %Presenter.
 
         This method is a commodity for your application, in case you would like to save
-        some data associated to %Presenter objects, i.e. for Document identification
+        some data associated to %Presenter objects, e.g., for Document identification
         or other.
 
         @attention Your application has the ownership of the associated data.
@@ -171,7 +163,7 @@ public:
 
     /** Returns a pointer to the user data associated with this %Presenter (if any).
         @return
-            A pointer to the user data, or NULL if no data saved.
+            A pointer to the user data, or nullptr if no data saved.
     */
     inline void* get_user_data() { return m_userData; }
 

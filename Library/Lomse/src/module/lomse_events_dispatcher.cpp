@@ -1,30 +1,10 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2016. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #include "lomse_events_dispatcher.h"
@@ -32,24 +12,11 @@
 namespace lomse
 {
 
-//TODO: For now, direct invocation without enqueuing the event in the thread.
-#define LOMSE_DIRECT_INVOCATION     1       //1=do not use events thread
+#if (LOMSE_DIRECT_INVOCATION == 0)
 
 //=======================================================================================
 // EventsDispatcher implementation
 //=======================================================================================
-EventsDispatcher::EventsDispatcher()
-    : m_pThread(nullptr)
-    , m_fStopLoop(false)
-{
-}
-
-//---------------------------------------------------------------------------------------
-EventsDispatcher::~EventsDispatcher()
-{
-}
-
-//---------------------------------------------------------------------------------------
 void EventsDispatcher::start_events_loop()
 {
     //Create the thread. It starts inmediately to execute the events loop (method
@@ -59,10 +26,8 @@ void EventsDispatcher::start_events_loop()
     //initialized. This method only returns when the stop_events_loop() method
     //is invoked.
 
-#if (LOMSE_DIRECT_INVOCATION == 0)
     delete m_pThread;
     m_pThread = LOMSE_NEW EventsThread(&EventsDispatcher::thread_main, this);
-#endif
 }
 
 //---------------------------------------------------------------------------------------
@@ -79,22 +44,14 @@ void EventsDispatcher::stop_events_loop()
 //---------------------------------------------------------------------------------------
 void EventsDispatcher::thread_main()
 {
-#if (LOMSE_DIRECT_INVOCATION == 0)
     run_events_loop();
-#endif
 }
 
 //---------------------------------------------------------------------------------------
 void EventsDispatcher::post_event(Observer* pObserver, SpEventInfo pEvent)
 {
-#if (LOMSE_DIRECT_INVOCATION == 1)
-    pObserver->notify(pEvent);
-#else
-    {
-        QueueLock lock(m_mutex);
-        m_events.push( make_pair(pEvent, pObserver));
-    }
-#endif
+    QueueLock lock(m_mutex);
+    m_events.push( make_pair(pEvent, pObserver));
 }
 
 //---------------------------------------------------------------------------------------
@@ -130,5 +87,6 @@ void EventsDispatcher::dispatch_next_event()
     pObserver->notify(pEvent);
 }
 
+#endif
 
 }   //namespace lomse

@@ -1,30 +1,10 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2018. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #include "lomse_im_measures_table.h"
@@ -43,26 +23,10 @@ namespace lomse
 // ImMeasuresTableEntry implementation
 //=======================================================================================
 ImMeasuresTableEntry::ImMeasuresTableEntry(ColStaffObjsEntry* pEntry)
-    : m_index(-1)
-    , m_timepos(LOMSE_NO_TIME)
-    , m_firstId(-1)
-    , m_bottomBeat(LOMSE_NO_DURATION)
-    , m_impliedBeat(LOMSE_NO_DURATION)
-    , m_pCsoEntry(pEntry)
 {
+    m_pStartEntry = pEntry;
     if (pEntry != nullptr)
         m_timepos = pEntry->time();
-}
-
-//---------------------------------------------------------------------------------------
-ImMeasuresTableEntry::ImMeasuresTableEntry()
-    : m_index(-1)
-    , m_timepos(LOMSE_NO_TIME)
-    , m_firstId(-1)
-    , m_bottomBeat(LOMSE_NO_DURATION)
-    , m_impliedBeat(LOMSE_NO_DURATION)
-    , m_pCsoEntry(nullptr)
-{
 }
 
 //---------------------------------------------------------------------------------------
@@ -72,10 +36,22 @@ string ImMeasuresTableEntry::dump()
     s << m_index << "\t" << m_timepos << "\t" << m_bottomBeat << "\t"
       << m_impliedBeat << "\t";
 
-    if (m_pCsoEntry != nullptr)
-        s << m_pCsoEntry->to_string_with_ids();
+    s << "start=" << (m_pStartEntry == nullptr ? "nullptr"
+                                               : m_pStartEntry->to_string_with_ids());
+    s << ", end=" << (m_pEndEntry == nullptr ? "nullptr"
+                                             : m_pEndEntry->to_string_with_ids());
     s << endl;
     return s.str();
+}
+
+//---------------------------------------------------------------------------------------
+ImoBarline* ImMeasuresTableEntry::get_barline()
+{
+    if (m_pEndEntry && m_pEndEntry->imo_object()->is_barline())
+    {
+        return static_cast<ImoBarline*>(m_pEndEntry->imo_object());
+    }
+    return nullptr;
 }
 
 
@@ -122,7 +98,7 @@ string ImMeasuresTable::dump()
     vector<ImMeasuresTableEntry*>::iterator it;
     s << "ImMeasuresTable. Num.entries = " << num_entries() << endl;
     //    +.......+.......+.......+.......+.......+.......+
-    s << "meas.   time    beat    object" << endl;
+    s << "meas.   time    beat    implied  objects" << endl;
     s << "--------------------------------------------" << endl;
     for (it=m_theTable.begin(); it != m_theTable.end(); ++it)
     {
@@ -136,7 +112,7 @@ ImMeasuresTableEntry* ImMeasuresTable::get_measure_at(TimeUnits timepos)
 {
     //Binary search in table for measure containing the requested timepos.
     //Returns nullptr if no measures or negative timepos.
-    //If timepos > las measure time, always returns last measure.
+    //If timepos > last measure time, always returns last measure.
 
     if (m_theTable.size() == 0 || timepos < 0.0)
         return nullptr;
@@ -144,11 +120,9 @@ ImMeasuresTableEntry* ImMeasuresTable::get_measure_at(TimeUnits timepos)
     int first = 0;
     int last = int(m_theTable.size() - 1);
     int const max = last;
-    //cout << "looking for=" << timepos << "--------------------------------------" << endl;
     while (first <= last)
     {
         int guess = (first + last) / 2;
-        //cout << "first=" << first << ", last=" << last << ", guess=" << guess << endl;
         ImMeasuresTableEntry* pEntry = m_theTable[guess];
         if (timepos >= pEntry->get_timepos())
         {
@@ -156,16 +130,10 @@ ImMeasuresTableEntry* ImMeasuresTable::get_measure_at(TimeUnits timepos)
             {
                 ImMeasuresTableEntry* pNext = m_theTable[guess+1];
                 if (timepos < pNext->get_timepos())
-                {
-                    //cout << "Found: in measure " << guess << endl;
                     return pEntry;
-                }
             }
             else
-            {
-                //cout << "Found: in last measure " << guess << " or above" << endl;
                 return pEntry;
-            }
         }
         if (timepos < pEntry->get_timepos())
             last = guess - 1;
@@ -173,6 +141,14 @@ ImMeasuresTableEntry* ImMeasuresTable::get_measure_at(TimeUnits timepos)
             first = guess + 1;
     }
 
+    return nullptr;
+}
+
+//---------------------------------------------------------------------------------------
+ImoBarline* ImMeasuresTable::get_barline(int iMeasure)
+{
+    if (get_measure(iMeasure))
+        return get_measure(iMeasure)->get_barline();
     return nullptr;
 }
 

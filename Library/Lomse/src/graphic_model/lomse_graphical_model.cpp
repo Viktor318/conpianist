@@ -1,30 +1,10 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2018. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #include "lomse_graphical_model.h"
@@ -32,6 +12,7 @@
 #include "lomse_gm_basic.h"
 #include "lomse_internal_model.h"
 #include "lomse_im_note.h"
+#include "lomse_im_measures_table.h"
 #include "lomse_drawer.h"
 #include "lomse_selections.h"
 #include "lomse_time.h"
@@ -42,6 +23,8 @@
 #include "lomse_box_slice_instr.h"
 #include "lomse_box_system.h"
 #include "lomse_box_slice.h"
+#include "lomse_timegrid_table.h"
+#include "lomse_score_algorithms.h"
 #include "lomse_logger.h"
 
 #include <cstdlib>      //abs
@@ -58,10 +41,10 @@ namespace lomse
 static long m_idCounter = 0L;
 
 //---------------------------------------------------------------------------------------
-GraphicModel::GraphicModel()
+GraphicModel::GraphicModel(ImoDocument* pCreator)
     : m_modified(true)
 {
-    m_root = LOMSE_NEW GmoBoxDocument(this, nullptr);    //TODO: replace nullptr by ImoDocument
+    m_root = LOMSE_NEW GmoBoxDocument(this, pCreator);
     m_modelId = ++m_idCounter;
 }
 
@@ -95,9 +78,19 @@ void GraphicModel::draw_page(int iPage, UPoint& origin, Drawer* pDrawer,
                              RenderOptions& opt)
 {
     pDrawer->set_shift(-origin.x, -origin.y);
-    get_page(iPage)->on_draw(pDrawer, opt);
-    pDrawer->render();
-    pDrawer->remove_shift();
+    GmoBoxDocPage* pPage = get_page(iPage);
+    if (pPage)
+    {
+        pPage->on_draw(pDrawer, opt);
+        pDrawer->render();
+        pDrawer->remove_shift();
+    }
+    else
+    {
+        stringstream msg;
+        msg << "Page " << iPage << " does not exists!";
+        LOMSE_LOG_ERROR(msg.str());
+    }
 }
 
 //---------------------------------------------------------------------------------------
@@ -332,6 +325,13 @@ GmoBoxSystem* GraphicModel::get_system_for(ImoId scoreId, TimeUnits timepos)
 }
 
 //---------------------------------------------------------------------------------------
+GmoBoxSystem* GraphicModel::get_system_for(ImoScore* pScore, const MeasureLocator& ml)
+{
+    TimeUnits timepos = ScoreAlgorithms::get_timepos_for(pScore, ml);
+    return get_system_for(pScore->get_id(), timepos);
+}
+
+//---------------------------------------------------------------------------------------
 GmoBoxSystem* GraphicModel::get_system_for_staffobj(ImoId id)
 {
     GmoShape* pShape = get_main_shape_for_imo(id);
@@ -438,7 +438,7 @@ AreaInfo* GraphicModel::get_info_for_point(int iPage, LUnits x, LUnits y)
             {
                 GmoBoxSystem* pBSYS =
                     GModelAlgorithms::get_box_system_for(m_areaInfo.pBSI, y);
-                int absStaff = pBSYS->nearest_staff_to_point(y);
+                int absStaff = pBSYS->staff_at(y);
                 m_areaInfo.pShapeStaff = pBSYS->get_staff_shape(absStaff);
             }
         }
@@ -457,7 +457,7 @@ AreaInfo* GraphicModel::get_info_for_point(int iPage, LUnits x, LUnits y)
                     //determine staff
                     GmoBoxSystem* pBSYS =
                         GModelAlgorithms::get_box_system_for(m_areaInfo.pBSI, y);
-                    int absStaff = pBSYS->nearest_staff_to_point(y);
+                    int absStaff = pBSYS->staff_at(y);
                     m_areaInfo.pShapeStaff = pBSYS->get_staff_shape(absStaff);
 ////                    if (m_pLastBSI != m_areaInfo.pBSI)
 ////                    {
@@ -541,6 +541,290 @@ GmoBoxSystem* GModelAlgorithms::get_box_system_for(GmoObj* pGmo, LUnits y)
     }
     return nullptr;
 }
+
+//---------------------------------------------------------------------------------------
+ClickPointData GModelAlgorithms::find_info_for_point(LUnits x, LUnits y, GmoObj* pGmo)
+{
+//    //Debug: to collect info for unit tests
+//    {
+//        stringstream ss;
+//        ss << endl << "        LUnits x = " << x << ";" << endl;
+//        ss << "        LUnits y = " << y << ";" << endl;
+//        LOMSE_LOG_INFO(ss.str());
+//    }
+
+    //get clicked IM object
+    if (!pGmo)
+        return ClickPointData();
+
+    //get associated IM object
+    ImoObj* pImo = pGmo->get_creator_imo();
+    if (!pImo)
+    {
+        stringstream ss;
+        ss << "Invalid case? Click on a Gmo but there is no creator Imo.";
+        LOMSE_LOG_ERROR(ss.str());
+        return ClickPointData();
+    }
+
+    ClickPointData data;
+    data.pImo = pImo;
+
+    if (pImo->is_scoreobj())
+    {
+        //click point is a StaffObj, an AuxObj or a RelObj
+
+        ImoStaffObj* pSO = nullptr;
+        bool fPrologShape = false;
+
+        if (pImo->is_staffobj())
+        {
+            //click on a staff object
+            pSO = static_cast<ImoStaffObj*>(pImo);
+
+            fPrologShape = (pSO->is_clef() || pSO->is_time_signature())
+                           && static_cast<GmoShape*>(pGmo)->get_shape_id() != 0;
+
+        }
+        else if (pImo->is_auxobj())
+        {
+            //click on AuxObj. Get parent StaffObj
+            ImoAuxObj* pAO = static_cast<ImoAuxObj*>(pImo);
+            pSO = pAO->get_parent_staffobj();
+        }
+        else if (pImo->is_relobj())
+        {
+            //click on RelObj. Get parent StaffObj
+            ImoRelObj* pRO = static_cast<ImoRelObj*>(pImo);
+            pSO = pRO->get_start_object();
+        }
+        else
+        {
+            stringstream ss;
+            ss << "Invalid case. Click on ScoreObj but it is not StaffObj, AuxObj or "
+                << "RelObj. It is '" << pImo->get_name() << "'. Lomse maintenance error?";
+            LOMSE_LOG_ERROR(ss.str());
+            return data;
+        }
+
+        if (!pSO)
+        {
+            stringstream ss;
+            ss << "Invalid case? Click on ScoreObj of type '"
+                << pImo->get_name() << "', but no associated StaffObj.";
+            LOMSE_LOG_ERROR(ss.str());
+            return data;
+        }
+
+        //get staff and timepos
+        int iStaff = pSO->get_staff();
+        TimeUnits timepos = pSO->get_time();
+
+        //get instrument number
+        ImoInstrument* pInstr = pSO->get_instrument();
+        ImoScore* pScore = pInstr->get_score();
+        int iInstr = pScore->get_instr_number_for(pInstr);
+
+        //get measure number
+        if (!fPrologShape)
+        {
+            data.ml = ScoreAlgorithms::get_locator_for(pScore, timepos, iInstr);
+            data.iStaff = iStaff;
+        }
+        else
+        {
+            //prolog gosht shape. Deduce measure and time from box system
+            GmoBoxSliceStaff* pSliceStaff = dynamic_cast<GmoBoxSliceStaff*>(pGmo->get_owner_box());
+            if (!pSliceStaff)
+            {
+                stringstream ss;
+                ss << "Invalid GM. No parent BoxSliceStaff for prolog shape";
+                LOMSE_LOG_ERROR(ss.str());
+                return data;
+            }
+            GmoBoxSliceInstr* pSliceInstr = dynamic_cast<GmoBoxSliceInstr*>(pSliceStaff->get_owner_box());
+            if (!pSliceInstr)
+            {
+                stringstream ss;
+                ss << "Invalid GM. No parent BoxSliceInstr for BoxSliceStaff";
+                LOMSE_LOG_ERROR(ss.str());
+                return data;
+            }
+            GmoBoxSlice* pSlice = dynamic_cast<GmoBoxSlice*>(pSliceInstr->get_owner_box());
+            if (!pSlice)
+            {
+                stringstream ss;
+                ss << "Invalid GM. No parent BoxSlice for BoxSliceInstr";
+                LOMSE_LOG_ERROR(ss.str());
+                return data;
+            }
+            GmoBoxSystem* pBSYS = dynamic_cast<GmoBoxSystem*>(pSlice->get_owner_box());
+            if (!pBSYS)
+            {
+                stringstream ss;
+                ss << "Invalid GM. No parent BoxSystem for BoxSlice";
+                LOMSE_LOG_ERROR(ss.str());
+                return data;
+            }
+
+            //get start time and measure number
+            TimeUnits time = pBSYS->start_time();
+            data.ml = ScoreAlgorithms::get_locator_for(pScore, time, iInstr);
+            data.iStaff = iStaff;
+        }
+
+        //TODO: (?) Fix staff for barlines
+        //if clicked object is a barline staff will be always 0. To avoid this,
+        //staff must be deduced from y position
+
+        return data;
+    }
+
+    else if (pImo->is_instrument())
+    {
+        //click on a staff, bracket/brace, instr. name/abbrev
+        if (!pGmo->is_shape_staff())
+        {
+            //out of score or on empty space out of staff (e.g. just inmediatelly
+            //above/below an staff, on space before system, bracket/brace, instrument or
+            //group name/abbrev)
+            return data;
+        }
+
+        //click on a staff
+        GmoShapeStaff* pStaff = static_cast<GmoShapeStaff*>(pGmo);
+        int iStaff = pStaff->get_num_staff();
+
+        //determine time and instrument number
+        GmoBoxSystem* pBSYS = GModelAlgorithms::get_box_system_for(pGmo, y);
+        if (!pBSYS)  //Must always exist!
+        {
+            stringstream ss;
+            ss << "Invalid case? Click on a Staff but no parent BoxSystem.";
+            LOMSE_LOG_ERROR(ss.str());
+            return data;
+        }
+
+        //determine time
+        TimeGridTable* pTimeGrid = pBSYS->get_time_grid_table();
+        TimeUnits timepos = pTimeGrid->get_time_for_position(x);
+        //LOMSE_LOG_INFO( pTimeGrid->dump() );
+
+        //determine instrument
+        int absStaff = pBSYS->staff_at(y);
+        int iInstr = pBSYS->instr_number_for_staff(absStaff);
+
+        //find nearest previous object in this staff
+        GmoBoxSliceInstr* pSlice = pBSYS->find_instr_slice_at(x, y);
+        if (!pSlice)
+        {
+            //click on staff after final barline
+
+            //get measure number
+            ImoScore* pScore = static_cast<ImoScore*>(pBSYS->get_creator_imo());
+            data.ml = ScoreAlgorithms::get_locator_for(pScore, timepos, iInstr);
+            data.iStaff = iStaff;
+
+            //TODO: (?) Fix measure number when click after last measure
+            //When click point is after last barline but on a staff, returned measure
+            //is always the last measure and the locator points to the last barline.
+            //Question: Should instead return measure+1 as point is after the barline?
+            //But then the returned measure number will be grater than the number of
+            //measures and could cause problems (?)
+
+            return data;
+        }
+
+        //click on staff, on a slice containing stafobjs
+        GmoShape* pShape = pSlice->find_staffobj_shape_before(x);
+        if (!pShape)
+        {
+            //click on a BoxSliceInstrument, on the staff, but there are no StaffObjs
+            //before click point. Must be just after measure start barline
+            pShape = pSlice->find_staffobj_shape_after(x);
+            if (!pShape)
+            {
+                stringstream ss;
+                ss << "Invalid case? Click on a BoxSliceInstrument, on the staff, "
+                    << "but there are no StaffObjs on it.";
+                LOMSE_LOG_ERROR(ss.str());
+                return data;
+            }
+        }
+
+        ImoStaffObj* pSO = static_cast<ImoStaffObj*>(pShape->get_creator_imo());
+        //LOMSE_LOG_INFO(pSO->to_string());
+
+        LUnits xPos = pShape->get_left();
+        TimeUnits prevTimepos = pTimeGrid->get_time_for_position(xPos);
+
+        //get instrument number
+        ImoInstrument* pInstr = pSO->get_instrument();
+        ImoScore* pScore = pInstr->get_score();
+
+        //get locator
+        data.ml = ScoreAlgorithms::get_locator_for(pScore, prevTimepos, iInstr);
+        data.ml.location += (timepos - prevTimepos);
+        data.iStaff = iStaff;
+
+        return data;
+    }
+
+    else
+    {
+        //other cases:
+        //- after last barline, empty space between staves: Click on box-system, Imo is score
+        //- after last barline, empty space inmediately above/below the staff: Click on box-system, Imo is score
+        //- empty space above/below the score: Click on box-doc-page, Imo is lenmusdoc
+        return data;
+    }
+}
+
+////---------------------------------------------------------------------------------------
+//GmoBoxSystem* GModelAlgorithms::get_system_for(const ImoScore* pScore, const MeasureLocator& ml)
+//{
+//    //if not found returns nullptr
+//
+//    TimeUnits timepos = ScoreAlgorithms::get_timepos_for(pScore, ml);
+//    ScoreStub* pStub = get_stub_for(pScore->get_id());
+//    GmoBoxScorePage* pPage = pStub->get_page_for(timepos);
+//    if (pPage)
+//    {
+//        //find system in this page
+//        GmoBoxSystem* pSystem = nullptr;
+//        int i = pPage->get_num_first_system();
+//        int maxSystem = pPage->get_num_systems() + i;
+//        LOMSE_LOG_DEBUG(Logger::k_events, "get_system_for(%f), i=%d, maxSystem=%d",
+//                        timepos, i, maxSystem);
+//        for (; i < maxSystem; ++i)
+//        {
+//            pSystem = pPage->get_system(i);
+//            LOMSE_LOG_DEBUG(Logger::k_events, "system %d. End time = %f",
+//                            i, pSystem->end_time());
+//            if (is_lower_time(timepos, pSystem->end_time()))
+//                break;
+//            else if(is_equal_time(timepos, pSystem->end_time()))
+//            {
+//                //look in next system
+//                int iNext = i + 1;
+//                if (iNext < maxSystem)
+//                {
+//                    GmoBoxSystem* pNextSystem = pPage->get_system(iNext);
+//                    if (is_equal_time(timepos, pNextSystem->start_time()))
+//                    {
+//                        i = iNext;
+//                        pSystem = pNextSystem;
+//                    }
+//                }
+//                break;
+//            }
+//        }
+//
+//        if (i < maxSystem)
+//            return pSystem;
+//    }
+//    return nullptr;
+//}
 
 
 }  //namespace lomse

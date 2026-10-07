@@ -1,30 +1,10 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2018. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #include "lomse_score_utilities.h"
@@ -522,10 +502,7 @@ EKeySignature KeyUtilities::key_components_to_key_type(int fifths, EKeyMode mode
             case 7:         return k_key_Cs;
             default:
             {
-                stringstream ss;
-                ss << "[get_key_type] Invalid number of fifths (" << fifths
-                   << ") for major key.";
-                LOMSE_LOG_ERROR(ss.str());
+                //too many fifths. Not possible to convert to enum
                 return k_key_C;
             }
         }
@@ -551,10 +528,7 @@ EKeySignature KeyUtilities::key_components_to_key_type(int fifths, EKeyMode mode
             case 7:         return k_key_as;
             default:
             {
-                stringstream ss;
-                ss << "[get_key_type] Invalid number of fifths (" << fifths
-                   << ") for minor key.";
-                LOMSE_LOG_ERROR(ss.str());
+                //too many fifths. Not possible to convert to enum
                 return k_key_a;
             }
         }
@@ -795,8 +769,13 @@ DiatonicPitch get_diatonic_pitch_for_first_line(EClef nClef)
         case k_clef_G2_15:        return DiatonicPitch(k_step_E, k_octave_2);  //15 below
         case k_clef_15_F4:        return DiatonicPitch(k_step_G, k_octave_4);  //15 above
         case k_clef_F4_15:        return DiatonicPitch(k_step_G, k_octave_0);  //15 below
+
         case k_clef_undefined:
-        case k_clef_percussion:   return NO_DPITCH;
+        case k_clef_percussion:
+        case k_clef_TAB:
+        case k_clef_none:
+            return NO_DPITCH;
+
         default:
         {
             stringstream ss;

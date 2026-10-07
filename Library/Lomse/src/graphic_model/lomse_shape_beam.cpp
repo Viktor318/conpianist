@@ -1,30 +1,10 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2019. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #include "lomse_shape_beam.h"
@@ -46,6 +26,7 @@ GmoShapeBeam::GmoShapeBeam(ImoObj* pCreatorImo, LUnits uBeamThickness, Color col
     , VoiceRelatedShape()
     , m_uBeamThickness(uBeamThickness)
     , m_BeamFlags(0)
+    , m_staff(0)
 {
 }
 
@@ -55,20 +36,30 @@ GmoShapeBeam::~GmoShapeBeam()
 }
 
 //---------------------------------------------------------------------------------------
-void GmoShapeBeam::set_layout_data(std::list<LUnits>& segments, UPoint origin,
-                                   USize size, UPoint outerLeft, UPoint outerRight)
+void GmoShapeBeam::set_layout_data(std::list<LUnits>& segments, UPoint origin, USize size,
+                                   bool fCrossStaff, bool fChord, int beamPos, int staff)
 {
     m_segments = segments;
     m_origin = origin;
     m_size = size;
-    m_outerLeftPoint = outerLeft;
-    m_outerRightPoint = outerRight;
+    fCrossStaff ? m_BeamFlags |= k_cross_staff : m_BeamFlags &= ~k_cross_staff;
+    fChord ? m_BeamFlags |= k_has_chords : m_BeamFlags &= ~k_has_chords;
+    m_staff = staff;
+    if (beamPos == EComputedBeam::k_beam_double_stemmed)
+        m_BeamFlags |= GmoShapeBeam::k_beam_double_stemmed;
+    else if (beamPos == EComputedBeam::k_beam_above)
+        m_BeamFlags |= GmoShapeBeam::k_beam_above;
+    else
+        m_BeamFlags |= GmoShapeBeam::k_beam_below;
 }
 
 //---------------------------------------------------------------------------------------
 void GmoShapeBeam::on_draw(Drawer* pDrawer, RenderOptions& opt)
 {
     Color color = determine_color_to_use(opt);
+
+    if (pDrawer->accepts_id_class())
+        pDrawer->start_composite_notation(get_notation_id(), get_notation_class());
 
     std::list<LUnits>::iterator it = m_segments.begin();
     while (it != m_segments.end())
@@ -84,33 +75,51 @@ void GmoShapeBeam::on_draw(Drawer* pDrawer, RenderOptions& opt)
 
         draw_beam_segment(pDrawer, uxStart, uyStart, uxEnd, uyEnd, color);
     }
+
     GmoSimpleShape::on_draw(pDrawer, opt);
+
+    if (pDrawer->accepts_id_class())
+        pDrawer->end_composite_notation();
 }
 
 //---------------------------------------------------------------------------------------
 void GmoShapeBeam::draw_beam_segment(Drawer* pDrawer, LUnits uxStart, LUnits uyStart,
                              LUnits uxEnd, LUnits uyEnd, Color color)
 {
-//    //check to see if the beam segment has to be split in two systems
-//    //if (pStartNote && pEndNote) {
-//    //    lmUPoint paperPosStart = pStartNote->GetReferencePaperPos();
-//    //    lmUPoint paperPosEnd = pEndNote->GetReferencePaperPos();
-//    //    if (paperPosEnd.y != paperPosStart.y) {
-//    //        //if start note paperPos Y is not the same than end note paperPos Y the notes are
-//    //        //in different systems. Therefore, the beam must be splitted. Let's do it
-//    //        wxLogMessage(_T("***** BEAM SPLIT ***"));
-//    //        //TODO: split beam in two systems
-//    //        //LUnits xLeft = pPaper->GetLeftMarginXPos();
-//    //        //LUnits xRight = pPaper->GetRightMarginXPos();
-//    //        return; //to avoid rendering bad lines across the score. It is less noticeable
-//    //    }
-//    //}
-
-    //draw the segment
     pDrawer->begin_path();
     pDrawer->fill(color);
     pDrawer->line(uxStart, uyStart, uxEnd, uyEnd, m_uBeamThickness, k_edge_vertical);
     pDrawer->end_path();
+}
+
+//---------------------------------------------------------------------------------------
+UPoint GmoShapeBeam::get_outer_left_reference_point()
+{
+    std::list<LUnits>::iterator it = m_segments.begin();
+    LUnits xStart = *it + m_origin.x;
+    ++it;
+    LUnits yStart = *it + m_origin.y;
+    if (is_beam_above())
+        yStart -= m_uBeamThickness / 2.0f;
+    else if (is_beam_below())
+        yStart += m_uBeamThickness / 2.0f;
+    return UPoint(xStart, yStart);
+}
+
+//---------------------------------------------------------------------------------------
+UPoint GmoShapeBeam::get_outer_right_reference_point()
+{
+    std::list<LUnits>::iterator it = m_segments.begin();    //points to xStart
+    ++it;   //to yStart
+    ++it;
+    LUnits xEnd = *it + m_origin.x;
+    ++it;
+    LUnits yEnd = *it + m_origin.y;
+    if (is_beam_above())
+        yEnd -= m_uBeamThickness / 2.0f;
+    else if (is_beam_below())
+        yEnd += m_uBeamThickness / 2.0f;
+    return UPoint(xEnd, yEnd);
 }
 
 ////---------------------------------------------------------------------------------------

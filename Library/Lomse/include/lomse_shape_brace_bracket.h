@@ -1,30 +1,10 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2016. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #ifndef __LOMSE_SHAPE_BRACE_BRACKET_H__        //to avoid nested includes
@@ -57,10 +37,10 @@ protected:
 public:
 	virtual ~GmoShapeBracketBrace();
 
-    void on_draw(Drawer* pDrawer, RenderOptions& opt);
+    void on_draw(Drawer* pDrawer, RenderOptions& opt) override;
 
     //VertexSource
-    void rewind(int UNUSED(pathId) = 0) { m_nCurVertex = 0; m_nContour = 0; }
+    void rewind(unsigned UNUSED(pathId) = 0) override { m_nCurVertex = 0; m_nContour = 0; }
 
 
 protected:
@@ -72,20 +52,17 @@ protected:
 //---------------------------------------------------------------------------------------
 class GmoShapeBrace : public GmoShapeBracketBrace
 {
-    friend class InstrumentEngraver;
-    friend class GroupEngraver;
-    friend class FragmentMark;
+public:
     GmoShapeBrace(ImoObj* pCreatorImo, ShapeId idx, LUnits xLeft, LUnits yTop,
                     LUnits xRight, LUnits yBottom, Color color);
 
-public:
 	~GmoShapeBrace();
 
     //VertexSource
-    unsigned vertex(double* px, double* py);
+    unsigned vertex(double* px, double* py) override;
 
 protected:
-    void set_affine_transform();
+    void set_affine_transform() override;
 
 };
 
@@ -97,19 +74,17 @@ protected:
     double m_rBracketBarHeight;
     LUnits m_udyHook;
 
-    friend class InstrumentEngraver;
-    friend class GroupEngraver;
+public:
     GmoShapeBracket(ImoObj* pCreatorImo, ShapeId idx, LUnits xLeft, LUnits yTop,
                   LUnits xRight, LUnits yBottom, LUnits dyHook, Color color);
 
-public:
     ~GmoShapeBracket();
 
     //VertexSource
-    unsigned vertex(double* px, double* py);
+    unsigned vertex(double* px, double* py) override;
 
 protected:
-    void set_affine_transform();
+    void set_affine_transform() override;
 
 };
 
@@ -120,17 +95,15 @@ class GmoShapeSquaredBracket : public GmoSimpleShape
 protected:
     LUnits m_lineThickness;
 
-    friend class InstrumentEngraver;
-    friend class GroupEngraver;
+public:
     GmoShapeSquaredBracket(ImoObj* pCreatorImo, ShapeId idx, LUnits xLeft, LUnits yTop,
                            LUnits xRight, LUnits yBottom, LUnits lineThickness,
                            Color color);
 
-public:
     ~GmoShapeSquaredBracket();
 
 	//implementation of pure virtual methods in base class
-    void on_draw(Drawer* pDrawer, RenderOptions& opt);
+    void on_draw(Drawer* pDrawer, RenderOptions& opt) override;
 
 protected:
 

@@ -1,30 +1,10 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2018. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #include "lomse_tie_engraver.h"
@@ -45,9 +25,6 @@ namespace lomse
 //---------------------------------------------------------------------------------------
 TieEngraver::TieEngraver(LibraryScope& libraryScope, ScoreMeter* pScoreMeter)
     : RelObjEngraver(libraryScope, pScoreMeter)
-    , m_uStaffTop(0.0f)
-    , m_uStaffLeft(0.0f)
-    , m_uStaffRight(0.0f)
     , m_pTie(nullptr)
     , m_numShapes(0)
     , m_pStartNote(nullptr)
@@ -60,59 +37,46 @@ TieEngraver::TieEngraver(LibraryScope& libraryScope, ScoreMeter* pScoreMeter)
 }
 
 //---------------------------------------------------------------------------------------
-void TieEngraver::set_start_staffobj(ImoRelObj* pRO, ImoStaffObj* pSO,
-                                     GmoShape* pStaffObjShape, int iInstr, int iStaff,
-                                     int UNUSED(iSystem), int UNUSED(iCol), LUnits xStaffLeft,
-                                     LUnits xStaffRight, LUnits yStaffTop,
-                                     int idxStaff, VerticalProfile* pVProfile)
+void TieEngraver::set_start_staffobj(ImoRelObj* pRO, const AuxObjContext& aoc)
 {
+    m_iInstr = aoc.iInstr;
+    m_iStaff = aoc.iStaff;
+    m_idxStaff = aoc.idxStaff;
+
     m_pTie = dynamic_cast<ImoTie*>( pRO );
 
-    m_pStartNote = dynamic_cast<ImoNote*>(pSO);
-    m_pStartNoteShape = dynamic_cast<GmoShapeNote*>(pStaffObjShape);
-    m_iInstr = iInstr;
-    m_iStaff = iStaff;
-
-    m_uStaffLeft = xStaffLeft;
-    m_uStaffRight = xStaffRight;
-    m_uStaffTop = yStaffTop;
-
-    m_idxStaff = idxStaff;
-    m_pVProfile = pVProfile;
+    m_pStartNote = dynamic_cast<ImoNote*>(aoc.pSO);
+    m_pStartNoteShape = dynamic_cast<GmoShapeNote*>(aoc.pStaffObjShape);
 }
 
 //---------------------------------------------------------------------------------------
-void TieEngraver::set_end_staffobj(ImoRelObj* UNUSED(pRO), ImoStaffObj* pSO,
-                                   GmoShape* pStaffObjShape, int UNUSED(iInstr),
-                                   int UNUSED(iStaff), int UNUSED(iSystem), int UNUSED(iCol),
-                                   LUnits xStaffLeft, LUnits xStaffRight,
-                                   LUnits yStaffTop, int idxStaff,
-                                   VerticalProfile* pVProfile)
+void TieEngraver::set_end_staffobj(ImoRelObj* UNUSED(pRO), const AuxObjContext& aoc)
 {
-    m_pEndNote = dynamic_cast<ImoNote*>(pSO);
-    m_pEndNoteShape = dynamic_cast<GmoShapeNote*>(pStaffObjShape);
-
-    m_uStaffLeft = xStaffLeft;
-    m_uStaffRight = xStaffRight;
-    m_uStaffTop = yStaffTop;
-
-    m_idxStaff = idxStaff;
-    m_pVProfile = pVProfile;
+    m_pEndNote = dynamic_cast<ImoNote*>(aoc.pSO);
+    m_pEndNoteShape = dynamic_cast<GmoShapeNote*>(aoc.pStaffObjShape);
 }
 
 //---------------------------------------------------------------------------------------
 void TieEngraver::decide_placement()
 {
     if (m_pTie->get_orientation() == k_orientation_default)
-        m_fTieBelowNote = m_pStartNoteShape->is_up();
+    {
+        if (m_pStartNoteShape->has_stem())
+            m_fTieBelowNote = m_pStartNoteShape->is_up();
+        else if (m_pEndNoteShape && m_pEndNoteShape->has_stem())
+            m_fTieBelowNote = m_pEndNoteShape->is_up();
+        else
+            m_fTieBelowNote = true;     //can go either up or down. I prefer below
+    }
     else
         m_fTieBelowNote = m_pTie->get_orientation() == k_orientation_under;
 }
 
 //---------------------------------------------------------------------------------------
-GmoShape* TieEngraver::create_first_or_intermediate_shape(Color color)
+GmoShape* TieEngraver::create_first_or_intermediate_shape(const RelObjEngravingContext& ctx)
 {
-    m_color = color;
+    save_context_parameters(ctx);
+
     if (m_numShapes == 0)
     {
         decide_placement();
@@ -123,9 +87,10 @@ GmoShape* TieEngraver::create_first_or_intermediate_shape(Color color)
 }
 
 //---------------------------------------------------------------------------------------
-GmoShape* TieEngraver::create_last_shape(Color color)
+GmoShape* TieEngraver::create_last_shape(const RelObjEngravingContext& ctx)
 {
-    m_color = color;
+    save_context_parameters(ctx);
+
     if (m_numShapes == 0)
     {
         decide_placement();
@@ -208,7 +173,7 @@ void TieEngraver::compute_default_control_points(UPoint* points)
     LUnits D = (points+ImoBezierInfo::k_end)->x - (points+ImoBezierInfo::k_start)->x;
     LUnits d = D / 5.8f;
     m_thickness = tenths_to_logical(LOMSE_TIE_MAX_THICKNESS);
-    LUnits hc = m_thickness * 3.88f;
+    LUnits hc = m_thickness * 2.5f; //3.88f;
     (points+ImoBezierInfo::k_ctrol1)->x = (points+ImoBezierInfo::k_start)->x + d;
     (points+ImoBezierInfo::k_ctrol1)->y = (points+ImoBezierInfo::k_start)->y + (m_fTieBelowNote ? hc : -hc);
 
@@ -223,7 +188,7 @@ void TieEngraver::compute_start_point()
 	m_points[ImoBezierInfo::k_start].x = (m_pStartNoteShape->get_notehead_right() +
                           m_pStartNoteShape->get_notehead_left()) / 2.0f;
 
-    //y pos: 5 tenths apart from notehead
+    //y pos: some distance apart from notehead
     LUnits space = tenths_to_logical(LOMSE_TIE_VERTICAL_SPACE);
 
     m_points[ImoBezierInfo::k_start].y = (m_fTieBelowNote ?
@@ -238,7 +203,7 @@ void TieEngraver::compute_end_point(UPoint* point)
 	point->x = (m_pEndNoteShape->get_notehead_right() +
                 m_pEndNoteShape->get_notehead_left()) / 2.0f;
 
-    //y pos: 5 tenths apart from notehead
+    //y pos: some distance apart from notehead
     LUnits space = tenths_to_logical(LOMSE_TIE_VERTICAL_SPACE);
 
     point->y = (m_fTieBelowNote ?
@@ -249,7 +214,7 @@ void TieEngraver::compute_end_point(UPoint* point)
 //---------------------------------------------------------------------------------------
 void TieEngraver::compute_start_of_staff_point()
 {
-    m_points[ImoBezierInfo::k_start].x = m_uStaffLeft;
+    m_points[ImoBezierInfo::k_start].x = m_uStaffLeft + m_uPrologWidth;
     m_points[ImoBezierInfo::k_start].y = m_points[ImoBezierInfo::k_end].y;
 }
 

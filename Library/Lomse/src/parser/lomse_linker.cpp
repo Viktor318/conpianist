@@ -1,30 +1,10 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2016. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #include "lomse_linker.h"
@@ -33,7 +13,7 @@
 #include "lomse_ldp_elements.h"        //for node type
 #include "lomse_im_note.h"
 #include "lomse_injectors.h"
-#include "lomse_document.h"
+#include "private/lomse_document_p.h"
 #include "lomse_im_factory.h"
 
 
@@ -171,31 +151,8 @@ ImoObj* Linker::add_instruments_group(ImoInstrGroup* pGrp)
     {
         ImoScore* pScore = static_cast<ImoScore*>(m_pParent);
         pScore->add_instruments_group(pGrp);
-        set_barline_layout_in_instruments(pGrp);
     }
     return pGrp;
-}
-
-//---------------------------------------------------------------------------------------
-void Linker::set_barline_layout_in_instruments(ImoInstrGroup* pGrp)
-{
-    if (pGrp->join_barlines() == ImoInstrGroup::k_no)
-        return;
-
-    int layout = (pGrp->join_barlines() == ImoInstrGroup::k_standard
-                    ? ImoInstrument::k_joined
-                    : ImoInstrument::k_mensurstrich);
-
-    ImoInstrument* pLastInstr = pGrp->get_last_instrument();
-    list<ImoInstrument*>& instrs = pGrp->get_instruments();
-    list<ImoInstrument*>::iterator it;
-    for (it = instrs.begin(); it != instrs.end(); ++it)
-    {
-        if (*it != pLastInstr)
-            (*it)->set_barline_layout(layout);
-        else if (layout == ImoInstrument::k_mensurstrich)
-            (*it)->set_barline_layout(ImoInstrument::k_nothing);
-    }
 }
 
 //---------------------------------------------------------------------------------------
@@ -213,18 +170,10 @@ ImoObj* Linker::add_option(ImoOptionInfo* pOpt)
 //---------------------------------------------------------------------------------------
 ImoObj* Linker::add_page_info(ImoPageInfo* pPI)
 {
-    if (m_pParent && m_pParent->is_score())
-    {
-        ImoScore* pScore = static_cast<ImoScore*>(m_pParent);
-        pScore->add_page_info(pPI);
-        delete pPI;
-        return nullptr;
-    }
-    else if (m_pParent && m_pParent->is_document())
+    if (m_pParent && m_pParent->is_document())
     {
         ImoDocument* pDoc = static_cast<ImoDocument*>(m_pParent);
         pDoc->add_page_info(pPI);
-        delete pPI;
         return nullptr;
     }
     return pPI;
@@ -311,8 +260,11 @@ ImoObj* Linker::add_sound_change(ImoSoundChange* pInfo)
     }
     else
     {
-       LOMSE_LOG_ERROR("Parent of ImoSoundChange is neither <music-data> nor <direction>.");
-       return pInfo;
+        stringstream ss;
+        ss << "Parent of ImoSoundChange is neither <music-data> nor <direction>. Parent=";
+        ss << (m_pParent != nullptr ? m_pParent->get_name() : "nullptr");
+        LOMSE_LOG_ERROR(ss.str());
+        return pInfo;
     }
 
 //        //TODO: Move this to linker
@@ -363,12 +315,12 @@ ImoObj* Linker::add_instrument(ImoInstrument* pInstrument)
 {
     if (m_pParent)
     {
-        if (m_pParent->is_instr_group())
-        {
-            ImoInstrGroup* pGrp = static_cast<ImoInstrGroup*>( m_pParent );
-            pGrp->add_instrument(pInstrument);
-        }
-        else if (m_pParent->is_score())
+//        if (m_pParent->is_instr_group())
+//        {
+//            ImoInstrGroup* pGrp = static_cast<ImoInstrGroup*>( m_pParent );
+//            pGrp->add_instrument(pInstrument);
+//        }
+        if (m_pParent->is_score())
         {
             ImoScore* pScore = static_cast<ImoScore*>( m_pParent );
             pScore->add_instrument(pInstrument);
@@ -389,7 +341,7 @@ ImoObj* Linker::add_text(ImoScoreText* pText)
             //musicData: create anchor (ImoDirection) and attach to it
             ImoDirection* pSpacer = static_cast<ImoDirection*>(
                                         ImFactory::inject(k_imo_direction, m_pDoc) );
-            pSpacer->add_attachment(m_pDoc, pText);
+            pSpacer->add_attachment(pText);
             add_staffobj(pSpacer);
             return pText;
         }
@@ -403,9 +355,16 @@ ImoObj* Linker::add_text(ImoScoreText* pText)
             ImoInstrument* pInstr = static_cast<ImoInstrument*>(m_pParent);
             //could be 'name' or 'abbrev'
             if (m_ldpChildType == k_name)
-                pInstr->set_name(pText);
+            {
+                pInstr->set_name(pText->get_text_info());
+                pInstr->set_name_style(pText->get_style());
+            }
             else
-                pInstr->set_abbrev(pText);
+            {
+                pInstr->set_abbrev(pText->get_text_info());
+                pInstr->set_abbrev_style(pText->get_style());
+            }
+            delete pText;
             return nullptr;
         }
 
@@ -414,9 +373,16 @@ ImoObj* Linker::add_text(ImoScoreText* pText)
             ImoInstrGroup* pGrp = static_cast<ImoInstrGroup*>(m_pParent);
             //could be 'name' or 'abbrev'
             if (m_ldpChildType == k_name)
-                pGrp->set_name(pText);
+            {
+                pGrp->set_name(pText->get_text_info());
+                pGrp->set_name_style(pText->get_style());
+            }
             else
-                pGrp->set_abbrev(pText);
+            {
+                pGrp->set_abbrev(pText->get_text_info());
+                pGrp->set_abbrev_style(pText->get_style());
+            }
+            delete pText;
             return nullptr;
         }
 
@@ -501,6 +467,7 @@ ImoObj* Linker::add_child(int parentType, ImoObj* pImo)
 {
     if (m_pParent && m_pParent->get_obj_type() == parentType)
         m_pParent->append_child_imo(pImo);
+
     return pImo;
 }
 
@@ -515,7 +482,7 @@ ImoObj* Linker::add_staffobj(ImoStaffObj* pSO)
         {
             ImoChord* pChord = static_cast<ImoChord*>(m_pParent);
             ImoNote* pNote = static_cast<ImoNote*>(pSO);
-            pNote->include_in_relation(m_pDoc, pChord);
+            pNote->include_in_relation(pChord);
             return nullptr;
         }
     }
@@ -528,7 +495,7 @@ ImoObj* Linker::add_attachment(ImoAuxObj* pAuxObj)
     if (m_pParent && m_pParent->is_staffobj())
     {
         ImoStaffObj* pSO = static_cast<ImoStaffObj*>(m_pParent);
-        pSO->add_attachment(m_pDoc, pAuxObj);
+        pSO->add_attachment(pAuxObj);
     }
     else if (m_pParent && m_pParent->is_music_data())
     {
@@ -537,7 +504,7 @@ ImoObj* Linker::add_attachment(ImoAuxObj* pAuxObj)
             //metronome mark in musicData: create anchor (ImoDirection) and attach to it
             ImoDirection* pDirection = static_cast<ImoDirection*>(
                                             ImFactory::inject(k_imo_direction, m_pDoc) );
-            pDirection->add_attachment(m_pDoc, pAuxObj);
+            pDirection->add_attachment(pAuxObj);
             add_staffobj(pDirection);
         }
         #if LOMSE_COMPATIBILITY_LDP_1_5
@@ -550,7 +517,7 @@ ImoObj* Linker::add_attachment(ImoAuxObj* pAuxObj)
             //auxObj in musicData: create anchor (ImoDirection) and attach to it
             ImoDirection* pSpacer = static_cast<ImoDirection*>(
                                         ImFactory::inject(k_imo_direction, m_pDoc) );
-            pSpacer->add_attachment(m_pDoc, pAuxObj);
+            pSpacer->add_attachment(pAuxObj);
             add_staffobj(pSpacer);
         }
         #endif  //LOMSE_COMPATIBILITY_LDP_1_5
@@ -580,7 +547,7 @@ ImoObj* Linker::add_relation(ImoRelObj* pRelObj)
     if (m_pParent && m_pParent->is_staffobj())
     {
         ImoStaffObj* pSO = static_cast<ImoStaffObj*>(m_pParent);
-        pSO->add_relation(m_pDoc, pRelObj);
+        pSO->add_relation(pRelObj);
         return nullptr;
     }
     return pRelObj;

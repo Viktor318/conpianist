@@ -1,30 +1,10 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2019. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #ifndef __LOMSE_SYSTEM_LAYOUTER_H__        //to avoid nested includes
@@ -36,8 +16,10 @@
 #include "lomse_logger.h"
 #include "lomse_injectors.h"
 #include "lomse_spacing_algorithm.h"
+#include "lomse_aux_shapes_aligner.h"
 
 #include <list>
+#include <memory>
 #include <tuple>
 
 namespace lomse
@@ -45,11 +27,13 @@ namespace lomse
 
 //forward declarations
 class ColumnStorage;
+class EngraversMap;
 class GmoBoxSlice;
 class GmoBoxSliceInstr;
 class GmoShape;
 class GmoBoxSystem;
 class GmoShapeBeam;
+class GmoShapeNote;
 class ImoAuxObj;
 class ImoRelObj;
 class ImoAuxRelObj;
@@ -60,21 +44,58 @@ class ImoStaffObj;
 class InstrumentEngraver;
 class PartsEngraver;
 class ScoreLayouter;
+class ScoreLayoutScope;
 class ScoreMeter;
 class ShapesCreator;
-class EngraversMap;
 class SpacingAlgorithm;
 class SystemLayouter;
-class TypeMeasureInfo;
 class VerticalProfile;
-struct PendingAuxObjs;
+struct TypeMeasureInfo;
 
-//---------------------------------------------------------------------------------------
+struct AuxObjContext;
+enum EAuxShapesAlignmentScope : int;
+
+
+//=======================================================================================
+// Helper class to store global information whose scope is the layout of one system.
+// It facilitates access to this global information and simplifies the list of parameters
+// to pass to all classes and methods related to layout
+//
+class SystemLayoutScope
+{
+protected:
+    SystemLayouter*     m_pSystemLayouter = nullptr;
+    VerticalProfile*    m_pVProfile = nullptr;
+    AuxShapesAlignersSystem* m_pCurrentAuxShapesAligner = nullptr;
+//    SystemLayoutOptions* m_pOptions = nullptr;
+
+public:
+    explicit SystemLayoutScope(SystemLayouter* pParent);
+
+    inline SystemLayouter* get_system_layouter() const { return m_pSystemLayouter; }
+    inline VerticalProfile* get_vertical_profile() const { return m_pVProfile; }
+    inline AuxShapesAlignersSystem* get_aux_shapes_aligner() const { return m_pCurrentAuxShapesAligner; }
+
+
+protected:
+    //instantiation
+    friend class SystemLayouter;
+    void set_current_aux_shapes_aligner(AuxShapesAlignersSystem* p) { m_pCurrentAuxShapesAligner = p; }
+    void set_vertical_profile(VerticalProfile* p) { m_pVProfile = p; }
+
+};
+
+
+//=======================================================================================
 // SystemLayouter: algorithm to layout a system
-//---------------------------------------------------------------------------------------
+//
 class SystemLayouter
 {
 protected:
+    ScoreLayoutScope& m_scoreLayoutScope;
+    SystemLayoutScope m_systemLayoutScope;
+
+    //variables stored in ScoreLayoutScope
     ScoreLayouter*  m_pScoreLyt;
     LibraryScope&   m_libraryScope;
     ScoreMeter*     m_pScoreMeter;
@@ -82,46 +103,38 @@ protected:
     EngraversMap&   m_engravers;
     ShapesCreator*  m_pShapesCreator;
     PartsEngraver*  m_pPartsEngraver;
-    VerticalProfile* m_pVProfile;
+    SpacingAlgorithm* m_pSpAlgorithm;
 
-    LUnits m_uPrologWidth;
-    GmoBoxSystem* m_pBoxSystem;
-    LUnits m_yMin;
-    LUnits m_yMax;
+    //variables used in SystemLayoutScope but owned by this SystemLayouter
+    std::unique_ptr<VerticalProfile> m_pVProfile;
+    std::unique_ptr<AuxShapesAlignersSystem> m_curAuxShapesAligner;
 
-    int m_iSystem;
-    int m_iFirstCol;
-    int m_iLastCol;
-    LUnits m_uFreeSpace;    //free space available on current system
+
+    GmoBoxSystem* m_pBoxSystem = nullptr;
+
+    LUnits m_uPrologWidth = 0.0f;
+    LUnits m_yMin = 0.0f;
+    LUnits m_yMax = 0.0f;
+    LUnits m_uFreeSpace = 0.0f;    //free space available on current system
+
+    int m_iSystem = 0;
+    int m_iFirstCol = 0;
+    int m_iLastCol = 0;
+    int m_barlinesInfo = 0;     //info about barlines at end of this system
+    int m_constrains = 0;
     UPoint m_pagePos;
-    bool m_fFirstColumnInSystem;
-    int m_barlinesInfo;     //info about barlines at end of this system
-
-    //RelObjs that continue in next system
-    typedef std::pair<ImoRelObj*, PendingAuxObjs*> PendingRelObj;
-    std::list<PendingRelObj> m_notFinishedRelObj;
-
-    //Lyrics that continue in next system
-    typedef std::pair<std::string, PendingAuxObjs*> PendingLyrics;
-    std::list<PendingLyrics> m_notFinishedLyrics;
+    bool m_fFirstColumnInSystem = true;
 
     //prolog shapes waiting to be added to slice staff box
     std::list< std::tuple<GmoShape*, int, int> > m_prologShapes;
 
-    SpacingAlgorithm* m_pSpAlgorithm;
-    int m_constrains;
 
 public:
-    SystemLayouter(ScoreLayouter* pScoreLyt, LibraryScope& libraryScope,
-                   ScoreMeter* pScoreMeter, ImoScore* pScore,
-                   EngraversMap& engravers,
-                   ShapesCreator* pShapesCreator,
-                   PartsEngraver* pPartsEngraver,
-                   SpacingAlgorithm* pSpAlgorithm);
-    ~SystemLayouter();
+    explicit SystemLayouter(ScoreLayoutScope& scoreLayoutScope);
 
     GmoBoxSystem* create_system_box(LUnits left, LUnits top, LUnits width, LUnits height);
-    void engrave_system(LUnits indent, int iFirstCol, int iLastCol, UPoint pos);
+    void engrave_system(LUnits indent, int iFirstCol, int iLastCol, UPoint pos,
+                        GmoBoxSystem* pPrevBoxSystem);
     void on_origin_shift(LUnits yShift);
     inline void set_constrains(int constrains) { m_constrains = constrains; }
 
@@ -160,11 +173,13 @@ protected:
     void redistribute_free_space();
     void engrave_measure_numbers();
     void engrave_system_details(int iSystem);
+    void setup_aux_shapes_aligner(EAuxShapesAlignmentScope scope, Tenths maxAlignDistance = 0.0f);
     void add_instruments_info();
-    void move_staves_to_avoid_collisions();
+    void move_staves_to_avoid_collisions(GmoBoxSystem* pPrevBoxSystem);
     void reposition_staves_in_engravers(const std::vector<LUnits>& yOrgShifts);
     void reposition_slice_boxes_and_shapes(const vector<LUnits>& yOrgShifts,
-                                           vector<LUnits>& heights);
+                                           vector<LUnits>& heights,
+                                           LUnits bottomMarginIncr);
 
     void add_prolog_shapes_to_boxes();
     void add_system_prolog_if_necessary();
@@ -175,14 +190,15 @@ protected:
     bool measure_number_must_be_displayed(int policy, TypeMeasureInfo* pInfo,
                                           bool fFirstNumberInSystem);
 
-    void engrave_attached_object(ImoObj* pAR, PendingAuxObjs* pPAO, int iSystem);
-    void engrave_not_finished_relobj(ImoRelObj* pRO, PendingAuxObjs* pPAO, int iSystem);
-    void engrave_not_finished_lyrics(const std::string& tag, PendingAuxObjs* pPAO, int iSystem);
+    void engrave_attached_object(ImoObj* pAR, const AuxObjContext& aoc, int iSystem);
+    void engrave_not_finished_relobj(ImoRelObj* pRO, const AuxObjContext& aoc);
+    void engrave_not_finished_lyrics(const std::string& tag, const AuxObjContext& aoc);
 
     void add_last_rel_shape_to_model(GmoShape* pShape, ImoRelObj* pRO, int layer,
                                      int iCol, int iInstr, int iStaff, int idxStaff);
+    void delete_rel_obj_engraver(ImoRelObj* pRO);
     void add_lyrics_shapes_to_model(const std::string& tag, int layer, bool fLast,
-                                    int iStaff, int idxStaff);
+                                    int iInstr, int iStaff);
     void add_aux_shape_to_model(GmoShape* pShape, int layer, int iCol, int iInstr,
                                 int iStaff, int idxStaff);
 

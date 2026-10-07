@@ -1,30 +1,10 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2016. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #ifndef __LOMSE_TEXT_ENGRAVER_H__        //to avoid nested includes
@@ -58,14 +38,40 @@ protected:
     FontStorage* m_pFontStorage;
     string m_language;
     int m_idxStaff;
+    int m_classid;          //text class, enum E
     VerticalProfile* m_pVProfile;
 
 public:
     TextEngraver(LibraryScope& libraryScope, ScoreMeter* pScoreMeter,
-                 const string& text, const string& language, ImoStyle* pStyle);
+                 const string& text, const string& language, ImoStyle* pStyle,
+                 int classid);
     ~TextEngraver();
 
-    GmoShapeText* create_shape(ImoObj* pCreatorImo, LUnits xLeft, LUnits yTop);
+    enum ETextClass
+    {
+        // 'id' attribute IS NOT added for these classes:
+        k_class_lyric_elision,
+        k_class_lyric_hyphenation,
+        k_class_lyric_syllable,
+        k_class_metronome_text,
+        k_class_pedal_text,
+        k_class_score_text,
+        k_class_tuplet_text,
+        k_class_volta_text,
+
+        k_classes_with_id,     //to mark texts that will have 'id' attribute
+
+        // 'id' attribute IS added for these classes:
+        k_class_group_name,
+        k_class_group_abbrev,
+        k_class_instr_name,
+        k_class_instr_abbrev,
+        k_class_measure_number,
+        k_class_score_title,
+        k_class_repetition_mark,
+    };
+
+    GmoShapeText* create_shape(ImoObj* pCreatorImo, ShapeId idx, LUnits xLeft, LUnits yTop);
     LUnits measure_width();
     LUnits measure_height();
 };
@@ -102,7 +108,7 @@ public:
                           const string& text);
     ~MeasureNumberEngraver();
 
-    GmoShapeText* create_shape(ImoObj* pCreator, LUnits xLeft, LUnits yTop);
+    GmoShapeText* create_shape(ImoObj* pCreator, ShapeId idx, LUnits xLeft, LUnits yTop);
     LUnits measure_width();
     LUnits measure_height();
 };

@@ -1,30 +1,10 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2016. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #ifndef __LOMSE_VISUAL_EFFECT_H__
@@ -44,7 +24,7 @@ namespace lomse
 ///@endcond
 
 //forward declarations
-class ScreenDrawer;
+class BitmapDrawer;
 class GraphicView;
 class GmoShape;
 class GmoObj;
@@ -82,7 +62,7 @@ public:
     inline void enable(bool fEnabled) { m_fEnabled = fEnabled; }
 
     //drawing
-    virtual void on_draw(ScreenDrawer* pDrawer) = 0;
+    virtual void on_draw(BitmapDrawer* pDrawer) = 0;
 
     //size when rendered
     virtual URect get_bounds() = 0;
@@ -123,8 +103,8 @@ public:
     void move_to(LUnits x, LUnits y);
 
     //mandatory overrides from VisualEffect
-    void on_draw(ScreenDrawer* pDrawer);
-    URect get_bounds();
+    void on_draw(BitmapDrawer* pDrawer) override;
+    URect get_bounds() override;
 
 protected:
     void delete_shape();
@@ -152,8 +132,8 @@ public:
     void set_end_point(LUnits x, LUnits y);
 
     //mandatory overrides from VisualEffect
-    void on_draw(ScreenDrawer* pDrawer);
-    URect get_bounds();
+    void on_draw(BitmapDrawer* pDrawer) override;
+    URect get_bounds() override;
 };
 ///@endcond
 
@@ -192,8 +172,8 @@ public:
     void remove_all_highlight();
 
     //mandatory overrides from VisualEffect
-    void on_draw(ScreenDrawer* pDrawer);
-    URect get_bounds();
+    void on_draw(BitmapDrawer* pDrawer) override;
+    URect get_bounds() override;
 
 ///@endcond
 };
@@ -215,8 +195,8 @@ public:
     virtual ~SelectionHighlight() {}
 
     //mandatory overrides from VisualEffect
-    void on_draw(ScreenDrawer* pDrawer);
-    URect get_bounds();
+    void on_draw(BitmapDrawer* pDrawer) override;
+    URect get_bounds() override;
 
     //other
     bool are_handlers_needed();

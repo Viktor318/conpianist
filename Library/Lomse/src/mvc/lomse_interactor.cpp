@@ -1,37 +1,17 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2019. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #define LOMSE_INTERNAL_API
 #include "lomse_interactor.h"
 
 #include "lomse_ldp_compiler.h"
-#include "lomse_document.h"
+#include "private/lomse_document_p.h"
 #include "lomse_document_cursor.h"
 #include "lomse_basic.h"
 #include "lomse_tasks.h"
@@ -52,9 +32,12 @@
 #include "lomse_score_utilities.h"
 #include "lomse_shape_staff.h"
 #include "lomse_score_algorithms.h"
+#include "lomse_renderer.h"
+#include "lomse_svg_drawer.h"
 
 #include <sstream>
 #include <chrono>
+#include <ostream>
 using namespace std;
 
 namespace lomse
@@ -82,6 +65,7 @@ Interactor::Interactor(LibraryScope& libraryScope, WpDocument wpDoc, View* pView
     , m_pCursor(nullptr)
     , m_pSelections(nullptr)
     , m_pExec(pExec)
+//    , m_pPrintBuf(nullptr)
     , m_grefLastMouseOver(k_no_gmo_ref)
     , m_operatingMode(k_mode_read_only)
     , m_fEditionEnabled(false)
@@ -117,6 +101,7 @@ Interactor::~Interactor()
     delete m_pView;
     delete m_pCursor;
     delete m_pSelections;
+//    delete m_pPrintBuf;
     LOMSE_LOG_DEBUG(Logger::k_mvc, "Interactor is deleted");
 }
 
@@ -131,16 +116,9 @@ void Interactor::switch_task(int taskType)
 }
 
 //---------------------------------------------------------------------------------------
-void Interactor::define_beat(int beatType, TimeUnits duration)
-{
-    if (SpDocument spDoc = m_wpDoc.lock())
-        spDoc->define_beat(beatType, duration);
-}
-
-//---------------------------------------------------------------------------------------
 GraphicModel* Interactor::get_graphic_model()
 {
-    if (!m_pGraphicModel)
+    if (!m_pGraphicModel || graphic_model_must_be_updated())
         create_graphic_model();
     return m_pGraphicModel;
 }
@@ -166,7 +144,8 @@ void Interactor::create_graphic_model()
         {
             LOMSE_LOG_DEBUG(Logger::k_render, "[Interactor::create_graphic_model]");
             int constrains = pView->get_layout_constrains();
-            DocLayouter layouter(pDoc, m_libScope, constrains);
+            LUnits width = pView->get_viewport_width();
+            DocLayouter layouter(pDoc, m_libScope, constrains, width);
 
             if (pView->is_valid_for_this_view(pDoc))
                 layouter.layout_document();
@@ -185,6 +164,17 @@ void Interactor::create_graphic_model()
         LOMSE_LOG_INFO("gmodel build time = %d ms.", (int)buildTime);
     }
 //    m_idLastMouseOver = k_no_imoid;
+}
+
+//---------------------------------------------------------------------------------------
+bool Interactor::graphic_model_must_be_updated()
+{
+    //update GM when using a free-flow view and the viewport width has changed
+    GraphicView* pView = dynamic_cast<GraphicView*>(m_pView);
+    if (pView)
+        return pView->graphic_model_must_be_updated();
+    else
+        return false;
 }
 
 //---------------------------------------------------------------------------------------
@@ -468,7 +458,8 @@ DiatonicPitch Interactor::get_pitch_at(Pixels x, Pixels y)
             ImoScore* pScore = pInstr->get_score();
             EClef clef = EClef(
                 ScoreAlgorithms::get_applicable_clef_for(pScore, instr, staff, time) );
-            if (clef == k_clef_undefined || clef == k_clef_percussion)
+            if (clef == k_clef_undefined || clef == k_clef_percussion ||
+                clef == k_clef_TAB)
                 return DiatonicPitch(k_no_pitch);
 
             //determine pitch
@@ -736,6 +727,33 @@ GmoObj* Interactor::find_object_at(Pixels x, Pixels y)
     screen_point_to_page_point(&xPos, &yPos);
     GraphicModel* pGM = get_graphic_model();
     return pGM->hit_test(iPage, LUnits(xPos), LUnits(yPos));
+}
+
+//---------------------------------------------------------------------------------------
+ClickPointData Interactor::find_click_info_at(Pixels x, Pixels y)
+{
+    //get graphic view
+    GraphicView* pGView = dynamic_cast<GraphicView*>(m_pView);
+    if (pGView == nullptr)
+    {
+        LOMSE_LOG_ERROR("Invoking Interactor::find_click_info_at() but no graphic view!");
+        return ClickPointData();
+    }
+
+    //get document page
+    double xPos = double(x);
+    double yPos = double(y);
+    int iPage = page_at_screen_point(xPos, yPos);
+    if (iPage == -1)
+        return ClickPointData();
+
+    //get graphic model clicked object
+    screen_point_to_page_point(&xPos, &yPos);
+    GraphicModel* pGM = get_graphic_model();
+    GmoObj* pGmo = pGM->hit_test(iPage, LUnits(xPos), LUnits(yPos));
+
+    //get clicked point info
+    return GModelAlgorithms::find_info_for_point(xPos, yPos, pGmo);
 }
 
 //---------------------------------------------------------------------------------------
@@ -1029,9 +1047,30 @@ void Interactor::set_viewport_at_page_center(Pixels screenWidth)
 //---------------------------------------------------------------------------------------
 void Interactor::set_rendering_buffer(RenderingBuffer* rbuf)
 {
+    //DEPRECATED method jan/2021
+
     GraphicView* pGView = dynamic_cast<GraphicView*>(m_pView);
     if (pGView)
         pGView->set_rendering_buffer(rbuf);
+}
+
+//---------------------------------------------------------------------------------------
+void Interactor::set_rendering_buffer(unsigned char* buf, unsigned width, unsigned height)
+{
+    GraphicView* pGView = dynamic_cast<GraphicView*>(m_pView);
+    if (pGView)
+    {
+        pGView->set_rendering_buffer(buf, width, height);
+    }
+}
+
+//---------------------------------------------------------------------------------------
+void Interactor::set_view_area(unsigned width, unsigned height, unsigned xShift,
+                               unsigned yShift)
+{
+    GraphicView* pGView = dynamic_cast<GraphicView*>(m_pView);
+    if (pGView)
+        pGView->set_view_area(width, height, xShift, yShift);
 }
 
 //---------------------------------------------------------------------------------------
@@ -1040,6 +1079,20 @@ void Interactor::get_viewport(Pixels* x, Pixels* y)
     GraphicView* pGView = dynamic_cast<GraphicView*>(m_pView);
     if (pGView)
         pGView->get_viewport(x, y);
+}
+
+//---------------------------------------------------------------------------------------
+USize Interactor::get_page_size(int page)
+{
+    //ensure page is always valid
+    if (page < 0 || page > get_num_pages() - 1)
+        page = 0;
+
+    GraphicView* pGView = dynamic_cast<GraphicView*>(m_pView);
+    if (pGView)
+        return pGView->get_page_size(page);
+    else
+        return USize(0.0, 0.0);
 }
 
 //---------------------------------------------------------------------------------------
@@ -1317,11 +1370,11 @@ void Interactor::screen_point_to_page_point(double* x, double* y)
 }
 
 //---------------------------------------------------------------------------------------
-void Interactor::model_point_to_screen(double* x, double* y, int iPage)
+void Interactor::model_point_to_device(double* x, double* y, int iPage)
 {
     GraphicView* pGView = dynamic_cast<GraphicView*>(m_pView);
     if (pGView)
-        pGView->model_point_to_screen(x, y, iPage);
+        pGView->model_point_to_device(x, y, iPage);
 }
 
 //---------------------------------------------------------------------------------------
@@ -1376,6 +1429,8 @@ void Interactor::zoom_out(Pixels x, Pixels y, bool fForceRedraw)
 //---------------------------------------------------------------------------------------
 void Interactor::zoom_fit_full(Pixels width, Pixels height, bool fForceRedraw)
 {
+    LOMSE_LOG_DEBUG(Logger::k_mvc, std::string());
+
     m_fViewParamsChanged = true;
     GraphicView* pGView = dynamic_cast<GraphicView*>(m_pView);
     if (pGView)
@@ -1389,6 +1444,8 @@ void Interactor::zoom_fit_full(Pixels width, Pixels height, bool fForceRedraw)
 //---------------------------------------------------------------------------------------
 void Interactor::zoom_fit_width(Pixels width, bool fForceRedraw)
 {
+    LOMSE_LOG_DEBUG(Logger::k_mvc, "width=%d", width);
+
     m_fViewParamsChanged = true;
     GraphicView* pGView = dynamic_cast<GraphicView*>(m_pView);
     if (pGView)
@@ -1478,17 +1535,39 @@ void Interactor::select_voice(int voice)
 //---------------------------------------------------------------------------------------
 void Interactor::set_print_buffer(RenderingBuffer* rbuf)
 {
+    //DEPRECATED method Jan/2021
+
     GraphicView* pGView = dynamic_cast<GraphicView*>(m_pView);
     if (pGView)
-        pGView->set_print_buffer(rbuf);
+        pGView->set_print_buffer(rbuf);    //DEPRECATED method Jan/2021
+}
+
+//---------------------------------------------------------------------------------------
+void Interactor::set_print_buffer(unsigned char* buf, unsigned width, unsigned height)
+{
+    GraphicView* pGView = dynamic_cast<GraphicView*>(m_pView);
+    if (pGView)
+    {
+        pGView->set_print_buffer(buf, width, height);
+    }
 }
 
 //---------------------------------------------------------------------------------------
 void Interactor::set_print_ppi(double ppi)
 {
+    //DEPRECATED method Jan/2021
+
     GraphicView* pGView = dynamic_cast<GraphicView*>(m_pView);
     if (pGView)
         pGView->set_print_ppi(ppi);
+}
+
+//---------------------------------------------------------------------------------------
+void Interactor::set_print_page_size(Pixels width, Pixels height)
+{
+    GraphicView* pGView = dynamic_cast<GraphicView*>(m_pView);
+    if (pGView)
+        pGView->set_print_page_size(width, height);
 }
 
 //---------------------------------------------------------------------------------------
@@ -1507,6 +1586,42 @@ int Interactor::get_num_pages()
         return pGModel->get_num_pages();
     else
         return 0;
+}
+
+//---------------------------------------------------------------------------------------
+void Interactor::render_as_svg(std::ostream& svg, int page)
+{
+    GraphicView* pGView = dynamic_cast<GraphicView*>(m_pView);
+    if (pGView)
+    {
+        //ensure page is always valid
+        if (page < 0 || page > get_num_pages() - 1)
+            page = 0;
+
+        //determine the GM viewport
+        USize size = get_page_size(page);
+
+        //add <svg> element with the viewport
+        svg << "<svg xmlns='http://www.w3.org/2000/svg' version='1.1' viewBox='0 0 "
+                << size.width << " " << size.height << "'>";
+        if (m_svgOptions.add_newlines)
+            svg << endl;
+
+        //render the page
+        SvgDrawer drawer(m_libScope, svg, m_svgOptions);
+        pGView->render_as_svg(drawer, page);
+
+        //terminate svg element
+        svg << "</svg>";
+    }
+}
+
+//---------------------------------------------------------------------------------------
+void Interactor::set_svg_canvas_width(Pixels x)
+{
+    GraphicView* pGView = dynamic_cast<GraphicView*>(m_pView);
+    if (pGView)
+        pGView->set_svg_canvas_width(x);
 }
 
 
@@ -1627,7 +1742,7 @@ void Interactor::on_end_of_play_event(ImoScore* pScore, PlayerGui* pPlayCtrl)
         if (pPlayCtrl)
             pPlayCtrl->on_end_of_playback();
 
-        //AWARE: now generate the end of play event for observers (i.e. an play ctrl) and
+        //AWARE: now generate the end of play event for observers (e.g., an play ctrl) and
         //for the user application. Due to current event handling path, it is non-sense
         //to send again a new end-of-play event to the user application; worse: this
         //could create an infinite processing loop. Therefore, user application must
@@ -1930,8 +2045,7 @@ void Interactor::set_operating_mode(int mode)
         GraphicView* pGView = dynamic_cast<GraphicView*>(m_pView);
         if (pGView)
         {
-            pGView->set_visual_effects_for_mode(mode);
-            pGView->draw_all_visual_effects();
+            pGView->on_mode_changed(mode);
             request_window_update();
         }
     }
@@ -1971,7 +2085,7 @@ void Interactor::enable_edition_restricted_to(ImoId id)
     GraphicView* pGView = dynamic_cast<GraphicView*>(m_pView);
     m_pCursor->jailed_mode_in(id);
     if (pGView)
-        pGView->set_visual_effects_for_mode(k_mode_edition);
+        pGView->on_mode_changed(k_mode_edition);
 }
 
 //---------------------------------------------------------------------------------------
@@ -2130,6 +2244,26 @@ void Interactor::remove_mark(ApplicationMark* mark)
 {
     GraphicView* pGView = dynamic_cast<GraphicView*>(m_pView);
     pGView->remove_mark(mark);
+}
+
+//---------------------------------------------------------------------------------------
+MeasureHighlight* Interactor::add_measure_highlight(ImoId scoreId, const MeasureLocator& ml)
+{
+    MeasureHighlight* pMark = nullptr;
+    GraphicView* pGView = dynamic_cast<GraphicView*>(m_pView);
+    if (pGView)
+    {
+        ImoScore* pScore = nullptr;
+        if (SpDocument spDoc = m_wpDoc.lock())
+            pScore = dynamic_cast<ImoScore*>(spDoc->get_pointer_to_imo(scoreId));
+
+        if (pScore)
+        {
+            pMark = pGView->add_measure_highlight(pScore, ml);
+            request_window_update();
+        }
+    }
+    return pMark;
 }
 
 

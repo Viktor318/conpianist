@@ -1,30 +1,10 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2016. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #ifndef __LOMSE_CARET_H__
@@ -44,7 +24,7 @@ namespace lomse
 {
 
 //forward declarations
-class ScreenDrawer;
+class BitmapDrawer;
 class GraphicView;
 class GmoBoxSystem;
 
@@ -76,8 +56,8 @@ public:
     inline void hide_caret() { m_fVisible = false; }
 
     //mandatory overrides from VisualEffect
-    void on_draw(ScreenDrawer* pDrawer);
-    URect get_bounds() { return m_bounds; }
+    void on_draw(BitmapDrawer* pDrawer) override;
+    URect get_bounds() override { return m_bounds; }
 
     //caret shapes
     enum { k_top_level=0, k_box, k_line, k_block, };
@@ -105,13 +85,13 @@ public:
     inline bool is_displayed() const { return m_fBlinkStateOn; }
 
 protected:
-    void draw_caret(ScreenDrawer* pDrawer);
+    void draw_caret(BitmapDrawer* pDrawer);
 
-    void draw_caret_as_top_level(ScreenDrawer* pDrawer);
-    void draw_caret_as_block(ScreenDrawer* pDrawer);
-    void draw_caret_as_box(ScreenDrawer* pDrawer);
-    void draw_caret_as_line(ScreenDrawer* pDrawer);
-    void draw_top_level_box(ScreenDrawer* pDrawer);
+    void draw_caret_as_top_level(BitmapDrawer* pDrawer);
+    void draw_caret_as_block(BitmapDrawer* pDrawer);
+    void draw_caret_as_box(BitmapDrawer* pDrawer);
+    void draw_caret_as_line(BitmapDrawer* pDrawer);
+    void draw_top_level_box(BitmapDrawer* pDrawer);
 
 };
 

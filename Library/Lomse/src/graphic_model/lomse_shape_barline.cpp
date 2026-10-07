@@ -1,30 +1,10 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2018. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #include "lomse_shape_barline.h"
@@ -105,7 +85,19 @@ void GmoShapeBarline::compute_width()
             break;
 
         case k_barline_simple:
+        case k_barline_dashed:
+        case k_barline_dotted:
+        case k_barline_short:
+        case k_barline_tick:
             width = m_uThinLineWidth;
+            break;
+
+        case k_barline_heavy:
+            width = m_uThickLineWidth;
+            break;
+
+        case k_barline_heavy_heavy:
+            width = m_uThickLineWidth + m_uSpacing + m_uThickLineWidth;
             break;
 
         default:
@@ -182,7 +174,18 @@ void GmoShapeBarline::determine_lines_relative_positions()
             m_xRightLine = uxPos + m_uThickLineWidth;
             break;
 
+        case k_barline_heavy_heavy:
+            m_xLeftLine = uxPos;
+            uxPos += m_uThickLineWidth + m_uSpacing;
+            m_xRightLine = uxPos + m_uThickLineWidth;
+            break;
+
         case k_barline_simple:
+        case k_barline_dashed:
+        case k_barline_dotted:
+        case k_barline_heavy:
+        case k_barline_short:
+        case k_barline_tick:
             m_xLeftLine = uxPos;
             m_xRightLine = uxPos + m_uThinLineWidth;
             break;
@@ -197,6 +200,17 @@ void GmoShapeBarline::on_draw(Drawer* pDrawer, RenderOptions& opt)
     LUnits uyTop = m_origin.y;
     LUnits uyBottom = m_origin.y + m_size.height;
 
+    ImoObj* pImo = get_creator_imo();
+    bool fSystemicBarline = (pImo && pImo->is_score()) ? true : false;
+
+    if (pDrawer->accepts_id_class())
+    {
+        if (fSystemicBarline)
+            pDrawer->start_simple_notation(get_notation_id("barline"), "systemic-barline");
+        else
+            pDrawer->start_composite_notation(get_notation_id(), get_notation_class());
+    }
+
     switch(m_nBarlineType)
     {
         case k_barline_double:
@@ -208,7 +222,7 @@ void GmoShapeBarline::on_draw(Drawer* pDrawer, RenderOptions& opt)
         case k_barline_end_repetition:
             //uxPos += m_uRadius;
             uxPos += m_uRadius * 2.7f;   //BUG-BYPASS: Need to shift right the drawing
-            draw_two_dots(pDrawer, uxPos, uyTop);
+            draw_repeat_dots_for_all_staves(pDrawer, uxPos, uyTop, color);
             uxPos += m_uRadius + m_uSpacing;
             draw_thin_line(pDrawer, uxPos, uyTop, uyBottom, color);
             uxPos += m_uThinLineWidth + m_uSpacing;
@@ -220,29 +234,29 @@ void GmoShapeBarline::on_draw(Drawer* pDrawer, RenderOptions& opt)
             uxPos += m_uThickLineWidth + m_uSpacing;
             draw_thin_line(pDrawer, uxPos, uyTop, uyBottom, color);
             uxPos += m_uThinLineWidth + m_uSpacing + m_uRadius;
-            draw_two_dots(pDrawer, uxPos, uyTop);
+            draw_repeat_dots_for_all_staves(pDrawer, uxPos, uyTop, color);
             break;
 
         case k_barline_double_repetition:
             uxPos += m_uRadius;
-            draw_two_dots(pDrawer, uxPos, uyTop);
+            draw_repeat_dots_for_all_staves(pDrawer, uxPos, uyTop, color);
             uxPos += m_uSpacing + m_uRadius;
             draw_thin_line(pDrawer, uxPos, uyTop, uyBottom, color);
             uxPos += m_uThinLineWidth + m_uSpacing;
             draw_thin_line(pDrawer, uxPos, uyTop, uyBottom, color);
             uxPos += m_uThinLineWidth + m_uSpacing + m_uRadius;
-            draw_two_dots(pDrawer, uxPos, uyTop);
+            draw_repeat_dots_for_all_staves(pDrawer, uxPos, uyTop, color);
             break;
 
         case k_barline_double_repetition_alt:
             uxPos += m_uRadius;
-            draw_two_dots(pDrawer, uxPos, uyTop);
+            draw_repeat_dots_for_all_staves(pDrawer, uxPos, uyTop, color);
             uxPos += m_uSpacing + m_uRadius;
             draw_thick_line(pDrawer, uxPos, uyTop, m_uThickLineWidth, uyBottom-uyTop, color);
             uxPos += m_uThickLineWidth + m_uSpacing;
             draw_thick_line(pDrawer, uxPos, uyTop, m_uThickLineWidth, uyBottom-uyTop, color);
             uxPos += m_uThickLineWidth + m_uSpacing + m_uRadius;
-            draw_two_dots(pDrawer, uxPos, uyTop);
+            draw_repeat_dots_for_all_staves(pDrawer, uxPos, uyTop, color);
             break;
 
         case k_barline_start:
@@ -260,10 +274,51 @@ void GmoShapeBarline::on_draw(Drawer* pDrawer, RenderOptions& opt)
         case k_barline_simple:
             draw_thin_line(pDrawer, uxPos, uyTop, uyBottom, color);
             break;
+
+        case k_barline_heavy_heavy:
+            draw_thick_line(pDrawer, uxPos, uyTop, m_uThickLineWidth, uyBottom-uyTop, color);
+            uxPos += m_uThickLineWidth + m_uSpacing;
+            draw_thick_line(pDrawer, uxPos, uyTop, m_uThickLineWidth, uyBottom-uyTop, color);
+            break;
+
+        case k_barline_dashed:
+            draw_dashed_line(pDrawer, uxPos, uyTop, uyBottom, color);
+            break;
+
+        case k_barline_dotted:
+            //a dot in the center of each space
+            draw_doted_line(pDrawer, uxPos, uyTop, uyBottom, color);
+            break;
+
+        case k_barline_heavy:
+            draw_thick_line(pDrawer, uxPos, uyTop, m_uThickLineWidth, uyBottom-uyTop, color);
+            break;
+
+        case k_barline_short:
+        {
+            //a partial	barline between the 2nd and 4th lines
+            LUnits uHeight = (uyBottom - uyTop) / 4.0f;    //10 tenths
+            uyTop += uHeight;
+            uyBottom -= uHeight;
+            draw_thin_line(pDrawer, uxPos, uyTop, uyBottom, color);
+            break;
+        }
+        case k_barline_tick:
+        {
+            //a	short stroke through the top line
+            LUnits uHeight = (uyBottom - uyTop) / 4.0f;    //10 tenths
+            uyTop -= uHeight / 2.0f;
+            uyBottom = uyTop + uHeight;
+            draw_thin_line(pDrawer, uxPos, uyTop, uyBottom, color);
+            break;
+        }
     }
     pDrawer->render();
 
     GmoSimpleShape::on_draw(pDrawer, opt);
+
+    if (pDrawer->accepts_id_class() && !fSystemicBarline)
+        pDrawer->end_composite_notation();
 }
 
 //---------------------------------------------------------------------------------------
@@ -272,6 +327,7 @@ void GmoShapeBarline::draw_thin_line(Drawer* pDrawer, LUnits uxPos, LUnits uyTop
 {
     pDrawer->begin_path();
     pDrawer->fill(color);
+    pDrawer->stroke(color);
     pDrawer->line(uxPos + m_uThinLineWidth/2, uyTop,
                   uxPos + m_uThinLineWidth/2, uyBottom,
                   m_uThinLineWidth, k_edge_normal);
@@ -284,6 +340,7 @@ void GmoShapeBarline::draw_thick_line(Drawer* pDrawer, LUnits uxPos, LUnits uyTo
 {
     pDrawer->begin_path();
     pDrawer->fill(color);
+    pDrawer->stroke(color);
     pDrawer->line(uxPos + uWidth/2, uyTop,
                   uxPos + uWidth/2, uyTop + uHeight,
                   uWidth, k_edge_normal);
@@ -291,14 +348,70 @@ void GmoShapeBarline::draw_thick_line(Drawer* pDrawer, LUnits uxPos, LUnits uyTo
 }
 
 //---------------------------------------------------------------------------------------
-void GmoShapeBarline::draw_two_dots(Drawer* pDrawer, LUnits uxPos, LUnits uyPos)
+void GmoShapeBarline::draw_doted_line(Drawer* pDrawer, LUnits uxPos, LUnits uyTop,
+                                      LUnits uyBottom, Color color)
+{
+    LUnits space = (uyBottom - uyTop) / 4.0f;    //10 tenths
+    uyTop += space / 2.0f;
+    LUnits radius = m_uRadius / 2.0f;
+
+    pDrawer->begin_path();
+    pDrawer->fill(color);
+    pDrawer->stroke(color);
+    for (int i=0; i < 4; ++i)
+    {
+        pDrawer->circle(uxPos, uyTop, radius);
+        uyTop += space;
+    }
+    pDrawer->end_path();
+}
+
+//---------------------------------------------------------------------------------------
+void GmoShapeBarline::draw_dashed_line(Drawer* pDrawer, LUnits uxPos, LUnits uyTop,
+                                       LUnits uyBottom, Color color)
+{
+    LUnits length = (uyBottom - uyTop) / 11.0f;    //3.363 tenths
+    uxPos += m_uThinLineWidth/2;
+
+    pDrawer->begin_path();
+    pDrawer->fill(color);
+    pDrawer->stroke(color);
+    for (int i=0; i < 6; ++i)
+    {
+        pDrawer->line(uxPos, uyTop, uxPos, uyTop + length, m_uThinLineWidth, k_edge_normal);
+        uyTop += length + length;
+    }
+    pDrawer->end_path();
+}
+
+//---------------------------------------------------------------------------------------
+void GmoShapeBarline::draw_two_dots(Drawer* pDrawer, LUnits uxPos, LUnits uyPos,
+                                    Color color)
 {
     LUnits uShift1 = m_uSpacing * 3.7f;
     LUnits uShift2 = m_uSpacing * 6.1f;
     pDrawer->begin_path();
+    pDrawer->fill(color);
+    pDrawer->stroke(color);
     pDrawer->circle(uxPos, uyPos + uShift1, m_uRadius);
     pDrawer->circle(uxPos, uyPos + uShift2, m_uRadius);
     pDrawer->end_path();
+}
+
+//---------------------------------------------------------------------------------------
+void GmoShapeBarline::draw_repeat_dots_for_all_staves(Drawer* pDrawer, LUnits uxPos, LUnits uyPos, Color color)
+{
+    if (m_relStaffTopPositions.empty())
+    {
+        draw_two_dots(pDrawer, uxPos, uyPos, color);
+        return;
+    }
+
+    for (LUnits relStaffTop : m_relStaffTopPositions)
+    {
+        const LUnits absStaffTop = uyPos + relStaffTop;
+        draw_two_dots(pDrawer, uxPos, absStaffTop, color);
+    }
 }
 
 ////---------------------------------------------------------------------------------------

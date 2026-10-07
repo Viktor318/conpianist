@@ -1,30 +1,10 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2018. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #ifndef __LOMSE_EVENTS_H__
@@ -53,6 +33,10 @@ class ImoStaffObj;
 class PlayerGui;
 class SelectionSet;
 class GmoObj;
+
+class ADocument;
+class ADynamic;
+class AObject;
 
 class Interactor;
 typedef std::weak_ptr<Interactor>     WpInteractor;
@@ -225,7 +209,7 @@ typedef std::shared_ptr<EventDoc>  SpEventDoc;
 	inform the user application that it must immediately update the content of the
 	window associated to the lomse View, by displaying the current bitmap. User
 	application must put immediately the content of the currently rendered buffer
-	into the window without calling any Lomse methods (i.e. force_redraw) or generating
+	into the window without calling any Lomse methods (e.g., force_redraw) or generating
 	application events. .
 
 	For receiving these events you will have to register a callback when
@@ -253,9 +237,6 @@ typedef std::shared_ptr<EventDoc>  SpEventDoc;
 		...
 		if (SpInteractor spInteractor = m_pPresenter->get_interactor(0).lock())
 		{
-		    //connect the View with the window buffer
-		    spInteractor->set_rendering_buffer(&m_rbuf_window);
-
 		    //register to receive desired events
 		    spInteractor->add_event_handler(k_update_window_event, this, wrapper_update_window);
 		...
@@ -657,7 +638,7 @@ typedef std::shared_ptr<EventUpdateUI>  SpEventUpdateUI;
         different box areas. Probably your application should ignore these events.
     - TaskDataEntry selected: As mouse moves, mouse in and out events are generated,
         as mouse flies over the different box areas. Your application can handle these
-        events and react to them as convenient (i.e. highlighting the implied
+        events and react to them as convenient (e.g., highlighting the implied
         insertion point/area).
 
     <b>Type k_on_click_event</b>
@@ -756,7 +737,7 @@ public:
     /** Returns a pointer to the Observable object (an ImoContentObj) related to the
         event. It is either the mouse pointed object or the first ancestor of type
         ImoContentObj in the internal model hierarchy. */
-    Observable* get_source();
+    Observable* get_source() override;
 
     /** Returns the ID of the Document object (ImoObj) affected by the event. For
         instance, for a mouse click event this object will be the ID of the ImoObj
@@ -809,9 +790,6 @@ typedef std::shared_ptr<EventMouse>  SpEventMouse;
 		...
 		if (SpInteractor spInteractor = m_pPresenter->get_interactor(0).lock())
 		{
-		    //connect the View with the window buffer
-		    spInteractor->set_rendering_buffer(&m_rbuf_window);
-
 		    //register to receive desired events
 		    spInteractor->add_event_handler(k_update_window_event, this, wrapper_update_window);
 		    spInteractor->add_event_handler(k_do_play_score_event, this, wrapper_play_score);
@@ -1193,9 +1171,6 @@ typedef std::shared_ptr<EventVisualTracking>  SpEventVisualTracking;
 		...
 		if (SpInteractor spInteractor = m_pPresenter->get_interactor(0).lock())
 		{
-		    //connect the View with the window buffer
-		    spInteractor->set_rendering_buffer(&m_rbuf_window);
-
 		    //register to receive desired events
 		    spInteractor->add_event_handler(k_control_point_moved_event, this, wrapper_on_action_event);
 		...
@@ -1374,15 +1349,16 @@ public:
     ~RequestDynamic() {}
 
     /** If the user application has not yet handled this request, this method returns
-        the ImoDynamic object that should be replaced. Otherwise, returns the replacement
-        ImoObj set by the user application.    */
-    inline ImoObj* get_object() { return m_pObj; }
+        the dynamic object that should be replaced. Otherwise, returns the replacement
+        object set by the user application.
+    */
+    AObject get_object();
 
-    /// Returns a pointer to the Document to which this request refers to.    */
-    inline Document* get_document() { return m_pDoc; }
+    /// Returns the document to which this request refers to.    */
+    ADocument get_document();
 
     ///for setting requested data
-    inline void set_object(ImoObj* pObj) { m_pObj = pObj; }
+    void set_object(AObject& obj);
 
 };
 
@@ -1459,8 +1435,8 @@ public:
         //use operating system services to find a suitable font
 
         //notes on parameters received:
-        // - fontname can be either the face name (i.e. "Book Antiqua") or
-        //   the familly name (i.e. "Liberation sans")
+        // - fontname can be either the face name (e.g., "Book Antiqua") or
+        //   the familly name (e.g., "Liberation sans")
 
         const string& fontname = pRequest->get_fontname();
         bool bold = pRequest->get_bold();
@@ -1548,7 +1524,7 @@ public:
 
     //getters
     /** Returns the <i>fontname</i>. It can be either the face name (i.e.
-        "Book Antiqua") or the familly name (i.e. "Liberation sans"). */
+        "Book Antiqua") or the familly name (e.g., "Liberation sans"). */
     inline const string& get_fontname() { return m_fontname; }
     ///Returns @true is the font is requested in bold face. */
     inline bool get_bold() { return m_bold; }

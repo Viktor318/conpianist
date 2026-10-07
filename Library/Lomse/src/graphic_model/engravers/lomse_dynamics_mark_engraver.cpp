@@ -1,30 +1,10 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2018. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #include "lomse_dynamics_mark_engraver.h"
@@ -35,6 +15,8 @@
 #include "lomse_shapes.h"
 #include "lomse_glyphs.h"
 #include "lomse_shape_note.h"
+#include "lomse_aux_shapes_aligner.h"
+#include "lomse_vertical_profile.h"
 
 
 namespace lomse
@@ -43,10 +25,8 @@ namespace lomse
 //---------------------------------------------------------------------------------------
 // DynamicsMarkEngraver implementation
 //---------------------------------------------------------------------------------------
-DynamicsMarkEngraver::DynamicsMarkEngraver(LibraryScope& libraryScope,
-                                           ScoreMeter* pScoreMeter,
-                                           int UNUSED(iInstr), int UNUSED(iStaff))
-    : Engraver(libraryScope, pScoreMeter)
+DynamicsMarkEngraver::DynamicsMarkEngraver(const EngraverContext& ctx)
+    : AuxObjEngraver(ctx)
     , m_pDynamicsMark(nullptr)
     , m_placement(k_placement_default)
     , m_fAbove(true)
@@ -78,6 +58,9 @@ GmoShapeDynamicsMark* DynamicsMarkEngraver::create_shape(ImoDynamicsMark* pDynam
     {
         center_on_parent();
     }
+
+    shift_shape_if_collision();
+    add_to_aux_shapes_aligner(m_pDynamicsMarkShape, m_fAbove);
 
     return m_pDynamicsMarkShape;
 }
@@ -241,5 +224,34 @@ int DynamicsMarkEngraver::find_glyph()
     return k_glyph_dynamic_p;       //TODO: composite shape?
 }
 
+//---------------------------------------------------------------------------------------
+void DynamicsMarkEngraver::shift_shape_if_collision()
+{
+    LUnits yPos = m_pDynamicsMarkShape->get_top();
+    const LUnits space = tenths_to_logical(5.0f);
+
+    if (m_placement == k_placement_above)
+    {
+        std::pair<LUnits, GmoShape*> minValue =
+                        m_pVProfile->get_min_for(m_pDynamicsMarkShape->get_left(),
+                                                 m_pDynamicsMarkShape->get_right(),
+                                                 m_idxStaff);
+        const LUnits yMin = minValue.first - m_pDynamicsMarkShape->get_height() - space;
+        if (yPos > yMin)
+            yPos = yMin;
+    }
+    else
+    {
+        std::pair<LUnits, GmoShape*> maxValue =
+                        m_pVProfile->get_max_for(m_pDynamicsMarkShape->get_left(),
+                                                 m_pDynamicsMarkShape->get_right(),
+                                                 m_idxStaff);
+        const LUnits yMax = maxValue.first + space;
+        if (yPos < yMax)
+            yPos = yMax;
+    }
+
+    m_pDynamicsMarkShape->set_top(yPos);
+}
 
 }  //namespace lomse

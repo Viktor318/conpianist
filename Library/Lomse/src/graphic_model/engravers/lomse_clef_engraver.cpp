@@ -1,30 +1,10 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2018. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #include "lomse_clef_engraver.h"
@@ -46,7 +26,7 @@ namespace lomse
 //---------------------------------------------------------------------------------------
 ClefEngraver::ClefEngraver(LibraryScope& libraryScope, ScoreMeter* pScoreMeter,
                            int iInstr, int iStaff)
-    : Engraver(libraryScope, pScoreMeter, iInstr, iStaff)
+    : StaffObjEngraver(libraryScope, pScoreMeter, iInstr, iStaff)
     , m_nClefType(0)
     , m_symbolSize(0)
     , m_iGlyph(0)
@@ -56,7 +36,7 @@ ClefEngraver::ClefEngraver(LibraryScope& libraryScope, ScoreMeter* pScoreMeter,
 
 //---------------------------------------------------------------------------------------
 ClefEngraver::ClefEngraver(LibraryScope& libraryScope)
-    : Engraver(libraryScope, nullptr)
+    : StaffObjEngraver(libraryScope, nullptr, 0, 0)
     , m_nClefType(0)
     , m_symbolSize(0)
     , m_iGlyph(0)
@@ -76,6 +56,12 @@ GmoShape* ClefEngraver::create_shape(ImoClef* pCreatorImo, UPoint uPos, int clef
     // get the shift to the staff on which the clef must be drawn
     LUnits y = uPos.y + m_pMeter->tenths_to_logical(get_glyph_offset(), m_iInstr, m_iStaff);
 
+//    //fix shift for TAB clef
+//    if (m_nClefType == k_clef_TAB)
+//    {
+//        y = uPos.y + m_pMeter->tenths_to_logical(get_glyph_offset(), m_iInstr, m_iStaff);
+//    }
+
     //Add minimum space before clef change
     LUnits x = uPos.x;
     if (symbolSize == k_size_cue)
@@ -86,7 +72,7 @@ GmoShape* ClefEngraver::create_shape(ImoClef* pCreatorImo, UPoint uPos, int clef
     //create the shape object
     ShapeId idx = 0;
     m_pClefShape = LOMSE_NEW GmoShapeClef(pCreatorImo, idx, m_iGlyph, UPoint(x, y),
-                                        color, m_libraryScope, fontSize);
+                                          color, m_libraryScope, fontSize);
     return m_pClefShape;
 }
 
@@ -140,6 +126,8 @@ int ClefEngraver::find_glyph(int clefType)
         case k_clef_15_F4: return k_glyph_f_clef_quindicesima_alta;
         case k_clef_F4_15: return k_glyph_f_clef_quindicesima_bassa;
         case k_clef_percussion: return k_glyph_percussion_clef_block;
+        case k_clef_TAB: return k_glyph_TAB_clef;
+        case k_clef_none: return k_glyph_g_clef;
         default:
         {
             LOMSE_LOG_ERROR("No glyph defined for clef type %d.", clefType);
@@ -151,8 +139,8 @@ int ClefEngraver::find_glyph(int clefType)
 //---------------------------------------------------------------------------------------
 double ClefEngraver::determine_font_size()
 {
-    double fontSize = 21.0 * m_pMeter->line_spacing_for_instr_staff(m_iInstr, m_iStaff)
-                     / 180.0;
+    double fontSize = StaffSymbolEngraver::determine_font_size();
+
     switch (m_symbolSize)
     {
         case k_size_cue:        return fontSize * 0.80;
@@ -203,8 +191,13 @@ Tenths ClefEngraver::get_glyph_offset()
             case k_clef_C5:     return yOffset - 1.0f;
 
             case k_clef_percussion:     return yOffset + 20.0f;
+            case k_clef_TAB:            return yOffset + 25.0f;     //assumes 6 lines
+            case k_clef_none:           return yOffset + 30.0f;
             default:
+            {
+                LOMSE_LOG_ERROR("No offset defined for clef type %d.", m_nClefType);
                 return yOffset;
+            }
         }
     }
     else
@@ -233,62 +226,17 @@ Tenths ClefEngraver::get_glyph_offset()
             case k_clef_C5:     return yOffset;
 
             case k_clef_percussion:     return yOffset + 20.0f;
+            case k_clef_TAB:            return yOffset + 25.0f;     //assumes 6 lines
+            case k_clef_none:           return yOffset + 30.0f;
 
             default:
+            {
+                LOMSE_LOG_ERROR("No offset defined for clef type %d.", m_nClefType);
                 return yOffset;
+            }
         }
     }
 }
-
-////---------------------------------------------------------------------------------------
-//UPoint ClefEngraver::ComputeBestLocation(UPoint& uOrg, lmPaper* pPaper)
-//{
-//	// if no location is specified in LDP source file, this method is invoked from
-//	// base class to ask derived object to compute a suitable position to
-//	// place itself.
-//	// uOrg is the assigned paper position for this object.
-//
-//	UPoint uPos = uOrg;
-//
-//	// get the shift to the staff on which the clef must be drawn
-//	uPos.y += m_pVStaff->GetStaffOffset(m_nStaffNum);
-//
-//	return uPos;
-//}
-//
-////---------------------------------------------------------------------------------------
-//LUnits ClefEngraver::LayoutObject(GmoBox* pBox, lmPaper* pPaper, UPoint uPos, Color colorC)
-//{
-//    // This method is invoked by the base class (lmStaffObj). It is responsible for
-//    // creating the shape object and adding it to the graphical model.
-//    // Paper cursor must be used as the base for positioning.
-//
-//    if (lmPRESERVE_SHAPES && !IsDirty())
-//    {
-//        //Not dirty: just add existing shape (main shape) to the Box
-//        GmoShape* pOldShape = this->GetShape(1);
-//        pBox->AddShape(pOldShape, GetLayer());
-//        pOldShape->SetColour(*wxCYAN);//colorC);       //change its colour to new desired colour
-//
-//        //set shapes index counter so that first prolog shape will have index 1
-//        SetShapesIndexCounter(1);
-//    }
-//    else
-//    {
-//        //Dirty: create new shapes for this object
-//
-//        //if not prolog clef its size must be smaller. We know that it is a prolog clef because
-//        //there is no previous context
-//        bool fSmallClef = (m_pContext->GetPrev() != (lmContext*)nullptr);
-//
-//        //create the shape object
-//        GmoShape* pShape = CreateShape(pBox, pPaper, uPos, colorC, fSmallClef);
-//        pShape->SetShapeLevel(lm_eMainShape);
-//    }
-//
-//    //return total width
-//	return GetShape()->GetWidth();
-//}
 
 
 }  //namespace lomse

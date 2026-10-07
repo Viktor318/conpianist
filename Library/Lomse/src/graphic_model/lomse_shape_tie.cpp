@@ -1,30 +1,10 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2018. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #include "lomse_shape_tie.h"
@@ -102,17 +82,28 @@ void GmoShapeSlurTie::save_points(UPoint* points)
 //---------------------------------------------------------------------------------------
 void GmoShapeSlurTie::compute_vertices()
 {
-    LUnits t = m_thickness / 2.0f;
+    LUnits t = m_thickness * 0.5f;
+    LUnits a1 = atan2(m_points[ImoBezierInfo::k_ctrol1].y-m_points[ImoBezierInfo::k_start].y,
+                      m_points[ImoBezierInfo::k_ctrol1].x-m_points[ImoBezierInfo::k_start].x);
+    LUnits dx1 = t*sin(a1);
+    LUnits dy1 = max(t*cos(a1), t*0.5f);
+
+
+    LUnits a2 = atan2(m_points[ImoBezierInfo::k_ctrol2].y-m_points[ImoBezierInfo::k_end].y,
+                      m_points[ImoBezierInfo::k_end].x-m_points[ImoBezierInfo::k_ctrol2].x);
+    LUnits dx2 = t*sin(a2);
+    LUnits dy2 = max(t*cos(a2), t*0.5f);
+
     m_vertices[0] = m_points[ImoBezierInfo::k_start];
-    m_vertices[1].x = m_points[ImoBezierInfo::k_ctrol1].x;
-    m_vertices[1].y = m_points[ImoBezierInfo::k_ctrol1].y - t;
-    m_vertices[2].x = m_points[ImoBezierInfo::k_ctrol2].x;
-    m_vertices[2].y = m_points[ImoBezierInfo::k_ctrol2].y - t;
+    m_vertices[1].x = m_points[ImoBezierInfo::k_ctrol1].x + dx1;
+    m_vertices[1].y = m_points[ImoBezierInfo::k_ctrol1].y - dy1;
+    m_vertices[2].x = m_points[ImoBezierInfo::k_ctrol2].x - dx2;
+    m_vertices[2].y = m_points[ImoBezierInfo::k_ctrol2].y - dy2;
     m_vertices[3] = m_points[ImoBezierInfo::k_end];
-    m_vertices[4].x = m_points[ImoBezierInfo::k_ctrol2].x - t;
-    m_vertices[4].y = m_points[ImoBezierInfo::k_ctrol2].y + t;
-    m_vertices[5].x = m_points[ImoBezierInfo::k_ctrol1].x + t;
-    m_vertices[5].y = m_points[ImoBezierInfo::k_ctrol1].y + t;
+    m_vertices[4].x = m_points[ImoBezierInfo::k_ctrol2].x + dx2;
+    m_vertices[4].y = m_points[ImoBezierInfo::k_ctrol2].y + dy2;
+    m_vertices[5].x = m_points[ImoBezierInfo::k_ctrol1].x - dx1;
+    m_vertices[5].y = m_points[ImoBezierInfo::k_ctrol1].y + dy1;
     m_vertices[6] = m_points[ImoBezierInfo::k_start];
 }
 
@@ -120,27 +111,22 @@ void GmoShapeSlurTie::compute_vertices()
 void GmoShapeSlurTie::compute_bounds()
 {
     //TODO: Improve bounds computation.
-    //For now, I just take a rectangle based on control points
+    //For now, I just take a rectangle based on center point
+    LUnits yc = (m_points[0].y + m_points[1].y + 3.0f * (m_points[2].y + m_points[3].y)) / 8.0f;
 
     m_origin.x = m_points[ImoBezierInfo::k_start].x;
-    m_origin.x = min(m_origin.x, m_points[ImoBezierInfo::k_ctrol1].x);
-    m_origin.x = min(m_origin.x, m_points[ImoBezierInfo::k_ctrol2].x);
     m_origin.x = min(m_origin.x, m_points[ImoBezierInfo::k_end].x);
 
     m_origin.y = m_points[ImoBezierInfo::k_start].y;
-    m_origin.y = min(m_origin.y, m_points[ImoBezierInfo::k_ctrol1].y);
-    m_origin.y = min(m_origin.y, m_points[ImoBezierInfo::k_ctrol2].y);
     m_origin.y = min(m_origin.y, m_points[ImoBezierInfo::k_end].y);
+    m_origin.y = min(m_origin.y, yc);
 
-    LUnits max_x = m_points[ImoBezierInfo::k_end].x;
-    max_x = max(max_x, m_points[ImoBezierInfo::k_ctrol1].x);
-    max_x = max(max_x, m_points[ImoBezierInfo::k_ctrol2].x);
+    LUnits max_x = m_points[ImoBezierInfo::k_start].x;
     max_x = max(max_x, m_points[ImoBezierInfo::k_end].x);
 
     LUnits max_y = m_points[ImoBezierInfo::k_start].y;
-    max_y = max(max_y, m_points[ImoBezierInfo::k_ctrol1].y);
-    max_y = max(max_y, m_points[ImoBezierInfo::k_ctrol2].y);
     max_y = max(max_y, m_points[ImoBezierInfo::k_end].y);
+    max_y = max(max_y, yc);
 
     m_size.width = max_x - m_origin.x;
     m_size.height = max_y - m_origin.y;
@@ -214,6 +200,15 @@ GmoShapeTie::GmoShapeTie(ImoObj* pCreatorImo, ShapeId idx, UPoint* points,
 {
 }
 
+//---------------------------------------------------------------------------------------
+void GmoShapeTie::on_draw(Drawer* pDrawer, RenderOptions& opt)
+{
+    if (pDrawer->accepts_id_class())
+        pDrawer->start_simple_notation(get_notation_id(), get_notation_class());
+
+    GmoShapeSlurTie::on_draw(pDrawer, opt);
+}
+
 
 //=======================================================================================
 // GmoShapeSlur implementation
@@ -225,9 +220,14 @@ GmoShapeSlur::GmoShapeSlur(ImoObj* pCreatorImo, ShapeId idx, UPoint* points,
 }
 
 //---------------------------------------------------------------------------------------
-void GmoShapeSlur::add_data_points(const std::vector<UPoint>& data)
+void GmoShapeSlur::add_data_points(const std::vector<UPoint>& data, UPoint peak,
+                                   Color color)
 {
+    m_dbgColor = color;
     m_dataPoints = data;
+    m_dbgPeak.x = peak.x - m_origin.x;
+    m_dbgPeak.y = peak.y - m_origin.y;
+
     for (unsigned i=0; i < m_dataPoints.size(); ++i)
     {
         m_dataPoints[i].x -= m_origin.x;
@@ -236,11 +236,26 @@ void GmoShapeSlur::add_data_points(const std::vector<UPoint>& data)
 }
 
 //---------------------------------------------------------------------------------------
+void GmoShapeSlur::add_approx_arc(LUnits xc, LUnits yc, LUnits r)
+{
+    m_xc = xc - m_origin.x;
+    m_yc = yc - m_origin.y;
+    m_r = r;
+}
+
+//---------------------------------------------------------------------------------------
 void GmoShapeSlur::on_draw(Drawer* pDrawer, RenderOptions& opt)
 {
-//    draw_control_points(pDrawer);
-//    draw_reference_points(pDrawer);
+    if (opt.draw_slur_points)
+    {
+        draw_control_points(pDrawer);
+        draw_reference_points(pDrawer);
+        draw_approximate_arc(pDrawer);
+    }
     pDrawer->render();
+
+    if (pDrawer->accepts_id_class())
+        pDrawer->start_simple_notation(get_notation_id(), get_notation_class());
 
     GmoShapeSlurTie::on_draw(pDrawer, opt);
 }
@@ -248,14 +263,13 @@ void GmoShapeSlur::on_draw(Drawer* pDrawer, RenderOptions& opt)
 //---------------------------------------------------------------------------------------
 void GmoShapeSlur::draw_control_points(Drawer* pDrawer)
 {
-    Color color(255,0,0);
     pDrawer->begin_path();
-    pDrawer->fill(color);
-    for (unsigned i=0; i < 4; ++i)
-    {
-        pDrawer->circle(m_points[i].x + m_origin.x,
-                        m_points[i].y + m_origin.y, 60.0f);
-    }
+    pDrawer->fill(m_dbgColor);
+//    for (unsigned i=0; i < 4; ++i)
+//    {
+//        pDrawer->circle(m_points[i].x + m_origin.x,
+//                        m_points[i].y + m_origin.y, 60.0f);
+//    }
 
 //    //determine cross point for tangent lines
 //    LUnits m1 = (m_points[2].y - m_points[0].y) / (m_points[2].x - m_points[0].x);
@@ -283,20 +297,58 @@ void GmoShapeSlur::draw_control_points(Drawer* pDrawer)
     pDrawer->line(m_points[1].x + m_origin.x, m_points[1].y + m_origin.y,
                   m_points[3].x + m_origin.x, m_points[3].y + m_origin.y,
                   25.0f);
-    pDrawer->end_path();
+    //pDrawer->end_path();
 
     //draw baseline
-    pDrawer->begin_path();
-    pDrawer->fill(Color(0,255,0));
+    //pDrawer->begin_path();
+    //pDrawer->fill(Color(0,255,0));
     pDrawer->line(m_points[0].x + m_origin.x, m_points[0].y + m_origin.y,
                   m_points[1].x + m_origin.x, m_points[1].y + m_origin.y,
                   25.0f);
+    xc = (m_points[0].x + m_points[1].x) / 2.0f;
+    yc = (m_points[0].y + m_points[1].y) / 2.0f;
+    xc += m_origin.x;
+    yc += m_origin.y;
+    pDrawer->circle(xc, yc, 60.0f);
 
-//    //draw middle line
-//    pDrawer->line(m_points[2].x + m_origin.x, m_points[2].y + m_origin.y,
-//                  m_points[3].x + m_origin.x, m_points[3].y + m_origin.y,
-//                  25.0f);
+    //draw top line
+    pDrawer->line(m_points[2].x + m_origin.x, m_points[2].y + m_origin.y,
+                  m_points[3].x + m_origin.x, m_points[3].y + m_origin.y,
+                  25.0f);
+    xc = (m_points[2].x + m_points[3].x) / 2.0f;
+    yc = (m_points[2].y + m_points[3].y) / 2.0f;
+    xc += m_origin.x;
+    yc += m_origin.y;
+    pDrawer->circle(xc, yc, 60.0f);
 
+    pDrawer->end_path();
+
+    //draw peak point
+    if (m_dataPoints.size() > 2)
+    {
+        pDrawer->begin_path();
+        pDrawer->fill(Color(0,255,255));    //cyan
+        pDrawer->circle(m_dbgPeak.x + m_origin.x, m_dbgPeak.y + m_origin.y, 60.0f);
+        pDrawer->end_path();
+    }
+
+    //draw aux control points
+    pDrawer->begin_path();
+    pDrawer->fill(Color(255,0,0));
+    pDrawer->circle(m_vertices[1].x + m_origin.x, m_vertices[1].y + m_origin.y, 60.0f);
+    pDrawer->circle(m_vertices[2].x + m_origin.x, m_vertices[2].y + m_origin.y, 60.0f);
+    pDrawer->end_path();
+
+    pDrawer->begin_path();
+    pDrawer->fill(Color(0,0,255));
+    pDrawer->circle(m_vertices[4].x + m_origin.x, m_vertices[4].y + m_origin.y, 60.0f);
+    pDrawer->circle(m_vertices[5].x + m_origin.x, m_vertices[5].y + m_origin.y, 60.0f);
+    pDrawer->end_path();
+
+    pDrawer->begin_path();
+    pDrawer->fill(Color(255,255,255));
+    pDrawer->circle(m_points[2].x + m_origin.x, m_points[2].y + m_origin.y, 10.0f);
+    pDrawer->circle(m_points[3].x + m_origin.x, m_points[3].y + m_origin.y, 10.0f);
     pDrawer->end_path();
 }
 
@@ -316,6 +368,20 @@ void GmoShapeSlur::draw_reference_points(Drawer* pDrawer)
     }
 
     pDrawer->end_path();
+}
+
+//---------------------------------------------------------------------------------------
+void GmoShapeSlur::draw_approximate_arc(Drawer* pDrawer)
+{
+    if (m_r > 0.0)
+    {
+        pDrawer->begin_path();
+        pDrawer->stroke_width(25.0f);
+        pDrawer->stroke(Color(255,128,0));  //orange
+        pDrawer->fill_none();
+        pDrawer->circle(m_xc + m_origin.x, m_yc + m_origin.y, m_r);
+        pDrawer->end_path();
+    }
 }
 
 

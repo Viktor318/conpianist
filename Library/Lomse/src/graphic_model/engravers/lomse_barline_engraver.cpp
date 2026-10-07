@@ -1,35 +1,16 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2018. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #include "lomse_barline_engraver.h"
 
 #include "lomse_internal_model.h"
+#include "lomse_instrument_engraver.h"
 #include "lomse_engraving_options.h"
 #include "lomse_shape_barline.h"
 #include "lomse_box_slice_instr.h"
@@ -44,18 +25,50 @@ namespace lomse
 // BarlineEngraver implementation
 //---------------------------------------------------------------------------------------
 BarlineEngraver::BarlineEngraver(LibraryScope& libraryScope, ScoreMeter* pScoreMeter,
-                                 int iInstr)
-    : Engraver(libraryScope, pScoreMeter, iInstr)
+                                 int iInstr, InstrumentEngraver* pInstrEngrv)
+    : StaffObjEngraver(libraryScope, pScoreMeter, iInstr, 0)
     , m_pBarlineShape(nullptr)
+    , m_pInstrEngrv(pInstrEngrv)
 {
 }
 
 //---------------------------------------------------------------------------------------
 BarlineEngraver::BarlineEngraver(LibraryScope& libraryScope)
-    : Engraver(libraryScope, nullptr)
+    : StaffObjEngraver(libraryScope, nullptr, 0, 0)
     , m_pBarlineShape(nullptr)
+    , m_pInstrEngrv(nullptr)
 {
     //constructor for dragged images
+}
+
+//---------------------------------------------------------------------------------------
+static bool is_repeat_barline_type(EBarline type)
+{
+    switch (type)
+    {
+        case k_barline_unknown:
+        case k_barline_none:
+        case k_barline_simple:
+        case k_barline_double:
+        case k_barline_start:
+        case k_barline_end:
+        case k_barline_dashed:
+        case k_barline_dotted:
+        case k_barline_heavy:
+        case k_barline_short:
+        case k_barline_tick:
+        case k_barline_heavy_heavy:
+            return false;
+        case k_barline_start_repetition:
+        case k_barline_end_repetition:
+        case k_barline_double_repetition:
+        case k_barline_double_repetition_alt:
+            return true;
+        case k_max_barline:
+            break;
+    }
+
+    return false;
 }
 
 //---------------------------------------------------------------------------------------
@@ -70,20 +83,40 @@ GmoShape* BarlineEngraver::create_shape(ImoBarline* pBarline, LUnits xPos,
     //force selection rectangle to have at least a width of half line (5 tenths)
     LUnits uMinWidth = 0;   //m_pMeter->tenths_to_logical(5.0f, m_iInstr, 0);
 
+    const EBarline barline_type = static_cast<EBarline>(pBarline->get_type());
+
     ShapeId idx = 0;
-    return LOMSE_NEW GmoShapeBarline(pBarline, idx, pBarline->get_type(),
-                                     xPos, yTop, yBottom,
-                                     thinLineWidth, thickLineWidth, spacing,
-                                     radius, color, uMinWidth);
+    GmoShapeBarline* pBarlineShape = LOMSE_NEW GmoShapeBarline(pBarline, idx, barline_type,
+                                                               xPos, yTop, yBottom,
+                                                               thinLineWidth, thickLineWidth, spacing,
+                                                               radius, color, uMinWidth);
+
+    if (m_pInstrEngrv && is_repeat_barline_type(barline_type))
+    {
+        const int numStaves = m_pInstrEngrv->get_num_staves();
+
+        std::vector<LUnits> relStaffTopPositions;
+        relStaffTopPositions.reserve(numStaves);
+
+        for (int i = 0; i < numStaves; ++i)
+        {
+            const LUnits yStaffTop = m_pInstrEngrv->get_top_line_of_staff(i);
+            relStaffTopPositions.push_back(yStaffTop - yTop);
+        }
+
+        pBarlineShape->set_relative_staff_top_positions(std::move(relStaffTopPositions));
+    }
+
+    return pBarlineShape;
 }
 
 //---------------------------------------------------------------------------------------
-GmoShape* BarlineEngraver::create_system_barline_shape(ImoObj* pCreatorImo, LUnits xPos,
-                                                       LUnits yTop, LUnits yBottom,
-                                                       Color color)
+GmoShape* BarlineEngraver::create_systemic_barline_shape(ImoObj* pCreatorImo, ShapeId idx,
+                                                       LUnits xPos, LUnits yTop,
+                                                       LUnits yBottom, Color color)
 {
     LUnits uLineThickness = m_pMeter->tenths_to_logical(LOMSE_THIN_LINE_WIDTH, 0, 0);
-    return LOMSE_NEW GmoShapeBarline(pCreatorImo, 0, k_barline_simple,
+    return LOMSE_NEW GmoShapeBarline(pCreatorImo, idx, k_barline_simple,
                                      xPos, yTop, yBottom,
                                      uLineThickness, uLineThickness,
                                      0.0f, 0.0f, color, uLineThickness);

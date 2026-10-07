@@ -1,30 +1,10 @@
 //---------------------------------------------------------------------------------------
 // This file is part of the Lomse library.
-// Lomse is copyrighted work (c) 2010-2020. All rights reserved.
+// Copyright (c) 2010-present, Lomse Developers
 //
-// Redistribution and use in source and binary forms, with or without modification,
-// are permitted provided that the following conditions are met:
+// Licensed under the MIT license.
 //
-//    * Redistributions of source code must retain the above copyright notice, this
-//      list of conditions and the following disclaimer.
-//
-//    * Redistributions in binary form must reproduce the above copyright notice, this
-//      list of conditions and the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-// OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-// BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-// DAMAGE.
-//
-// For any comment, suggestion or feature request, please contact the manager of
-// the project at cecilios@users.sourceforge.net
+// See LICENSE and NOTICE.md files in the root directory of this source tree.
 //---------------------------------------------------------------------------------------
 
 #include "lomse_font_storage.h"
@@ -52,16 +32,13 @@ namespace lomse
 //=======================================================================================
 // Logger implementation
 //=======================================================================================
-Logger::Logger(int mode)
-    : m_mode(mode)
-    , m_areas(0xffffffff)       //all areas enabled
+std::string Logger::get_default_log_path()
 {
     struct passwd* pw = getpwuid(getuid());
     const char* homedir = pw->pw_dir;
     string logPath(homedir);
     logPath += "/lomse-log.txt";
-    //dbgLogger.open(logPath);
-    LOMSE_LOG_INFO("lomse log path=%s", logPath.c_str());
+    return logPath;
 }
 
 
@@ -133,7 +110,7 @@ std::string FontSelector::find_font(const std::string& language,
     FcPattern* font = FcFontMatch(config, pattern, &result);
     if (font)
     {
-        FcChar8* file = NULL;
+        FcChar8* file = nullptr;
         if (FcPatternGetString(font, FC_FILE, 0, &file) == FcResultMatch)
         {
             string fullFileName((char*)file);
@@ -170,6 +147,9 @@ std::string FontSelector::find_font(const std::string& language,
     //if Bravura font is requested but it is not installed in the system (e.g.
     //missing dependency in installation page, local installation from sources, etc)
     //try to use local copy at lenmus/res/fonts
+    //
+    //AWARE: Looking for "ravura.otf" instead of "Bravura.otf" just in case in some
+    //       distro they decide to use lower case for the font name.
     if (name=="Bravura" && fullpath.find("ravura.otf") == std::string::npos)
     {
         string localfont = m_pLibScope->fonts_path();
@@ -188,6 +168,9 @@ std::string FontSelector::find_font(const std::string& language,
 
     LOMSE_LOG_INFO("key=%s, Path=%s", key.c_str(), fullpath.c_str());
     m_cache.insert(make_pair(key, fullpath));
+
+    FcConfigDestroy(config);
+
     return fullpath;
 }
 
