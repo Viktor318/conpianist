@@ -178,7 +178,11 @@ void ConnectionComponent::save()
 	auto oldMidiOut = settings.midiOut;
 
 	settings.pianoIp = pianoIpEdit->getText();
-	settings.midiPort = midiPortComboBox->getSelectedId() == 1 ? "" : midiPortComboBox->getText();
+	// nothing selected (should not happen): the setting is kept, not cleared
+	if (midiPortComboBox->getSelectedId() >= 1)
+	{
+		settings.midiPort = midiPortComboBox->getSelectedId() == 1 ? "" : midiPortComboBox->getText();
+	}
 	settings.midiIn2 = midiIn2ComboBox->getSelectedId() <= 1 ? "" : midiIn2ComboBox->getText();
 	settings.midiOut = midiOutComboBox->getSelectedId() <= 1 ? "" : midiOutComboBox->getText();
 
@@ -200,20 +204,18 @@ void ConnectionComponent::load()
 	StringArray ports;
 	for (auto& device : MidiInput::getAvailableDevices())
 		ports.add(device.name);
-	midiPortComboBox->addItemList(ports, 2);
-
-	if (settings.midiPort == "")
+	// The saved port of the piano is listed and stays selected even if it does not exist
+	// now (the piano is switched off or not plugged in): otherwise nothing would be
+	// selected, and closing the window would clear the setting (the program would look
+	// for the piano on the network from then on).
+	StringArray pianoPorts(ports);
+	if (settings.midiPort.isNotEmpty())
 	{
-		midiPortComboBox->setSelectedId(1);
+		pianoPorts.addIfNotAlreadyThere(settings.midiPort);
 	}
-	else
-	{
-		int ind = ports.indexOf(settings.midiPort);
-		if (ind > -1)
-		{
-			midiPortComboBox->setSelectedId(ind + 2);
-		}
-	}
+	midiPortComboBox->addItemList(pianoPorts, 2);
+	midiPortComboBox->setSelectedId(settings.midiPort.isEmpty() ? 1 : pianoPorts.indexOf(settings.midiPort) + 2,
+		NotificationType::dontSendNotification);
 
 	StringArray outputs;
 	for (auto& device : MidiOutput::getAvailableDevices())
