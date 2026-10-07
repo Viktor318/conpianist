@@ -10,6 +10,7 @@ Ez a fájl a ConPianist változásait dokumentálja. Az 1.0–3.0 verziók az er
 - **A Break gyorsbillentyűje G lett** (eddig B), így a Fill In (F) mellett van; a B a Basszus gombé.
 - **Ugrás a kottában dupla kattintással.** A kotta egy ütemére duplán kattintva a lejátszás az ütem elejére ugrik (mindhárom lejátszási módban). Nem kell pontosan a vonalrendszerre kattintani: a program a legközelebbi vonalrendszer ütemét veszi. Ismétlőjeles kottánál az ütem első előfordulására ugrik. A sima kattintás és a húzás továbbra is görget.
 - **Tömörített MusicXML (.mxl) kották megnyitása.** A kottamegnyitó ablak az `.mxl` fájlokat is felkínálja, és a dal betöltésekor a program a `.musicxml` és az `.xml` után `.mxl` kiterjesztésű kottát is keres a MIDI-fájl mellett. A Dorico alapból ilyen fájlt exportál.
+- **A kotta megnyitása a hozzá tartozó dalt is betölti.** Ha a kottamegnyitó ablakban választott kotta mellett van azonos nevű MIDI-fájl (`.mid` vagy `.midi`), és nem az a betöltött dal, a program azt is betölti. Bármelyik kottaformátummal működik (`.musicxml`, `.xml`, `.mxl`).
 
 ### Változott
 - **Frissült a kottamegjelenítő könyvtár: Lomse 0.27.0 → 0.30.0.**

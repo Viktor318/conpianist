@@ -96,6 +96,7 @@ private:
 	bool m_scoreShowMidiChannel = true;
 	String m_error;
 	bool m_firstSync = true;
+	File m_chosenScore; // score chosen by the user, shown when its song has been loaded
 
 	void LoadDocument(String filename);
 	void PrepareImage();
@@ -569,7 +570,29 @@ void LomseScoreComponent::LoadScore(const URL& url)
 	// generate access token on sandboxed platforms (iOS)
 	std::unique_ptr<juce::InputStream> inp(url.createInputStream(false));
 
-	LoadScore(url.getLocalFile());
+	// A score chosen by the user brings its song with it: if a MIDI file with the same
+	// name is next to the score and it is not the loaded song, it is loaded too. The
+	// score is shown when the song has been loaded (see LoadSong).
+	const File score = url.getLocalFile();
+	File song = score.withFileExtension(".mid");
+	if (!song.existsAsFile())
+	{
+		song = score.withFileExtension(".midi");
+	}
+	if (song.existsAsFile() && File::createFileWithoutCheckingPath(m_pianoController.GetSongName()) != song)
+	{
+		m_chosenScore = score;
+		if (m_pianoController.LoadSong(song))
+		{
+			// remembered for the next start, as when the song is opened in the left panel
+			m_settings.lastSong = song.getFullPathName();
+			m_settings.Save();
+			return;
+		}
+		m_chosenScore = File();
+	}
+
+	LoadScore(score);
 }
 
 void LomseScoreComponent::mouseDown(const MouseEvent& event)
@@ -800,6 +823,16 @@ void LomseScoreComponent::UpdateABMarks(bool force)
 void LomseScoreComponent::LoadSong()
 {
 	Cleanup();
+
+	// the score chosen by the user for this song comes before the scores found by name
+	const File chosenScore = m_chosenScore;
+	m_chosenScore = File();
+	if (chosenScore.existsAsFile() && chosenScore.getFileNameWithoutExtension() ==
+		File::createFileWithoutCheckingPath(m_pianoController.GetSongName()).getFileNameWithoutExtension())
+	{
+		LoadScore(chosenScore);
+		return;
+	}
 
 	File file = File(m_pianoController.GetSongName()).withFileExtension(".musicxml");
 	if (!file.existsAsFile())
