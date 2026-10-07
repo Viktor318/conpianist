@@ -1065,9 +1065,14 @@ protected:
 
     Color get_attribute_color()
     {
-        if (has_attribute(&m_analysedNode, "color"))
+        return get_attribute_color(&m_analysedNode);
+    }
+
+    Color get_attribute_color(XmlNode* node)
+    {
+        if (has_attribute(node, "color"))
         {
-            string value = m_analysedNode.attribute_value("color");
+            string value = node->attribute_value("color");
             bool fError = false;
             ImoColorDto color;
             if (value.length() == 7)
@@ -2561,8 +2566,12 @@ public:
 
         //@ bar-style?
         string barStyle = "";
+        Color color = Color(0,0,0);
         if (get_optional("bar-style"))
+        {
             barStyle = m_childToAnalyse.value();
+            color = get_attribute_color(&m_childToAnalyse);
+        }
         if (barStyle.empty())
             barStyle = (location == "left" ? "none" : "regular");
 
@@ -2586,6 +2595,7 @@ public:
 
         EBarline type = find_barline_type(barStyle);
         combine_barlines(m_pBarline, type);
+        m_pBarline->set_color(color);
         set_num_repeats();
 
         //TODO: do anything with m_wings
@@ -3494,6 +3504,9 @@ public:
         // attrib: %placement;
         pImo->set_placement(get_attribute_placement());
 
+        //attrib: %print-style-align;
+        get_attributes_for_print_style_align(pImo);
+
         //inherit placement from parent <direction> if not set in this <dynamics>
         if (pImo->get_placement() == k_placement_default && m_pAnchor->is_direction())
             pImo->set_placement( (static_cast<ImoDirection*>(m_pAnchor))->get_placement() );
@@ -4179,7 +4192,7 @@ public:
         }
 
         //attrb: %print-style;
-            //TODO
+        get_attributes_for_print_style(pKey);
 
         //attrb: %print-object;
             //TODO
@@ -4614,7 +4627,7 @@ public:
                     ImFactory::inject(k_imo_metronome_mark, pDoc) );
 
         //attrb: %print-style;
-            //TODO
+        //get_attributes_for_print_style(pMtr);
 
         //attrb: parentheses %yes-no; #IMPLIED
             //TODO
@@ -5067,6 +5080,9 @@ public:
     {
             //attribs
 
+        //attrb: color
+        Color color = get_attribute_color();
+
         //attrb: print-object
         bool fVisible = get_optional_yes_no_attribute("print-object", "yes");
 
@@ -5123,6 +5139,7 @@ public:
             else
                 analyse_mandatory("pitch", pNote);
         }
+        pNR->set_color(color);
 
         // <duration>, except for grace notes
         int duration = 0;
@@ -5185,6 +5202,7 @@ public:
         // [<notehead>]
         if (get_optional("notehead"))
         {
+            pNR->set_color( get_attribute_color(&m_childToAnalyse) );
         }
 
         // [<notehead-text>]
@@ -5203,7 +5221,7 @@ public:
 
         // <beam>*
         while (get_optional("beam"))
-            analyse_beam(fIsGrace);
+            analyse_beam(voice, fIsGrace, fIsCue);
         add_beam_info(pNR);
 
         // <notations>*
@@ -5429,7 +5447,7 @@ protected:
     }
 
     //----------------------------------------------------------------------------------
-    void analyse_beam(bool fIsGrace)
+    void analyse_beam(int voice, bool fIsGrace, bool fIsCue)
     {
         //@ <!ELEMENT beam (#PCDATA)>
         //@ <!ATTLIST beam number %beam-level; "1" repeater %yes-no; #IMPLIED >
@@ -5475,18 +5493,16 @@ protected:
             m_pBeamInfo = LOMSE_NEW ImoBeamDto();
 
         //beam number is the beam reference. In MusicXML beams do not have a unique
-        //reference. The analyser assumes that during the analysis one beamed group
-        //can not begin until the end of the previous one is found. Therefore, as only
-        //one beam can be in process, we assing number "1" to any beam being processed.
-        //The exception I found was grace notes: grace notes can start a new beam while
-        //there is still an open beam for regular notes. So, as a by pass, I assign
-        //beam number "2" to grace notes beams. I in future, it is found that several
-        //beams can be open at the same time, it would be necessry to find an ad-hoc
-        //method to identify them and to assign a different beam number to each one.
-        if (fIsGrace)
-            m_pBeamInfo->set_beam_number(2);
-        else
-            m_pBeamInfo->set_beam_number(1);
+        //reference. Beams are distunguished by their voice and presence of "grace"
+        //and "cue" elements. Here this information is encoded into beam number by
+        //adding the property values multiplied by the following base values.
+        constexpr int bMin = 1; //minimal beam number value
+        constexpr int bCue = 2 * bMin;
+        constexpr int bGrace = 2 * bCue;
+        constexpr int bVoice = 2 * bGrace;
+
+        const int beamNumber = (bVoice * voice) + (fIsGrace ? bGrace : 0) + (fIsCue ? bCue : 0) + bMin;
+        m_pBeamInfo->set_beam_number(beamNumber);
 
         m_pBeamInfo->set_line_number( m_pAnalyser->get_line_number(&m_analysedNode) );
         m_pBeamInfo->set_beam_type(--iLevel, iType);
@@ -8354,8 +8370,11 @@ public:
         if (has_attribute("symbol"))
             set_symbol(pTime);
 
-        //TODO  attrib: %time-separator;
-        //TODO  attrib: %print-style-align;
+        //attrib: %time-separator;
+            //TODO
+
+        //attrib: %print-style-align;
+        get_attributes_for_print_style_align(pTime);
 
         //attrb: %print-object;
         bool fVisible = get_optional_yes_no_attribute("print-object", "yes");
@@ -8965,9 +8984,13 @@ public:
         // attrib: %line-type;
         // attrib: %dashed-formatting;
         // attrib: %position;
+            //TODO
+
         // attrib: %color;
+        m_pInfo1->set_color(get_attribute_color());
+
         // attrib: %optional-unique-id;
-        //TODO
+            //TODO
 
         set_wedge_type_and_id(type, num);
 

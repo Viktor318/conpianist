@@ -507,8 +507,8 @@ void ChordEngraver::shift_acc_if_confict_with_shape(GmoShapeAccidentals* pCurAcc
     if (xOverlap > 0.0f)
     {
         LUnits space = tenths_to_logical(LOMSE_SPACE_BETWEEN_ACCIDENTALS);
-        LUnits shift = pCurAcc->get_right() - pShape->get_left();
-        xOverlap = - (shift + space);
+        LUnits xShift = pCurAcc->get_right() - pShape->get_left();
+        xOverlap = - (xShift + space);
         if (xOverlap != 0.0f)
         {
             USize shift(xOverlap, 0.0f);
@@ -674,6 +674,8 @@ void ChordEngraver::add_stem_and_flag()
     if (!has_stem())
         return;
 
+    determine_stem_flag_color();
+
     ImoNote* pNoteFlag = m_pFlagNoteData->pNote;
     int instr = m_pFlagNoteData->iInstr;
     int staff = pNoteFlag->get_staff();
@@ -685,6 +687,24 @@ void ChordEngraver::add_stem_and_flag()
     add_stem_link_segment();
     add_stem_extensible_segment_if_required();
     add_stroke_for_graces_if_required(&engrv);
+}
+
+//---------------------------------------------------------------------------------------
+void ChordEngraver::determine_stem_flag_color()
+{
+    Color color = m_color;
+    std::list<ChordNoteData*>::iterator it = m_notes.begin();
+    if (it != m_notes.end())
+    {
+        color = (*it)->pNoteShape->get_normal_color();
+        ++it;
+    }
+    for (; it != m_notes.end(); ++it)
+    {
+        if (!is_equal(color, (*it)->pNoteShape->get_normal_color()))
+            return;
+    }
+    m_color = color;
 }
 
 //---------------------------------------------------------------------------------------

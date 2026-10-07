@@ -13,11 +13,12 @@ Ez a fájl a ConPianist változásait dokumentálja. Az 1.0–3.0 verziók az er
 - **A kotta megnyitása a hozzá tartozó dalt is betölti.** Ha a kottamegnyitó ablakban választott kotta mellett van azonos nevű MIDI-fájl (`.mid` vagy `.midi`), és nem az a betöltött dal, a program azt is betölti. Bármelyik kottaformátummal működik (`.musicxml`, `.xml`, `.mxl`).
 
 ### Változott
-- **Frissült a kottamegjelenítő könyvtár: Lomse 0.27.0 → 0.30.0.**
+- **Frissült a kottamegjelenítő könyvtár: Lomse 0.27.0 → 0.30.0**, a 0.30.0 óta készült, még kiadatlan javításokkal együtt (a Lomse fő ágának `2067a01c` állapota).
+  - A kiadatlan javításokból: a két kottasorba törő gerendázott csoportok helyes rajzolása; a gerendák szétválasztása szólam, előke és kis hangjegy szerint; a hangjegyek és ütemvonalak színének beolvasása.
   - Megjelennek a pedáljelek; szebb a kottakép (előkék, kötőívek, gerendák, térközök).
   - A kotta szövegei (hangszernevek, ütemszámok, tempójelzés) a kottafájlban megadott betűmérettel jelennek meg, ezért több kottánál kisebbek, mint eddig. Ha a kotta olyan betűtípust kér, amelyet a Lomse nem ismer (például a MuseScore „FreeSerif” betűje), a program a vele szállított Liberation betűket adja.
   - Frissült a Bravura kottafont.
-  - A Lomse forrása a `Library/Lomse` mappában változatlan 0.30.0, négy saját javítással: FreeType-típusjavítás (`lomse_font_freetype.cpp`); dalszöveges kottánál üres szövegsor kezelése (`lomse_lyric_engraver.cpp`); „folytatódik” típusú oktávjel kezelése (`lomse_mxl_analyser.cpp`); fordított szélű alakzat kezelése az ütközésvizsgálatban (`lomse_vertical_profile.cpp`). A gyűjtőfájl (`Library/Lomse/build/lomse.cpp`) az új forráslistát tartalmazza, a névütközéseket ott oldja fel.
+  - A Lomse forrása a `Library/Lomse` mappában három saját javítással tér el az eredetitől: dalszöveges kottánál üres szövegsor kezelése (`lomse_lyric_engraver.cpp`); „folytatódik” típusú oktávjel kezelése (`lomse_mxl_analyser.cpp`); fordított szélű alakzat kezelése az ütközésvizsgálatban (`lomse_vertical_profile.cpp`). A friss FreeType-hoz szükséges javítást az eredeti Lomse már tartalmazza. A gyűjtőfájl (`Library/Lomse/build/lomse.cpp`) az új forráslistát tartalmazza, a névütközéseket ott oldja fel.
   - A Lomse nem hoz létre naplófájlt (`lomse-log.txt`, `forensic_log.txt`): ezt a program most beállítással tiltja le, nem a forrás módosításával.
 
 ### Javítva

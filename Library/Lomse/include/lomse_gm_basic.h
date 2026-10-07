@@ -19,8 +19,10 @@
 #include <ostream>
 #include <map>
 
+///@cond INTERNALS
 namespace lomse
 {
+///@endcond
 
 //forward declarations
 class GmoObj;
@@ -47,6 +49,10 @@ class Control;
 class ScoreStub;
 class GraphicModel;
 class GmMeasuresTable;
+
+
+///@cond INTERNALS
+//excluded from public API. Only for internal use.
 
 //---------------------------------------------------------------------------------------
 /** %ScoreStub is a helper class containing information related to graphical model for
@@ -85,11 +91,13 @@ public:
     inline GmMeasuresTable* get_measures_table() { return m_measures; }
 
 };
-
+///@endcond
 
 
 //---------------------------------------------------------------------------------------
-//Abstract class from which all graphic objects must derive
+/** Abstract class from which all graphical objects derive. All graphical objects
+    have a bounding box and a position, and know how to draw themselves.
+*/
 class GmoObj
 {
 protected:
@@ -100,8 +108,74 @@ protected:
     ImoObj* m_pCreatorImo;
     GmoBox* m_pParentBox;
 
+    GmoObj(int objtype, ImoObj* pCreatorImo);
+
 public:
+    ///@cond INTERNALS
+    //excluded from public API. Only for internal use.
     virtual ~GmoObj();
+
+    ///@endcond
+
+
+    //size and position
+    /// @name Size and position
+    //@{
+
+    /** Returns the width of the bounding box, in logical units. */
+    inline LUnits get_width() { return m_size.width; }
+
+    /** Returns the height of the bounding box, in logical units. */
+    inline LUnits get_height() { return m_size.height; }
+
+    /** Returns the x coordinate for the left border of the bounding box. The returned
+        value is in logical units, relative to top left corner of GmoDocPage containing
+        this object.
+    */
+    LUnits get_left() const { return m_origin.x; }
+
+    /** Returns the y coordinate for the top border of the bounding box. The returned
+        value is in logical units, relative to top left corner of GmoDocPage containing
+        this object.
+    */
+    LUnits get_top() const { return m_origin.y; }
+
+    /** Returns the x coordinate for the right border of the bounding box. The returned
+        value is in logical units, relative to top left corner of GmoDocPage containing
+        this object.
+    */
+    LUnits get_right() const { return m_origin.x + m_size.width; }
+
+    /** Returns the y coordinate for the bottom border of the bounding box. The returned
+        value is in logical units, relative to top left corner of GmoDocPage containing
+        this object.
+    */
+    LUnits get_bottom() const { return m_origin.y + m_size.height; }
+
+    /** Returns @true if the point is inside this object bounding box rectangle.
+        @param p The point to be tested, in logical units.
+    */
+    bool bounds_contains_point(UPoint& p);
+
+    /** Returns the bounding box rectangle, in logical units. Origin (top left corner)
+        is relative to top left corner of GmoDocPage containing this object.
+    */
+    URect get_bounds();
+
+    /** Returns the top left corner of the bounding box rectangle. The point is in
+        logical units relative to top left corner of GmoDocPage containing this object.
+    */
+    inline UPoint get_origin() { return m_origin; }
+
+    /** Returns the width and heigh of the bounding box rectangle (in logical units).
+    */
+    inline USize get_size() { return m_size; }
+
+    //@}    //size and position
+
+
+    ///@cond INTERNALS
+    //excluded from public API. Only for internal use.
 
     //flag values
     enum {
@@ -254,28 +328,16 @@ public:
     inline bool is_shape_word() { return m_objtype == k_shape_word; }
 
     //size
-    inline LUnits get_width() { return m_size.width; }
-    inline LUnits get_height() { return m_size.height; }
     inline void set_width(LUnits width) { m_size.width = width; }
     inline void set_height(LUnits height) { m_size.height = height; }
 
     //position
-    LUnits get_left() const { return m_origin.x; }
-    LUnits get_top() const { return m_origin.y; }
-    LUnits get_right() const { return m_origin.x + m_size.width; }
-    LUnits get_bottom() const { return m_origin.y + m_size.height; }
     void set_origin(UPoint& pos);
     void set_origin(const UPoint& pos);
     void set_origin(LUnits xLeft, LUnits yTop);
     void set_left(LUnits xLeft);
     void set_top(LUnits yTop);
     virtual void shift_origin(const USize& shift);
-
-    //bounds
-    bool bounds_contains_point(UPoint& p);
-    URect get_bounds();
-    inline UPoint get_origin() { return m_origin; }
-    inline USize get_size() { return m_size; }
 
     //creator
     inline bool was_created_by(ImoObj* pImo) { return m_pCreatorImo == pImo; }
@@ -302,13 +364,26 @@ public:
     static const std::string& get_name(int objtype);
     inline const std::string& get_name() { return get_name(m_objtype); }
 
+    ///@endcond
+
 protected:
-    GmoObj(int objtype, ImoObj* pCreatorImo);
     void propagate_dirty();
 
 };
 
 //---------------------------------------------------------------------------------------
+/** All visible objects derive from abstract class %GmoShape. It represents a visible
+    object, such as a line, a glyph, an arch, a note head, etc.
+    As %GmoShape objects derive from GmoObj they have a bounds rectangle that defines
+    the space occupied by the shape. This rectangle defines reference bounds for
+    laying out other shapes and, also, it is used to detect visual collisions with
+    other shapes during the layout process.
+
+    In general, the only responsibility of a %GmoShape object is to draw itself when
+    requested to do it by a Drawer object. Therefore, %GmoShape objects usually do not
+    have public methods. As an exception, some shapes can provide information about
+    sub-shapes or special reference points.
+*/
 class GmoShape : public GmoObj      //, public Linkable<USize>
 {
 protected:
@@ -318,7 +393,15 @@ protected:
     std::list<GmoShape*>* m_pRelatedShapes;
 
 public:
+    ///@cond INTERNALS
+    //excluded from public API. Only for internal use.
     ~GmoShape() override;
+
+    ///@endcond
+
+
+    ///@cond INTERNALS
+    //excluded from public API. Only for internal use.
 
     virtual void on_draw(Drawer* pDrawer, RenderOptions& opt);
 
@@ -378,6 +461,8 @@ public:
     virtual void set_color(Color color) { m_color = color; }
     virtual Color get_normal_color() { return m_color; }
 
+    ///@endcond
+
 protected:
     GmoShape(ImoObj* pCreatorImo, int objtype, ShapeId idx, Color color);
     virtual Color determine_color_to_use(RenderOptions& opt);
@@ -385,6 +470,25 @@ protected:
 };
 
 //---------------------------------------------------------------------------------------
+/** %GmoBox is an abstract class from which all box objects derive.
+    As %GmoBox derive from GmoObj they have a bounds rectangle that defines
+    the box area. This rectangle defines reference bounds for laying out other objects
+    (the box content).
+
+    %GmoBox objects are
+    used to organize the layout space. They define areas, in the final image, in which
+    shapes will be positioned. For instance, GmoBoxParagraph is a box delimiting
+    the space occupied by the text in a paragraph.
+
+    Apart of defining the content area, all %GmoBox objects are containers for other
+    boxes and for shapes.
+
+    Boxes can be nested but can not partially overlap other boxes. That is, a box is
+    either independent (covers a region of paper) or is fully contained in another box,
+    subdividing it. For instance, %GmoBoxSystem, that represents the space ocuppied by
+    a system, is subdivided in %GmoBoxSlice boxes, representing vertical slices of the
+    system (e.g. measures).
+*/
 class GmoBox : public GmoObj
 {
 protected:
@@ -400,8 +504,13 @@ protected:
     LUnits m_uLeftMargin;
     LUnits m_uRightMargin;
 
-public:
+    GmoBox(int objtype, ImoObj* pCreatorImo);
     ~GmoBox() override;
+
+public:
+
+    ///@cond INTERNALS
+    //excluded from public API. Only for internal use.
 
     //child boxes
     inline int get_num_boxes() { return static_cast<int>( m_childBoxes.size() ); }
@@ -466,8 +575,9 @@ public:
     void dump_boxes_shapes(ostream& outStream, int level);
     void dump_shapes(ostream& outStream, int level);
 
+    ///@endcond
+
 protected:
-    GmoBox(int objtype, ImoObj* pCreatorImo);
     void delete_boxes();
     void delete_shapes();
     void draw_border(Drawer* pDrawer, RenderOptions& opt);
@@ -483,6 +593,9 @@ protected:
     void add_boxes_to_controls_map(GraphicModel* pGM);
 
 };
+
+///@cond INTERNALS
+//excluded from public API. Only for internal use.
 
 //---------------------------------------------------------------------------------------
 class StaffObjShapeCursor {
@@ -501,12 +614,24 @@ public:
     bool prev(TimeUnits minTime);
     bool prevBefore(TimeUnits time);
 
+
 protected:
     GmoBox* m_pCurrentBox;
     std::list<GmoShape*>::const_iterator m_it;
 };
+///@endcond
 
 //---------------------------------------------------------------------------------------
+/** %GmoBoxDocument is a container for enclosing the whole document, and contains one
+    or more instances of GmoDocPage objects, representing each page of the document.
+
+    %GmoBoxDocument is the root of the GraphicModel and only one instance exist for
+    a document. It is simply a container, with no further responsibilities, and its only
+    purpose is to store and manage its GmoBoxDocPage children.
+
+    Its bounding box delimits the visual space occupied by the complete document but
+    margins or padding values in its base GmoBox are useless and are ignored.
+*/
 class GmoBoxDocument : public GmoBox
 {
 protected:
@@ -514,6 +639,10 @@ protected:
     GraphicModel* m_pGModel;
 
 public:
+
+    ///@cond INTERNALS
+    //excluded from public API. Only for internal use.
+
     GmoBoxDocument(GraphicModel* pGModel, ImoObj* pCreatorImo);
     ~GmoBoxDocument() override {}
 
@@ -527,9 +656,16 @@ public:
     //overrides
     GraphicModel* get_graphic_model() override { return m_pGModel; }
 
+    ///@endcond
+
 };
 
 //---------------------------------------------------------------------------------------
+/** %GmoBoxDocPage encloses the shapes and boxes that make up a page of the document.
+
+    It is mainly a container for GmoBoxDocPageContent objects (e.g. GmoBoxParagraph,
+    GmoBoxScore, GmoBoxTable, etc.).
+*/
 class GmoBoxDocPage : public GmoBox
 {
 protected:
@@ -537,8 +673,11 @@ protected:
     std::list<GmoShape*> m_allShapes;		//contained shapes, ordered by layer and creation order
 
 public:
+    ///@cond INTERNALS
+    //excluded from public API. Only for internal use.
     GmoBoxDocPage(ImoObj* pCreatorImo);
     ~GmoBoxDocPage() override {}
+
 
     //page number
     inline void set_number(int num) { m_numPage = num; }
@@ -561,22 +700,38 @@ public:
     void select_objects_in_rectangle(SelectionSet* selection, const URect& selRect,
                                      unsigned flags=0);
 
+    ///@endcond
+
 protected:
     void draw_page_background(Drawer* pDrawer, RenderOptions& opt);
 };
 
 //---------------------------------------------------------------------------------------
+/** %GmoBoxDocPageContent is just a container for all boxes and shapes that define
+    the visual content generated by any ImoContentBlock objects, such as a music score,
+    a paragraph or a table.
+
+    It is simply a container, with no further responsibilities or functionality, and
+    therefore has no specific methods.
+*/
 class GmoBoxDocPageContent : public GmoBox
 {
 protected:
 
 public:
+    ///@cond INTERNALS
+    //excluded from public API. Only for internal use.
     GmoBoxDocPageContent(ImoObj* pCreatorImo);
     virtual ~GmoBoxDocPageContent() {}
+    ///@endcond
 
 };
 
 //---------------------------------------------------------------------------------------
+/** %GmoBoxScorePage is a container for the boxes and for shapes that make up a page
+    of the score. It contains one or more GmoBoxSystem objects as well as the shapes
+    all for page level notations, such as headers and footers.
+*/
 class GmoBoxScorePage : public GmoBox
 {
 protected:
@@ -586,6 +741,10 @@ protected:
     LUnits m_maxSystemHeight;   //height of highest system in this page
 
 public:
+
+    ///@cond INTERNALS
+    //excluded from public API. Only for internal use.
+
     GmoBoxScorePage(ImoScore* pScore);
     virtual ~GmoBoxScorePage();
 
@@ -608,7 +767,13 @@ public:
 
     //hit tests related
     int nearest_system_to_point(LUnits y);
+
+    ///@endcond
 };
+
+
+///@cond INTERNALS
+//excluded from public API. Only for internal use.
 
 //---------------------------------------------------------------------------------------
 class GmoBoxParagraph : public GmoBox
@@ -659,6 +824,10 @@ public:
 
     ~GmoBoxControl() override {}
 
+    ///@cond INTERNALS
+    //excluded from public API. Only for internal use.
+
+
     inline void set_style(ImoStyle* pStyle) { m_pStyle = pStyle; }
     void notify_event(SpEventInfo pEvent);
 
@@ -667,6 +836,8 @@ public:
 
     //accessors
     inline Control* get_creator_control() { return m_pControl; }
+
+    ///@endcond
 
 protected:
     //overrides
@@ -705,6 +876,8 @@ inline LUnits compute_distance(LUnits x1, LUnits y1, LUnits x2, LUnits y2)
     LUnits dy = y2-y1;
     return sqrt(dx * dx + dy * dy);
 }
+
+///@endcond
 
 
 }   //namespace lomse

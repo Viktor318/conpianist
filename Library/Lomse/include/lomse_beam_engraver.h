@@ -82,6 +82,7 @@ protected:
     bool m_fCrossStaff;         //the flag notes are on both staves
     bool m_fGraceNotes;         //it is a beam with grace notes
     bool m_fChord;              //it is a beam with chords
+    size_t m_firstNoteRestIndex; //index of the first note/rest to consider. May be nonzero if beam is split across systems
     int m_numNotes;             //total number of notes
     int m_maxStaff;     //for cross-staff beams, the highest staff. For normal beams, just the staff
     int m_minStaff;     //for cross-staff beams, the lowest staff. For normal beams, just the staff
@@ -109,6 +110,7 @@ public:
 protected:
     void add_note_rest(ImoStaffObj* pSO, GmoShape* pStaffObjShape);
     void determine_number_of_beam_levels();
+    void determine_beam_color();
     void decide_stems_direction();
         void decide_stems_direction_for_beams_with_chords();
         void decide_stems_direction_for_beams_without_chords();
@@ -125,6 +127,7 @@ protected:
             void add_segment(LUnits uxStart, LUnits uyStart, LUnits uxEnd, LUnits uyEnd);
             void make_segments_relative();
 
+    GmoShapeBeam* create_beam_shape();
     void create_shape();
     void add_shape_to_noterests();
     void add_stroke_for_graces();
