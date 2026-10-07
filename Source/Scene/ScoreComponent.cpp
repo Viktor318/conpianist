@@ -28,6 +28,8 @@ ScoreComponent* ScoreComponent::Create(Settings& settings, PianoController& pian
 }
 #else
 
+#include <filesystem>
+
 #include <lomse_doorway.h>
 #include <lomse_document.h>
 #include <lomse_graphic_view.h>
@@ -46,6 +48,25 @@ ScoreComponent* ScoreComponent::Create(Settings& settings, PianoController& pian
 #include "ScoreComponent.h"
 
 using namespace lomse;
+
+// A file path in the form Lomse and FreeType can open. On Windows they open files with
+// the narrow-character functions, which expect the path in the code page of the system,
+// not in UTF-8: with a UTF-8 path the fonts were not found when the program was in a
+// folder with accented letters in its path. (A path with characters the code page of the
+// system does not have cannot be converted; it is passed on unchanged then.)
+static std::string NativePath(const String& path)
+{
+#if JUCE_WINDOWS
+	try
+	{
+		return std::filesystem::path(std::wstring(path.toWideCharPointer())).string();
+	}
+	catch (const std::exception&)
+	{
+	}
+#endif
+	return path.toStdString();
+}
 
 class LomseScoreComponent : public ScoreComponent, public PianoController::Listener,
 	public Button::Listener, public ChangeListener
@@ -167,7 +188,7 @@ LomseScoreComponent::LomseScoreComponent(Settings& settings, PianoController& pi
 	//initialize the Lomse library with these values
 	m_lomse.init_library(pixel_format, resolution, reverse_y_axis);
 
-	m_lomse.set_default_fonts_path((m_settings.resourcesPath + "/fonts/").toStdString());
+	m_lomse.set_default_fonts_path(NativePath(m_settings.resourcesPath + "/fonts/"));
 
 	//set required callbacks
 	m_lomse.set_notify_callback(this, LomseEventWrapper);
@@ -428,7 +449,7 @@ void LomseScoreComponent::LomseRequest(Request* request)
 		name.containsIgnoreCase("helvetica") ? "LiberationSans" : "LiberationSerif";
 	const String style = fontRequest->get_bold() ? (fontRequest->get_italic() ? "BoldItalic" : "Bold") :
 		(fontRequest->get_italic() ? "Italic" : "Regular");
-	fontRequest->set_font_fullname((m_settings.resourcesPath + "/fonts/" + family + "-" + style + ".ttf").toStdString());
+	fontRequest->set_font_fullname(NativePath(m_settings.resourcesPath + "/fonts/" + family + "-" + style + ".ttf"));
 }
 
 void LomseScoreComponent::SetViewport(int y)

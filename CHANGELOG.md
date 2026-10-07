@@ -25,6 +25,7 @@ Ez a fájl a ConPianist változásait dokumentálja. Az 1.0–3.0 verziók az er
 ### Javítva
 - **Összeomlás Doricóból exportált kotta betöltésekor**, ha a kottában sortörésen átnyúló oktávjel (8va) volt, vagy olyan elem, amelynek a szélei fordított sorrendben szerepeltek (például a Liebesträume kottája).
 - **A program elfelejtette a zongora MIDI-portját**, ha a Kapcsolat beállításai ablakot kikapcsolt (vagy be nem dugott) zongoránál nyitották meg: a hiányzó port nem szerepelt a listában, és az ablak bezárásakor a beállítás „Csatlakozás hálózaton”-ra váltott. A mentett port mostantól akkor is a listában marad kiválasztva, ha éppen nem érhető el.
+- **A kotta nem jelent meg rendesen, ha a program ékezetes betűt tartalmazó mappából indult** (például `P:\_Saját programok\…`): a kottafontot és a szövegek betűtípusát a program nem találta meg. A betűtípusok útvonalát a program mostantól a Windows saját kódolásában adja át a kottamegjelenítőnek.
 - **Hibaüzenet (Debug) vagy rejtett hiba dalszöveges kottánál**, ha egy szövegsor a következő kottasorban folytatódott, de az adott sorban nem volt szótagja.
 
 ### Ismert hibák
