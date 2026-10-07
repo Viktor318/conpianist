@@ -161,8 +161,14 @@ private:
 	std::atomic<bool> pianoKeyboardShared { false };
 	String findPianoKeyboardPort() const;
 	void updatePianoKeyboardPort(bool reopen);
-	const static int PianoMissingDelayUsbMs = 3000;
-	const static int PianoMissingDelayNetworkMs = 15000;
+	// how long the piano is waited for before the playback goes to the MIDI device:
+	// - USB, the port of the piano does not exist (switched off, not plugged in);
+	// - USB, the port exists but the piano has not answered yet;
+	// - network: it cannot be seen whether the piano is there, only that it has not answered.
+	// If the piano arrives later, the playback goes back to it (chooseDefaultPlaybackSource).
+	const static int PianoMissingDelayUsbNoPortMs = 500;
+	const static int PianoMissingDelayUsbMs = 1500;
+	const static int PianoMissingDelayNetworkMs = 5000;
 	bool networkReachable = true;  // result of the last network check (USB connection)
 	bool pianoMissing = false;
 	Time pianoMissingSince;

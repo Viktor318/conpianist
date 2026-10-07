@@ -20,6 +20,7 @@ Ez a fájl a ConPianist változásait dokumentálja. Az 1.0–3.0 verziók az er
   - Frissült a Bravura kottafont.
   - A Lomse forrása a `Library/Lomse` mappában három saját javítással tér el az eredetitől: dalszöveges kottánál üres szövegsor kezelése (`lomse_lyric_engraver.cpp`); „folytatódik” típusú oktávjel kezelése (`lomse_mxl_analyser.cpp`); fordított szélű alakzat kezelése az ütközésvizsgálatban (`lomse_vertical_profile.cpp`). A friss FreeType-hoz szükséges javítást az eredeti Lomse már tartalmazza. A gyűjtőfájl (`Library/Lomse/build/lomse.cpp`) az új forráslistát tartalmazza, a névütközéseket ott oldja fel.
   - A Lomse nem hoz létre naplófájlt (`lomse-log.txt`, `forensic_log.txt`): ezt a program most beállítással tiltja le, nem a forrás módosításával.
+- **Gyorsabb átállás a MIDI-eszközre, ha a zongora nem érhető el.** Hálózati kapcsolatnál a program 15 helyett 5 másodpercet vár; USB-nél 3 helyett 1,5 másodpercet, ha pedig a zongora portja nincs is a gépen, fél másodpercet. Ha a zongora később megérkezik, a lejátszás visszaáll rá.
 
 ### Javítva
 - **Összeomlás Doricóból exportált kotta betöltésekor**, ha a kottában sortörésen átnyúló oktávjel (8va) volt, vagy olyan elem, amelynek a szélei fordított sorrendben szerepeltek (például a Liebesträume kottája).

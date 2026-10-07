@@ -1016,7 +1016,8 @@ void SceneComponent::checkPianoAvailability(Time curTime)
 		pianoMissingSince = curTime;
 	}
 
-	const int delay = settings.midiPort == "" ? PianoMissingDelayNetworkMs : PianoMissingDelayUsbMs;
+	const int delay = settings.midiPort == "" ? PianoMissingDelayNetworkMs :
+		midiConnector != nullptr && midiConnector->IsConnected() ? PianoMissingDelayUsbMs : PianoMissingDelayUsbNoPortMs;
 	if ((curTime - pianoMissingSince).inMilliseconds() < delay || pianoController.IsMidiDevicePlayback())
 	{
 		return;
