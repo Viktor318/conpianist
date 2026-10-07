@@ -25,7 +25,7 @@ Jelenleg nincs megkezdett fejlesztés.
 
 ## Következő verziók (javaslat)
 
-### 4.8 – Dalok és fájlkezelés
+### 4.8 – Dalok, kotta és fájlkezelés
 
 | Tétel | Leírás | Munka | Megjegyzés |
 |---|---|---|---|
@@ -37,6 +37,11 @@ Jelenleg nincs megkezdett fejlesztés.
 | Mappa fájlműveletenként | Minden megnyitás és mentés megjegyzi a saját utoljára használt mappáját; az összetartozó megnyitás–mentés pár egy mappát használ. | K | Most egyetlen közös mappa van. |
 | Metronóm a stílus ütemével | Stílus betöltésekor a metronóm átveszi a stílus név szerinti ütemmutatóját; fordítva nem hat. | K | A Felvétel ablak ütemlistája már minden szükséges ütemet tartalmaz. Zongorás próba kell (9/8, 12/8). |
 | Rövid útmutató | 10–15 oldalas magyar PDF útmutató képekkel, Markdown forrásból. | Kö | A képernyőképeket Viktor készíti lista alapján. |
+| Lomse frissítése | **Kész** (a következő verzióban): a kottamegjelenítő könyvtár 0.27.0-ról 0.30.0-ra frissült. Megjelennek a pedáljelek, a szövegek a kotta saját betűméretével; a tömörített MusicXML és az ismétlőjel-követés külön tétel. | – | A Lomse forrásában négy saját javítás van (lásd CHANGELOG). Ismert szépséghibák Dorico-kottáknál: torlódó, le nem zárt pedálvonalak; többszörös kapcsos zárójel; egymásra csúszó tempófeliratok. |
+| Ugrás a kottában | **Kész:** dupla kattintásra a lejátszás a kattintott ütem elejére ugrik. | – | Ismétlésnél az első előfordulásra. |
+| Tömörített MusicXML (.mxl) megnyitása | **Kész, próbára vár:** a kottamegnyitó ablak és a MIDI betöltésekor futó kottakeresés az `.mxl` kiterjesztést is felismeri (a Dorico alapból ilyet exportál). | – | A program maga csomagolja ki a fájlt, külső könyvtár nem kell hozzá. |
+| Kotta megjelenítési hibái Dorico-exportnál | A le nem zárt pedálvonalak torlódása, a többszörös kapcsos zárójel és az egymásra csúszó tempófeliratok javítása. | Kö | A „folytatódik” típusú jelölések (pedál, oktávjel) kezelése hiányzik a Lomse-ból. |
+| Ujjrend megjelenítése | Az ujjrend megjelenítése a kottában, MusicXML-ből. | K–Kö | Az új Lomse megjeleníti az ujjrendet (próbakottán látszott); ujjrendes Dorico-kottával még ki kell próbálni. |
 
 ### 4.9 – Akkordmenet-lejátszó
 
@@ -68,11 +73,7 @@ Egyetlen funkció, amely a korábban külön tervezett „betöltött MIDI-fájl
 
 | Tétel | Leírás | Munka | Megjegyzés |
 |---|---|---|---|
-| Lomse frissítése | **Kész** (a következő verzióban): a kottamegjelenítő könyvtár 0.27.0-ról 0.30.0-ra frissült. Megjelennek a pedáljelek, a szövegek a kotta saját betűméretével; a tömörített MusicXML és az ismétlőjel-követés külön tétel. | – | A Lomse forrásában négy saját javítás van (lásd CHANGELOG). Ismert szépséghibák Dorico-kottáknál: torlódó, le nem zárt pedálvonalak; többszörös kapcsos zárójel; egymásra csúszó tempófeliratok. |
-| Tömörített MusicXML (.mxl) megnyitása | A kottamegnyitó ablak és a MIDI betöltésekor futó kottakeresés az `.mxl` kiterjesztést is felismeri (a Dorico alapból ilyet exportál). | K | A Lomse frissítése megvan; a tömörítés bekapcsolásához a zlib könyvtárat kell a projekthez adni. Ez a következő lépés. |
 | Ismétlőjelek kezelése | A kotta kurzora követi az ismétléseket és a voltákat (MusicXML-ből). A dupla kattintásos ugrás ismétlésnél most az ütem első előfordulására ugrik. | Kö–N | |
-| Kotta megjelenítési hibái Dorico-exportnál | A le nem zárt pedálvonalak torlódása, a többszörös kapcsos zárójel és az egymásra csúszó tempófeliratok javítása. | Kö | A „folytatódik” típusú jelölések (pedál, oktávjel) kezelése hiányzik a Lomse-ból. |
-| Ujjrend megjelenítése | Az ujjrend megjelenítése a kottában, MusicXML-ből. | K–Kö | Az új Lomse megjeleníti az ujjrendet (próbakottán látszott); ujjrendes Dorico-kottával még ki kell próbálni. |
 | PDF megjelenítő | PDF-kotta megjelenítése; a dal betöltésekor a program előbb MusicXML-t, utána PDF-et keres, menüből választható. | N | Új könyvtár kell hozzá; a pozíciókövetés PDF-nél nem lehetséges. |
 | Kotta transzponálása | A kotta a dallal együtt transzponálódik (csak megjelenítés). | Kö | |
 | Részletes kézikönyv | Teljes magyar kézikönyv az 5.0-hoz. | N | |

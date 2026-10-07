@@ -203,6 +203,51 @@ void LomseScoreComponent::BuildControls()
     menuButton->setBounds(8, 8, 28, 28);
 }
 
+// The text of the score in a compressed MusicXML file (.mxl): a zip archive in which
+// META-INF/container.xml names the score file. An empty string if there is no score in it.
+static String ReadCompressedMusicXml(const File& file)
+{
+	ZipFile zip(file);
+	int index = -1;
+
+	const int containerIndex = zip.getIndexOfFileName("META-INF/container.xml", true);
+	if (containerIndex >= 0)
+	{
+		std::unique_ptr<juce::InputStream> stream(zip.createStreamForEntry(containerIndex));
+		std::unique_ptr<XmlElement> container = stream != nullptr ? parseXML(stream->readEntireStreamAsString()) : nullptr;
+		XmlElement* rootfiles = container != nullptr ? container->getChildByName("rootfiles") : nullptr;
+		XmlElement* rootfile = rootfiles != nullptr ? rootfiles->getChildByName("rootfile") : nullptr;
+		if (rootfile != nullptr)
+		{
+			index = zip.getIndexOfFileName(rootfile->getStringAttribute("full-path"), true);
+		}
+	}
+
+	// no usable container: the first score file outside the META-INF folder
+	for (int i = 0; i < zip.getNumEntries() && index < 0; i++)
+	{
+		const String name = zip.getEntry(i)->filename;
+		if (!name.startsWithIgnoreCase("META-INF") &&
+			(name.endsWithIgnoreCase(".xml") || name.endsWithIgnoreCase(".musicxml")))
+		{
+			index = i;
+		}
+	}
+	if (index < 0)
+	{
+		return {};
+	}
+
+	std::unique_ptr<juce::InputStream> stream(zip.createStreamForEntry(index));
+	if (stream == nullptr)
+	{
+		return {};
+	}
+	MemoryBlock data;
+	stream->readIntoMemoryBlock(data);
+	return String::createStringFromData(data.getData(), (int)data.getSize()); // UTF-8 or UTF-16
+}
+
 void LomseScoreComponent::LoadDocument(String filename)
 {
 	//first, we will create a 'presenter'. It takes care of creating and maintaining
@@ -211,16 +256,24 @@ void LomseScoreComponent::LoadDocument(String filename)
 	if (filename.isNotEmpty())
 	{
 		// load from file
-		// The file is read here and passed to Lomse as text (MusicXML) in two cases:
+		// The file is read here and passed to Lomse as text (MusicXML) in three cases:
+		// - the file is a compressed MusicXML (.mxl): it is unpacked here;
 		// - the path has non-ASCII characters (e.g. accented letters): Lomse cannot open
 		//   such a file on Windows;
 		// - the score has part groups (brackets joining the instruments, written e.g. by
 		//   Dorico): Lomse cannot draw them if an instrument of the group is not shown,
 		//   so the groups are left out.
-		String content = File(filename).loadFileAsString();
+		const bool compressed = filename.endsWithIgnoreCase(".mxl");
+		String content = compressed ? ReadCompressedMusicXml(File(filename)) : File(filename).loadFileAsString();
+		if (compressed && content.isEmpty())
+		{
+			// not a compressed MusicXML file: nothing is shown
+			m_presenter.reset();
+			return;
+		}
 		const bool asciiPath = CharPointer_ASCII::isValidString(filename.toRawUTF8(), (int)filename.getNumBytesAsUTF8());
 		const bool hasGroups = content.contains("<part-group");
-		if (asciiPath && !hasGroups)
+		if (asciiPath && !hasGroups && !compressed)
 		{
 			m_presenter.reset(m_lomse.open_document(lomse::k_view_vertical_book, filename.toStdString()));
 		}
@@ -475,7 +528,7 @@ void LomseScoreComponent::paint(Graphics& g)
 	{
 		String text = TRANS(
 			"To automatically load score for a song put the score-file in MusicXML format near MIDI-file. "
-			"The score-file should have the same name as MIDI-file and extension .musicxml or .xml.");
+			"The score-file should have the same name as MIDI-file and extension .musicxml, .xml or .mxl.");
 		g.setColour(Colour(167,172,176));
 		g.setFont(16);
 		juce::Rectangle<int> rec(20, 80, getWidth() - 40, getHeight() - 100);
@@ -501,7 +554,7 @@ void LomseScoreComponent::ChooseScoreFile()
 	String title = songName == "" ? TRANS("Please select the score") :
 		TRANS("Please select the score for SONGNAME").replace("SONGNAME", songName);
 
-	GuiHelper::ShowFileOpenDialogAsync(title, m_settings.workingDirectory, "*.xml;*.musicxml",
+	GuiHelper::ShowFileOpenDialogAsync(title, m_settings.workingDirectory, "*.xml;*.musicxml;*.mxl",
 		[this, self = Component::SafePointer<Component>(this)](const URL& url)
 		{
 			if (self == nullptr) return; // deleted meanwhile
@@ -752,6 +805,10 @@ void LomseScoreComponent::LoadSong()
 	if (!file.existsAsFile())
 	{
 		file = File(m_pianoController.GetSongName()).withFileExtension(".xml");
+	}
+	if (!file.existsAsFile())
+	{
+		file = File(m_pianoController.GetSongName()).withFileExtension(".mxl");
 	}
 
 	if (file.existsAsFile() && file.getSize() > 0)

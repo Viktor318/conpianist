@@ -9,6 +9,7 @@ Ez a fájl a ConPianist változásait dokumentálja. Az 1.0–3.0 verziók az er
 - **Nincsenek torlódó elemek az ablakokban:** az egymás melletti elemek között vízszintesen mindenhol legalább 4 képpont van. Változott: a Tempó értékmezője, − és + gombja (Kíséret és Felvétel ablak) és a Felvétel ablak csendhosszának ugyanilyen gombjai; a Full és Lower gomb; a bal panel Kíséret, Bal, Jobb gombja (eddig 3 képpont). A felső sáv ikonjaira és füleire a szabály nem vonatkozik.
 - **A Break gyorsbillentyűje G lett** (eddig B), így a Fill In (F) mellett van; a B a Basszus gombé.
 - **Ugrás a kottában dupla kattintással.** A kotta egy ütemére duplán kattintva a lejátszás az ütem elejére ugrik (mindhárom lejátszási módban). Nem kell pontosan a vonalrendszerre kattintani: a program a legközelebbi vonalrendszer ütemét veszi. Ismétlőjeles kottánál az ütem első előfordulására ugrik. A sima kattintás és a húzás továbbra is görget.
+- **Tömörített MusicXML (.mxl) kották megnyitása.** A kottamegnyitó ablak az `.mxl` fájlokat is felkínálja, és a dal betöltésekor a program a `.musicxml` és az `.xml` után `.mxl` kiterjesztésű kottát is keres a MIDI-fájl mellett. A Dorico alapból ilyen fájlt exportál.
 
 ### Változott
 - **Frissült a kottamegjelenítő könyvtár: Lomse 0.27.0 → 0.30.0.**
