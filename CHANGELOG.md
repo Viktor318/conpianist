@@ -8,6 +8,22 @@ Ez a fájl a ConPianist változásait dokumentálja. Az 1.0–3.0 verziók az er
 - **A kíséret részei a Kíséret ablakban.** A kíséret hangereje alatt új **Részek** sor három gombbal: **Dob** (Rhythm 1, Rhythm 2), **Basszus** (Bass) és **Egyéb** (Chord 1, Chord 2, Pad, Phrase 1, Phrase 2), ahogy a Smart Pianist Style képernyőjén (Rhythm, Bass, Others). A gomb ki- és bekapcsolja a csoport szólamait; narancs, amíg a csoportból legalább egy szólam szól. Visszakapcsoláskor azok a szólamok szólalnak meg, amelyek a kikapcsolás előtt szóltak. A gombok együtt változnak a Kíséret keverő szólamgombjaival és a Hangerőegyensúly ablak Stílus csíkjával. Gyorsbillentyűk: **D** – Dob, **B** – Basszus, **E** – Egyéb. Az ablak ennyivel magasabb lett.
 - **Nincsenek torlódó elemek az ablakokban:** az egymás melletti elemek között vízszintesen mindenhol legalább 4 képpont van. Változott: a Tempó értékmezője, − és + gombja (Kíséret és Felvétel ablak) és a Felvétel ablak csendhosszának ugyanilyen gombjai; a Full és Lower gomb; a bal panel Kíséret, Bal, Jobb gombja (eddig 3 képpont). A felső sáv ikonjaira és füleire a szabály nem vonatkozik.
 - **A Break gyorsbillentyűje G lett** (eddig B), így a Fill In (F) mellett van; a B a Basszus gombé.
+- **Ugrás a kottában dupla kattintással.** A kotta egy ütemére duplán kattintva a lejátszás az ütem elejére ugrik (mindhárom lejátszási módban). Nem kell pontosan a vonalrendszerre kattintani: a program a legközelebbi vonalrendszer ütemét veszi. Ismétlőjeles kottánál az ütem első előfordulására ugrik. A sima kattintás és a húzás továbbra is görget.
+
+### Változott
+- **Frissült a kottamegjelenítő könyvtár: Lomse 0.27.0 → 0.30.0.**
+  - Megjelennek a pedáljelek; szebb a kottakép (előkék, kötőívek, gerendák, térközök).
+  - A kotta szövegei (hangszernevek, ütemszámok, tempójelzés) a kottafájlban megadott betűmérettel jelennek meg, ezért több kottánál kisebbek, mint eddig. Ha a kotta olyan betűtípust kér, amelyet a Lomse nem ismer (például a MuseScore „FreeSerif” betűje), a program a vele szállított Liberation betűket adja.
+  - Frissült a Bravura kottafont.
+  - A Lomse forrása a `Library/Lomse` mappában változatlan 0.30.0, négy saját javítással: FreeType-típusjavítás (`lomse_font_freetype.cpp`); dalszöveges kottánál üres szövegsor kezelése (`lomse_lyric_engraver.cpp`); „folytatódik” típusú oktávjel kezelése (`lomse_mxl_analyser.cpp`); fordított szélű alakzat kezelése az ütközésvizsgálatban (`lomse_vertical_profile.cpp`). A gyűjtőfájl (`Library/Lomse/build/lomse.cpp`) az új forráslistát tartalmazza, a névütközéseket ott oldja fel.
+  - A Lomse nem hoz létre naplófájlt (`lomse-log.txt`, `forensic_log.txt`): ezt a program most beállítással tiltja le, nem a forrás módosításával.
+
+### Javítva
+- **Összeomlás Doricóból exportált kotta betöltésekor**, ha a kottában sortörésen átnyúló oktávjel (8va) volt, vagy olyan elem, amelynek a szélei fordított sorrendben szerepeltek (például a Liebesträume kottája).
+- **Hibaüzenet (Debug) vagy rejtett hiba dalszöveges kottánál**, ha egy szövegsor a következő kottasorban folytatódott, de az adott sorban nem volt szótagja.
+
+### Ismert hibák
+- Doricóból exportált kottánál a le nem zárt pedálvonalak egymás alá torlódhatnak, a sor elején több kapcsos zárójel jelenhet meg, és a tempófeliratok egymásra csúszhatnak.
 
 ## 4.7 (fork) – 2026. október 6.
 

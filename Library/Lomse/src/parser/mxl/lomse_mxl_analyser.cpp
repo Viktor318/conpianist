@@ -5713,6 +5713,12 @@ public:
 
         set_mandatory_data(type, num, size);
 
+        //ConPianist fork: an octave-shift of type "continue" (written e.g. by Dorico at
+        //a system break) or of an invalid type is ignored: set_mandatory_data() has
+        //deleted m_pInfo, it must not be used any more
+        if (m_pInfo == nullptr)
+            return nullptr;
+
         //TODO
         // attrib: %dashed-formatting;
         // attrib: %print-style;

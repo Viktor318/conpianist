@@ -136,6 +136,14 @@ void VerticalProfile::update_shape(GmoShape* pShape, int idxStaff)
     LUnits yTop = pShape->get_top();
     LUnits yBottom = pShape->get_bottom();
 
+    //ConPianist fork: a shape with its right border before its left one (seen with
+    //scores exported by Dorico) made update_profile() run past the end of the points
+    //list. The borders are put in order; a shape without valid borders is skipped.
+    if (xLeft > xRight)
+        std::swap(xLeft, xRight);
+    if (!(xLeft <= xRight))
+        return;
+
     if (xLeft < m_xStart || xRight > m_xEnd)
         return;
 
@@ -192,7 +200,7 @@ void VerticalProfile::update_profile(list<VProfilePoint>* pPoints, LUnits yPos, 
     LUnits yPrev = (*std::prev(itLeft)).y;
     GmoShape* pPrevShape = (*std::prev(itLeft)).shape;
 //    cout << "itLeft: xPos=" << (*itLeft).x << ", itRight: xPos=" << (*itRight).x << endl;
-    while (itLeft != itRight)
+    while (itLeft != itRight && itLeft != pPoints->end())   //ConPianist fork: end guard
     {
         VProfilePoint ptCur = *itLeft;
 //        cout << "Cur.point: xPos=" << ptCur.x << ", ptCur.y=" << ptCur.y
