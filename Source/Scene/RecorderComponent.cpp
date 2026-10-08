@@ -110,7 +110,7 @@ RecorderComponent::RecorderComponent(Settings& settings, PianoController& pianoC
 	initLabel(metronomeVolumeLabel, TRANS("Metronome volume"));
 
 	metronomeVolumeSlider.setSliderStyle(Slider::LinearHorizontal);
-	metronomeVolumeSlider.setTextBoxStyle(Slider::TextBoxRight, false, 40, 24);
+	metronomeVolumeSlider.setTextBoxStyle(Slider::TextBoxLeft, false, 40, 24);
 	metronomeVolumeSlider.setRange(0, 127, 1);
 	metronomeVolumeSlider.onValueChange = [this]()
 		{
@@ -263,10 +263,18 @@ void RecorderComponent::paint(Graphics& g)
 
 void RecorderComponent::resized()
 {
-	// start and stop, what is recorded
-	modeLabel.setBounds(16, 16, 150, 24);
-	autoButton.setBounds(170, 16, 124, 24);
-	manualButton.setBounds(300, 16, 124, 24);
+	// (the controls of a row right after the text of its label, without a gap)
+	auto textWidth = [](const String& text)
+		{
+			return GlyphArrangement::getStringWidthInt(Font(FontOptions(15.00f, Font::plain)), text);
+		};
+	// start and stop, what is recorded: the two buttons as far apart as before
+	{
+		const int labelWidth = jlimit(60, 170, textWidth(modeLabel.getText()) + 10);
+		modeLabel.setBounds(16, 16, labelWidth, 24);
+		autoButton.setBounds(16 + labelWidth, 16, 124, 24);
+		manualButton.setBounds(autoButton.getRight() + 6, 16, 124, 24);
+	}
 	{
 		// the value right after the text of the label
 		const int textWidth = GlyphArrangement::getStringWidthInt(silenceLabel.getFont(), silenceLabel.getText());
@@ -279,19 +287,18 @@ void RecorderComponent::resized()
 	metronomeButton.setBounds(12, 132, 120, 24);
 	bellButton.setBounds(136, 132, 100, 24);
 	countInCombo.setBounds(240, 132, 184, 24);
-	// (the controls of a row right after the text of its label, without a gap)
-	auto textWidth = [](const String& text)
-		{
-			return GlyphArrangement::getStringWidthInt(Font(FontOptions(15.00f, Font::plain)), text);
-		};
 	{
 		const int labelWidth = jlimit(60, 170, textWidth(tempoLabel.getText()) + 10);
 		tempoLabel.setBounds(16, 168, labelWidth, 24);
 		tempoSlider.setBounds(16 + labelWidth, 168, 120, 24);
 		beatCombo.setBounds(16 + labelWidth + 120 + 8, 168, 110, 24);
 	}
-	metronomeVolumeLabel.setBounds(16, 204, 170, 24);
-	metronomeVolumeSlider.setBounds(186, 204, 238, 24);
+	{
+		// the value box right after the text, the slider to the end of the row
+		const int labelWidth = jlimit(60, 170, textWidth(metronomeVolumeLabel.getText()) + 10);
+		metronomeVolumeLabel.setBounds(16, 204, labelWidth, 24);
+		metronomeVolumeSlider.setBounds(16 + labelWidth, 204, 424 - (16 + labelWidth), 24);
+	}
 	// quantization
 	{
 		// the tick box and the text of the button, then the two lists
