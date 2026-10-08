@@ -332,12 +332,11 @@ static String ChordSymbolName(const XmlElement& harmony)
 		}
 		else if (hasText)
 		{
-			// MuseScore writes "Asus4" with the text "4" (and "Asus2" with "2"): the "sus" is
-			// added to a suspended chord whose text does not say it
+			// a suspended chord is always shown short ("A4", "A2"), whatever its text is,
+			// so that it does not run into the next chord symbol
 			const String kindName = kind->getAllSubText().trim();
-			const String text = kind->getStringAttribute("text");
-			const bool suspended = kindName == "suspended-fourth" || kindName == "suspended-second";
-			name += suspended && text.containsOnly("0123456789") && text.isNotEmpty() ? "sus" + text : text;
+			name += kindName == "suspended-fourth" ? String("4") :
+				kindName == "suspended-second" ? String("2") : kind->getStringAttribute("text");
 		}
 		else
 		{
@@ -349,7 +348,7 @@ static String ChordSymbolName(const XmlElement& harmony)
 				{"minor-sixth", "m6"}, {"dominant-ninth", "9"}, {"major-ninth", "maj9"},
 				{"minor-ninth", "m9"}, {"dominant-11th", "11"}, {"major-11th", "maj11"},
 				{"minor-11th", "m11"}, {"dominant-13th", "13"}, {"major-13th", "maj13"},
-				{"minor-13th", "m13"}, {"suspended-second", "sus2"}, {"suspended-fourth", "sus4"},
+				{"minor-13th", "m13"}, {"suspended-second", "2"}, {"suspended-fourth", "4"},
 				{"power", "5"}, {"pedal", "ped"}, {"Neapolitan", "N6"}, {"Italian", "It+6"},
 				{"French", "Fr+6"}, {"German", "Ger+6"}, {"Tristan", "Tristan"}};
 			auto it = kinds.find(kind->getAllSubText().trim());
