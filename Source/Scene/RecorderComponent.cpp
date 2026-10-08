@@ -35,7 +35,7 @@ RecorderComponent::RecorderComponent(Settings& settings, PianoController& pianoC
 			addAndMakeVisible(label);
 		};
 
-	initLabel(modeLabel, TRANS("Start and stop:"));
+	initLabel(modeLabel, TRANS("Start and stop"));
 
 	autoButton.setButtonText(TRANS("Automatic"));
 	autoButton.setTooltip(TRANS("The recording starts with the first played note and stops after the given silence"));
@@ -51,7 +51,7 @@ RecorderComponent::RecorderComponent(Settings& settings, PianoController& pianoC
 	manualButton.addListener(this);
 	addAndMakeVisible(manualButton);
 
-	initLabel(silenceLabel, TRANS("Stop after silence (seconds):"));
+	initLabel(silenceLabel, TRANS("Stop after silence (seconds)"));
 
 	silenceSlider.setSliderStyle(Slider::IncDecButtons);
 	silenceSlider.setTextBoxStyle(Slider::TextBoxLeft, false, 40, 24);
@@ -59,7 +59,7 @@ RecorderComponent::RecorderComponent(Settings& settings, PianoController& pianoC
 	silenceSlider.onValueChange = [this]() { saveOptions(); };
 	addAndMakeVisible(silenceSlider);
 
-	initLabel(tempoLabel, TRANS("Tempo and beat:"));
+	initLabel(tempoLabel, TRANS("Tempo and beat"));
 
 	tempoSlider.setSliderStyle(Slider::IncDecButtons);
 	tempoSlider.setTextBoxStyle(Slider::TextBoxLeft, false, 40, 24);
@@ -107,7 +107,7 @@ RecorderComponent::RecorderComponent(Settings& settings, PianoController& pianoC
 		};
 	addAndMakeVisible(bellButton);
 
-	initLabel(metronomeVolumeLabel, TRANS("Metronome volume:"));
+	initLabel(metronomeVolumeLabel, TRANS("Metronome volume"));
 
 	metronomeVolumeSlider.setSliderStyle(Slider::LinearHorizontal);
 	metronomeVolumeSlider.setTextBoxStyle(Slider::TextBoxRight, false, 40, 24);
@@ -164,7 +164,7 @@ RecorderComponent::RecorderComponent(Settings& settings, PianoController& pianoC
 	quantizeFillButton.addListener(this);
 	addAndMakeVisible(quantizeFillButton);
 
-	initLabel(nameLabel, TRANS("File name:"));
+	initLabel(nameLabel, TRANS("File name"));
 
 	nameEditor.setMultiLine(false);
 	nameEditor.setSelectAllWhenFocused(true);
@@ -210,7 +210,7 @@ RecorderComponent::RecorderComponent(Settings& settings, PianoController& pianoC
 	folderButton.setTooltip(TRANS("Opens the folder of the recordings (with the saved recording selected)"));
 	folderButton.addListener(this);
 	addAndMakeVisible(folderButton);
-	initLabel(positionCaption, TRANS("Position:"));
+	initLabel(positionCaption, TRANS("Position"));
 
 	autoButton.setToggleState(settings.recorderAutomatic, dontSendNotification);
 	manualButton.setToggleState(!settings.recorderAutomatic, dontSendNotification);

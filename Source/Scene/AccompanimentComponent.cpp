@@ -43,7 +43,7 @@ AccompanimentComponent::AccompanimentComponent(Settings& settings, PianoControll
 			addAndMakeVisible(button);
 		};
 
-	initLabel(styleLabel, TRANS("Style:"));
+	initLabel(styleLabel, TRANS("Style"));
 
 	// the lists do not take the keyboard focus either
 	categoryCombo.setWantsKeyboardFocus(false);
@@ -63,7 +63,7 @@ AccompanimentComponent::AccompanimentComponent(Settings& settings, PianoControll
 	initButton(applyButton, TRANS("Apply"));
 	applyButton.setTooltip(TRANS("Loads the chosen style on the piano (Enter)"));
 
-	initLabel(currentLabel, TRANS("Current:"));
+	initLabel(currentLabel, TRANS("Current"));
 	initLabel(currentNameLabel, "");
 	currentNameLabel.setMinimumHorizontalScale(0.7f);
 	// bold, in the colour of the chord, in a frame like the chord (see paint)
@@ -72,7 +72,7 @@ AccompanimentComponent::AccompanimentComponent(Settings& settings, PianoControll
 
 	loadStyles();
 
-	initLabel(tempoLabel, TRANS("Tempo:"));
+	initLabel(tempoLabel, TRANS("Tempo"));
 	tempoSlider.setSliderStyle(Slider::IncDecButtons);
 	tempoSlider.setTextBoxStyle(Slider::TextBoxLeft, false, 40, 24);
 	tempoSlider.setRange(PianoController::MinTempo, PianoController::MaxTempo, 1);
@@ -88,8 +88,8 @@ AccompanimentComponent::AccompanimentComponent(Settings& settings, PianoControll
 
 	// the key of the music: its note (first the keys with sharps, then the ones with
 	// flats) and major or minor
-	initLabel(keyLabel, TRANS("Key:"));
-	initLabel(chordLabel, TRANS("Chord:"));
+	initLabel(keyLabel, TRANS("Key"));
+	initLabel(chordLabel, TRANS("Chord"));
 	keyCombo.setWantsKeyboardFocus(false);
 	keyCombo.setTooltip(TRANS("The key of the music: the chords are named with the sharps or the flats of the key (without a key, as the piano names them), and the key is written into the recording"));
 	keyModeCombo.setWantsKeyboardFocus(false);
@@ -120,7 +120,7 @@ AccompanimentComponent::AccompanimentComponent(Settings& settings, PianoControll
 	addAndMakeVisible(keyModeCombo);
 
 	// the filter of the style lists by time signature
-	initLabel(meterLabel, TRANS("Meter:"));
+	initLabel(meterLabel, TRANS("Meter"));
 	meterLabel.setJustificationType(Justification::centredRight);
 	meterCombo.setWantsKeyboardFocus(false);
 	meterCombo.addItem("-", 1);
@@ -178,14 +178,14 @@ AccompanimentComponent::AccompanimentComponent(Settings& settings, PianoControll
 	chordNameLabel.setColour(Label::textColourId, Colour(0xffee6c0a)); // the colour of the buttons that are on
 	chordNameLabel.setTooltip(TRANS("The chord recognized by the piano"));
 
-	initLabel(chordAreaLabel, TRANS("Chord detection:"));
+	initLabel(chordAreaLabel, TRANS("Chord detection"));
 	initButton(chordFullButton, "Full");
 	chordFullButton.setTooltip(TRANS("The chords are recognized on the whole keyboard"));
 	initButton(chordLowerButton, "Lower");
 	chordLowerButton.setTooltip(TRANS("The chords are recognized below the split point"));
 	initButton(leftSoundButton, TRANS("Main voice below"));
 	leftSoundButton.setTooltip(TRANS("For playing without the Left part: when on, the Main and Layer voices sound below the split point too while the accompaniment is playing; when off, the keys there only give the chords. It has no effect while the Left part is on (the button is greyed out then)."));
-	initLabel(splitLabel, TRANS("Split point:"));
+	initLabel(splitLabel, TRANS("Split point"));
 	initButton(splitDownButton, String(CharPointer_UTF8("\xe2\x97\x84")));
 	splitDownButton.setTooltip(TRANS("Split point one key lower"));
 	initButton(splitUpButton, String(CharPointer_UTF8("\xe2\x96\xba")));
@@ -228,7 +228,7 @@ AccompanimentComponent::AccompanimentComponent(Settings& settings, PianoControll
 	initButton(breakButton, TRANS("Break"));
 	breakButton.setTooltip(TRANS("One measure of break (G)"));
 
-	initLabel(volumeLabel, TRANS("Accompaniment volume:"));
+	initLabel(volumeLabel, TRANS("Accompaniment volume"));
 	volumeSlider.setSliderStyle(Slider::LinearHorizontal);
 	volumeSlider.setTextBoxStyle(Slider::TextBoxRight, false, 40, 24);
 	volumeSlider.setRange(PianoController::MinVolume, PianoController::MaxVolume, 1);
@@ -250,7 +250,7 @@ AccompanimentComponent::AccompanimentComponent(Settings& settings, PianoControll
 	hintLabel.setJustificationType(Justification::centredRight);
 	hintLabel.setMinimumHorizontalScale(0.7f);
 
-	initLabel(partsLabel, TRANS("Parts:"));
+	initLabel(partsLabel, TRANS("Parts"));
 	initButton(partGroupButtons[PianoController::sgRhythm], TRANS("Rhythm"));
 	initButton(partGroupButtons[PianoController::sgBass], TRANS("Bass"));
 	initButton(partGroupButtons[PianoController::sgOthers], TRANS("Others"));
@@ -1398,7 +1398,7 @@ void AccompanimentComponent::askRegistrationName(int index, const String& title,
 	AlertWindow* window = new AlertWindow(title,
 		registrations[index].used ? TRANS("The memory is in use: saving replaces what is in it.") : String(),
 		MessageBoxIconType::NoIcon, this);
-	window->addTextEditor("name", registrations[index].name, TRANS("Name (not required):"));
+	window->addTextEditor("name", registrations[index].name, TRANS("Name (not required)"));
 	window->addButton(TRANS("OK"), 1, KeyPress(KeyPress::returnKey));
 	window->addButton(TRANS("Cancel"), 0, KeyPress(KeyPress::escapeKey));
 	if (TextEditor* editor = window->getTextEditor("name"))

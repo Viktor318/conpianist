@@ -144,7 +144,7 @@ SongSelectorComponent::SongSelectorComponent(Settings& settings, PianoController
 	headerLabel.setMinimumHorizontalScale(0.7f);
 	addAndMakeVisible(headerLabel);
 
-	searchLabel.setText(TRANS("Search:"), dontSendNotification);
+	searchLabel.setText(TRANS("Search"), dontSendNotification);
 	searchLabel.setFont(Font(14.0f));
 	searchLabel.setColour(Label::textColourId, GreyTextColour);
 	searchLabel.setJustificationType(Justification::centredRight);
