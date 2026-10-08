@@ -364,6 +364,6 @@ countries: hu
 "Double click = load" = "Dupla kattintás = betöltés"
 "There is no MIDI file for this song in its folder; the piano's own songs can be played via network" = "Ehhez a dalhoz nincs MIDI-fájl a mappájában; a zongora saját dalai hálózaton keresztül játszhatók le"
 "Speed" = "Sebesség"
-"Speed of the playback via USB or MIDI device, relative to the tempo set last; the tempo changes of the song are kept; double click: 100%" = "A lejátszás sebessége USB-n és MIDI-eszközön, a legutóbb beállított tempóhoz képest; a dal tempóváltásai megmaradnak; dupla kattintás: 100%"
+"Speed of the playback via USB or MIDI device compared with the song's own tempo; the tempo changes of the song are kept; double click: 100%" = "A lejátszás sebessége USB-n és MIDI-eszközön a dal saját tempójához képest; a dal tempóváltásai megmaradnak; dupla kattintás: 100%"
 "Key" = "Hangnem"
 "Chord detection" = "Akkordfelismerés"

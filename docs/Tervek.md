@@ -101,6 +101,7 @@ Egyetlen funkció, amely a korábban külön tervezett „betöltött MIDI-fájl
 | Beépített dal betöltése útvonallal | **Kipróbálva, működik** (2026. október): a zongora az útvonal alapján betölti és lejátssza a saját dalát, a pozíciót is küldi, így a kotta követi. A dalválasztó erre épül. |
 | OTS (One Touch Setting) | Működik-e a CSP-170-en, és elérhető-e a programból (PSR-rel tesztelve). |
 | Metronóm ütemei | Elfogadja-e a zongora a 9/8-at és a 12/8-at, és hol az ütésszám felső határa. |
+| Sebesség hálózati módban | A Sebesség csúszka hálózati lejátszásnál is működhetne, ha a dalhoz van MIDI-fájl (feltöltött saját fájl, vagy beépített dal a mappájában lévő MIDI-fájllal): a program a fájlból tudja a dal tempóját az adott helyen, a szorzót a zongora tárolja. Előbb meg kell nézni, hogy a zongora belső példánya és a fájl tempói ugyanott ugyanazok-e (például a Canon D dur bevezető ütemét a zongora átugorja): ugyanannál az ütemnél USB-n és hálózaton ugyanazt a tempót mutatja-e. Addig hálózaton a Sebesség szürke. |
 | Tempóváltás a felvett fájlban | A 4.7-ben kiadva, a visszajelzés még hiányzik. |
 
 ## Elvetve

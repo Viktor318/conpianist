@@ -615,11 +615,10 @@ void RegistrationMemory::SavePlayback()
 		pianoController.GetGuideType() == PianoController::gtYourTempo ? "your-tempo" :
 		"correct-key");
 	listElement->createNewChildElement("Tempo")->addTextElement(String(pianoController.GetTempo()));
-	// the speed of ConPianist's own player (percent; 100 with the piano's player) and the
-	// tempo set last relative to the song's own tempo (the tempo above is only the tempo
-	// at the saved position)
+	// the speed of ConPianist's own player relative to the song's own tempo (percent, and
+	// exactly; 100 with the piano's player); the tempo above is the tempo at the saved position
 	listElement->createNewChildElement("Speed")->addTextElement(String(pianoController.GetSpeed()));
-	listElement->createNewChildElement("TempoFactor")->addTextElement(String(pianoController.GetTempoFactor(), 6));
+	listElement->createNewChildElement("SpeedFactor")->addTextElement(String(pianoController.GetSpeedFactor(), 6));
 	listElement->createNewChildElement("Transpose")->addTextElement(String(pianoController.GetTranspose()));
 	listElement->createNewChildElement("RightChannel")->addTextElement(
 		String(pianoController.GetPartChannel(PianoController::paRight) - PianoController::chMidi0));
@@ -674,15 +673,15 @@ void RegistrationMemory::LoadPlayback()
 	if ((el = listElement->getChildByName("Speed")) && pianoController.IsLocalPlayback())
 	{
 		const int speed = el->getAllSubText().getIntValue();
-		XmlElement* factorElement = listElement->getChildByName("TempoFactor");
+		XmlElement* factorElement = listElement->getChildByName("SpeedFactor");
 		const double factor = factorElement ? factorElement->getAllSubText().getDoubleValue() : 0.0;
-		if (speed > 0 && factor > 0)
+		if (factor > 0)
 		{
-			pianoController.SetTempoAndSpeed(factor, speed);
+			pianoController.SetSpeedFactor(factor);
 		}
 		else if (speed > 0)
 		{
-			pianoController.SetSpeed(speed);
+			pianoController.SetSpeedFactor(speed / 100.0);
 		}
 	}
 	if ((el = listElement->getChildByName("Transpose")))

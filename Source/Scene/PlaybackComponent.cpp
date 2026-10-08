@@ -324,13 +324,13 @@ PlaybackComponent::PlaybackComponent (Settings& settings, PianoController& piano
 
 
     //[Constructor] You can add your own custom stuff here..
-    const String speedTip = TRANS("Speed of the playback via USB or MIDI device, relative to the tempo set last; the tempo changes of the song are kept; double click: 100%");
+    const String speedTip = TRANS("Speed of the playback via USB or MIDI device compared with the song's own tempo; the tempo changes of the song are kept; double click: 100%");
     speedTitleLabel.setText(TRANS("Speed"), NotificationType::dontSendNotification);
     speedTitleLabel.setFont(Font(15.00f, Font::plain));
     speedTitleLabel.setJustificationType(Justification::centredLeft);
     speedLabel.setFont(Font(15.00f, Font::plain));
     speedLabel.setJustificationType(Justification::centredRight);
-    speedSlider.setRange(PianoController::MinSpeed, PianoController::MaxSpeed, 10);
+    speedSlider.setRange(PianoController::MinSpeed, PianoController::MaxSpeed, 1);
     speedSlider.setSliderStyle(Slider::LinearHorizontal);
     speedSlider.setTextBoxStyle(Slider::NoTextBox, true, 80, 20);
     speedSlider.onValueChange = [this]()

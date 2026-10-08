@@ -493,17 +493,18 @@ public:
 	int GetTempo() { return m_tempo; }
 	void SetTempo(int tempo);
 	void ResetTempo();
-	// The speed of ConPianist's own player (percent), relative to the tempo set last (by
-	// SetTempo, e.g. the Accompaniment or the Recording window; or the song's own tempo):
-	// the tempo changes of the song are played faster or slower in proportion; GetTempo is
-	// the tempo at the current position, the same everywhere. Setting the tempo sets the
-	// speed to 100%. With the piano's own player it is always 100 and cannot be set.
+	// The speed of ConPianist's own player: one factor relative to the song's own tempo
+	// (1.0 = 100% = as written; the tempo changes of the song are played faster or slower
+	// in proportion). Setting the tempo (SetTempo: left panel, Accompaniment or Recording
+	// window, the piano) calculates the speed, setting the speed changes the tempo; GetTempo
+	// is the tempo at the current position, the same everywhere. The Speed slider sets
+	// 10..200%; a tempo may give more or less (shown, not limited). With the piano's own
+	// player it is always 100% and cannot be set.
 	int GetSpeed() const { return roundToInt(m_speedFactor * 100.0); }
 	void SetSpeed(int percent);
-	// own player: the tempo set last relative to the song's own tempo (1.0 = as written);
-	// saved in the registration memory with the speed, so both are restored exactly
-	double GetTempoFactor() const { return m_tempoFactor; }
-	void SetTempoAndSpeed(double tempoFactor, int percent);
+	// the exact factor (saved in the registration memory)
+	double GetSpeedFactor() const { return m_speedFactor; }
+	void SetSpeedFactor(double factor);
 	int GetTranspose() { return m_transpose; }
 	void SetTranspose(int transpose);
 	bool GetPart(Part part) { return m_parts[part]; }
@@ -593,8 +594,7 @@ private:
 	Channel m_partChannels[2]{chMidi0,chMidi0};
 	bool m_partAuto = true;
 	int m_tempo = DefaultTempo;
-	double m_speedFactor = 1.0; // speed of the own player (Speed slider; 1.0 = 100%)
-	double m_tempoFactor = 1.0; // the tempo set last, relative to the song's own tempo
+	double m_speedFactor = 1.0; // speed of the own player relative to the song (1.0 = 100%)
 	int m_transpose = DefaultTranspose;
 	Position m_loopStart{0,0};
 	Loop m_loop{{0,0},{0,0}};
@@ -775,10 +775,10 @@ private:
 	void InitGenericMixer();
 	int GenericSetupValue(Channel ch, int controller, int defaultValue);
 	void ClearSongState();
-	// own player: plays with m_tempoFactor * m_speedFactor; the tempo at the current
-	// position follows (tempo: shown as it is, if it was set exactly)
+	// own player: plays with m_speedFactor; the tempo at the current position follows
+	// (tempo: shown as it is, if it was set exactly)
 	void ApplyLocalSpeed(int tempo = 0);
-	// own player: the tempo is set (the speed goes back to 100%)
+	// own player: the tempo is set (the speed is calculated from it)
 	void SetLocalTempo(int tempo);
 	// own player: the tempo at the current position (the song may change it); sent to the
 	// piano (its metronome and accompaniment follow it) if it changed

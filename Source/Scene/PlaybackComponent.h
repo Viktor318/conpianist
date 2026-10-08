@@ -90,7 +90,16 @@ private:
     // speed of ConPianist's own player (USB, MIDI device), under the tempo; with the
     // piano's own player it is grey (the tempo is set there)
     Label speedTitleLabel;
-    Slider speedSlider;
+    // shows any speed (e.g. 119% after a tempo was set), dragged in steps of 10%
+    struct SpeedSlider : public Slider
+    {
+        double snapValue(double attemptedValue, DragMode dragMode) override
+        {
+            return dragMode == notDragging ? attemptedValue :
+                jlimit(10.0, 200.0, std::round(attemptedValue / 10.0) * 10.0);
+        }
+    };
+    SpeedSlider speedSlider;
     Label speedLabel;
     void updateSpeedState();
     // holding the rewind/forward button jumps to the beginning/end of the song

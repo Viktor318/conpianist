@@ -673,20 +673,19 @@ void PianoController::SetSpeed(int percent)
 	SendLocalTempo();
 }
 
-void PianoController::SetTempoAndSpeed(double tempoFactor, int percent)
+void PianoController::SetSpeedFactor(double factor)
 {
-	if (!IsLocalSongLoaded() || tempoFactor <= 0)
+	if (!IsLocalSongLoaded() || factor <= 0)
 	{
 		return;
 	}
-	m_tempoFactor = tempoFactor;
-	m_speedFactor = jlimit(MinSpeed, MaxSpeed, percent) / 100.0;
+	m_speedFactor = jlimit(0.02, 20.0, factor);
 	ApplyLocalSpeed();
 	SendLocalTempo();
 }
 
 // The tempo is set (Accompaniment or Recording window, Tempo of the left panel, the piano):
-// exactly this tempo at the current position, the speed goes back to 100%.
+// exactly this tempo at the current position; the speed is calculated from it.
 void PianoController::SetLocalTempo(int tempo)
 {
 	tempo = jlimit((int)MinTempo, (int)MaxTempo, tempo);
@@ -697,8 +696,7 @@ void PianoController::SetLocalTempo(int tempo)
 		return;
 	}
 	const double fileTempo = m_localPlayer->GetFileTempo();
-	m_tempoFactor = fileTempo > 0 ? tempo / fileTempo : 1.0;
-	m_speedFactor = 1.0;
+	m_speedFactor = jlimit(0.02, 20.0, fileTempo > 0 ? tempo / fileTempo : 1.0);
 	ApplyLocalSpeed(tempo);
 }
 
@@ -706,10 +704,9 @@ void PianoController::ApplyLocalSpeed(int tempo)
 {
 	if (m_localPlayer)
 	{
-		const double factor = jlimit(0.02, 20.0, m_tempoFactor * m_speedFactor);
-		m_localPlayer->SetSpeed(factor);
+		m_localPlayer->SetSpeed(m_speedFactor);
 		m_tempo = tempo > 0 ? tempo :
-			jlimit((int)MinTempo, (int)MaxTempo, roundToInt(m_localPlayer->GetFileTempo() * factor));
+			jlimit((int)MinTempo, (int)MaxTempo, roundToInt(m_localPlayer->GetFileTempo() * m_speedFactor));
 	}
 	NotifyChanged(apTempo);
 }
@@ -720,8 +717,7 @@ void PianoController::UpdateLocalTempo()
 	{
 		return;
 	}
-	const double factor = jlimit(0.02, 20.0, m_tempoFactor * m_speedFactor);
-	const int tempo = jlimit((int)MinTempo, (int)MaxTempo, roundToInt(m_localPlayer->GetFileTempo() * factor));
+	const int tempo = jlimit((int)MinTempo, (int)MaxTempo, roundToInt(m_localPlayer->GetFileTempo() * m_speedFactor));
 	if (tempo != m_tempo)
 	{
 		m_tempo = tempo;
@@ -748,8 +744,7 @@ void PianoController::ResetTempo()
 	{
 		if (IsLocalSongLoaded())
 		{
-			// the song's own tempo, the speed 100%
-			m_tempoFactor = 1.0;
+			// the song's own tempo: the speed 100%
 			SetSpeed(DefaultSpeed);
 		}
 		else
@@ -3538,7 +3533,6 @@ bool PianoController::LoadLocalSong(const File& file)
 	m_loopStart = {0,0};
 	// a new song starts with its own tempo (speed 100%)
 	m_speedFactor = 1.0;
-	m_tempoFactor = 1.0;
 	m_localPlayer->SetSpeed(1.0);
 	m_tempo = jlimit((int)MinTempo, (int)MaxTempo, roundToInt(m_localPlayer->GetFileTempo()));
 	m_localPlayer->SetTranspose(m_transpose);
@@ -3610,7 +3604,6 @@ void PianoController::ClearSongState()
 	m_songName = "";
 	m_playing = false;
 	m_speedFactor = 1.0;
-	m_tempoFactor = 1.0;
 	m_position = {0,0};
 	m_length = {0,0};
 	m_loop = {{0,0},{0,0}};
