@@ -659,6 +659,7 @@ void PianoController::SetTempo(int tempo)
 		SendLocalTempo();
 		return;
 	}
+	m_networkTempoSet = true;
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::Tempo, tempo));
 }
 
@@ -753,6 +754,7 @@ void PianoController::ResetTempo()
 		}
 		return;
 	}
+	m_networkTempoSet = false; // the song's own tempo again
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Reset, Property::Tempo));
 }
 
@@ -1683,6 +1685,10 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 		if (m_songLoading)
 		{
 			m_songLoading = false;
+			if (!m_localPlayback)
+			{
+				m_networkTempoSet = false; // a new song of the piano's player: its own tempo
+			}
 			NotifyChanged(apSongLoaded);
 
 			if (m_pendingMeasure > 1 || m_pendingSnapshot.valid)
@@ -3253,11 +3259,11 @@ void PianoController::SetPlaybackSource(PlaybackSource source, bool automatic)
 	const String songName = IsSongLoaded() ? m_songName : String();
 	const int measure = GetPosition().measure;
 
-	if (!m_localPlayback && source != psPiano && m_connected &&
+	if (!m_localPlayback && source != psPiano && m_networkTempoSet && m_connected &&
 		songName.isNotEmpty() && !m_switchAtMeasureStart)
 	{
-		// from the piano's player: the piano goes to the beginning of the measure first, its
-		// tempo there is compared with the file's (after its report)
+		// the tempo was set on the piano's player: the piano goes to the beginning of the
+		// measure first, its tempo there is compared with the file's (after its report)
 		m_switchAtMeasureStart = true;
 		Stop();
 		SetPosition({jmax(1, measure), 1});
@@ -3299,6 +3305,11 @@ void PianoController::SetPlaybackSource(PlaybackSource source, bool automatic)
 	{
 		// the settings of the Mixer and the Playback panel are kept
 		m_pendingSnapshot = TakeSnapshot();
+		if (previousSource == psPiano && !m_networkTempoSet)
+		{
+			// the tempo was not set on the piano's player: the song keeps its own tempo
+			m_pendingSnapshot.speedFactor = 1.0;
+		}
 	}
 
 	m_playbackSourceAutomatic = automatic;
@@ -3496,8 +3507,8 @@ void PianoController::ApplySnapshot(const MixSnapshot& snapshot)
 	}
 	else if (snapshot.speedFactor <= 0 && IsLocalSongLoaded())
 	{
-		// from the piano's player to the own one: the speed from the piano's tempo and the
-		// file's at the beginning of the measure (both players are there), both in whole
+		// from the piano's player to the own one (the tempo was set there): the speed from
+		// the piano's tempo and the file's at the beginning of the measure, both in whole
 		// numbers; one unit is the rounding of the piano's tempo, the song keeps its own
 		// tempo then
 		const int fileTempo = roundToInt(m_localPlayer->GetFileTempo());

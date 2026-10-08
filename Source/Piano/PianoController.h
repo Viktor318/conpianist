@@ -630,9 +630,13 @@ private:
 	bool m_networkPlaybackAvailable = true;
 	bool m_localPlaybackAvailable = false;
 	int m_pendingMeasure = 0; // measure to jump to after the song is loaded again
-	// switching from the piano's player to the own one: the piano is first put to the
-	// beginning of the measure, so its tempo there can be compared with the tempo of the
-	// file at the same place
+	// the tempo was set (in the program) since the piano's player loaded the song: only then
+	// is a speed other than 100% taken over by the own player when the player is switched
+	// (the tempo the piano reports may differ from the file's even at the same measure)
+	bool m_networkTempoSet = false;
+	// switching from the piano's player to the own one after a tempo was set: the piano is
+	// first put to the beginning of the measure, so its tempo there can be compared with
+	// the tempo of the file at the same place
 	bool m_switchAtMeasureStart = false;
 	bool m_shownNotes[16][128] = {}; // notes of the local player shown on the virtual keyboard
 	PlaybackSource m_playbackSource = psPiano;
