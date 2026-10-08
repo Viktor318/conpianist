@@ -12,6 +12,7 @@ Ez a fájl a ConPianist jövőbeli fejlesztéseit gyűjti egy helyre. Új ötlet
 - MIDI- és PDF-fájl (dal, kotta) nem kerül a programba és a repóba, csak lista.
 - Ami nem kerülhet fel a netre, az a program adatmappájában él (`%APPDATA%\ConPianist`, a Roaming mappában).
 - A zongorán még ki nem próbált funkció előbb rövid tesztet kap, és csak utána kerül ütemezésre.
+- **Kódátnézés minden minor verzió végén**, a kiadás és a verzióemelés előtt, amikor a funkciók elkészültek és tesztelve vannak: az előző kiadás óta változott fájlok, valamint a kényes közös részek (szálkezelés és zárolás, lejátszási módváltás, kapcsolat, beállítások mentése). Szempontok: hibák (holtpont, versenyhelyzet, felület csak a fő szálon, erőforrások, hibakezelés), szerkezet (ismétlődő vagy túl hosszú kód, elavult megjegyzések, kihasználatlan kód), teljesség (fordítások, CHANGELOG). Az eredmény egy magyar lista súlyosság szerint (javítandó / érdemes átírni / megjegyzés); a kiadásba kerülőkről Viktor dönt, a javítások külön commitba kerülnek. Refaktorálás csak a működés megváltoztatása nélkül, vagy utána teszteléssel.
 
 ## Új ötletek (még nincs besorolva)
 
@@ -49,6 +50,7 @@ Ide bármikor beírható egy új ötlet, egy sorban, akár félkészen is. A kö
 | Tömörített MusicXML (.mxl) megnyitása | **Kész:** a kottamegnyitó ablak és a MIDI betöltésekor futó kottakeresés az `.mxl` kiterjesztést is felismeri (a Dorico alapból ilyet exportál). | – | A program maga csomagolja ki a fájlt, külső könyvtár nem kell hozzá. |
 | Kotta megjelenítési hibái Dorico-exportnál | A le nem zárt pedálvonalak torlódása, a többszörös kapcsos zárójel és az egymásra csúszó tempófeliratok javítása. | Kö | A „folytatódik” típusú jelölések (pedál, oktávjel) kezelése hiányzik a Lomse-ból. |
 | Ujjrend megjelenítése | Az ujjrend megjelenítése a kottában, MusicXML-ből. | K–Kö | Az új Lomse megjeleníti az ujjrendet (próbakottán látszott); ujjrendes Dorico-kottával még ki kell próbálni. |
+| Kódátnézés | Az első teljes kódátnézés az Alapelvekben leírt módon, a 4.8 kiadása előtt (a 4.7 óta változott fájlok és a kényes közös részek). | Kö | Az október 8-i holtponthiba (a saját lejátszó és az ablakok értesítése) indította. |
 
 ### 4.9 – Akkordmenet-lejátszó
 
