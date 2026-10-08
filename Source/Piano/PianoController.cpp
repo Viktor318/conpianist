@@ -400,7 +400,7 @@ bool PianoController::UploadSong(const File& file)
 	return ok;
 }
 
-// TEST: the piano is asked to load one of its own songs by its path, the way the song
+// The piano is asked to load one of its own songs by its path, the way the song
 // name is reported by the piano (e.g. PRESET:/SONG/Popular/Pop/Pop01.S000.mid). If the
 // piano loads it, it reports the new song name (apSongName, apSongLoaded).
 bool PianoController::LoadPresetSong(const String& path)
@@ -409,7 +409,7 @@ bool PianoController::LoadPresetSong(const String& path)
 	{
 		return false;
 	}
-	Logger::writeToLog("TEST: loading preset song " + path);
+	Logger::writeToLog("Loading the piano's song " + path);
 	m_songLoading = true;
 	ClearSentSongVoices();
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::SongName, 0, path));

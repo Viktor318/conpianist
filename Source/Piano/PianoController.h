@@ -446,7 +446,7 @@ public:
 	std::function<void()> onNetworkPlaybackFailed;
 	void InitEvents();
 	bool UploadSong(const File& file);
-	// TEST: loads one of the piano's own songs by its path (PRESET:/SONG/...)
+	// Loads one of the piano's own songs by its path (PRESET:/SONG/...); network playback only.
 	bool LoadPresetSong(const String& path);
 	void ResetSong();
 	void Play();

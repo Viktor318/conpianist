@@ -1096,6 +1096,25 @@ void SceneComponent::networkCheckFinished(bool reachable, int checkId)
 	chooseDefaultPlaybackSource();
 }
 
+// The path of one of the piano's own songs ("/SONG/Popular/Pop/Pop01.S000.mid"; the piano
+// reports it with the separator of the system), or empty for a file.
+static String PianoSongPath(const String& songName)
+{
+	const String path = songName.replaceCharacter('\\', '/');
+	return path.startsWith("/SONG/") ? path : String();
+}
+
+// Two song names are the same song: the same song of the piano or the same file.
+// (On Windows "\SONG\..." would count as an absolute path, so the piano's songs come first.)
+static bool IsSameSong(const String& a, const String& b)
+{
+	if (PianoSongPath(a).isNotEmpty() || PianoSongPath(b).isNotEmpty())
+	{
+		return PianoSongPath(a) == PianoSongPath(b);
+	}
+	return File::isAbsolutePath(a) && File::isAbsolutePath(b) && File(a) == File(b);
+}
+
 // With ConPianist's own player the song is not kept by the piano, so the last song
 // is loaded again: at the start the song of the last state (restored with its
 // settings, see loadSongState), later the last loaded song (with its registration memory).
@@ -1186,15 +1205,17 @@ void SceneComponent::restoreSongInPiano(Time curTime)
 	}
 	songRestoreRequested = true;
 
+	// a file, or one of the piano's own songs (loaded by its path, see the Song Selector)
 	const String song = getLastStateSong();
-	if (!File::isAbsolutePath(song) || !File(song).existsAsFile())
+	const String pianoSong = PianoSongPath(song);
+	if (pianoSong.isEmpty() && (!File::isAbsolutePath(song) || !File(song).existsAsFile()))
 	{
 		songStateRestored = true; // nothing to restore
 		return;
 	}
 
 	const String loaded = pianoController.IsSongLoaded() ? pianoController.GetSongName() : String();
-	if (File::isAbsolutePath(loaded) && File(loaded) == File(song))
+	if (IsSameSong(loaded, song))
 	{
 		// the piano still has the song
 		songStateRestored = true;
@@ -1203,7 +1224,16 @@ void SceneComponent::restoreSongInPiano(Time curTime)
 	}
 
 	Logger::writeToLog("Loading the song of the last state");
-	pianoController.LoadSong(File(song)); // its settings: see loadSongState
+	// its settings: see loadSongState
+	if (pianoSong.isNotEmpty())
+	{
+		if (!pianoController.LoadPresetSong("PRESET:" + pianoSong))
+		{
+			songStateRestored = true;
+		}
+		return;
+	}
+	pianoController.LoadSong(File(song));
 }
 
 // Saves the current state, restored at the next start. Parts that were not known in
@@ -1603,7 +1633,7 @@ void SceneComponent::loadSongState()
 		// settings are restored instead of its own registration memory
 		songStateRestored = true;
 		const String lastSong = getLastStateSong();
-		if (File::isAbsolutePath(song) && File::isAbsolutePath(lastSong) && File(song) == File(lastSong))
+		if (IsSameSong(song, lastSong))
 		{
 			restoreSongState();
 			scheduleLastStateSave();
@@ -1617,7 +1647,7 @@ void SceneComponent::loadSongState()
 		return;
 	}
 
-	if (File::isAbsolutePath(song))
+	if (PianoSongPath(song).isEmpty() && File::isAbsolutePath(song))
 	{
 		File file = File(song).withFileExtension(".conmem");
 		if (file.existsAsFile() && file.getSize() > 0)
