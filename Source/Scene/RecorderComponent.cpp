@@ -112,6 +112,7 @@ RecorderComponent::RecorderComponent(Settings& settings, PianoController& pianoC
 	metronomeVolumeSlider.setSliderStyle(Slider::LinearHorizontal);
 	metronomeVolumeSlider.setTextBoxStyle(Slider::TextBoxLeft, false, 40, 24);
 	metronomeVolumeSlider.setRange(0, 127, 1);
+	metronomeVolumeSlider.setDoubleClickReturnValue(true, 100); // like the other volumes
 	metronomeVolumeSlider.onValueChange = [this]()
 		{
 			const int volume = roundToInt(metronomeVolumeSlider.getValue());
