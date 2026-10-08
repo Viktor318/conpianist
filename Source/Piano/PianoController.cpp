@@ -655,29 +655,84 @@ void PianoController::SetTempo(int tempo)
 {
 	if (m_localPlayback)
 	{
-		if (m_localPlayer) m_localPlayer->SetTempo(tempo);
-		m_tempo = tempo;
-		NotifyChanged(apTempo);
-		if (!m_connected)
+		if (IsLocalSongLoaded())
 		{
-			m_recorder.AddTempo(tempo); // no piano that reports it: recorded from here
+			// the speed that gives this tempo at the current position (e.g. the tempo of
+			// the accompaniment, a registration memory, the Recording window)
+			const double fileTempo = m_localPlayer->GetFileTempo();
+			ApplyLocalSpeed(fileTempo > 0 ? tempo / fileTempo : 1.0);
 		}
-		if (m_connected)
+		else
 		{
-			// the piano's metronome and accompaniment follow the tempo of the own player
-			m_tempoSentMs = Time::getMillisecondCounter();
-			m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::Tempo, tempo));
+			m_tempo = tempo;
+			NotifyChanged(apTempo);
 		}
+		SendLocalTempo();
 		return;
 	}
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::Tempo, tempo));
+}
+
+void PianoController::SetSpeed(int percent)
+{
+	if (!IsLocalSongLoaded())
+	{
+		return;
+	}
+	ApplyLocalSpeed(percent / 100.0);
+	SendLocalTempo();
+}
+
+void PianoController::ApplyLocalSpeed(double speed)
+{
+	m_speedFactor = jlimit(MinSpeed / 100.0, MaxSpeed / 100.0, speed);
+	if (m_localPlayer)
+	{
+		m_localPlayer->SetSpeed(m_speedFactor);
+		m_tempo = jlimit((int)MinTempo, (int)MaxTempo, roundToInt(m_localPlayer->GetFileTempo() * m_speedFactor));
+	}
+	NotifyChanged(apTempo);
+}
+
+void PianoController::UpdateLocalTempo()
+{
+	if (!IsLocalSongLoaded())
+	{
+		return;
+	}
+	const int tempo = jlimit((int)MinTempo, (int)MaxTempo, roundToInt(m_localPlayer->GetFileTempo() * m_speedFactor));
+	if (tempo != m_tempo)
+	{
+		m_tempo = tempo;
+		NotifyChanged(apTempo);
+		SendLocalTempo();
+	}
+}
+
+void PianoController::SendLocalTempo()
+{
+	if (!m_connected)
+	{
+		m_recorder.AddTempo(m_tempo); // no piano that reports it: recorded from here
+		return;
+	}
+	// the piano's metronome and accompaniment follow the tempo of the own player
+	m_tempoSentMs = Time::getMillisecondCounter();
+	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::Tempo, m_tempo));
 }
 
 void PianoController::ResetTempo()
 {
 	if (m_localPlayback)
 	{
-		SetTempo(IsLocalSongLoaded() ? m_localPlayer->GetBaseTempo() : DefaultTempo);
+		if (IsLocalSongLoaded())
+		{
+			SetSpeed(DefaultSpeed);
+		}
+		else
+		{
+			SetTempo(DefaultTempo);
+		}
 		return;
 	}
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Reset, Property::Tempo));
@@ -1068,9 +1123,17 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 					if (alive.lock() && m_localPlayback && m_tempo != pianoTempo &&
 						Time::getMillisecondCounter() - m_tempoSentMs > 700)
 					{
-						if (m_localPlayer) m_localPlayer->SetTempo(pianoTempo);
-						m_tempo = pianoTempo;
-						NotifyChanged(apTempo);
+						if (IsLocalSongLoaded())
+						{
+							// the speed that gives the piano's tempo at the current position
+							const double fileTempo = m_localPlayer->GetFileTempo();
+							ApplyLocalSpeed(fileTempo > 0 ? pianoTempo / fileTempo : 1.0);
+						}
+						else
+						{
+							m_tempo = pianoTempo;
+							NotifyChanged(apTempo);
+						}
 					}
 				});
 		}
@@ -1707,6 +1770,15 @@ void PianoController::ApplyPlaybackSource(PlaybackSource source)
 				if (positionChanged)
 				{
 					NotifyChanged(apPosition);
+					// the song may change its tempo: the shown tempo follows it
+					std::weak_ptr<bool> alive = m_alive;
+					MessageManager::callAsync([this, alive]()
+						{
+							if (alive.lock())
+							{
+								UpdateLocalTempo();
+							}
+						});
 					if (m_localPlayer && m_localPlayer->IsPlaying())
 					{
 						OnBeat(m_localPlayer->GetPosition().beat);
@@ -3450,7 +3522,10 @@ bool PianoController::LoadLocalSong(const File& file)
 	m_songLoaded = true;
 	m_loop = {{0,0},{0,0}};
 	m_loopStart = {0,0};
-	m_tempo = m_localPlayer->GetBaseTempo();
+	// a new song starts with its own tempo (speed 100%)
+	m_speedFactor = 1.0;
+	m_localPlayer->SetSpeed(m_speedFactor);
+	m_tempo = jlimit((int)MinTempo, (int)MaxTempo, roundToInt(m_localPlayer->GetFileTempo()));
 	m_localPlayer->SetTranspose(m_transpose);
 
 	const std::vector<int> usedChannels = m_localPlayer->GetUsedChannels();
@@ -3519,6 +3594,7 @@ void PianoController::ClearSongState()
 	m_songLoading = false;
 	m_songName = "";
 	m_playing = false;
+	m_speedFactor = 1.0;
 	m_position = {0,0};
 	m_length = {0,0};
 	m_loop = {{0,0},{0,0}};

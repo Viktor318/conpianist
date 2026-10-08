@@ -363,3 +363,6 @@ countries: hu
 "Playback via MIDI device: the grey songs have no MIDI file in their folder." = "Lejátszás MIDI-eszközön: a szürke dalokhoz nincs MIDI-fájl a mappában."
 "Double click = load" = "Dupla kattintás = betöltés"
 "There is no MIDI file for this song in its folder; the piano's own songs can be played via network" = "Ehhez a dalhoz nincs MIDI-fájl a mappájában; a zongora saját dalai hálózaton keresztül játszhatók le"
+"Speed:" = "Sebesség:"
+"Speed of the playback via USB or MIDI device: the tempo changes of the song are played faster or slower in proportion; double click: 100%" = "A lejátszás sebessége USB-n és MIDI-eszközön: a dal tempóváltásai arányosan gyorsabban vagy lassabban szólnak; dupla kattintás: 100%"
+"Tempo at the current position of the song (set it with the Speed)" = "A dal tempója az aktuális helyen (a Sebességgel állítható)"

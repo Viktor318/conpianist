@@ -157,6 +157,10 @@ public:
 	static const int MinTempo = 5;
 	static const int MaxTempo = 280;
 	static const int DefaultTempo = 120;
+	// speed of ConPianist's own player (USB, MIDI device), in percent
+	static const int MinSpeed = 10;
+	static const int MaxSpeed = 200;
+	static const int DefaultSpeed = 100;
 	static const int MinTranspose = -12;
 	static const int MaxTranspose = +12;
 	static const int DefaultTranspose = 0;
@@ -489,6 +493,11 @@ public:
 	int GetTempo() { return m_tempo; }
 	void SetTempo(int tempo);
 	void ResetTempo();
+	// The speed of ConPianist's own player (percent): the tempo changes of the song are
+	// played faster or slower in proportion; GetTempo is the tempo at the current position.
+	// With the piano's own player it is always 100 and cannot be set.
+	int GetSpeed() const { return roundToInt(m_speedFactor * 100.0); }
+	void SetSpeed(int percent);
 	int GetTranspose() { return m_transpose; }
 	void SetTranspose(int transpose);
 	bool GetPart(Part part) { return m_parts[part]; }
@@ -578,6 +587,7 @@ private:
 	Channel m_partChannels[2]{chMidi0,chMidi0};
 	bool m_partAuto = true;
 	int m_tempo = DefaultTempo;
+	double m_speedFactor = 1.0; // speed of the own player (1.0 = as written in the song)
 	int m_transpose = DefaultTranspose;
 	Position m_loopStart{0,0};
 	Loop m_loop{{0,0},{0,0}};
@@ -758,6 +768,13 @@ private:
 	void InitGenericMixer();
 	int GenericSetupValue(Channel ch, int controller, int defaultValue);
 	void ClearSongState();
+	// own player: sets the speed (clamped), the tempo at the current position follows
+	void ApplyLocalSpeed(double speed);
+	// own player: the tempo at the current position (the song may change it); sent to the
+	// piano (its metronome and accompaniment follow it) if it changed
+	void UpdateLocalTempo();
+	// own player: the tempo goes to the piano (or to the recording without a piano)
+	void SendLocalTempo();
 	bool IsLocalSongLoaded() const { return m_localPlayback && m_localPlayer && m_localPlayer->IsLoaded(); }
 	void ResetLocalMixState();
 	void UpdateLocalMutes();

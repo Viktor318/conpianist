@@ -615,6 +615,8 @@ void RegistrationMemory::SavePlayback()
 		pianoController.GetGuideType() == PianoController::gtYourTempo ? "your-tempo" :
 		"correct-key");
 	listElement->createNewChildElement("Tempo")->addTextElement(String(pianoController.GetTempo()));
+	// the speed of ConPianist's own player (percent; 100 with the piano's player)
+	listElement->createNewChildElement("Speed")->addTextElement(String(pianoController.GetSpeed()));
 	listElement->createNewChildElement("Transpose")->addTextElement(String(pianoController.GetTranspose()));
 	listElement->createNewChildElement("RightChannel")->addTextElement(
 		String(pianoController.GetPartChannel(PianoController::paRight) - PianoController::chMidi0));
@@ -663,6 +665,16 @@ void RegistrationMemory::LoadPlayback()
 	{
 		int value = el->getAllSubText().getIntValue();
 		pianoController.SetTempo(value);
+	}
+	// with ConPianist's own player the speed is restored exactly (the tempo above is only the
+	// tempo at the saved position); older files have no speed
+	if ((el = listElement->getChildByName("Speed")) && pianoController.IsLocalPlayback())
+	{
+		int value = el->getAllSubText().getIntValue();
+		if (value > 0)
+		{
+			pianoController.SetSpeed(value);
+		}
 	}
 	if ((el = listElement->getChildByName("Transpose")))
 	{

@@ -324,6 +324,33 @@ PlaybackComponent::PlaybackComponent (Settings& settings, PianoController& piano
 
 
     //[Constructor] You can add your own custom stuff here..
+    const String speedTip = TRANS("Speed of the playback via USB or MIDI device: the tempo changes of the song are played faster or slower in proportion; double click: 100%");
+    speedTitleLabel.setText(TRANS("Speed:"), NotificationType::dontSendNotification);
+    speedTitleLabel.setFont(Font(15.00f, Font::plain));
+    speedTitleLabel.setJustificationType(Justification::centredLeft);
+    speedLabel.setFont(Font(15.00f, Font::plain));
+    speedLabel.setJustificationType(Justification::centredRight);
+    speedSlider.setRange(PianoController::MinSpeed, PianoController::MaxSpeed, 10);
+    speedSlider.setSliderStyle(Slider::LinearHorizontal);
+    speedSlider.setTextBoxStyle(Slider::NoTextBox, true, 80, 20);
+    speedSlider.onValueChange = [this]()
+        {
+            const int speed = roundToInt(speedSlider.getValue());
+            speedLabel.setText(String(speed) + "%", NotificationType::dontSendNotification);
+            if (speed != this->pianoController.GetSpeed())
+            {
+                this->pianoController.SetSpeed(speed);
+            }
+        };
+    for (Component* component : {(Component*)&speedTitleLabel, (Component*)&speedSlider, (Component*)&speedLabel})
+    {
+        component->setHelpText(speedTip);
+        addAndMakeVisible(component);
+        component->addMouseListener(this, false);
+    }
+    speedTitleLabel.setTooltip(speedTip);
+    speedLabel.setTooltip(speedTip);
+    speedSlider.setTooltip(speedTip);
     updateEnabledControls();
     updateChannelState();
     updatePlaybackState(PianoController::apPosition);
@@ -483,6 +510,15 @@ void PlaybackComponent::resized()
     usbPlaybackButton->setBounds (10, ((-8) + 70 - 8) + 230, 268, 24);
     midiDevicePlaybackButton->setBounds (10, ((-8) + 70 - 8) + 254, 268, 24);
     //[UserResized] Add your own custom resize handling here..
+    // the Speed row under the Tempo, the Transpose row moves down
+    const int playbackTop = (-8) + 70 - 8;
+    speedTitleLabel.setBounds (8, playbackTop + 394, 136, 24);
+    speedSlider.setBounds (8, playbackTop + 418, getWidth() - 16, 24);
+    speedLabel.setBounds (getWidth() - 9 - 48, playbackTop + 394, 48, 24);
+    transposeTitleLabel->setBounds (8, playbackTop + 450, 136, 24);
+    transposeSlider->setBounds (8, playbackTop + 474, getWidth() - 16, 24);
+    transposeLabel->setBounds (getWidth() - 9 - 48, playbackTop + 450, 48, 24);
+    playbackGroup->setBounds (0, playbackTop, getWidth(), 506);
     const int liveTop = transposeSlider->getBottom() + 8;
     livePlayLabel->setBounds (8, liveTop, 136, 24);
     livePianoButton->setBounds (10, liveTop + 24, 268, 24);
@@ -782,6 +818,7 @@ void PlaybackComponent::updatePlaybackState(PianoController::Aspect aspect)
 		sliderTempo = 0;
 		tempoLabel->setText(String(pianoController.GetTempo()), NotificationType::dontSendNotification);
 		tempoSlider->setValue(pianoController.GetTempo(), NotificationType::dontSendNotification);
+		updateSpeedState();
 	}
 	else if (aspect == PianoController::apTranspose)
 	{
@@ -850,8 +887,33 @@ void PlaybackComponent::updateEnabledControls()
 	guideButton->setEnabled(guideButton->isEnabled() && !pianoController.IsLocalPlayback());
 	lightsButton->setEnabled(lightsButton->isEnabled() && !pianoController.IsLocalPlayback());
 
+	// the own player: the speed is set, the tempo only shows the tempo at the current
+	// position; the piano's player: the tempo is set, the speed is grey
+	const bool local = pianoController.IsLocalPlayback();
+	for (Component* component : {(Component*)&speedTitleLabel, (Component*)&speedSlider, (Component*)&speedLabel})
+	{
+		component->setEnabled(component->isEnabled() && local);
+	}
+	tempoSlider->setInterceptsMouseClicks(!local, !local);
+	const String tempoTip = local ? TRANS("Tempo at the current position of the song (set it with the Speed)") : TRANS("Playback Tempo");
+	tempoTitleLabel->setTooltip(tempoTip);
+	tempoLabel->setTooltip(tempoTip);
+	tempoSlider->setTooltip(tempoTip);
+	updateSpeedState();
+
 	// the player can be chosen also without a loaded song
 	updatePlaybackSourceState();
+}
+
+void PlaybackComponent::updateSpeedState()
+{
+	if (speedSlider.isMouseButtonDown())
+	{
+		return; // being dragged: the value set is shown
+	}
+	const int speed = pianoController.GetSpeed();
+	speedSlider.setValue(speed, NotificationType::dontSendNotification);
+	speedLabel.setText(String(speed) + "%", NotificationType::dontSendNotification);
 }
 
 void PlaybackComponent::updatePlaybackSourceState()
@@ -958,11 +1020,16 @@ void PlaybackComponent::mouseDoubleClick(const MouseEvent& event)
 	{
 		pianoController.ResetVolume(PianoController::chMidiMaster);
 	}
-	else if (event.eventComponent == tempoSlider.get() ||
+	else if ((event.eventComponent == tempoSlider.get() ||
 		event.eventComponent == tempoTitleLabel.get() ||
-		event.eventComponent == tempoLabel.get())
+		event.eventComponent == tempoLabel.get()) && !pianoController.IsLocalPlayback())
 	{
 		pianoController.ResetTempo();
+	}
+	else if ((event.eventComponent == &speedSlider || event.eventComponent == &speedTitleLabel ||
+		event.eventComponent == &speedLabel) && speedSlider.isEnabled())
+	{
+		pianoController.SetSpeed(PianoController::DefaultSpeed);
 	}
 	else if (event.eventComponent == transposeSlider.get() ||
 		event.eventComponent == transposeTitleLabel.get() ||

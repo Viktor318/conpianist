@@ -454,7 +454,20 @@ int LocalSongPlayer::GetBaseTempo() const
 	return roundToInt(m_baseBpm);
 }
 
-void LocalSongPlayer::SetTempo(int bpm)
+double LocalSongPlayer::GetFileTempo() const
+{
+	const ScopedLock lock(m_lock);
+	if (!m_loaded || m_tempoMap.empty())
+	{
+		return m_baseBpm;
+	}
+	auto it = std::upper_bound(m_tempoMap.begin(), m_tempoMap.end(), m_songSeconds,
+		[](double s, const TempoPoint& point) { return s < point.seconds; });
+	const TempoPoint& point = *(it - 1);
+	return 60.0 / (point.secondsPerTick * m_ticksPerQuarter);
+}
+
+void LocalSongPlayer::SetSpeed(double speed)
 {
 	const ScopedLock lock(m_lock);
 	if (m_playing)
@@ -462,8 +475,14 @@ void LocalSongPlayer::SetTempo(int bpm)
 		// continue from the current position with the new speed
 		m_songSeconds = m_startSongSeconds + (Time::getMillisecondCounterHiRes() - m_startMs) / 1000.0 * m_tempoFactor;
 	}
-	m_tempoFactor = jlimit(0.05, 10.0, bpm / m_baseBpm);
+	m_tempoFactor = jlimit(0.05, 10.0, speed);
 	Rebase();
+}
+
+double LocalSongPlayer::GetSpeed() const
+{
+	const ScopedLock lock(m_lock);
+	return m_tempoFactor;
 }
 
 void LocalSongPlayer::SetTranspose(int semitones)

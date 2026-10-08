@@ -81,7 +81,13 @@ public:
 	void SetPosition(Position position);
 
 	int GetBaseTempo() const; // tempo at the start of the file, in BPM
-	void SetTempo(int bpm);
+	// The tempo of the file at the current position (BPM, without the speed); the file
+	// may change its tempo many times (e.g. the piano's Classics songs).
+	double GetFileTempo() const;
+	// The speed of the playback: 1.0 = as written in the file (all tempo changes of the
+	// file are played, faster or slower in proportion).
+	void SetSpeed(double speed);
+	double GetSpeed() const;
 	void SetTranspose(int semitones);
 
 	void SetLoop(Position begin, Position end);

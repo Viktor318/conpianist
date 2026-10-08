@@ -48,7 +48,7 @@ public:
     //==============================================================================
     //[UserMethods]     -- You can add your own custom methods in this section.
     // the height needed for all controls (the left panel scrolls if it is lower)
-    const static int MinimumHeight = 592;
+    const static int MinimumHeight = 648;
     // Opens the Song Selector (onChooseSong); without it, the file dialog.
     void chooseSong();
     // The file dialog for a MIDI file (also from the Song Selector).
@@ -87,6 +87,12 @@ private:
     int inVolumeChange = 0;
     int inTransposeChange = 0;
     int sliderTempo = 0;
+    // speed of ConPianist's own player (USB, MIDI device), under the tempo; with the
+    // piano's own player it is grey (the tempo is set there)
+    Label speedTitleLabel;
+    Slider speedSlider;
+    Label speedLabel;
+    void updateSpeedState();
     // holding the rewind/forward button jumps to the beginning/end of the song
     const static int LongPressMs = 1000;
     int longPressId = 0;       // identifies the current press; older timers are ignored
