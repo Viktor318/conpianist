@@ -268,19 +268,28 @@ void RecorderComponent::resized()
 		{
 			return GlyphArrangement::getStringWidthInt(Font(FontOptions(15.00f, Font::plain)), text);
 		};
-	// start and stop, what is recorded: the two buttons as far apart as before
 	{
-		const int labelWidth = jlimit(60, 170, textWidth(modeLabel.getText()) + 10);
+		// the value right after the text of the label
+		const int silenceTextWidth = GlyphArrangement::getStringWidthInt(silenceLabel.getFont(), silenceLabel.getText());
+		const int labelWidth = jlimit(100, 288, silenceTextWidth + 14);
+		silenceLabel.setBounds(16, 52, labelWidth, 24);
+		silenceSlider.setBounds(16 + labelWidth, 52, 120, 24);
+	}
+	// start and stop, what is recorded: the two buttons as far apart as before; the last
+	// letter of the Manual button stands above the left edge of the + button of the silence
+	// (value box 40, then the - and + buttons of 40 each, drawn 3 pixels narrower on the
+	// side of the value box; the text of a toggle button begins after its 17 pixel tick box
+	// and 10 pixels)
+	{
+		const String manualText = manualButton.getButtonText();
+		const float lastLetter = (textWidth(manualText.dropLastCharacters(1)) + textWidth(manualText)) / 2.0f;
+		const int plusLeft = silenceSlider.getX() + 40 + 40 + 3;
+		const int manualX = plusLeft - 27 - roundToInt(lastLetter);
+		const int minLabelWidth = textWidth(modeLabel.getText()) + 10;
+		const int labelWidth = jmax(minLabelWidth, manualX - 6 - 124 - 16);
 		modeLabel.setBounds(16, 16, labelWidth, 24);
 		autoButton.setBounds(16 + labelWidth, 16, 124, 24);
 		manualButton.setBounds(autoButton.getRight() + 6, 16, 124, 24);
-	}
-	{
-		// the value right after the text of the label
-		const int textWidth = GlyphArrangement::getStringWidthInt(silenceLabel.getFont(), silenceLabel.getText());
-		const int labelWidth = jlimit(100, 288, textWidth + 14);
-		silenceLabel.setBounds(16, 52, labelWidth, 24);
-		silenceSlider.setBounds(16 + labelWidth, 52, 120, 24);
 	}
 	styleButton.setBounds(12, 88, 412, 24);
 	// metronome
