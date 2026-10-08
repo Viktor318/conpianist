@@ -441,6 +441,66 @@ static String ChordSymbolsAsWords(const String& content)
 	return result;
 }
 
+// A note of a chord (<chord/>) may leave out its voice (Sibelius writes it so): the voice is
+// that of the first note of the chord. Lomse crashes when laying out such a score, so the
+// voice of the note before is written into these notes. Returns false (and leaves the text
+// as it is) if there is no such note.
+static bool AddVoiceToChordNotes(String& content)
+{
+	static const String openTag = "<note";
+	static const String closeTag = "</note>";
+	// the elements after <voice> in a note, in their order (the voice is put before the first)
+	static const char* const after[] = { "<type", "<dot", "<accidental", "<time-modification",
+		"<stem", "<notehead", "<staff", "<beam", "<notations", "<lyric", "<play", "<listen" };
+	String result;
+	bool changed = false;
+	String voice = "1";
+	int position = 0; // the text before this position is in the result
+	for (int start = content.indexOf(openTag); start >= 0; start = content.indexOf(start + 1, openTag))
+	{
+		const juce_wchar next = content[start + openTag.length()];
+		if (next != '>' && !CharacterFunctions::isWhitespace(next))
+		{
+			continue; // another element (e.g. <notehead>, <notations>)
+		}
+		const int close = content.indexOf(start, closeTag);
+		if (close < 0)
+		{
+			break;
+		}
+		const String note = content.substring(start, close);
+		const int voiceStart = note.indexOf("<voice>");
+		if (voiceStart >= 0)
+		{
+			voice = note.substring(voiceStart + 7, note.indexOf(voiceStart, "</voice>")).trim();
+			continue;
+		}
+		if (!note.contains("<chord"))
+		{
+			continue;
+		}
+		int insert = note.length();
+		for (const char* tag : after)
+		{
+			const int found = note.indexOf(tag);
+			if (found >= 0 && found < insert)
+			{
+				insert = found;
+			}
+		}
+		result += content.substring(position, start + insert);
+		result += "<voice>" + voice + "</voice>";
+		position = start + insert;
+		changed = true;
+	}
+	if (changed)
+	{
+		result += content.substring(position);
+		content = result;
+	}
+	return changed;
+}
+
 void LomseScoreComponent::LoadDocument(String filename)
 {
 	//first, we will create a 'presenter'. It takes care of creating and maintaining
@@ -449,7 +509,7 @@ void LomseScoreComponent::LoadDocument(String filename)
 	if (filename.isNotEmpty())
 	{
 		// load from file
-		// The file is read here and passed to Lomse as text (MusicXML) in three cases:
+		// The file is read here and passed to Lomse as text (MusicXML) in these cases:
 		// - the file is a compressed MusicXML (.mxl): it is unpacked here;
 		// - the path has non-ASCII characters (e.g. accented letters): Lomse cannot open
 		//   such a file on Windows;
@@ -457,7 +517,8 @@ void LomseScoreComponent::LoadDocument(String filename)
 		//   Dorico): Lomse cannot draw them if an instrument of the group is not shown,
 		//   so the groups are left out;
 		// - the score has chord symbols: Lomse does not show them, they are written into
-		//   the text as words above the staff (see ChordSymbolsAsWords).
+		//   the text as words above the staff (see ChordSymbolsAsWords);
+		// - a note of a chord has no voice (Sibelius): it is added (see AddVoiceToChordNotes).
 		const bool compressed = filename.endsWithIgnoreCase(".mxl");
 		String content = compressed ? ReadCompressedMusicXml(File(filename)) : File(filename).loadFileAsString();
 		if (compressed && content.isEmpty())
@@ -473,7 +534,8 @@ void LomseScoreComponent::LoadDocument(String filename)
 		{
 			content = ChordSymbolsAsWords(content);
 		}
-		if (asciiPath && !hasGroups && !hasChords && !compressed)
+		const bool voicesAdded = AddVoiceToChordNotes(content);
+		if (asciiPath && !hasGroups && !hasChords && !voicesAdded && !compressed)
 		{
 			m_presenter.reset(m_lomse.open_document(lomse::k_view_vertical_book, filename.toStdString()));
 		}
