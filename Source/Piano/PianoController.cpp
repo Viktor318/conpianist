@@ -1696,11 +1696,13 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 					{
 						Timer::callAfterDelay(500, [this, alive, measure]()
 							{
+								double speed = 0.0;
 								if (alive.lock() && !m_localPlayback && m_songLoaded)
 								{
 									if (m_pendingSnapshot.valid)
 									{
 										ApplySnapshot(m_pendingSnapshot);
+										speed = m_pendingSnapshot.speedFactor;
 									}
 									if (measure > 1)
 									{
@@ -1710,6 +1712,18 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 								if (alive.lock())
 								{
 									m_pendingSnapshot.valid = false;
+								}
+								if (alive.lock() && speed > 0 && std::abs(speed - 1.0) > 0.001)
+								{
+									// from the own player: the same speed, from the piano's own
+									// tempo at the measure (reported after the jump)
+									Timer::callAfterDelay(500, [this, alive, speed]()
+										{
+											if (alive.lock() && !m_localPlayback && m_songLoaded)
+											{
+												SetTempo(jlimit((int)MinTempo, (int)MaxTempo, roundToInt(m_tempo * speed)));
+											}
+										});
 								}
 							});
 					});
@@ -3394,6 +3408,7 @@ PianoController::MixSnapshot PianoController::TakeSnapshot()
 	MixSnapshot snapshot;
 	snapshot.valid = true;
 	snapshot.source = m_playbackSource;
+	snapshot.speedFactor = IsLocalSongLoaded() ? m_speedFactor : 0.0;
 	for (Channel ch : MidiChannels)
 	{
 		const ChannelInfo& info = m_channels[ch];
@@ -3454,7 +3469,16 @@ void PianoController::ApplySnapshot(const MixSnapshot& snapshot)
 	{
 		SetPart((Part)i, snapshot.parts[i]);
 	}
-	SetTempo(snapshot.tempo);
+	if (snapshot.speedFactor > 0 && m_localPlayback)
+	{
+		SetSpeedFactor(snapshot.speedFactor); // own player to own player: the same speed
+	}
+	else if (snapshot.speedFactor <= 0)
+	{
+		SetTempo(snapshot.tempo);
+	}
+	// (own player to the piano's: the speed is set when the piano reports its tempo at the
+	// measure, see SongName)
 	SetTranspose(snapshot.transpose);
 	if (snapshot.loop.begin.measure > 0)
 	{

@@ -742,6 +742,10 @@ private:
 		bool parts[3];
 		Channel partChannels[2];
 		int tempo = DefaultTempo;
+		// the speed of the own player (0: taken from the piano's player); the tempo of a
+		// song may differ between the file and the piano's own copy (e.g. a first measure
+		// the piano skips), so with the speed the tempo is taken over in proportion
+		double speedFactor = 0.0;
 		int transpose = 0;
 		Loop loop{{0,0},{0,0}};
 	};
