@@ -279,6 +279,31 @@ void SongSelectorComponent::PianoStateChanged(PianoController::Aspect aspect, Pi
 	{
 		GuiHelper::CallAsync(this, [this]() { songTable.repaint(); });
 	}
+	else if (aspect == PianoController::apSongLoaded)
+	{
+		GuiHelper::CallAsync(this, [this]() { StartPendingPlayback(); });
+	}
+}
+
+void SongSelectorComponent::StartPendingPlayback()
+{
+	if (!playWhenLoaded)
+	{
+		return;
+	}
+	playWhenLoaded = false;
+	if ((Time::getCurrentTime() - playRequestTime).inSeconds() > 20)
+	{
+		return;
+	}
+	// a short delay lets the piano finish loading (and the song state be restored)
+	Timer::callAfterDelay(500, [self = Component::SafePointer<SongSelectorComponent>(this)]()
+		{
+			if (self != nullptr && self->pianoController.IsSongLoaded() && !self->pianoController.GetPlaying())
+			{
+				self->pianoController.Play();
+			}
+		});
 }
 
 void SongSelectorComponent::Refresh()
@@ -486,8 +511,9 @@ bool SongSelectorComponent::IsCurrentSong(const Entry& entry) const
 	return entry.file != File() && File::isAbsolutePath(songName) && File(songName) == entry.file;
 }
 
-void SongSelectorComponent::LoadSelected()
+void SongSelectorComponent::LoadSelected(bool play)
 {
+	playWhenLoaded = false;
 	const int row = songTable.getSelectedRow();
 	if (row < 0 || row >= (int)entries.size())
 	{
@@ -498,12 +524,15 @@ void SongSelectorComponent::LoadSelected()
 	{
 		return;
 	}
+	playWhenLoaded = play;
+	playRequestTime = Time::getCurrentTime();
 
 	if (entry.song != nullptr && pianoController.GetPlaybackSource() == PianoController::psPiano)
 	{
 		// the piano loads its own song
 		if (!pianoController.LoadPresetSong(entry.song->path))
 		{
+			playWhenLoaded = false;
 			message = TRANS("The piano is not connected.");
 			UpdateInfo();
 		}
@@ -582,7 +611,7 @@ void SongSelectorComponent::DrawScoreIcon(Graphics& g, float x, float y, Colour 
 void SongSelectorComponent::cellDoubleClicked(int rowNumber, int, const MouseEvent&)
 {
 	songTable.selectRow(rowNumber);
-	LoadSelected();
+	LoadSelected(true);
 }
 
 void SongSelectorComponent::returnKeyPressed(int)

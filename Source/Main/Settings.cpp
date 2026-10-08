@@ -218,10 +218,10 @@ File Settings::GetLastStateFile() const
 }
 
 // The default folder for songs (and scores, registration memories), next to the settings
-// file (Windows: %APPDATA%\ConPianist\Demo Midi Songs).
+// file (Windows: %APPDATA%\ConPianist\Songs\Demo Midi Songs).
 File Settings::GetDefaultSongDirectory() const
 {
-	return opt.getDefaultFile().getSiblingFile("Demo Midi Songs");
+	return GetSongsDirectory().getChildFile("Demo Midi Songs");
 }
 
 File Settings::GetSongsDirectory() const

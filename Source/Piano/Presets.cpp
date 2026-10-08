@@ -5195,6 +5195,7 @@ StringArray Presets::SongFolders()
 		folders.addIfNotAlreadyThere(song.folder);
 	}
 	folders.add("PDF Score/Bonus Songs");
+	folders.add("Demo Midi Songs");
 	folders.add("Music Library");
 	folders.add("User Songs/Imported Songs");
 	folders.add("User Songs/Recorded Songs");

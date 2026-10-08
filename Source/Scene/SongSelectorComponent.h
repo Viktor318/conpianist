@@ -84,7 +84,9 @@ private:
 	void UpdateEntries();
 	void UpdateInfo();
 	void UpdateButtons();
-	void LoadSelected();
+	// play: playback starts when the song has been loaded (double click)
+	void LoadSelected(bool play = false);
+	void StartPendingPlayback();
 	bool IsCurrentSong(const Entry& entry) const;
 	bool IsPresetFolder(const String& folder) const;
 	FolderItem* FindFolderItem(const String& folder) const;
@@ -108,6 +110,10 @@ private:
 	String currentFolder;
 	std::vector<Entry> entries;
 	String message; // shown in the info line instead of the hint until the selection changes
+	// a song loaded with a double click is played when the player reports it loaded
+	// (only within a few seconds, so a failed load does not start a later song)
+	bool playWhenLoaded = false;
+	Time playRequestTime;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SongSelectorComponent)
 };
