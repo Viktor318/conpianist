@@ -630,7 +630,13 @@ private:
 	bool m_networkPlaybackAvailable = true;
 	bool m_localPlaybackAvailable = false;
 	int m_pendingMeasure = 0; // measure to jump to after the song is loaded again
-	int m_pendingBeat = 1;    // and its beat (the tempo may change on every beat)
+	// the tempo was set (in the program) since the piano's player loaded the song: only then
+	// is a speed other than 100% taken over by the own player when the player is switched
+	bool m_networkTempoSet = false;
+	// switching from the piano's player to the own one after a tempo was set: the piano is
+	// first put to the beginning of the measure, so its tempo there can be compared with
+	// the tempo of the file at the same place
+	bool m_switchAtMeasureStart = false;
 	bool m_shownNotes[16][128] = {}; // notes of the local player shown on the virtual keyboard
 	PlaybackSource m_playbackSource = psPiano;
 	std::atomic<bool> m_genericDevice{false}; // playback to a MIDI device (psMidiDevice)
