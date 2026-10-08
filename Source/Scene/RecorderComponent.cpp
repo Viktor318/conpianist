@@ -114,7 +114,6 @@ RecorderComponent::RecorderComponent(Settings& settings, PianoController& pianoC
 	metronomeVolumeSlider.setRange(0, 127, 1);
 	metronomeVolumeSlider.setDoubleClickReturnValue(true, 100); // like the other volumes
 	silenceLabel.addMouseListener(this, false);
-	tempoLabel.addMouseListener(this, false);
 	metronomeVolumeSlider.onValueChange = [this]()
 		{
 			const int volume = roundToInt(metronomeVolumeSlider.getValue());
@@ -340,11 +339,6 @@ void RecorderComponent::mouseDoubleClick(const MouseEvent& event)
 	if (event.eventComponent == &silenceLabel && silenceSlider.isEnabled())
 	{
 		silenceSlider.setValue(Settings::DefaultRecorderSilence); // saved by onValueChange
-	}
-	else if (event.eventComponent == &tempoLabel && tempoSlider.isEnabled())
-	{
-		// the tempo of the song or of the style, as with the Tempo of the left panel
-		pianoController.ResetTempo();
 	}
 }
 

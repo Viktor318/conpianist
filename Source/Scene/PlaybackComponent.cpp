@@ -324,7 +324,7 @@ PlaybackComponent::PlaybackComponent (Settings& settings, PianoController& piano
 
 
     //[Constructor] You can add your own custom stuff here..
-    const String speedTip = TRANS("Speed of the playback via USB or MIDI device: the tempo changes of the song are played faster or slower in proportion; double click: 100%");
+    const String speedTip = TRANS("Speed of the playback via USB or MIDI device, relative to the tempo set last; the tempo changes of the song are kept; double click: 100%");
     speedTitleLabel.setText(TRANS("Speed"), NotificationType::dontSendNotification);
     speedTitleLabel.setFont(Font(15.00f, Font::plain));
     speedTitleLabel.setJustificationType(Justification::centredLeft);
@@ -887,18 +887,12 @@ void PlaybackComponent::updateEnabledControls()
 	guideButton->setEnabled(guideButton->isEnabled() && !pianoController.IsLocalPlayback());
 	lightsButton->setEnabled(lightsButton->isEnabled() && !pianoController.IsLocalPlayback());
 
-	// the own player: the speed is set, the tempo only shows the tempo at the current
-	// position; the piano's player: the tempo is set, the speed is grey
+	// the speed only with the own player (USB, MIDI device); grey with the piano's player
 	const bool local = pianoController.IsLocalPlayback();
 	for (Component* component : {(Component*)&speedTitleLabel, (Component*)&speedSlider, (Component*)&speedLabel})
 	{
 		component->setEnabled(component->isEnabled() && local);
 	}
-	tempoSlider->setInterceptsMouseClicks(!local, !local);
-	const String tempoTip = local ? TRANS("Tempo at the current position of the song (set it with the Speed)") : TRANS("Playback Tempo");
-	tempoTitleLabel->setTooltip(tempoTip);
-	tempoLabel->setTooltip(tempoTip);
-	tempoSlider->setTooltip(tempoTip);
 	updateSpeedState();
 
 	// the player can be chosen also without a loaded song
@@ -1020,10 +1014,11 @@ void PlaybackComponent::mouseDoubleClick(const MouseEvent& event)
 	{
 		pianoController.ResetVolume(PianoController::chMidiMaster);
 	}
-	else if ((event.eventComponent == tempoSlider.get() ||
+	else if (event.eventComponent == tempoSlider.get() ||
 		event.eventComponent == tempoTitleLabel.get() ||
-		event.eventComponent == tempoLabel.get()) && !pianoController.IsLocalPlayback())
+		event.eventComponent == tempoLabel.get())
 	{
+		// the song's own tempo (with the own player also the speed 100%)
 		pianoController.ResetTempo();
 	}
 	else if ((event.eventComponent == &speedSlider || event.eventComponent == &speedTitleLabel ||

@@ -27,6 +27,7 @@ Ide bármikor beírható egy új ötlet, egy sorban, akár félkészen is. A kö
 
 - **A dal tempója nem marad meg újraindítás után** (2026. október 8.): **megoldva, tesztelve (október 8.).** Döntés: a zongora saját dala újraindítás után alapbeállításokkal, az elejéről indul (mintha a Dalválasztó Betöltés gombját nyomták volna meg); USB-n a MIDI-fájl melletti `.conmem` betöltődik; a saját MIDI-fájlok a bezáráskori állapotukkal töltődnek vissza.
 - **Lefagy a program, ha üzenetcsere közben indítják a lejátszást** (2026. október 8.): a lejátszás gombját akkor megnyomva, amikor a program és a zongora még üzeneteket vált (például betöltés vagy csatlakozás után). Pontos lépések és a napló kell hozzá.
+- **Lefagyás USB-s módban a Felvétel ablak tempójának állítgatása közben** (2026. október 8., 13:26): a napló a tempó (159) elküldése és a zongora visszaigazolása után megszakad, a program nem állt le szabályosan. Lehet, hogy ugyanaz a hiba, mint az előző. Pontos lépések kellenek (melyik ablak, betöltött dal, szólt-e a lejátszás).
 
 ## Következő verziók (javaslat)
 

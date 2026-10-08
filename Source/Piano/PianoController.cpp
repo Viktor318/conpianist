@@ -655,18 +655,7 @@ void PianoController::SetTempo(int tempo)
 {
 	if (m_localPlayback)
 	{
-		if (IsLocalSongLoaded())
-		{
-			// the speed that gives this tempo at the current position (e.g. the tempo of
-			// the accompaniment, a registration memory, the Recording window)
-			const double fileTempo = m_localPlayer->GetFileTempo();
-			ApplyLocalSpeed(fileTempo > 0 ? tempo / fileTempo : 1.0);
-		}
-		else
-		{
-			m_tempo = tempo;
-			NotifyChanged(apTempo);
-		}
+		SetLocalTempo(tempo);
 		SendLocalTempo();
 		return;
 	}
@@ -679,17 +668,48 @@ void PianoController::SetSpeed(int percent)
 	{
 		return;
 	}
-	ApplyLocalSpeed(percent / 100.0);
+	m_speedFactor = jlimit(MinSpeed, MaxSpeed, percent) / 100.0;
+	ApplyLocalSpeed();
 	SendLocalTempo();
 }
 
-void PianoController::ApplyLocalSpeed(double speed)
+void PianoController::SetTempoAndSpeed(double tempoFactor, int percent)
 {
-	m_speedFactor = jlimit(MinSpeed / 100.0, MaxSpeed / 100.0, speed);
+	if (!IsLocalSongLoaded() || tempoFactor <= 0)
+	{
+		return;
+	}
+	m_tempoFactor = tempoFactor;
+	m_speedFactor = jlimit(MinSpeed, MaxSpeed, percent) / 100.0;
+	ApplyLocalSpeed();
+	SendLocalTempo();
+}
+
+// The tempo is set (Accompaniment or Recording window, Tempo of the left panel, the piano):
+// exactly this tempo at the current position, the speed goes back to 100%.
+void PianoController::SetLocalTempo(int tempo)
+{
+	tempo = jlimit((int)MinTempo, (int)MaxTempo, tempo);
+	if (!IsLocalSongLoaded())
+	{
+		m_tempo = tempo;
+		NotifyChanged(apTempo);
+		return;
+	}
+	const double fileTempo = m_localPlayer->GetFileTempo();
+	m_tempoFactor = fileTempo > 0 ? tempo / fileTempo : 1.0;
+	m_speedFactor = 1.0;
+	ApplyLocalSpeed(tempo);
+}
+
+void PianoController::ApplyLocalSpeed(int tempo)
+{
 	if (m_localPlayer)
 	{
-		m_localPlayer->SetSpeed(m_speedFactor);
-		m_tempo = jlimit((int)MinTempo, (int)MaxTempo, roundToInt(m_localPlayer->GetFileTempo() * m_speedFactor));
+		const double factor = jlimit(0.02, 20.0, m_tempoFactor * m_speedFactor);
+		m_localPlayer->SetSpeed(factor);
+		m_tempo = tempo > 0 ? tempo :
+			jlimit((int)MinTempo, (int)MaxTempo, roundToInt(m_localPlayer->GetFileTempo() * factor));
 	}
 	NotifyChanged(apTempo);
 }
@@ -700,7 +720,8 @@ void PianoController::UpdateLocalTempo()
 	{
 		return;
 	}
-	const int tempo = jlimit((int)MinTempo, (int)MaxTempo, roundToInt(m_localPlayer->GetFileTempo() * m_speedFactor));
+	const double factor = jlimit(0.02, 20.0, m_tempoFactor * m_speedFactor);
+	const int tempo = jlimit((int)MinTempo, (int)MaxTempo, roundToInt(m_localPlayer->GetFileTempo() * factor));
 	if (tempo != m_tempo)
 	{
 		m_tempo = tempo;
@@ -727,6 +748,8 @@ void PianoController::ResetTempo()
 	{
 		if (IsLocalSongLoaded())
 		{
+			// the song's own tempo, the speed 100%
+			m_tempoFactor = 1.0;
 			SetSpeed(DefaultSpeed);
 		}
 		else
@@ -1123,17 +1146,8 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 					if (alive.lock() && m_localPlayback && m_tempo != pianoTempo &&
 						Time::getMillisecondCounter() - m_tempoSentMs > 700)
 					{
-						if (IsLocalSongLoaded())
-						{
-							// the speed that gives the piano's tempo at the current position
-							const double fileTempo = m_localPlayer->GetFileTempo();
-							ApplyLocalSpeed(fileTempo > 0 ? pianoTempo / fileTempo : 1.0);
-						}
-						else
-						{
-							m_tempo = pianoTempo;
-							NotifyChanged(apTempo);
-						}
+						// as if it was set in the Accompaniment window: the speed goes to 100%
+						SetLocalTempo(pianoTempo);
 					}
 				});
 		}
@@ -3524,7 +3538,8 @@ bool PianoController::LoadLocalSong(const File& file)
 	m_loopStart = {0,0};
 	// a new song starts with its own tempo (speed 100%)
 	m_speedFactor = 1.0;
-	m_localPlayer->SetSpeed(m_speedFactor);
+	m_tempoFactor = 1.0;
+	m_localPlayer->SetSpeed(1.0);
 	m_tempo = jlimit((int)MinTempo, (int)MaxTempo, roundToInt(m_localPlayer->GetFileTempo()));
 	m_localPlayer->SetTranspose(m_transpose);
 
@@ -3595,6 +3610,7 @@ void PianoController::ClearSongState()
 	m_songName = "";
 	m_playing = false;
 	m_speedFactor = 1.0;
+	m_tempoFactor = 1.0;
 	m_position = {0,0};
 	m_length = {0,0};
 	m_loop = {{0,0},{0,0}};
