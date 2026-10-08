@@ -463,8 +463,9 @@ public:
 	void Play();
 	void Pause();
 	void Stop();
-	const String& GetModel() { return m_model; }
-	const String& GetVersion() { return m_version; }
+	// (the texts written by the piano's messages on other threads are returned as copies)
+	String GetModel() const { const ScopedLock lock(m_stringLock); return m_model; }
+	String GetVersion() const { const ScopedLock lock(m_stringLock); return m_version; }
 	bool IsConnected() { return m_connected; }
 	bool IsSongLoaded();
 	bool GetPlaying();
@@ -520,7 +521,7 @@ public:
 	void SetPartChannel(Part part, Channel channel);
 	int GetPartAuto() { return m_partAuto; }
 	void SetPartAuto(bool enable);
-	const String& GetVoice(Channel ch) { return m_channels[ch].voice; }
+	String GetVoice(Channel ch) const { return VoiceOf(ch); }
 	void SetVoice(Channel ch, const String& voice);
 	void SetSongChannelVoice(Channel ch, int voiceNum);
 	// The voice to send for a saved voice number (see the function).
@@ -545,7 +546,7 @@ public:
 	// Left part below it takes it along.
 	int GetStyleSplitPoint() { return m_styleSplitPoint; }
 	void SetStyleSplitPoint(int splitPoint);
-	const String& GetSongName() { return m_songName; }
+	String GetSongName() const { const ScopedLock lock(m_stringLock); return m_songName; }
 	LidPosition GetLidPosition() { return m_lidPosition; }
 	void SetLidPosition(LidPosition position);
 	int GetEnvironment() { return m_environment; }
@@ -602,6 +603,13 @@ private:
 	bool m_partAuto = true;
 	int m_tempo = DefaultTempo;
 	double m_speedFactor = 1.0; // speed of the own player relative to the song (1.0 = 100%)
+	// The texts (song name, voices, model, version) are written on the threads of the
+	// piano's messages and of the own player and read everywhere: a String must not be
+	// copied while it is replaced, so they are only accessed under this lock.
+	mutable CriticalSection m_stringLock;
+	String VoiceOf(Channel ch) const { const ScopedLock lock(m_stringLock); return m_channels[ch].voice; }
+	void SetVoiceOf(Channel ch, const String& voice) { const ScopedLock lock(m_stringLock); m_channels[ch].voice = voice; }
+	void SetSongNameValue(const String& name) { const ScopedLock lock(m_stringLock); m_songName = name; }
 	int m_transpose = DefaultTranspose;
 	Position m_loopStart{0,0};
 	Loop m_loop{{0,0},{0,0}};

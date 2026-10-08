@@ -50,7 +50,7 @@ Ide bármikor beírható egy új ötlet, egy sorban, akár félkészen is. A kö
 | Tömörített MusicXML (.mxl) megnyitása | **Kész:** a kottamegnyitó ablak és a MIDI betöltésekor futó kottakeresés az `.mxl` kiterjesztést is felismeri (a Dorico alapból ilyet exportál). | – | A program maga csomagolja ki a fájlt, külső könyvtár nem kell hozzá. |
 | Kotta megjelenítési hibái Dorico-exportnál | A le nem zárt pedálvonalak torlódása, a többszörös kapcsos zárójel és az egymásra csúszó tempófeliratok javítása. | Kö | A „folytatódik” típusú jelölések (pedál, oktávjel) kezelése hiányzik a Lomse-ból. |
 | Ujjrend megjelenítése | Az ujjrend megjelenítése a kottában, MusicXML-ből. | K–Kö | Az új Lomse megjeleníti az ujjrendet (próbakottán látszott); ujjrendes Dorico-kottával még ki kell próbálni. |
-| Kódátnézés | Az első teljes kódátnézés az Alapelvekben leírt módon, a 4.8 kiadása előtt (a 4.7 óta változott fájlok és a kényes közös részek). | Kö | Az október 8-i holtponthiba (a saját lejátszó és az ablakok értesítése) indította. |
+| Kódátnézés | Az első teljes kódátnézés az Alapelvekben leírt módon, a 4.8 kiadása előtt (a 4.7 óta változott fájlok és a kényes közös részek). | Kö | Az október 8-i holtponthiba (a saját lejátszó és az ablakok értesítése) indította. A szálkezelés október 8-án már át lett nézve (a valódi hibák javítva); hátravan az alacsony kockázatúak: a PianoController destruktora állítsa le a saját lejátszót; az ablakok jelentkezzenek le az értesítésekről (RemoveListener); a saját lejátszó a konstruktorban jöjjön létre; a GuiHelper::CallAsync SafePointer-je a fő szálon készüljön; az RTP-kapcsolat a bejövő üzeneteket a saját zárja elengedése után adja tovább; a LiveRecorder mentése ne tartsa a zárat a fájlírás alatt. |
 
 ### 4.9 – Akkordmenet-lejátszó
 

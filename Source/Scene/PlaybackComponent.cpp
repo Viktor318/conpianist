@@ -762,8 +762,12 @@ void PlaybackComponent::PianoStateChanged(PianoController::Aspect aspect, PianoC
 	}
 	else if (aspect == PianoController::apVolume && channel == PianoController::chMidiMaster)
 	{
-		if (inVolumeChange && inVolumeChange--) return;
-		GuiHelper::CallAsync(this, [=](){updateChannelState();});
+		// the counter is used on the message thread only (this may be another thread)
+		GuiHelper::CallAsync(this, [=]()
+			{
+				if (inVolumeChange && inVolumeChange--) return;
+				updateChannelState();
+			});
 	}
 	else if (aspect == PianoController::apGuide || aspect == PianoController::apStreamLights ||
 		aspect == PianoController::apPart)
@@ -784,9 +788,12 @@ void PlaybackComponent::PianoStateChanged(PianoController::Aspect aspect, PianoC
 
 	if (aspect == PianoController::apConnection)
 	{
-		inVolumeChange = 0;
-		inTransposeChange = 0;
-		sliderTempo = 0;
+		GuiHelper::CallAsync(this, [=]()
+			{
+				inVolumeChange = 0;
+				inTransposeChange = 0;
+				sliderTempo = 0;
+			});
 	}
 }
 

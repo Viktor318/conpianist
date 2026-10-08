@@ -910,7 +910,7 @@ void PianoController::SetSongChannelVoice(Channel ch, int voiceNum)
 	{
 		// a general MIDI device does not report its voices: the name is shown from here
 		m_genericBank[midiChannel - 1] = (voiceNum >> 8) & 0x7f7f;
-		m_channels[ch].voice = String(voiceNum);
+		SetVoiceOf(ch, String(voiceNum));
 		NotifyChanged(apVoice, ch);
 	}
 }
@@ -931,7 +931,7 @@ int PianoController::GetOriginalSongChannelVoice(Channel ch) const
 		return -1;
 	}
 	const int index = ch - chMidi1;
-	const String& voice = m_channels[ch].voice;
+	const String voice = VoiceOf(ch);
 	return m_originalVoice[index] >= 0 && voice.isNotEmpty() && voice.getIntValue() == m_convertedVoice[index] ?
 		m_originalVoice[index] : -1;
 }
@@ -1342,7 +1342,7 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 				sent = -1;
 			}
 		}
-		m_channels[ch].voice = String(voice);
+		SetVoiceOf(ch, String(voice));
 		NotifyChanged(apVoice, ch);
 	}
 	else if (property == Property::Tempo)
@@ -1643,32 +1643,36 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 	}
 	else if (property == Property::VoicePreset)
 	{
-		//TODO: make thread safe
-		m_channels[ch].voice = pm->GetStrValue();
+		SetVoiceOf(ch, pm->GetStrValue());
 		NotifyChanged(apVoice, ch);
 	}
 	else if (property == Property::PianoModel)
 	{
-		//TODO: make thread safe
-		m_model = pm->GetStrValue();
+		{
+			const ScopedLock lock(m_stringLock);
+			m_model = pm->GetStrValue();
+		}
 	}
 	else if (property == Property::FirmwareVersion)
 	{
-		//TODO: make thread safe
-		m_version = pm->GetStrValue();
+		{
+			const ScopedLock lock(m_stringLock);
+			m_version = pm->GetStrValue();
+		}
 		if (!m_connected)
 		{
 			m_connected = true;
 			NotifyChanged(apConnection);
 
-			if (IsLocalSongLoaded() && m_playbackSource == psLocal)
+			// The song may have been loaded while the piano was switched off; its voices and
+			// settings are sent only at loading, so it is loaded again. Asked on the message
+			// thread: this thread (of the connection) may hold its own lock, and the own
+			// player may be sending to the same connection with its lock held.
 			{
-				// The song may have been loaded while the piano was switched off; its
-				// voices and settings are sent only at loading, so it is loaded again.
 				std::weak_ptr<bool> alive = m_alive;
 				MessageManager::callAsync([this, alive]()
 					{
-						if (alive.lock())
+						if (alive.lock() && IsLocalSongLoaded() && m_playbackSource == psLocal)
 						{
 							ReloadSong();
 						}
@@ -1679,8 +1683,7 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 	else if (property == Property::SongName)
 	{
 		String name = DecodeSongName(pm->GetStrValue());
-		//TODO: make thread safe
-		m_songName = name;
+		SetSongNameValue(name);
 		NotifyChanged(apSongName);
 		if (m_songLoading)
 		{
@@ -1754,28 +1757,32 @@ void PianoController::SetLocalPlayback(bool enabled)
 
 void PianoController::ApplyPlaybackSource(PlaybackSource source)
 {
-	// the Live Play notes and pedal are released on the old output (even if the
-	// channels stay the same, the output may change); the pedal held down is sent
-	// again when the switch is complete (ResumeLivePedal)
-	SuspendLive();
-
 	if (m_localPlayer)
 	{
 		// silence the old output before switching
 		m_localPlayer->Unload();
 		m_localPlayer->SetMasterVolumeScale(1.0);
 	}
-
-	m_playbackSource = source;
-	m_localPlayback = source != psPiano;
 	if (m_softMetronome)
 	{
 		// the own metronome sounds on the MIDI device only
 		m_softMetronome.reset();
 		m_metronome = false;
 	}
-	m_genericDevice = source == psMidiDevice;
-	UpdateLiveTarget(); // MIDI device playback: Live Play on the Mixer channels (MIDI Out)
+
+	{
+		// The Live Play notes and pedal are released on the old output (even if the
+		// channels stay the same, the output may change), and the output is switched, in
+		// one step: a note played meanwhile (MIDI In 2) is not started on the old output
+		// and released on the new one. The pedal held down is sent again when the switch
+		// is complete (ResumeLivePedal).
+		const ScopedLock lock(m_liveLock);
+		SuspendLive();
+		m_playbackSource = source;
+		m_localPlayback = source != psPiano;
+		m_genericDevice = source == psMidiDevice;
+		UpdateLiveTarget(); // MIDI device playback: Live Play on the Mixer channels (MIDI Out)
+	}
 	const bool enabled = m_localPlayback;
 	Logger::writeToLog("Playback: " + String(source == psPiano ? "piano" : source == psLocal ? "own player (USB)" : "own player (MIDI device)"));
 
@@ -1991,7 +1998,7 @@ void PianoController::SetLiveOctave(Channel ch, int octave)
 
 bool PianoController::CanTakeKeyboardPart(Channel part) const
 {
-	return Presets::FindVoice(m_channels[part].voice) != nullptr;
+	return Presets::FindVoice(VoiceOf(part)) != nullptr;
 }
 
 void PianoController::TakeKeyboardPart(Channel mixerChannel, Channel part)
@@ -2001,7 +2008,7 @@ void PianoController::TakeKeyboardPart(Channel mixerChannel, Channel part)
 		return; // the drum channel plays drum kits only
 	}
 
-	Voice* preset = Presets::FindVoice(m_channels[part].voice);
+	Voice* preset = Presets::FindVoice(VoiceOf(part));
 	if (preset)
 	{
 		if (m_genericDevice)
@@ -2112,7 +2119,8 @@ void PianoController::ResetChannelSettings(Channel ch)
 		}
 
 		// the piano cannot reset the voice: it is read from the MIDI file
-		const File file(File::isAbsolutePath(m_songName) ? File(m_songName) : File());
+		const String songName = GetSongName();
+		const File file(File::isAbsolutePath(songName) ? File(songName) : File());
 		const int voice = file.existsAsFile() ? SongSetupVoice(file, ch - chMidi0) : -1;
 		if (voice >= 0)
 		{
@@ -2276,14 +2284,15 @@ LiveRecorder::Setup PianoController::RecorderSetup(Channel ch)
 {
 	LiveRecorder::Setup setup;
 	const ChannelInfo& info = m_channels[ch];
-	if (info.voice.startsWith("PRESET:"))
+	const String voice = VoiceOf(ch);
+	if (voice.startsWith("PRESET:"))
 	{
-		Voice* preset = Presets::FindVoice(info.voice);
+		Voice* preset = Presets::FindVoice(voice);
 		if (preset) setup.voice = preset->num;
 	}
-	else if (info.voice.isNotEmpty())
+	else if (voice.isNotEmpty())
 	{
-		setup.voice = RealSongVoice(info.voice.getIntValue());
+		setup.voice = RealSongVoice(voice.getIntValue());
 	}
 	setup.volume = jlimit(0, 127, info.volume);
 	setup.pan = jlimit(0, 127, info.pan + PanBase);
@@ -2333,12 +2342,13 @@ void PianoController::UpdateRecorderStyleSetups()
 	for (int i = 0; i < NumStyleParts; i++)
 	{
 		const ChannelInfo& info = m_channels[chStylePart1 + i];
-		if (info.voice.isEmpty() || info.voice.startsWith("PRESET:"))
+		const String voice = VoiceOf((Channel)(chStylePart1 + i));
+		if (voice.isEmpty() || voice.startsWith("PRESET:"))
 		{
 			continue; // not known: what was heard on MIDI is used
 		}
 		LiveRecorder::Setup setup;
-		setup.voice = info.voice.getIntValue();
+		setup.voice = voice.getIntValue();
 		// the volume of a part on MIDI: scaled by the volume of the whole accompaniment
 		setup.volume = jlimit(0, 127, roundToInt(info.volume * jlimit(0, 127, m_channels[chStyle].volume) / 127.0));
 		setup.pan = jlimit(0, 127, info.pan + PanBase);
@@ -3256,7 +3266,7 @@ void PianoController::SetPlaybackSource(PlaybackSource source, bool automatic)
 
 	// the loaded song is loaded again into the other player, at the beginning of the same
 	// measure
-	const String songName = IsSongLoaded() ? m_songName : String();
+	const String songName = IsSongLoaded() ? GetSongName() : String();
 	const int measure = GetPosition().measure;
 
 	if (!m_localPlayback && source != psPiano && m_networkTempoSet && m_connected &&
@@ -3355,7 +3365,7 @@ void PianoController::OnLocalMessage(const MidiMessage& message)
 		const Channel ch = (Channel)(chMidi0 + message.getChannel());
 		if (message.isProgramChange())
 		{
-			m_channels[ch].voice = String((m_genericBank[index] << 8) | message.getProgramChangeNumber());
+			SetVoiceOf(ch, String((m_genericBank[index] << 8) | message.getProgramChangeNumber()));
 			NotifyChangedLater(apVoice, ch); // the player's lock is held: see NotifyChangedLater
 		}
 		else if (message.getControllerNumber() == 0)
@@ -3411,7 +3421,7 @@ void PianoController::ReloadSong()
 		return;
 	}
 
-	const File file(m_songName);
+	const File file(GetSongName());
 	if (file.existsAsFile())
 	{
 		m_pendingSnapshot = TakeSnapshot();
@@ -3444,7 +3454,7 @@ PianoController::MixSnapshot PianoController::TakeSnapshot()
 	for (Channel ch : MidiChannels)
 	{
 		const ChannelInfo& info = m_channels[ch];
-		String voice = info.voice;
+		String voice = VoiceOf(ch);
 		if (voice.startsWith("PRESET:"))
 		{
 			Voice* preset = Presets::FindVoice(voice);
@@ -3607,7 +3617,7 @@ bool PianoController::LoadLocalSong(const File& file)
 		for (Channel ch : MidiChannels)
 		{
 			m_genericBank[ch - chMidi1] = 0;
-			m_channels[ch].voice = "0";
+			SetVoiceOf(ch, "0");
 		}
 	}
 
@@ -3616,7 +3626,7 @@ bool PianoController::LoadLocalSong(const File& file)
 		return false;
 	}
 
-	m_songName = file.getFullPathName();
+	SetSongNameValue(file.getFullPathName());
 	m_songLoaded = true;
 	m_loop = {{0,0},{0,0}};
 	m_loopStart = {0,0};
@@ -3690,7 +3700,7 @@ void PianoController::ClearSongState()
 {
 	m_songLoaded = false;
 	m_songLoading = false;
-	m_songName = "";
+	SetSongNameValue(String());
 	m_playing = false;
 	m_speedFactor = 1.0;
 	m_position = {0,0};
