@@ -448,6 +448,13 @@ public:
 	// Called (on the message thread) when the piano could not be reached over the
 	// network and playback switched to ConPianist's own player.
 	std::function<void()> onNetworkPlaybackFailed;
+	// The MIDI file of a song that is not a file (one of the piano's own songs, by the name
+	// the piano reports), for the other player when the player is switched; a non-existing
+	// file if there is none.
+	std::function<File(const String& songName)> findSongFile;
+	// The other way round: the path of the piano's own song ("PRESET:/SONG/...") whose MIDI
+	// file this is, or empty; with the piano's player that song is loaded, not the file.
+	std::function<String(const File& file)> findPianoSong;
 	void InitEvents();
 	bool UploadSong(const File& file);
 	// Loads one of the piano's own songs by its path (PRESET:/SONG/...); network playback only.

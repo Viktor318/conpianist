@@ -3244,7 +3244,22 @@ void PianoController::SetPlaybackSource(PlaybackSource source, bool automatic)
 	}
 
 	const PlaybackSource previousSource = m_playbackSource;
-	const bool reload = File::isAbsolutePath(songName) && File(songName).existsAsFile();
+	// the song file; for one of the piano's own songs its MIDI file in its folder
+	File songFile;
+	if (songName.isNotEmpty())
+	{
+		if (File::isAbsolutePath(songName) && File(songName).existsAsFile())
+		{
+			songFile = File(songName);
+		}
+		else if (findSongFile)
+		{
+			songFile = findSongFile(songName);
+		}
+	}
+	const bool reload = songFile.existsAsFile();
+	// to the piano's player: the MIDI file of one of its own songs loads that song
+	const String pianoSong = reload && source == psPiano && findPianoSong ? findPianoSong(songFile) : String();
 	if (reload)
 	{
 		// the settings of the Mixer and the Playback panel are kept
@@ -3259,7 +3274,9 @@ void PianoController::SetPlaybackSource(PlaybackSource source, bool automatic)
 	{
 		m_pendingMeasure = measure;
 		m_skipRegistrationMemory = true;
-		if (!LoadSongInternal(File(songName)))
+		// (the measure and the settings: when the piano reports the song, see SongName)
+		const bool loaded = pianoSong.isNotEmpty() ? LoadPresetSong(pianoSong) : LoadSongInternal(songFile);
+		if (!loaded)
 		{
 			m_pendingSnapshot.valid = false;
 			m_skipRegistrationMemory = false;

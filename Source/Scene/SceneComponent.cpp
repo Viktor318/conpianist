@@ -28,6 +28,7 @@
 
 
 //[MiscUserDefs] You can add your own user definitions and misc code here...
+static File PianoSongMidi(const Settings& settings, const String& songName); // see below
 
 // A thin bar on the upper edge of the virtual keyboard: dragging it with the mouse
 // changes the height of the keyboard, a double click restores the default height.
@@ -204,6 +205,22 @@ SceneComponent::SceneComponent (Settings& settings)
 
 	playbackComponent.reset(new PlaybackComponent(settings, pianoController));
 	playbackComponent->onChooseSong = [this]() { showSongSelector(); };
+	// a song of the piano is played from its MIDI file when the player is switched
+	pianoController.findSongFile = [this](const String& songName) { return PianoSongMidi(this->settings, songName); };
+	pianoController.findPianoSong = [this](const File& file)
+		{
+			const File songs = this->settings.GetSongsDirectory();
+			for (const Song& song : Presets::Songs())
+			{
+				// only the songs of the folder of the file are looked at
+				if (file.getParentDirectory() == songs.getChildFile(song.folder) &&
+					this->settings.GetSongMidi(song) == file)
+				{
+					return song.path;
+				}
+			}
+			return String();
+		};
 	playbackViewport.reset(new Viewport());
 	playbackViewport->setViewedComponent(playbackComponent.get(), false);
 	playbackViewport->setScrollBarsShown(true, false);
@@ -1142,6 +1159,10 @@ void SceneComponent::loadLastSong()
 	}
 
 	String song = songStateRestored ? String() : getLastStateSong();
+	if (song.isEmpty())
+	{
+		song = settings.lastSong;
+	}
 	if (PianoSongPath(song).isNotEmpty())
 	{
 		// one of the piano's own songs: its MIDI file in its folder, as the Load button of
@@ -1153,10 +1174,6 @@ void SceneComponent::loadLastSong()
 			return;
 		}
 		song = midi.getFullPathName();
-	}
-	if (song.isEmpty())
-	{
-		song = settings.lastSong;
 	}
 
 	if (File::isAbsolutePath(song) && File(song).existsAsFile())
@@ -1672,6 +1689,13 @@ void SceneComponent::loadSongState()
 {
 	const bool switched = pianoController.TakeSkipRegistrationMemory();
 	const String song = pianoController.GetSongName();
+	if (PianoSongPath(song).isNotEmpty() && settings.lastSong != song)
+	{
+		// the last loaded song is one of the piano's own songs: with USB or MIDI device
+		// playback its MIDI file is loaded, not an earlier file
+		settings.lastSong = song;
+		settings.Save();
+	}
 
 	if (!songStateRestored)
 	{
