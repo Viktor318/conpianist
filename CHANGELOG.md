@@ -26,6 +26,7 @@ Ez a fájl a ConPianist változásait dokumentálja. Az 1.0–3.0 verziók az er
 
 ### Változott
 - **Felvétel ablak:** az Indítás és leállítás sor gombjai és a Metronóm hangereje csúszka közvetlenül a felirat után kezdődnek; a hangerő értéke a csúszka bal oldalára, a felirat mellé került.
+- **Dupla kattintás az alapértékre több helyen:** a Felvétel ablakban a Metronóm hangereje csúszkán (100), a „Leállás ennyi csend után (mp)” feliraton (5 mp) és a „Tempó és ütem” feliraton (a dal vagy a stílus tempója, mint a bal panelen); a Kíséret ablakban a „Tempó” feliraton (a stílus alaptempója, mint a Reset gomb).
 - **Nincs kettőspont a feliratok után** az ablakokban (Kíséret, Felvétel, Kapcsolat beállításai, Dalválasztó, memória neve), ahogy a bal panelen: például „Stílus”, „Tempó”, „Hangnem”, „Fájlnév”, „Keresés”. Ahol a felirat után közvetlenül érték áll (a Felvétel ablak állapotsora, a memóriagombok buboréksúgója, a menü Verzió sora), a kettőspont marad.
 - **Frissült a kottamegjelenítő könyvtár: Lomse 0.27.0 → 0.30.0**, a 0.30.0 óta készült, még kiadatlan javításokkal együtt (a Lomse fő ágának `2067a01c` állapota).
   - A kiadatlan javításokból: a két kottasorba törő gerendázott csoportok helyes rajzolása; a gerendák szétválasztása szólam, előke és kis hangjegy szerint; a hangjegyek és ütemvonalak színének beolvasása.

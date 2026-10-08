@@ -107,7 +107,8 @@ public:
 	static const int MinRecorderSilence = 2;
 	static const int MaxRecorderSilence = 60;
 	bool recorderAutomatic = true;
-	int recorderSilence = 5;
+	static const int DefaultRecorderSilence = 5;
+	int recorderSilence = DefaultRecorderSilence;
 	bool recorderStyle = true;
 	int recorderCountIn = 1; // count-in measures of a manual recording (0: none)
 	// quantization of the saved recording: the grid in ticks (480 per quarter note), the

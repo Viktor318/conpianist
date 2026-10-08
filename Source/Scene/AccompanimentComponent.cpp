@@ -73,6 +73,7 @@ AccompanimentComponent::AccompanimentComponent(Settings& settings, PianoControll
 	loadStyles();
 
 	initLabel(tempoLabel, TRANS("Tempo"));
+	tempoLabel.addMouseListener(this, false);
 	tempoSlider.setSliderStyle(Slider::IncDecButtons);
 	tempoSlider.setTextBoxStyle(Slider::TextBoxLeft, false, 40, 24);
 	tempoSlider.setRange(PianoController::MinTempo, PianoController::MaxTempo, 1);
@@ -587,6 +588,14 @@ int AccompanimentComponent::defaultTempo() const
 {
 	const Style* style = Presets::FindStyle(pianoController.GetStyleName());
 	return style ? style->tempo : 0;
+}
+
+void AccompanimentComponent::mouseDoubleClick(const MouseEvent& event)
+{
+	if (event.eventComponent == &tempoLabel && resetTempoButton.isEnabled())
+	{
+		resetTempo();
+	}
 }
 
 void AccompanimentComponent::resetTempo()

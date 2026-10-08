@@ -40,6 +40,8 @@ public:
 	void resized() override;
 	void buttonClicked(Button* button) override;
 	bool keyPressed(const KeyPress& key) override;
+	// double click on the label of the tempo: the default tempo of the style (as Reset)
+	void mouseDoubleClick(const MouseEvent& event) override;
 	void PianoStateChanged(PianoController::Aspect aspect, PianoController::Channel channel) override;
 	void PianoNoteMessage(const MidiMessage& message) override;
 	// Name of a note as the piano names it (middle C, note 60, is C3).

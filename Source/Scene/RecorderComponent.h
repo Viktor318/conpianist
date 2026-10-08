@@ -40,6 +40,8 @@ public:
 	void buttonClicked(Button* button) override;
 	void timerCallback() override;
 	void PianoStateChanged(PianoController::Aspect aspect, PianoController::Channel channel) override;
+	// double click on the label of the silence or of the tempo: back to its default
+	void mouseDoubleClick(const MouseEvent& event) override;
 
 private:
 	Settings& settings;
