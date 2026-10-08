@@ -31,6 +31,7 @@ ScoreComponent* ScoreComponent::Create(Settings& settings, PianoController& pian
 #include "Presets.h"
 
 #include <filesystem>
+#include <map>
 
 #include <lomse_doorway.h>
 #include <lomse_document.h>
@@ -272,6 +273,160 @@ static String ReadCompressedMusicXml(const File& file)
 	return String::createStringFromData(data.getData(), (int)data.getSize()); // UTF-8 or UTF-16
 }
 
+// The name of a chord symbol of MusicXML (<harmony>), as it is written above the staff:
+// root, kind (the text given by the notation program, e.g. "maj7", or the usual
+// abbreviation of the kind), added or altered degrees and the bass ("C/G").
+static String ChordSymbolName(const XmlElement& harmony)
+{
+	auto accidental = [](const XmlElement* alter)
+		{
+			const int value = alter != nullptr ? alter->getAllSubText().trim().getIntValue() : 0;
+			return value > 0 ? String::repeatedString("#", value) : value < 0 ? String::repeatedString("b", -value) : String();
+		};
+	auto step = [&accidental](const XmlElement* parent, const char* stepName, const char* alterName)
+		{
+			if (parent == nullptr)
+			{
+				return String();
+			}
+			const XmlElement* stepElement = parent->getChildByName(stepName);
+			if (stepElement == nullptr)
+			{
+				return String();
+			}
+			// a text given for the step (e.g. "Do" or "H") is used as it is
+			const String text = stepElement->getStringAttribute("text");
+			return (text.isNotEmpty() ? text : stepElement->getAllSubText().trim()) +
+				accidental(parent->getChildByName(alterName));
+		};
+
+	String name = step(harmony.getChildByName("root"), "root-step", "root-alter");
+	if (name.isEmpty())
+	{
+		// a harmony without a root (e.g. a function or a Roman numeral): its text
+		if (const XmlElement* function = harmony.getChildByName("function"))
+		{
+			name = function->getAllSubText().trim();
+		}
+		else if (const XmlElement* numeral = harmony.getChildByName("numeral"))
+		{
+			if (const XmlElement* root = numeral->getChildByName("numeral-root"))
+			{
+				name = root->getStringAttribute("text", root->getAllSubText().trim());
+			}
+		}
+	}
+
+	if (const XmlElement* kind = harmony.getChildByName("kind"))
+	{
+		const bool hasText = kind->hasAttribute("text");
+		if (hasText)
+		{
+			name += kind->getStringAttribute("text");
+		}
+		else
+		{
+			static const std::map<String, String> kinds = {
+				{"major", ""}, {"minor", "m"}, {"augmented", "+"}, {"diminished", "dim"},
+				{"dominant", "7"}, {"major-seventh", "maj7"}, {"minor-seventh", "m7"},
+				{"diminished-seventh", "dim7"}, {"augmented-seventh", "+7"},
+				{"half-diminished", "m7b5"}, {"major-minor", "m(maj7)"}, {"major-sixth", "6"},
+				{"minor-sixth", "m6"}, {"dominant-ninth", "9"}, {"major-ninth", "maj9"},
+				{"minor-ninth", "m9"}, {"dominant-11th", "11"}, {"major-11th", "maj11"},
+				{"minor-11th", "m11"}, {"dominant-13th", "13"}, {"major-13th", "maj13"},
+				{"minor-13th", "m13"}, {"suspended-second", "sus2"}, {"suspended-fourth", "sus4"},
+				{"power", "5"}, {"pedal", "ped"}, {"Neapolitan", "N6"}, {"Italian", "It+6"},
+				{"French", "Fr+6"}, {"German", "Ger+6"}, {"Tristan", "Tristan"}, {"none", "N.C."}};
+			auto it = kinds.find(kind->getAllSubText().trim());
+			if (it != kinds.end())
+			{
+				name += it->second;
+			}
+		}
+
+		// the added, altered or left out degrees (not if the text of the kind is given:
+		// it shows them already)
+		for (auto* degree : harmony.getChildWithTagNameIterator("degree"))
+		{
+			if (hasText || degree->getStringAttribute("print-object") == "no")
+			{
+				continue;
+			}
+			const XmlElement* type = degree->getChildByName("degree-type");
+			const XmlElement* value = degree->getChildByName("degree-value");
+			const String typeName = type != nullptr ? type->getAllSubText().trim() : String("add");
+			const String number = value != nullptr ? value->getAllSubText().trim() : String();
+			const String alter = accidental(degree->getChildByName("degree-alter"));
+			name += typeName == "subtract" ? "no" + number :
+				typeName == "alter" ? alter + number : "add" + alter + number;
+		}
+	}
+
+	const String bass = step(harmony.getChildByName("bass"), "bass-step", "bass-alter");
+	if (bass.isNotEmpty())
+	{
+		name += "/" + bass;
+	}
+	return name;
+}
+
+// Lomse does not show the chord symbols of MusicXML (<harmony>): they are written into the
+// text as words above the staff (<direction>), at the same place, so they are shown like
+// the other texts of the score. The file itself is not changed.
+static String ChordSymbolsAsWords(const String& content)
+{
+	static const String openTag = "<harmony";
+	static const String closeTag = "</harmony>";
+	String result;
+	result.preallocateBytes(content.getNumBytesAsUTF8() + 4096);
+	int position = 0; // the text before this position is in the result
+	for (int start = content.indexOf(openTag); start >= 0; start = content.indexOf(start + 1, openTag))
+	{
+		const juce_wchar next = content[start + openTag.length()];
+		if (next != '>' && next != '/' && !CharacterFunctions::isWhitespace(next))
+		{
+			continue; // another element whose name begins the same way
+		}
+		const int tagEnd = content.indexOf(start, ">");
+		if (tagEnd < 0)
+		{
+			break;
+		}
+		int end = tagEnd + 1;
+		if (content[tagEnd - 1] != '/')
+		{
+			const int close = content.indexOf(tagEnd, closeTag);
+			if (close < 0)
+			{
+				break;
+			}
+			end = close + closeTag.length();
+		}
+		std::unique_ptr<XmlElement> harmony = parseXML(content.substring(start, end));
+		result += content.substring(position, start);
+		position = end;
+		if (harmony == nullptr || harmony->getStringAttribute("print-object") == "no")
+		{
+			continue; // not shown
+		}
+		const String name = ChordSymbolName(*harmony);
+		if (name.isEmpty())
+		{
+			continue;
+		}
+		const XmlElement* offset = harmony->getChildByName("offset");
+		const XmlElement* staff = harmony->getChildByName("staff");
+		// above the staff, higher than the notes on the top line usually reach
+		result << "<direction placement=\"above\"><direction-type><words relative-y=\"40\" font-weight=\"bold\">"
+			<< name.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+			<< "</words></direction-type>"
+			<< (offset != nullptr ? "<offset>" + offset->getAllSubText().trim() + "</offset>" : String())
+			<< "<staff>" << (staff != nullptr ? staff->getAllSubText().trim() : String("1")) << "</staff></direction>";
+	}
+	result += content.substring(position);
+	return result;
+}
+
 void LomseScoreComponent::LoadDocument(String filename)
 {
 	//first, we will create a 'presenter'. It takes care of creating and maintaining
@@ -286,7 +441,9 @@ void LomseScoreComponent::LoadDocument(String filename)
 		//   such a file on Windows;
 		// - the score has part groups (brackets joining the instruments, written e.g. by
 		//   Dorico): Lomse cannot draw them if an instrument of the group is not shown,
-		//   so the groups are left out.
+		//   so the groups are left out;
+		// - the score has chord symbols: Lomse does not show them, they are written into
+		//   the text as words above the staff (see ChordSymbolsAsWords).
 		const bool compressed = filename.endsWithIgnoreCase(".mxl");
 		String content = compressed ? ReadCompressedMusicXml(File(filename)) : File(filename).loadFileAsString();
 		if (compressed && content.isEmpty())
@@ -297,7 +454,12 @@ void LomseScoreComponent::LoadDocument(String filename)
 		}
 		const bool asciiPath = CharPointer_ASCII::isValidString(filename.toRawUTF8(), (int)filename.getNumBytesAsUTF8());
 		const bool hasGroups = content.contains("<part-group");
-		if (asciiPath && !hasGroups && !compressed)
+		const bool hasChords = content.contains("<harmony");
+		if (hasChords)
+		{
+			content = ChordSymbolsAsWords(content);
+		}
+		if (asciiPath && !hasGroups && !hasChords && !compressed)
 		{
 			m_presenter.reset(m_lomse.open_document(lomse::k_view_vertical_book, filename.toStdString()));
 		}
