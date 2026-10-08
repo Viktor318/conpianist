@@ -1137,9 +1137,15 @@ void SceneComponent::loadLastSong()
 	String song = songStateRestored ? String() : getLastStateSong();
 	if (PianoSongPath(song).isNotEmpty())
 	{
-		// one of the piano's own songs (network playback): its MIDI file, if it has one
+		// one of the piano's own songs: its MIDI file in its folder, as the Load button of
+		// the Song Selector loads it; nothing if it has none
 		const File midi = PianoSongMidi(settings, song);
-		song = midi.existsAsFile() ? midi.getFullPathName() : String();
+		if (!midi.existsAsFile())
+		{
+			songStateRestored = true;
+			return;
+		}
+		song = midi.getFullPathName();
 	}
 	if (song.isEmpty())
 	{
@@ -1207,6 +1213,21 @@ void SceneComponent::restoreSongState()
 	}
 }
 
+// The settings of the loaded song from the beginning: its own tempo and volume, no
+// transposition, no A-B loop, all parts on. (The Mixer channels are set by the song.)
+void SceneComponent::resetSongSettings()
+{
+	Logger::writeToLog("The song of the piano starts with its own settings");
+	pianoController.ResetTempo();
+	pianoController.ResetVolume(PianoController::chMidiMaster);
+	pianoController.SetTranspose(0);
+	pianoController.ResetLoop();
+	for (PianoController::Part part : {PianoController::paRight, PianoController::paLeft, PianoController::paBacking})
+	{
+		pianoController.SetPart(part, true);
+	}
+}
+
 // With the piano's own player (network), the song of the last state is loaded into the
 // piano at the start, unless the piano still has it. This is done after the piano's
 // state was read and the network was checked.
@@ -1229,6 +1250,18 @@ void SceneComponent::restoreSongInPiano(Time curTime)
 		return;
 	}
 
+	// one of the piano's own songs is always loaded again, as with the Load button of the
+	// Song Selector, whatever the piano has now; its settings: see loadSongState
+	if (pianoSong.isNotEmpty())
+	{
+		Logger::writeToLog("Loading the piano's song of the last state");
+		if (!pianoController.LoadPresetSong("PRESET:" + pianoSong))
+		{
+			songStateRestored = true;
+		}
+		return;
+	}
+
 	const String loaded = pianoController.IsSongLoaded() ? pianoController.GetSongName() : String();
 	if (IsSameSong(loaded, song))
 	{
@@ -1239,16 +1272,7 @@ void SceneComponent::restoreSongInPiano(Time curTime)
 	}
 
 	Logger::writeToLog("Loading the song of the last state");
-	// its settings: see loadSongState
-	if (pianoSong.isNotEmpty())
-	{
-		if (!pianoController.LoadPresetSong("PRESET:" + pianoSong))
-		{
-			songStateRestored = true;
-		}
-		return;
-	}
-	pianoController.LoadSong(File(song));
+	pianoController.LoadSong(File(song)); // its settings: see loadSongState
 }
 
 // Saves the current state, restored at the next start. Parts that were not known in
@@ -1648,10 +1672,31 @@ void SceneComponent::loadSongState()
 		// settings are restored instead of its own registration memory
 		songStateRestored = true;
 		const String lastSong = getLastStateSong();
-		// with USB or MIDI device playback a song of the piano is played from its MIDI file
-		const File lastSongMidi = PianoSongMidi(settings, lastSong);
-		if (IsSameSong(song, lastSong) ||
-			(lastSongMidi.existsAsFile() && File::isAbsolutePath(song) && File(song) == lastSongMidi))
+		if (PianoSongPath(lastSong).isNotEmpty())
+		{
+			// one of the piano's own songs (with USB or MIDI device playback from its MIDI
+			// file): it starts as if it was loaded with the Load button of the Song
+			// Selector, with its own settings; only a registration memory next to the
+			// MIDI file is loaded (as for every song)
+			const File lastSongMidi = PianoSongMidi(settings, lastSong);
+			if (IsSameSong(song, lastSong) ||
+				(lastSongMidi.existsAsFile() && File::isAbsolutePath(song) && File(song) == lastSongMidi))
+			{
+				const File conmem = PianoSongPath(song).isEmpty() ? File(song).withFileExtension(".conmem") : File();
+				if (conmem.existsAsFile() && conmem.getSize() > 0)
+				{
+					RegistrationMemory regmem(pianoController, settings, {}, conmem);
+					regmem.Load();
+				}
+				else
+				{
+					resetSongSettings();
+				}
+				scheduleLastStateSave();
+				return;
+			}
+		}
+		else if (IsSameSong(song, lastSong))
 		{
 			restoreSongState();
 			scheduleLastStateSave();

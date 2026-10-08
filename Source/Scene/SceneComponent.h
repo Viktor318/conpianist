@@ -95,6 +95,7 @@ public:
 	String getLastStateSong() const;
 	void restorePianoState();
 	void restoreSongState();
+	void resetSongSettings();
 	void restoreSongInPiano(Time curTime);
 	void saveLastState();
 	void scheduleLastStateSave();
