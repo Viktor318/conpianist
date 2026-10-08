@@ -507,10 +507,17 @@ void SceneComponent::PianoStateChanged(PianoController::Aspect aspect, PianoCont
 	{
 		GuiHelper::CallAsync(this, [=](){updateSettingsState();});
 	}
-	else if (aspect == PianoController::apPlayback && !pianoController.GetPlaying())
+	else if (aspect == PianoController::apPlayback)
 	{
-		// a switch back to the chosen player that waited for the end of playback
-		GuiHelper::CallAsync(this, [=](){chooseDefaultPlaybackSource();});
+		// a switch back to the chosen player that waited for the end of playback; the state
+		// is asked later, not here (see PianoController::NotifyChangedLater)
+		GuiHelper::CallAsync(this, [=]()
+			{
+				if (!pianoController.GetPlaying())
+				{
+					chooseDefaultPlaybackSource();
+				}
+			});
 	}
 }
 

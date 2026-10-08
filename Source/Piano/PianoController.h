@@ -763,6 +763,9 @@ private:
 
 	void NotifyChanged(Aspect aspect, Channel channel = chNone);
 	void NotifyNoteMessage(const MidiMessage& message);
+	// the same from the player's thread (with its lock held): on the message thread
+	void NotifyChangedLater(Aspect aspect, Channel channel = chNone);
+	void NotifyNoteMessageLater(const MidiMessage& message);
 	void ResyncStateFromPiano();
 	String DecodeSongName(String rawValue);
 	bool LoadLocalSong(const File& file);

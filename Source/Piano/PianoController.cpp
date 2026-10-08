@@ -3293,7 +3293,7 @@ void PianoController::OnLocalMessage(const MidiMessage& message)
 		if (message.isProgramChange())
 		{
 			m_channels[ch].voice = String((m_genericBank[index] << 8) | message.getProgramChangeNumber());
-			NotifyChanged(apVoice, ch);
+			NotifyChangedLater(apVoice, ch); // the player's lock is held: see NotifyChangedLater
 		}
 		else if (message.getControllerNumber() == 0)
 		{
@@ -3328,14 +3328,14 @@ void PianoController::ShowLocalNote(const MidiMessage& message)
 		if (handPart)
 		{
 			shown = true;
-			NotifyNoteMessage(message);
+			NotifyNoteMessageLater(message);
 		}
 	}
 	else if (shown)
 	{
 		// released even if the part assignment has changed in the meantime
 		shown = false;
-		NotifyNoteMessage(message);
+		NotifyNoteMessageLater(message);
 	}
 }
 
@@ -3723,5 +3723,34 @@ void PianoController::NotifyChanged(Aspect aspect, Channel channel)
 void PianoController::NotifyNoteMessage(const MidiMessage& message)
 {
 	m_listeners.call([&message](Listener& listener) { listener.PianoNoteMessage(message); });
+}
+
+// The listeners are called with the lock of the listener list held, and some of them ask
+// the controller for the state of the own player (which takes the player's lock). The
+// player's thread holds its lock while it sends the notes of the song: if it called the
+// listeners directly, the two threads could wait for each other forever (the program
+// froze). So from there the listeners are called later, on the message thread.
+void PianoController::NotifyChangedLater(Aspect aspect, Channel channel)
+{
+	std::weak_ptr<bool> alive = m_alive;
+	MessageManager::callAsync([this, alive, aspect, channel]()
+		{
+			if (alive.lock())
+			{
+				NotifyChanged(aspect, channel);
+			}
+		});
+}
+
+void PianoController::NotifyNoteMessageLater(const MidiMessage& message)
+{
+	std::weak_ptr<bool> alive = m_alive;
+	MessageManager::callAsync([this, alive, message]()
+		{
+			if (alive.lock())
+			{
+				NotifyNoteMessage(message);
+			}
+		});
 }
 
