@@ -372,5 +372,25 @@ void TopBarButton::paintButton(Graphics& g, bool shouldDrawButtonAsHighlighted, 
 			drawDrum(g, x0 + 3.0f, x0 + 19.0f, y0 + 12.0f, y0 + 21.0f, 2.2f, 1.8f, 1.4f, 3.4f);
 			break;
 		}
+
+		case iconSongs:
+		{
+			// four lines of a list, an eighth note over their right end
+			for (int i = 0; i < 4; i++)
+			{
+				g.fillRoundedRectangle(x0 + 1.5f, y0 + 3.0f + i * 4.6f, 10.5f, 1.8f, 0.6f);
+			}
+			const float r = 2.64f;
+			g.fillEllipse(x0 + 15.5f - r, y0 + 17.5f - r, 2 * r, 2 * r);
+			g.fillRect(x0 + 16.64f, y0 + 4.5f, 1.5f, 13.0f);
+			Path flag;
+			flag.startNewSubPath(x0 + 17.6f, y0 + 4.5f);
+			flag.lineTo(x0 + 21.0f, y0 + 7.0f);
+			flag.lineTo(x0 + 21.0f, y0 + 9.4f);
+			flag.lineTo(x0 + 17.6f, y0 + 7.0f);
+			flag.closeSubPath();
+			g.fillPath(flag);
+			break;
+		}
 	}
 }

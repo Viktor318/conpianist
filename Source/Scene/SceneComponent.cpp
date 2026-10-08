@@ -203,6 +203,7 @@ SceneComponent::SceneComponent (Settings& settings)
     topbarPanel->setText("");
 
 	playbackComponent.reset(new PlaybackComponent(settings, pianoController));
+	playbackComponent->onChooseSong = [this]() { showSongSelector(); };
 	playbackViewport.reset(new Viewport());
 	playbackViewport->setViewedComponent(playbackComponent.get(), false);
 	playbackViewport->setScrollBarsShown(true, false);
@@ -235,6 +236,11 @@ SceneComponent::SceneComponent (Settings& settings)
 
 
     //[Constructor] You can add your own custom stuff here..
+	songSelectorButton.reset(new TopBarButton("Song Selector Button", TopBarButton::iconSongs));
+	addAndMakeVisible(songSelectorButton.get());
+	songSelectorButton->setTooltip(TRANS("Song Selector"));
+	songSelectorButton->onClick = [this]() { showSongSelector(); };
+	songSelectorButton->setBounds(getWidth() - 290 - 32, 8, 32, 28);
 	recorderButton.reset(new TopBarButton("Recorder Button", TopBarButton::iconRecord));
 	addAndMakeVisible(recorderButton.get());
 	recorderButton->setTooltip(TRANS("Recording"));
@@ -282,9 +288,11 @@ SceneComponent::~SceneComponent()
     accompanimentWindow = nullptr;
     styleMixerWindow = nullptr;
     balanceWindow = nullptr;
+    songSelectorWindow = nullptr;
     styleMixerButton = nullptr;
     accompanimentButton = nullptr;
     recorderButton = nullptr;
+    songSelectorButton = nullptr;
     saveLastState(); // restored at the next start
     // MIDI In 2 is closed first (the output stays open), so no more notes arrive;
     // then the notes still held there or on the virtual keyboard are released
@@ -365,7 +373,8 @@ void SceneComponent::resized()
     //[UserResized] Add your own custom resize handling here..
     if (styleMixerButton) // created after the first layout
     {
-        // Recording, Accompaniment, (Balance), Accompaniment mixer, (keyboard, ...)
+        // Song Selector, Recording, Accompaniment, (Balance), Accompaniment mixer, (keyboard, ...)
+        songSelectorButton->setBounds(getWidth() - 290 - 32, 8, 32, 28);
         recorderButton->setBounds(getWidth() - 255 - 32, 8, 32, 28);
         accompanimentButton->setBounds(getWidth() - 220 - 32, 8, 32, 28);
         styleMixerButton->setBounds(getWidth() - 150 - 32, 8, 32, 28);
@@ -1477,6 +1486,31 @@ void SceneComponent::showAccompaniment()
 	{
 		content->grabKeyboardFocus();
 	}
+}
+
+// The Song Selector stays open after a song is loaded; it can be minimised to see the score.
+void SceneComponent::showSongSelector()
+{
+	if (!songSelectorWindow)
+	{
+		songSelectorWindow = std::make_unique<SongSelectorWindow>(settings, pianoController);
+		if (!songSelectorWindow->RestoreBounds())
+		{
+			songSelectorWindow->centreAroundComponent(this, songSelectorWindow->getWidth(), songSelectorWindow->getHeight());
+		}
+		if (SongSelectorComponent* selector = songSelectorWindow->GetSelector())
+		{
+			selector->onLoadFile = [this](const File& file) { playbackComponent->loadSongFile(file); };
+			selector->onOpenFile = [this]() { playbackComponent->chooseSongFile(); };
+		}
+	}
+	else if (SongSelectorComponent* selector = songSelectorWindow->GetSelector())
+	{
+		selector->Refresh(); // files may have been added to the folders meanwhile
+	}
+	songSelectorWindow->setVisible(true);
+	songSelectorWindow->setMinimised(false);
+	songSelectorWindow->toFront(true);
 }
 
 void SceneComponent::showStyleMixer()

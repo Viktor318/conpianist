@@ -20,6 +20,7 @@
  */
 
 #include "Settings.h"
+#include "Presets.h"
 
 Settings::Settings()
 {
@@ -90,6 +91,10 @@ void Settings::Save()
 	prop.setValue("StyleMixer.Window.Y", styleMixerWindowPos.y);
 	prop.setValue("Balance.Window.X", balanceWindowPos.x);
 	prop.setValue("Balance.Window.Y", balanceWindowPos.y);
+	prop.setValue("SongSelector.Window.X", songSelectorWindowBounds.getX());
+	prop.setValue("SongSelector.Window.Y", songSelectorWindowBounds.getY());
+	prop.setValue("SongSelector.Window.W", songSelectorWindowBounds.getWidth());
+	prop.setValue("SongSelector.Window.H", songSelectorWindowBounds.getHeight());
 
 	prop.save();
 	sendChangeMessage();
@@ -159,6 +164,11 @@ void Settings::Load()
 	styleMixerWindowPos.y = prop.getIntValue("StyleMixer.Window.Y", styleMixerWindowPos.y);
 	balanceWindowPos.x = prop.getIntValue("Balance.Window.X", balanceWindowPos.x);
 	balanceWindowPos.y = prop.getIntValue("Balance.Window.Y", balanceWindowPos.y);
+	songSelectorWindowBounds.setBounds(
+		prop.getIntValue("SongSelector.Window.X", songSelectorWindowBounds.getX()),
+		prop.getIntValue("SongSelector.Window.Y", songSelectorWindowBounds.getY()),
+		prop.getIntValue("SongSelector.Window.W", songSelectorWindowBounds.getWidth()),
+		prop.getIntValue("SongSelector.Window.H", songSelectorWindowBounds.getHeight()));
 }
 
 const char* Settings::KeyName(int index, bool minor)
@@ -212,6 +222,53 @@ File Settings::GetLastStateFile() const
 File Settings::GetDefaultSongDirectory() const
 {
 	return opt.getDefaultFile().getSiblingFile("Demo Midi Songs");
+}
+
+File Settings::GetSongsDirectory() const
+{
+	return opt.getDefaultFile().getSiblingFile("Songs");
+}
+
+void Settings::CreateSongFolders() const
+{
+	const File songs = GetSongsDirectory();
+	for (const String& folder : Presets::SongFolders())
+	{
+		const File directory = songs.getChildFile(folder);
+		if (!directory.isDirectory())
+		{
+			directory.createDirectory();
+		}
+	}
+}
+
+File Settings::GetSongScore(const Song& song) const
+{
+	return FindSongFile(song, {".musicxml", ".xml", ".mxl"});
+}
+
+File Settings::GetSongMidi(const Song& song) const
+{
+	return FindSongFile(song, {".mid", ".midi"});
+}
+
+File Settings::FindSongFile(const Song& song, const StringArray& extensions) const
+{
+	const File folder = GetSongsDirectory().getChildFile(song.folder);
+	const String title = File::createLegalFileName(song.title.trim());
+	const StringArray names = {title, song.key, song.key + " " + title};
+	for (const String& name : names)
+	{
+		for (const String& extension : extensions)
+		{
+			const File file = folder.getChildFile(name + extension);
+			if (file.existsAsFile() && file.getSize() > 0)
+			{
+				return file;
+			}
+		}
+	}
+	return {};
 }
 
 int Settings::FirstKeyboardChannel() const

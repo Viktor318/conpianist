@@ -204,6 +204,10 @@
               file="Source/Scene/StyleMixerComponent.cpp"/>
         <FILE id="Sm9LqV" name="StyleMixerComponent.h" compile="0" resource="0"
               file="Source/Scene/StyleMixerComponent.h"/>
+        <FILE id="Sg4LsR" name="SongSelectorComponent.cpp" compile="1" resource="0"
+              file="Source/Scene/SongSelectorComponent.cpp"/>
+        <FILE id="Sg8LsH" name="SongSelectorComponent.h" compile="0" resource="0"
+              file="Source/Scene/SongSelectorComponent.h"/>
         <FILE id="D6Rr0S" name="ScoreComponent.cpp" compile="1" resource="0"
               file="Source/Scene/ScoreComponent.cpp"/>
         <FILE id="OgwLWJ" name="ScoreComponent.h" compile="0" resource="0"

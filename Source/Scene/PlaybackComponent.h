@@ -49,8 +49,14 @@ public:
     //[UserMethods]     -- You can add your own custom methods in this section.
     // the height needed for all controls (the left panel scrolls if it is lower)
     const static int MinimumHeight = 592;
+    // Opens the Song Selector (onChooseSong); without it, the file dialog.
     void chooseSong();
+    // The file dialog for a MIDI file (also from the Song Selector).
+    void chooseSongFile();
+    // Loads a MIDI file chosen in the Song Selector.
+    void loadSongFile(const File& file);
     void loadSong(const URL& url);
+    std::function<void()> onChooseSong;
     void PianoStateChanged(PianoController::Aspect aspect, PianoController::Channel channel) override;
 	void updatePlaybackState(PianoController::Aspect aspect);
 	void updateChannelState();

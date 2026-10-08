@@ -29,10 +29,10 @@ Jelenleg nincs megkezdett fejlesztés.
 
 | Tétel | Leírás | Munka | Megjegyzés |
 |---|---|---|---|
-| Dallista a programban | A zongora beépített dalainak listája a programba épül, a stíluslista mintájára: 50 Popular (Pop, Standard, Folk, Holiday & Events, Children's Music), 50 Classics (Arrangements, Duets, Original Compositions), Lesson (Beyer, Burgmüller, Czerny 100, Czerny 30, Hanon). | K | A lista megvan (403 dal a nemzetközi változatban; a 12 japán változat kimarad). A Demo Songs 7 dala hangfájl (mp3) az alkalmazás csomagjában, ezért az mp3-lejátszásig kimarad. A Bonus Songs az alkalmazásban havonta bővül. |
-| A zongora dalai mappánként | A dalok ugyanolyan mappaszerkezetben jelennek meg, mint a Smart Pianistben; a fájlok helye az adatmappa, amelyben a program létrehozza a mappákat. A dalfájlok nem a program részei, és soha nem kerülnek a repóba. | Kö | Az 50 Classics és a Lesson fájljai (353 dal) megvannak; az 50 Popular dalai nem olvashatók ki a zongorából, ezek csak a zongora saját lejátszójával szólhatnak (lásd a kipróbálandó tételt), a mappáik üresek maradnak. |
-| Dalválasztó | A beépített dalok kiválasztása és betöltése a programból. Az a dal, amelynek a fájlja nincs meg az adatmappában, szürkén látszik, és nem tölthető be. | Kö | A két előző tételre épül. |
-| Saját dalok mappái | A Smart Pianist gyűjtőinek megfelelő mappák az adatmappában: Music Library (megvásárolt fájlok), Imported Songs (saját MIDI- és mp3-fájlok), Recorded Songs (saját felvételek), Bonus Songs (az alkalmazás havonta bővülő, PDF-kottás dalai; a fájlokat Viktor tölti le az alkalmazással és másolja be). A dalválasztó a mappákban lévő MIDI-fájlokat mutatja; ezekhez nincs beépített lista. A Felvétel ablak a Recorded Songs mappába ment. | K | Az mp3-fájlok egyelőre kimaradnak. |
+| Dallista a programban | **Kész** (a következő verzióban): a zongora 403 beépített dala (címmel, szerzővel, kategóriával) a programba épült. | – | A 12 japán változat kimaradt. A Demo Songs 7 dala hangfájl (mp3), ezért az mp3-lejátszásig kimarad. |
+| A zongora dalai mappánként | **Kész** (a következő verzióban): a program induláskor létrehozza az adatmappa `Songs` mappájában a Smart Pianist mappaszerkezetét (Score › 50 Popular, PDF Score › 50 Classics, Lesson, Bonus Songs, Music Library, User Songs). A dalfájlok nem a program részei, és soha nem kerülnek a repóba. | – | A kotta (MusicXML) és a MIDI-fájl a dal mappájába kerül, a dal címével, rövid nevével (például Pop01) vagy mindkettővel elnevezve. |
+| Dalválasztó | **Kész** (a következő verzióban): külön ablak a felső sáv új ikonjával és a bal panel dalnevére kattintva. Hálózati lejátszásnál a zongora a saját dalát tölti be (fájl nélkül, az 50 Popular dalai is); USB-n és MIDI-eszközön csak a MIDI-fájllal rendelkező dal tölthető be, a többi szürke. Keresés címre és szerzőre, kottaikon, ha van kotta. | – | Az ablak betöltés után nyitva marad, átméretezhető és kis méretre tehető. |
+| Saját dalok mappái | **Részben kész:** a mappák létrejönnek, a dalválasztó a bennük lévő MIDI-fájlokat mutatja (almappákkal együtt). Hátravan: a Felvétel ablak a Recorded Songs mappába mentsen. | K | Az mp3-fájlok egyelőre kimaradnak. |
 | Alapértelmezett mappa | Induláskor minden fájlművelet alapértelmezett mappája az adatmappa, mert az biztosan létezik. | K | |
 | Mappa fájlműveletenként | Minden megnyitás és mentés megjegyzi a saját utoljára használt mappáját; az összetartozó megnyitás–mentés pár egy mappát használ. | K | Most egyetlen közös mappa van. |
 | Metronóm a stílus ütemével | Stílus betöltésekor a metronóm átveszi a stílus név szerinti ütemmutatóját; fordítva nem hat. | K | A Felvétel ablak ütemlistája már minden szükséges ütemet tartalmaz. Zongorás próba kell (9/8, 12/8). |
@@ -92,7 +92,7 @@ Egyetlen funkció, amely a korábban külön tervezett „betöltött MIDI-fájl
 
 | Tétel | Mit kell megtudni |
 |---|---|
-| Beépített dal betöltése útvonallal | Be tudja-e tölteni a ConPianist a zongora beépített dalát (például 50 Popular) a zongorán az ismert útvonal alapján, Smart Pianist nélkül. Ha igen, ezek a dalok fájl nélkül is lejátszhatók a zongora saját lejátszójával. |
+| Beépített dal betöltése útvonallal | **Kipróbálva, működik** (2026. október): a zongora az útvonal alapján betölti és lejátssza a saját dalát, a pozíciót is küldi, így a kotta követi. A dalválasztó erre épül. |
 | OTS (One Touch Setting) | Működik-e a CSP-170-en, és elérhető-e a programból (PSR-rel tesztelve). |
 | Metronóm ütemei | Elfogadja-e a zongora a 9/8-at és a 12/8-at, és hol az ütésszám felső határa. |
 | Tempóváltás a felvett fájlban | A 4.7-ben kiadva, a visszajelzés még hiányzik. |

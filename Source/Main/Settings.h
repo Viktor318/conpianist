@@ -23,6 +23,8 @@
 
 #include "../JuceLibraryCode/JuceHeader.h"
 
+struct Song;
+
 class Settings : public ChangeBroadcaster
 {
 public:
@@ -32,6 +34,18 @@ public:
 	String GetEffectiveLanguage() const;
 	File GetLastStateFile() const;
 	File GetDefaultSongDirectory() const;
+	// The songs folder (Windows: %APPDATA%\ConPianist\Songs), with the folders of the song
+	// selector; they are created at start if they do not exist.
+	File GetSongsDirectory() const;
+	void CreateSongFolders() const;
+	// The score of a song of the piano in the folder of its category: named after the
+	// title of the song (without the characters a file name cannot have), its short name
+	// (e.g. Pop01) or both ("Pop01 Let It Go"); .musicxml, .xml or .mxl. A non-existing
+	// file if there is none.
+	File GetSongScore(const Song& song) const;
+	// The MIDI file of a song of the piano, for playback via USB or MIDI device: named
+	// like the score, with the extension .mid or .midi. A non-existing file if there is none.
+	File GetSongMidi(const Song& song) const;
 	void ApplyLanguage() const;
 
 	enum ScoreInstrumentNames
@@ -61,6 +75,8 @@ public:
 	Point<int> accompanimentWindowPos{NoWindowPos, NoWindowPos};
 	Point<int> styleMixerWindowPos{NoWindowPos, NoWindowPos};
 	Point<int> balanceWindowPos{NoWindowPos, NoWindowPos};
+	// the Song Selector window can be resized: its position and size
+	Rectangle<int> songSelectorWindowBounds{NoWindowPos, NoWindowPos, 0, 0};
 	// true if a window of this size at this (saved) position can be reached on a screen
 	static bool IsWindowPosUsable(Point<int> pos, int width);
 	bool keyboardVisible = false;
@@ -121,4 +137,6 @@ private:
 	PropertiesFile::Options opt;
 
 	void PrepareResources();
+	// a song's file with one of the extensions in the folder of its category (see GetSongScore)
+	File FindSongFile(const Song& song, const StringArray& extensions) const;
 };

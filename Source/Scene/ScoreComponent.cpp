@@ -28,6 +28,8 @@ ScoreComponent* ScoreComponent::Create(Settings& settings, PianoController& pian
 }
 #else
 
+#include "Presets.h"
+
 #include <filesystem>
 
 #include <lomse_doorway.h>
@@ -572,7 +574,10 @@ void LomseScoreComponent::buttonClicked(Button* buttonThatWasClicked)
 
 void LomseScoreComponent::ChooseScoreFile()
 {
-	String songName = File(m_pianoController.GetSongName()).getFileNameWithoutExtension();
+	const String songPath = m_pianoController.GetSongName().replaceCharacter('\\', '/');
+	const Song* presetSong = songPath.startsWith("/SONG/") ? Presets::FindSong("PRESET:" + songPath) : nullptr;
+	String songName = presetSong != nullptr ? presetSong->title :
+		File::createFileWithoutCheckingPath(m_pianoController.GetSongName()).getFileNameWithoutExtension();
 	String title = songName == "" ? TRANS("Please select the score") :
 		TRANS("Please select the score for SONGNAME").replace("SONGNAME", songName);
 
@@ -852,6 +857,24 @@ void LomseScoreComponent::LoadSong()
 		File::createFileWithoutCheckingPath(m_pianoController.GetSongName()).getFileNameWithoutExtension())
 	{
 		LoadScore(chosenScore);
+		return;
+	}
+
+	// a song of the piano (loaded by its path): its score is looked for in the songs folder
+	const String songPath = m_pianoController.GetSongName().replaceCharacter('\\', '/');
+	if (songPath.startsWith("/SONG/"))
+	{
+		const Song* song = Presets::FindSong("PRESET:" + songPath);
+		const File score = song != nullptr ? m_settings.GetSongScore(*song) : File();
+		if (score.existsAsFile())
+		{
+			LoadScore(score);
+		}
+		else
+		{
+			loadButton->setVisible(m_presenter == nullptr);
+			repaint();
+		}
 		return;
 	}
 

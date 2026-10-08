@@ -81,6 +81,19 @@ struct Style
 	int pianoBeatUnit;
 };
 
+// A song of the piano. It is loaded by its path; a file of it (for the own player) and its
+// score can be in the songs folder, in the folder of its category.
+struct Song
+{
+	String path;     // preset path, e.g. PRESET:/SONG/Popular/Pop/Pop01.S000.mid
+	String key;      // short name in the piano, e.g. Pop01
+	String title;    // e.g. Let It Go
+	String composer;
+	String category; // 50 Popular, 50 Classics or Lesson
+	String group;    // e.g. Pop, Arrangements, Beyer
+	String folder;   // folder in the songs folder, e.g. Score/50 Popular/Pop
+};
+
 class Presets
 {
 public:
@@ -97,6 +110,13 @@ public:
 	// The styles of the piano (CSP-170), in the order of its style selector.
 	static const std::vector<Style>& Styles();
 	static const Style* FindStyle(const String& path); // nullptr if it is not in the list
+	// The songs of the piano (CSP-170, without the Japanese variants), in the order of the
+	// song selector of Smart Pianist.
+	static const std::vector<Song>& Songs();
+	static const Song* FindSong(const String& path); // nullptr if it is not in the list
+	// The folders of the songs folder (relative paths), as in the song selector of Smart
+	// Pianist: the folders of the piano's songs, Bonus Songs and the user's own folders.
+	static StringArray SongFolders();
 
 	// General MIDI voices, for MIDI devices that are not Yamaha pianos.
 	// Voice numbers have the same format as Voice::num (0x00MMLLPP), with bank 0.

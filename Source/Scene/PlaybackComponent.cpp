@@ -19,6 +19,7 @@
 
 //[Headers] You can add your own extra header files here...
 #include "GuiHelper.h"
+#include "Presets.h"
 //[/Headers]
 
 #include "PlaybackComponent.h"
@@ -661,6 +662,23 @@ void PlaybackComponent::buttonClicked (Button* buttonThatWasClicked)
 //[MiscUserCode] You can add your own definitions of your custom methods or any other code here...
 void PlaybackComponent::chooseSong()
 {
+	if (onChooseSong)
+	{
+		onChooseSong();
+		return;
+	}
+	chooseSongFile();
+}
+
+void PlaybackComponent::loadSongFile(const File& file)
+{
+	songLabel->setText(TRANS("Loading..."), NotificationType::dontSendNotification);
+	const URL url(file);
+	GuiHelper::CallAsync(this, [=](){loadSong(url);});
+}
+
+void PlaybackComponent::chooseSongFile()
+{
 	GuiHelper::ShowFileOpenDialogAsync(TRANS("Please select the song you want to load..."),
 		settings.workingDirectory, "*.mid",
 		[this, self = Component::SafePointer<Component>(this)](const URL& url)
@@ -787,9 +805,12 @@ void PlaybackComponent::updatePlaybackState(PianoController::Aspect aspect)
 		bool songLoaded = pianoController.GetSongName().isNotEmpty() &&
 			pianoController.GetSongName() != "/SONG/NEW SONG" &&
 			pianoController.GetSongName() != "\\SONG\\NEW SONG";
-		songLabel->setText(songLoaded ?
-			File(pianoController.GetSongName()).getFileNameWithoutExtension() :
-			TRANS("Click here and select a Song"),
+		// a song of the piano is shown with its title
+		const String songPath = pianoController.GetSongName().replaceCharacter('\\', '/');
+		const Song* presetSong = songPath.startsWith("/SONG/") ? Presets::FindSong("PRESET:" + songPath) : nullptr;
+		songLabel->setText(!songLoaded ? TRANS("Click here and select a Song") :
+			presetSong != nullptr ? presetSong->title :
+			File(pianoController.GetSongName()).getFileNameWithoutExtension(),
 			NotificationType::dontSendNotification);
 	}
 }

@@ -35,6 +35,7 @@
 #include "AccompanimentComponent.h"
 #include "StyleMixerComponent.h"
 #include "BalanceComponent.h"
+#include "SongSelectorComponent.h"
 //[/Headers]
 
 
@@ -80,6 +81,7 @@ public:
 	void showAccompaniment();
 	void showStyleMixer();
 	void showBalance();
+	void showSongSelector();
 	void resetMidiConnector();
 	void updatePlaybackSource();
 	void checkNetworkPlayback();
@@ -125,8 +127,10 @@ private:
     std::unique_ptr<AccompanimentWindow> accompanimentWindow; // likewise
     std::unique_ptr<StyleMixerWindow> styleMixerWindow; // Accompaniment mixer window, likewise
     std::unique_ptr<BalanceWindow> balanceWindow; // Balance window, likewise
+    std::unique_ptr<SongSelectorWindow> songSelectorWindow; // Song Selector window, likewise
     // top bar buttons drawn in code, from left to right; the Balance button is between
     // the Accompaniment and the Accompaniment mixer button
+    std::unique_ptr<TopBarButton> songSelectorButton;
     std::unique_ptr<TopBarButton> recorderButton;
     std::unique_ptr<TopBarButton> accompanimentButton;
     std::unique_ptr<TopBarButton> styleMixerButton;

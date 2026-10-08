@@ -106,6 +106,7 @@ public:
                                                     DocumentWindow::allButtons)
         {
 			settings.Load();
+			settings.CreateSongFolders();
 			settings.ApplyLanguage();
 
 			if (settings.logging)
