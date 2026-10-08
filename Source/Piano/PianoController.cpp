@@ -3479,14 +3479,16 @@ bool PianoController::LoadSongInternal(const File& file)
 		}
 	}
 
+	// first the measure, then the settings: the tempo of the snapshot belongs to that
+	// measure (the speed of the own player is calculated from the tempo of the song there)
+	if (ok && m_localPlayback && m_pendingMeasure > 1)
+	{
+		SetPosition({m_pendingMeasure, 1});
+	}
 	if (ok && m_localPlayback && m_pendingSnapshot.valid)
 	{
 		ApplySnapshot(m_pendingSnapshot);
 		m_pendingSnapshot.valid = false;
-	}
-	if (ok && m_localPlayback && m_pendingMeasure > 1)
-	{
-		SetPosition({m_pendingMeasure, 1});
 	}
 	if (!ok || m_localPlayback)
 	{
