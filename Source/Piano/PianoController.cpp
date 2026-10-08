@@ -3250,7 +3250,8 @@ void PianoController::SetPlaybackSource(PlaybackSource source, bool automatic)
 
 	// the loaded song is loaded again into the other player, at the same measure
 	const String songName = IsSongLoaded() ? m_songName : String();
-	const int measure = GetPosition().measure;
+	const Position position = GetPosition();
+	const int measure = position.measure;
 
 	if (!m_localPlayback)
 	{
@@ -3287,6 +3288,7 @@ void PianoController::SetPlaybackSource(PlaybackSource source, bool automatic)
 	if (reload)
 	{
 		m_pendingMeasure = measure;
+		m_pendingBeat = jmax(1, position.beat);
 		m_skipRegistrationMemory = true;
 		// (the measure and the settings: when the piano reports the song, see SongName)
 		const bool loaded = pianoSong.isNotEmpty() ? LoadPresetSong(pianoSong) : LoadSongInternal(songFile);
@@ -3473,6 +3475,19 @@ void PianoController::ApplySnapshot(const MixSnapshot& snapshot)
 	{
 		SetSpeedFactor(snapshot.speedFactor); // own player to own player: the same speed
 	}
+	else if (snapshot.speedFactor <= 0 && IsLocalSongLoaded())
+	{
+		// from the piano's player to the own one: the speed from the piano's tempo and the
+		// tempo of the file at the same beat; a difference of a few percent is the rounding
+		// of the piano's tempo (whole numbers), the song keeps its own tempo then
+		const double fileTempo = m_localPlayer->GetFileTempo();
+		double speed = fileTempo > 0 ? snapshot.tempo / fileTempo : 1.0;
+		if (std::abs(speed - 1.0) < 0.03)
+		{
+			speed = 1.0;
+		}
+		SetSpeedFactor(speed);
+	}
 	else if (snapshot.speedFactor <= 0)
 	{
 		SetTempo(snapshot.tempo);
@@ -3522,10 +3537,11 @@ bool PianoController::LoadSongInternal(const File& file)
 
 	// first the measure, then the settings: the tempo of the snapshot belongs to that
 	// measure (the speed of the own player is calculated from the tempo of the song there)
-	if (ok && m_localPlayback && m_pendingMeasure > 1)
+	if (ok && m_localPlayback && (m_pendingMeasure > 1 || m_pendingBeat > 1))
 	{
-		SetPosition({m_pendingMeasure, 1});
+		SetPosition({jmax(1, m_pendingMeasure), m_pendingBeat});
 	}
+	m_pendingBeat = 1;
 	if (ok && m_localPlayback && m_pendingSnapshot.valid)
 	{
 		ApplySnapshot(m_pendingSnapshot);

@@ -630,6 +630,7 @@ private:
 	bool m_networkPlaybackAvailable = true;
 	bool m_localPlaybackAvailable = false;
 	int m_pendingMeasure = 0; // measure to jump to after the song is loaded again
+	int m_pendingBeat = 1;    // and its beat (the tempo may change on every beat)
 	bool m_shownNotes[16][128] = {}; // notes of the local player shown on the virtual keyboard
 	PlaybackSource m_playbackSource = psPiano;
 	std::atomic<bool> m_genericDevice{false}; // playback to a MIDI device (psMidiDevice)
