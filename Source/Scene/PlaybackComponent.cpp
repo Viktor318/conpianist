@@ -698,7 +698,7 @@ void PlaybackComponent::loadSong(const URL& url)
 
 	File file(url.getLocalFile());
 	MidiFile midiFile;
-	if (inp == nullptr || !midiFile.readFrom(*inp))
+	if (inp == nullptr || !LocalSongPlayer::ReadMidiFile(*inp, midiFile))
 	{
 		songLabel->setText(TRANS("Error reading file"), NotificationType::dontSendNotification);
 		return;

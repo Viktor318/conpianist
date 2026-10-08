@@ -255,8 +255,19 @@ File Settings::GetSongMidi(const Song& song) const
 File Settings::FindSongFile(const Song& song, const StringArray& extensions) const
 {
 	const File folder = GetSongsDirectory().getChildFile(song.folder);
-	const String title = File::createLegalFileName(song.title.trim());
-	const StringArray names = {title, song.key, song.key + " " + title};
+	// the title as Windows allows it in a file name: without the characters < > : " / \ | ? *
+	// and without dots and spaces at the end (Windows drops them), e.g.
+	// Piano Sonate op.31-2 "Tempest" 3rd mov. -> Piano Sonate op.31-2 Tempest 3rd mov
+	String title = song.title.removeCharacters("<>:\"/\\|?*").trim();
+	while (title.endsWithChar('.') || title.endsWithChar(' '))
+	{
+		title = title.dropLastCharacters(1);
+	}
+	// JUCE's rule removes commas, # @ ; too (Jesus Joy of Man's Desiring); also accepted
+	const String juceTitle = File::createLegalFileName(song.title.trim());
+	StringArray names = {title, song.key, song.key + " " + title};
+	names.addIfNotAlreadyThere(juceTitle);
+	names.addIfNotAlreadyThere(song.key + " " + juceTitle);
 	for (const String& name : names)
 	{
 		for (const String& extension : extensions)

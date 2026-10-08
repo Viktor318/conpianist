@@ -1933,7 +1933,7 @@ static int SongSetupVoice(const File& file, int midiChannel)
 {
 	FileInputStream stream(file);
 	MidiFile midiFile;
-	if (!stream.openedOk() || !midiFile.readFrom(stream))
+	if (!stream.openedOk() || !LocalSongPlayer::ReadMidiFile(stream, midiFile))
 	{
 		return -1;
 	}

@@ -59,6 +59,11 @@ public:
 	std::function<void(int chord)> onChord;
 	static const int NoChord = 0x7f7f7f7f;
 
+	// Reads a MIDI file like MidiFile::readFrom, but also accepts the files of Yamaha with
+	// extra chunks besides the tracks (e.g. the XF chunks XFIH and XFKM after the track
+	// of the piano's Lesson songs), which JUCE rejects: those chunks are left out.
+	static bool ReadMidiFile(InputStream& stream, MidiFile& midiFile);
+
 	LocalSongPlayer() { ResetMixer(); }
 	~LocalSongPlayer() override;
 

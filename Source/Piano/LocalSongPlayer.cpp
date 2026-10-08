@@ -30,11 +30,72 @@ LocalSongPlayer::~LocalSongPlayer()
 //==============================================================================
 // Loading
 
+bool LocalSongPlayer::ReadMidiFile(InputStream& stream, MidiFile& midiFile)
+{
+	MemoryBlock data;
+	if (!stream.readIntoMemoryBlock(data, 200 * 1024 * 1024))
+	{
+		return false;
+	}
+	{
+		MemoryInputStream input(data, false);
+		if (midiFile.readFrom(input))
+		{
+			return true;
+		}
+	}
+
+	// the header (MThd), then only the track chunks (MTrk) of the file
+	auto bigEndian = [&data](size_t offset)
+		{
+			const uint8* d = static_cast<const uint8*>(data.getData()) + offset;
+			return (uint32)d[0] << 24 | (uint32)d[1] << 16 | (uint32)d[2] << 8 | (uint32)d[3];
+		};
+	const size_t size = data.getSize();
+	if (size < 14 || bigEndian(0) != ByteOrder::bigEndianInt("MThd"))
+	{
+		return false;
+	}
+	const size_t headerSize = 8 + (size_t)bigEndian(4);
+	if (headerSize < 14 || headerSize > size)
+	{
+		return false;
+	}
+	MemoryBlock cleaned(data.getData(), headerSize);
+	int tracks = 0;
+	size_t offset = headerSize;
+	while (offset + 8 <= size)
+	{
+		const size_t chunkSize = (size_t)bigEndian(offset + 4);
+		if (chunkSize > size - offset - 8)
+		{
+			return false; // a chunk longer than the file: damaged
+		}
+		if (bigEndian(offset) == ByteOrder::bigEndianInt("MTrk"))
+		{
+			cleaned.append(static_cast<const uint8*>(data.getData()) + offset, 8 + chunkSize);
+			tracks++;
+		}
+		offset += 8 + chunkSize;
+	}
+	if (tracks == 0 || offset != size)
+	{
+		return false;
+	}
+	// the number of tracks in the header (bytes 10-11)
+	uint8* header = static_cast<uint8*>(cleaned.getData());
+	header[10] = (uint8)(tracks >> 8);
+	header[11] = (uint8)(tracks & 0xff);
+
+	MemoryInputStream input(cleaned, false);
+	return midiFile.readFrom(input);
+}
+
 bool LocalSongPlayer::Load(const File& file)
 {
 	FileInputStream stream(file);
 	MidiFile midiFile;
-	if (!stream.openedOk() || !midiFile.readFrom(stream))
+	if (!stream.openedOk() || !ReadMidiFile(stream, midiFile))
 	{
 		return false;
 	}
