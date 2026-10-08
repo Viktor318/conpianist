@@ -1115,6 +1115,15 @@ static bool IsSameSong(const String& a, const String& b)
 	return File::isAbsolutePath(a) && File::isAbsolutePath(b) && File(a) == File(b);
 }
 
+// The MIDI file of one of the piano's own songs in its folder (for playback via USB or
+// MIDI device, see Settings::GetSongMidi), or a non-existing file.
+static File PianoSongMidi(const Settings& settings, const String& songName)
+{
+	const String path = PianoSongPath(songName);
+	const Song* song = path.isNotEmpty() ? Presets::FindSong("PRESET:" + path) : nullptr;
+	return song != nullptr ? settings.GetSongMidi(*song) : File();
+}
+
 // With ConPianist's own player the song is not kept by the piano, so the last song
 // is loaded again: at the start the song of the last state (restored with its
 // settings, see loadSongState), later the last loaded song (with its registration memory).
@@ -1126,6 +1135,12 @@ void SceneComponent::loadLastSong()
 	}
 
 	String song = songStateRestored ? String() : getLastStateSong();
+	if (PianoSongPath(song).isNotEmpty())
+	{
+		// one of the piano's own songs (network playback): its MIDI file, if it has one
+		const File midi = PianoSongMidi(settings, song);
+		song = midi.existsAsFile() ? midi.getFullPathName() : String();
+	}
 	if (song.isEmpty())
 	{
 		song = settings.lastSong;
@@ -1633,7 +1648,10 @@ void SceneComponent::loadSongState()
 		// settings are restored instead of its own registration memory
 		songStateRestored = true;
 		const String lastSong = getLastStateSong();
-		if (IsSameSong(song, lastSong))
+		// with USB or MIDI device playback a song of the piano is played from its MIDI file
+		const File lastSongMidi = PianoSongMidi(settings, lastSong);
+		if (IsSameSong(song, lastSong) ||
+			(lastSongMidi.existsAsFile() && File::isAbsolutePath(song) && File(song) == lastSongMidi))
 		{
 			restoreSongState();
 			scheduleLastStateSave();
