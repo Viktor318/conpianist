@@ -332,7 +332,12 @@ static String ChordSymbolName(const XmlElement& harmony)
 		}
 		else if (hasText)
 		{
-			name += kind->getStringAttribute("text");
+			// MuseScore writes "Asus4" with the text "4" (and "Asus2" with "2"): the "sus" is
+			// added to a suspended chord whose text does not say it
+			const String kindName = kind->getAllSubText().trim();
+			const String text = kind->getStringAttribute("text");
+			const bool suspended = kindName == "suspended-fourth" || kindName == "suspended-second";
+			name += suspended && text.containsOnly("0123456789") && text.isNotEmpty() ? "sus" + text : text;
 		}
 		else
 		{
