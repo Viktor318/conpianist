@@ -107,6 +107,7 @@ Egyetlen funkció, amely a korábban külön tervezett „betöltött MIDI-fájl
 | Tempó a módváltáskor a zongora paneljén állított tempóval | Hálózatról USB-re váltáskor a program csak a programban állított tempót viszi át arányosan; a zongora paneljén állított tempót nem. A zongora ütem eleji tempójának mindenkori összevetése a fájléval kipróbálva (október 8.) rosszabb eredményt adott (a dal érezhetően gyorsult vagy lassult), ezért visszavonva. Ki kell deríteni, miért tér el a zongora jelzett tempója a fájlétól ugyanannál az ütemnél (ütemszámozás, a jelzés késése). |
 | Sebesség hálózati módban | A Sebesség csúszka hálózati lejátszásnál is működhetne, ha a dalhoz van MIDI-fájl (feltöltött saját fájl, vagy beépített dal a mappájában lévő MIDI-fájllal): a program a fájlból tudja a dal tempóját az adott helyen, a szorzót a zongora tárolja. Előbb meg kell nézni, hogy a zongora belső példánya és a fájl tempói ugyanott ugyanazok-e (például a Canon D dur bevezető ütemét a zongora átugorja): ugyanannál az ütemnél USB-n és hálózaton ugyanazt a tempót mutatja-e. Addig hálózaton a Sebesség szürke. |
 | Tempóváltás a felvett fájlban | A 4.7-ben kiadva, a visszajelzés még hiányzik. |
+| Cím és zeneszerző a kotta tetején | A Lomse a MusicXML-be írt címet és zeneszerzőt (`<credit>`, `<work-title>`) nem mutatja (kipróbálva, október 9.). Az akkordjelölésekhez hasonlóan a program betöltéskor kiolvashatná és a kotta tetejére írhatná őket. Próbaképpen meg kell nézni, hogyan nézne ki, és csak utána eldönteni, hogy bekerüljön-e. |
 
 ## Elvetve
 
