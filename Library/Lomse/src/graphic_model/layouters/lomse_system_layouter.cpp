@@ -53,6 +53,89 @@ namespace lomse
 
 typedef std::pair<ImoObj*, AuxObjContext*> PendingPair;
 
+//---------------------------------------------------------------------------------------
+// ConPianist: order of the fingerings when they are engraved.
+// A fingering that collides with an already engraved one is moved away from the staff
+// (FingeringEngraver::shift_shape_if_collision), so the fingerings of notes that start
+// together are stacked in the order they are engraved. The notes of a chord are in
+// order, but the notes of different voices are not (the higher voice usually comes
+// first), and then the stacked fingerings were reversed. Therefore the fingerings are
+// sorted: by staff, by time, and at the same time from the note nearest to the
+// stacking direction: for fingerings above the staff the lower note first, for
+// fingerings below the staff the higher note first.
+namespace
+{
+    struct FingeringOrderKey
+    {
+        int idxStaff;
+        TimeUnits time;
+        int below;      //0: above the staff, 1: below the staff
+        LUnits y;       //vertical position of the note, in the engraving order
+
+        FingeringOrderKey(const PendingPair& pair)
+        {
+            const AuxObjContext& ctx = *(pair.second);
+            idxStaff = ctx.idxStaff;
+            time = ctx.pSO->get_time();
+
+            //the same rule as in FingeringEngraver::determine_if_above()
+            ImoFingering* pFingering = static_cast<ImoFingering*>(pair.first);
+            const int placement = pFingering->get_placement();
+            const bool fAbove = (placement == k_placement_above
+                                 || (placement != k_placement_below && ctx.iStaff == 0));
+            below = (fAbove ? 0 : 1);
+
+            y = 0.0f;
+            GmoShape* pShape = ctx.pStaffObjShape;
+            if (pShape)
+            {
+                y = (pShape->is_shape_note()
+                        ? static_cast<GmoShapeNote*>(pShape)->get_notehead_top()
+                        : pShape->get_top());
+            }
+            if (fAbove)
+                y = -y;     //the lower note (greater y) first
+        }
+
+        bool operator< (const FingeringOrderKey& other) const
+        {
+            if (idxStaff != other.idxStaff)
+                return idxStaff < other.idxStaff;
+            if (!is_equal_time(time, other.time))
+                return time < other.time;
+            if (below != other.below)
+                return below < other.below;
+            return y < other.y;
+        }
+    };
+
+    void sort_fingerings(std::list<PendingPair>& auxObjs)
+    {
+        //move the fingerings to a separate list, sort them (std::list::sort is stable)
+        //and put them back at the end: engraving goes by object type, so the position
+        //relative to the other objects does not matter
+        std::list<std::pair<FingeringOrderKey, PendingPair>> fingerings;
+        std::list<PendingPair>::iterator it = auxObjs.begin();
+        while (it != auxObjs.end())
+        {
+            if ((*it).first->get_obj_type() == k_imo_fingering)
+            {
+                fingerings.push_back( make_pair(FingeringOrderKey(*it), *it) );
+                it = auxObjs.erase(it);
+            }
+            else
+                ++it;
+        }
+
+        fingerings.sort([](const std::pair<FingeringOrderKey, PendingPair>& a,
+                           const std::pair<FingeringOrderKey, PendingPair>& b)
+                        { return a.first < b.first; });
+
+        for (const auto& item : fingerings)
+            auxObjs.push_back(item.second);
+    }
+}
+
 enum EAuxShapesAlignmentScope : int
 {
     k_alignment_scope_none,
@@ -835,6 +918,10 @@ void SystemLayouter::engrave_system_details(int iSystem)
             }
         }
     }
+
+    //ConPianist: stacked fingerings in the order of the notes (see sort_fingerings)
+    if (used.test(k_imo_fingering))
+        sort_fingerings(systemAuxObjs);
 
     //engrave the AuxObjs/RelObjs in this system
     //systemAuxObjs is traversed several times to engrave objects by priority order

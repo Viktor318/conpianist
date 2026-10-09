@@ -54,6 +54,7 @@ int ScoreComponent::CheckScoreFile(const File& file, const File& resultFile)
 #include <functional>
 #include <string>
 #include <string_view>
+#include <cstdlib>
 
 #include "GuiHelper.h"
 #include "ScoreComponent.h"
@@ -540,6 +541,101 @@ static bool AddVoiceToChordNotes(String& content)
 	return changed;
 }
 
+// The side of a fingering (above or below its note) as MuseScore shows it. MuseScore writes
+// its position relative to the note: default-y is where MuseScore placed it (it is left out
+// if the side was set by hand, then the placement attribute gives the side), relative-y is
+// how far it was moved by hand. Lomse does not read these positions, and the placement
+// attribute is not the side shown when the fingering was moved to the other side, so
+// e.g. the fingerings of the lower voice in the upper staff were above, among those of
+// the upper voice. The side shown is written as placement into the fingerings.
+// Returns false (and leaves the text as it is) if there is no fingering to change.
+static bool SetFingeringPlacement(String& content)
+{
+	if (!content.contains("<fingering") || !content.contains("<software>MuseScore"))
+	{
+		return false;
+	}
+	// (searched in the bytes of the text, see ChordSymbolsAsWords)
+	static const std::string openTag = "<fingering";
+	// the value of an attribute of the tag (empty if the tag has no such attribute)
+	const auto attribute = [](std::string_view tag, const std::string& name) -> std::string_view
+	{
+		const std::string key = " " + name + "=\"";
+		const size_t start = tag.find(key);
+		if (start == std::string_view::npos)
+		{
+			return std::string_view();
+		}
+		const size_t valueStart = start + key.size();
+		const size_t valueEnd = tag.find('"', valueStart);
+		return valueEnd == std::string_view::npos ? std::string_view() : tag.substr(valueStart, valueEnd - valueStart);
+	};
+	const auto number = [](std::string_view value)
+	{
+		return std::atof(std::string(value).c_str());
+	};
+	const std::string text = content.toStdString();
+	std::string result;
+	bool changed = false;
+	size_t position = 0; // the text before this position is in the result
+	for (size_t start = text.find(openTag); start != std::string::npos; start = text.find(openTag, start + 1))
+	{
+		const size_t attributes = start + openTag.size();
+		const size_t tagEnd = text.find('>', attributes);
+		if (tagEnd == std::string::npos)
+		{
+			break;
+		}
+		std::string_view tag(text.data() + attributes, tagEnd - attributes);
+		if (tag.empty() || !CharacterFunctions::isWhitespace(tag[0]))
+		{
+			continue; // no attributes
+		}
+		if (tag.back() == '/')
+		{
+			tag.remove_suffix(1); // an empty element
+		}
+		const std::string_view defaultY = attribute(tag, "default-y");
+		const std::string_view relativeY = attribute(tag, "relative-y");
+		const std::string_view placement = attribute(tag, "placement");
+		if (defaultY.empty() && relativeY.empty())
+		{
+			continue; // the side is the placement, if given
+		}
+		// MuseScore puts a fingering about 1.5 spaces from the note
+		double y = !defaultY.empty() ? number(defaultY)
+			: placement == "above" ? 15.0 : placement == "below" ? -15.0 : 0.0;
+		y += relativeY.empty() ? 0.0 : number(relativeY);
+		if (y == 0.0)
+		{
+			continue;
+		}
+		if (!changed)
+		{
+			result.reserve(text.size() + 4096);
+		}
+		// the tag without its placement attribute, and the new one
+		result.append(text, position, attributes - position);
+		std::string newTag(tag);
+		const size_t oldPlacement = newTag.find(" placement=\"");
+		if (oldPlacement != std::string::npos)
+		{
+			const size_t valueEnd = newTag.find('"', oldPlacement + 12);
+			newTag.erase(oldPlacement, valueEnd == std::string::npos ? std::string::npos : valueEnd + 1 - oldPlacement);
+		}
+		result += y > 0.0 ? " placement=\"above\"" : " placement=\"below\"";
+		result += newTag;
+		position = attributes + tag.size();
+		changed = true;
+	}
+	if (changed)
+	{
+		result.append(text, position, std::string::npos);
+		content = String::fromUTF8(result.data(), (int)result.size());
+	}
+	return changed;
+}
+
 // Removes the part groups (the brackets joining instruments) from the text of a score.
 static void RemovePartGroups(String& content)
 {
@@ -587,6 +683,8 @@ static void RemovePartGroups(String& content)
 // - the score has chord symbols: Lomse does not show them, they are written into
 //   the text as words above the staff (see ChordSymbolsAsWords);
 // - a note of a chord has no voice (Sibelius): it is added (see AddVoiceToChordNotes).
+// - the side of the fingerings is given by their position (MuseScore): it is written into
+//   them (see SetFingeringPlacement).
 // Returns false if a compressed file has no score in it.
 static bool PrepareScoreText(const String& filename, String& content, bool& asText)
 {
@@ -604,7 +702,8 @@ static bool PrepareScoreText(const String& filename, String& content, bool& asTe
 		content = ChordSymbolsAsWords(content);
 	}
 	const bool voicesAdded = AddVoiceToChordNotes(content);
-	asText = !asciiPath || hasGroups || hasChords || voicesAdded || compressed;
+	const bool placementsSet = SetFingeringPlacement(content);
+	asText = !asciiPath || hasGroups || hasChords || voicesAdded || placementsSet || compressed;
 	if (asText)
 	{
 		RemovePartGroups(content);

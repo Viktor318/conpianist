@@ -3920,14 +3920,15 @@ protected:
     //-----------------------------------------------------------------------------------
     void set_placement()
     {
-        string value = get_attribute(&m_childToAnalyse, "placement");
+        //ConPianist: the attribute of the <fingering> element (it was read from another node)
+        string value = get_attribute("placement");
         if (value == "above")
             m_placement = k_placement_above;
         else if (value == "below")
             m_placement = k_placement_below;
         else
         {
-            report_msg(m_pAnalyser->get_line_number(&m_childToAnalyse),
+            report_msg(m_pAnalyser->get_line_number(&m_analysedNode),
                 "Unknown placement attrib. '" + value + "'. Ignored.");
         }
     }
@@ -3941,10 +3942,10 @@ protected:
         FingerData& data = m_pFingering->add_fingering(fingering);
         data.set_substitution(m_fSubstitution);
         data.set_alternative(m_fAlternate);
+        //ConPianist: the placement was not used. It is stored for the whole fingering
+        //of the note: FingerData has no placement
         if (m_placement != k_placement_default)
-        {
-            //TODO
-        }
+            m_pFingering->set_placement(m_placement);
     }
 
 };
