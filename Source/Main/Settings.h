@@ -95,7 +95,10 @@ public:
 	ScoreInstrumentNames scoreInstrumentNames = siMixed;
 	ScorePart scorePart = spRightAndLeft;
 	bool scoreShowMidiChannel = true;
+	// The folder used last for opening songs (MIDI files) and scores, and the one for
+	// registration memories (.conmem); both are remembered across restarts.
 	String workingDirectory;
+	String memoryDirectory;
 	bool logging = false;
 	bool rtpLogging = false;
 	String language; // UI language: "en", "hu" or empty (use the system language)

@@ -1467,7 +1467,7 @@ void SceneComponent::saveState()
 	String songname = pianoController.GetSongName();
 	if (songname.isEmpty())
 	{
-		initialLocation = settings.workingDirectory + File::getSeparatorString() + "Untitled.conmem";
+		initialLocation = settings.memoryDirectory + File::getSeparatorString() + "Untitled.conmem";
 	}
 	else
 	{
@@ -1479,7 +1479,7 @@ void SceneComponent::saveState()
 		[this, self = Component::SafePointer<Component>(this)](const URL& url)
 		{
 			if (self == nullptr) return; // deleted meanwhile
-			settings.workingDirectory = url.getLocalFile().getParentDirectory().getFullPathName();
+			settings.memoryDirectory = url.getLocalFile().getParentDirectory().getFullPathName();
 			settings.Save();
 			GuiHelper::CallAsync(this, [=](){
 				// generate access token on sandboxed platforms (iOS)
@@ -1496,11 +1496,11 @@ void SceneComponent::saveState()
 void SceneComponent::loadState()
 {
 	GuiHelper::ShowFileOpenDialogAsync(TRANS("Please select the registration memory file to load..."),
-		settings.workingDirectory, "*.conmem",
+		settings.memoryDirectory, "*.conmem",
 		[this, self = Component::SafePointer<Component>(this)](const URL& url)
 		{
 			if (self == nullptr) return; // deleted meanwhile
-			settings.workingDirectory = url.getLocalFile().getParentDirectory().getFullPathName();
+			settings.memoryDirectory = url.getLocalFile().getParentDirectory().getFullPathName();
 			settings.Save();
 			GuiHelper::CallAsync(this, [=](){
 				// generate access token on sandboxed platforms (iOS)
