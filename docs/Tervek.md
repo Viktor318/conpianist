@@ -86,6 +86,7 @@ Egyetlen funkció, amely a korábban külön tervezett „betöltött MIDI-fájl
 | Ismétlőjelek kezelése | A kotta kurzora követi az ismétléseket és a voltákat (MusicXML-ből). A dupla kattintásos ugrás ismétlésnél most az ütem első előfordulására ugrik. | Kö–N | |
 | PDF megjelenítő | PDF-kotta megjelenítése; a dal betöltésekor a program előbb MusicXML-t, utána PDF-et keres, menüből választható. | N | Új könyvtár kell hozzá; a pozíciókövetés PDF-nél nem lehetséges. |
 | Kotta transzponálása | A kotta a dallal együtt transzponálódik (csak megjelenítés). | Kö | |
+| Védelem hibás kottafájl ellen | Egy értelmezhetetlen MusicXML ne fagyassza le és ne omlassza össze a programot, hanem jelenjen meg egy „Hibás kottafájl” ablak. A program a kottát betöltés előtt egy saját, ablak nélküli példányával megrajzoltatja (például `ConPianist.exe --check-score fájl`); ha az néhány másodpercen belül nem végez vagy összeomlik, leállítja, és üzenetet mutat. Kiegészítők: XML-ellenőrzés betöltés előtt; az ismert exporthibák javítása betöltéskor; az ellenőrzött kották megjegyzése (méret és dátum), így a próba csak új vagy megváltozott fájlnál fut. | Kö | Egy lefagyott szálat a programon belül nem lehet biztonságosan leállítani, ezért kell a külön folyamat. A próba egy kottánál várhatóan legfeljebb 1 másodperc, és csak az első betöltéskor fut. |
 | Részletes kézikönyv | Teljes magyar kézikönyv az 5.0-hoz. | N | |
 
 ## Később (elfogadott, nincs ütemezve)
