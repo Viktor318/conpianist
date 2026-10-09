@@ -27,4 +27,13 @@ class ScoreComponent : public Component
 {
 public:
 	static ScoreComponent* Create(Settings& settings, PianoController& pianoController);
+
+	// A score is drawn by a separate process before it is shown (so a faulty score cannot
+	// freeze or crash the program): the program is started with this argument, the path of
+	// the score and the path of a result file. CheckScoreFile does the drawing in that
+	// process; its result is the exit code of the process: 0 if the score could be drawn,
+	// CheckScoreError (with the reason written into the result file) if Lomse reported an error.
+	static constexpr const char* CheckScoreArgument = "--check-score";
+	static constexpr int CheckScoreError = 10;
+	static int CheckScoreFile(const File& file, const File& resultFile);
 };

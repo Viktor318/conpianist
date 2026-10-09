@@ -26,6 +26,11 @@ ScoreComponent* ScoreComponent::Create(Settings& settings, PianoController& pian
 {
 	return new ScoreComponent();
 }
+
+int ScoreComponent::CheckScoreFile(const File& file, const File& resultFile)
+{
+	return 0;
+}
 #else
 
 #include "Presets.h"
@@ -45,7 +50,10 @@ ScoreComponent* ScoreComponent::Create(Settings& settings, PianoController& pian
 #include <lomse_gm_basic.h>
 #include <lomse_graphical_model.h>
 #include <lomse_im_measures_table.h>
+#include <pugixml/pugixml.hpp>
 #include <functional>
+#include <string>
+#include <string_view>
 
 #include "GuiHelper.h"
 #include "ScoreComponent.h"
@@ -121,6 +129,15 @@ private:
 	String m_error;
 	bool m_firstSync = true;
 	File m_chosenScore; // score chosen by the user, shown when its song has been loaded
+	// Checking a score before it is shown (see ScoreCheck): the score being checked, the
+	// number of the check (a result of an earlier check is dropped) and the last faulty score.
+	class ScoreCheck;
+	std::unique_ptr<ScoreCheck> m_check;
+	File m_checkedScore;
+	int m_checkNumber = 0;
+	String m_faultyScore;
+	StringArray m_checkedScores; // see IsCheckedScore
+	bool m_checkedScoresRead = false;
 
 	void LoadDocument(String filename);
 	void PrepareImage();
@@ -136,6 +153,12 @@ private:
 	void UpdateABMarks(bool force);
 	void BuildControls();
 	void LoadScore(const File& file);
+	void ShowScore(const File& file);
+	void ScoreChecked(int number, const File& file, bool ok, const String& reason, const String& details);
+	void ReportFaultyScore(const File& file, const String& reason, const String& details);
+	String CheckedScoreKey(const File& file) const;
+	bool IsCheckedScore(const File& file);
+	void AddCheckedScore(const File& file);
 	void LoadScore(const URL& url);
 	void ChooseScoreFile();
 	void ShowMenu();
@@ -205,6 +228,7 @@ LomseScoreComponent::LomseScoreComponent(Settings& settings, PianoController& pi
 
 LomseScoreComponent::~LomseScoreComponent()
 {
+	m_check.reset();
 	Cleanup();
 }
 
@@ -389,35 +413,38 @@ static String ChordSymbolName(const XmlElement& harmony)
 // the other texts of the score. The file itself is not changed.
 static String ChordSymbolsAsWords(const String& content)
 {
-	static const String openTag = "<harmony";
-	static const String closeTag = "</harmony>";
-	String result;
-	result.preallocateBytes(content.getNumBytesAsUTF8() + 4096);
-	int position = 0; // the text before this position is in the result
-	for (int start = content.indexOf(openTag); start >= 0; start = content.indexOf(start + 1, openTag))
+	// (searched in the bytes of the text: the positions of a juce::String are counted from
+	// its beginning each time, which made a large score take very long)
+	static const std::string openTag = "<harmony";
+	static const std::string closeTag = "</harmony>";
+	const std::string text = content.toStdString();
+	std::string result;
+	result.reserve(text.size() + 4096);
+	size_t position = 0; // the text before this position is in the result
+	for (size_t start = text.find(openTag); start != std::string::npos; start = text.find(openTag, start + 1))
 	{
-		const juce_wchar next = content[start + openTag.length()];
+		const char next = start + openTag.size() < text.size() ? text[start + openTag.size()] : '\0';
 		if (next != '>' && next != '/' && !CharacterFunctions::isWhitespace(next))
 		{
 			continue; // another element whose name begins the same way
 		}
-		const int tagEnd = content.indexOf(start, ">");
-		if (tagEnd < 0)
+		const size_t tagEnd = text.find('>', start);
+		if (tagEnd == std::string::npos)
 		{
 			break;
 		}
-		int end = tagEnd + 1;
-		if (content[tagEnd - 1] != '/')
+		size_t end = tagEnd + 1;
+		if (text[tagEnd - 1] != '/')
 		{
-			const int close = content.indexOf(tagEnd, closeTag);
-			if (close < 0)
+			const size_t close = text.find(closeTag, tagEnd);
+			if (close == std::string::npos)
 			{
 				break;
 			}
-			end = close + closeTag.length();
+			end = close + closeTag.size();
 		}
-		std::unique_ptr<XmlElement> harmony = parseXML(content.substring(start, end));
-		result += content.substring(position, start);
+		std::unique_ptr<XmlElement> harmony = parseXML(String::fromUTF8(text.data() + start, (int)(end - start)));
+		result.append(text, position, start - position);
 		position = end;
 		if (harmony == nullptr || harmony->getStringAttribute("print-object") == "no")
 		{
@@ -431,14 +458,16 @@ static String ChordSymbolsAsWords(const String& content)
 		const XmlElement* offset = harmony->getChildByName("offset");
 		const XmlElement* staff = harmony->getChildByName("staff");
 		// above the staff, higher than the notes on the top line usually reach
-		result << "<direction placement=\"above\"><direction-type><words relative-y=\"40\" font-weight=\"bold\">"
+		String direction;
+		direction << "<direction placement=\"above\"><direction-type><words relative-y=\"40\" font-weight=\"bold\">"
 			<< name.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 			<< "</words></direction-type>"
 			<< (offset != nullptr ? "<offset>" + offset->getAllSubText().trim() + "</offset>" : String())
 			<< "<staff>" << (staff != nullptr ? staff->getAllSubText().trim() : String("1")) << "</staff></direction>";
+		result += direction.toStdString();
 	}
-	result += content.substring(position);
-	return result;
+	result.append(text, position, std::string::npos);
+	return String::fromUTF8(result.data(), (int)result.size());
 }
 
 // A note of a chord (<chord/>) may leave out its voice (Sibelius writes it so): the voice is
@@ -447,58 +476,140 @@ static String ChordSymbolsAsWords(const String& content)
 // as it is) if there is no such note.
 static bool AddVoiceToChordNotes(String& content)
 {
-	static const String openTag = "<note";
-	static const String closeTag = "</note>";
+	// (searched in the bytes of the text, see ChordSymbolsAsWords)
+	static const std::string openTag = "<note";
+	static const std::string closeTag = "</note>";
 	// the elements after <voice> in a note, in their order (the voice is put before the first)
 	static const char* const after[] = { "<type", "<dot", "<accidental", "<time-modification",
 		"<stem", "<notehead", "<staff", "<beam", "<notations", "<lyric", "<play", "<listen" };
-	String result;
+	const std::string text = content.toStdString();
+	std::string result;
 	bool changed = false;
-	String voice = "1";
-	int position = 0; // the text before this position is in the result
-	for (int start = content.indexOf(openTag); start >= 0; start = content.indexOf(start + 1, openTag))
+	std::string voice = "1";
+	size_t position = 0; // the text before this position is in the result
+	for (size_t start = text.find(openTag); start != std::string::npos; start = text.find(openTag, start + 1))
 	{
-		const juce_wchar next = content[start + openTag.length()];
+		const char next = start + openTag.size() < text.size() ? text[start + openTag.size()] : '\0';
 		if (next != '>' && !CharacterFunctions::isWhitespace(next))
 		{
 			continue; // another element (e.g. <notehead>, <notations>)
 		}
-		const int close = content.indexOf(start, closeTag);
-		if (close < 0)
+		const size_t close = text.find(closeTag, start);
+		if (close == std::string::npos)
 		{
 			break;
 		}
-		const String note = content.substring(start, close);
-		const int voiceStart = note.indexOf("<voice>");
-		if (voiceStart >= 0)
+		const std::string_view note(text.data() + start, close - start);
+		const size_t voiceStart = note.find("<voice>");
+		if (voiceStart != std::string_view::npos)
 		{
-			voice = note.substring(voiceStart + 7, note.indexOf(voiceStart, "</voice>")).trim();
+			const size_t voiceEnd = note.find("</voice>", voiceStart);
+			if (voiceEnd != std::string_view::npos)
+			{
+				voice = String(std::string(note.substr(voiceStart + 7, voiceEnd - voiceStart - 7))).trim().toStdString();
+			}
 			continue;
 		}
-		if (!note.contains("<chord"))
+		if (note.find("<chord") == std::string_view::npos)
 		{
 			continue;
 		}
-		int insert = note.length();
+		size_t insert = note.size();
 		for (const char* tag : after)
 		{
-			const int found = note.indexOf(tag);
-			if (found >= 0 && found < insert)
+			const size_t found = note.find(tag);
+			if (found != std::string_view::npos && found < insert)
 			{
 				insert = found;
 			}
 		}
-		result += content.substring(position, start + insert);
+		if (!changed)
+		{
+			result.reserve(text.size() + 4096);
+		}
+		result.append(text, position, start + insert - position);
 		result += "<voice>" + voice + "</voice>";
 		position = start + insert;
 		changed = true;
 	}
 	if (changed)
 	{
-		result += content.substring(position);
-		content = result;
+		result.append(text, position, std::string::npos);
+		content = String::fromUTF8(result.data(), (int)result.size());
 	}
 	return changed;
+}
+
+// Removes the part groups (the brackets joining instruments) from the text of a score.
+static void RemovePartGroups(String& content)
+{
+	if (!content.contains("<part-group"))
+	{
+		return;
+	}
+	// (searched in the bytes of the text, see ChordSymbolsAsWords)
+	const std::string text = content.toStdString();
+	std::string result;
+	result.reserve(text.size());
+	size_t position = 0; // the text before this position is in the result
+	for (size_t start = text.find("<part-group"); start != std::string::npos; start = text.find("<part-group", position))
+	{
+		const size_t tagEnd = text.find('>', start);
+		if (tagEnd == std::string::npos)
+		{
+			break;
+		}
+		size_t end = tagEnd + 1;
+		if (text[tagEnd - 1] != '/')
+		{
+			const size_t close = text.find("</part-group>", tagEnd);
+			if (close == std::string::npos)
+			{
+				break;
+			}
+			end = close + strlen("</part-group>");
+		}
+		result.append(text, position, start - position);
+		position = end;
+	}
+	result.append(text, position, std::string::npos);
+	content = String::fromUTF8(result.data(), (int)result.size());
+}
+
+// Reads a score file and prepares its text for Lomse. The file is passed to Lomse as text
+// (asText) in these cases, otherwise Lomse opens the file itself:
+// - the file is a compressed MusicXML (.mxl): it is unpacked here;
+// - the path has non-ASCII characters (e.g. accented letters): Lomse cannot open
+//   such a file on Windows;
+// - the score has part groups (brackets joining the instruments, written e.g. by
+//   Dorico): Lomse cannot draw them if an instrument of the group is not shown,
+//   so the groups are left out;
+// - the score has chord symbols: Lomse does not show them, they are written into
+//   the text as words above the staff (see ChordSymbolsAsWords);
+// - a note of a chord has no voice (Sibelius): it is added (see AddVoiceToChordNotes).
+// Returns false if a compressed file has no score in it.
+static bool PrepareScoreText(const String& filename, String& content, bool& asText)
+{
+	const bool compressed = filename.endsWithIgnoreCase(".mxl");
+	content = compressed ? ReadCompressedMusicXml(File(filename)) : File(filename).loadFileAsString();
+	if (compressed && content.isEmpty())
+	{
+		return false;
+	}
+	const bool asciiPath = CharPointer_ASCII::isValidString(filename.toRawUTF8(), (int)filename.getNumBytesAsUTF8());
+	const bool hasGroups = content.contains("<part-group");
+	const bool hasChords = content.contains("<harmony");
+	if (hasChords)
+	{
+		content = ChordSymbolsAsWords(content);
+	}
+	const bool voicesAdded = AddVoiceToChordNotes(content);
+	asText = !asciiPath || hasGroups || hasChords || voicesAdded || compressed;
+	if (asText)
+	{
+		RemovePartGroups(content);
+	}
+	return true;
 }
 
 void LomseScoreComponent::LoadDocument(String filename)
@@ -508,60 +619,23 @@ void LomseScoreComponent::LoadDocument(String filename)
 	//to interact with the view
 	if (filename.isNotEmpty())
 	{
-		// load from file
-		// The file is read here and passed to Lomse as text (MusicXML) in these cases:
-		// - the file is a compressed MusicXML (.mxl): it is unpacked here;
-		// - the path has non-ASCII characters (e.g. accented letters): Lomse cannot open
-		//   such a file on Windows;
-		// - the score has part groups (brackets joining the instruments, written e.g. by
-		//   Dorico): Lomse cannot draw them if an instrument of the group is not shown,
-		//   so the groups are left out;
-		// - the score has chord symbols: Lomse does not show them, they are written into
-		//   the text as words above the staff (see ChordSymbolsAsWords);
-		// - a note of a chord has no voice (Sibelius): it is added (see AddVoiceToChordNotes).
-		const bool compressed = filename.endsWithIgnoreCase(".mxl");
-		String content = compressed ? ReadCompressedMusicXml(File(filename)) : File(filename).loadFileAsString();
-		if (compressed && content.isEmpty())
+		// load from file (see PrepareScoreText)
+		String content;
+		bool asText = false;
+		if (!PrepareScoreText(filename, content, asText))
 		{
 			// not a compressed MusicXML file: nothing is shown
 			m_presenter.reset();
 			return;
 		}
-		const bool asciiPath = CharPointer_ASCII::isValidString(filename.toRawUTF8(), (int)filename.getNumBytesAsUTF8());
-		const bool hasGroups = content.contains("<part-group");
-		const bool hasChords = content.contains("<harmony");
-		if (hasChords)
+		if (asText)
 		{
-			content = ChordSymbolsAsWords(content);
-		}
-		const bool voicesAdded = AddVoiceToChordNotes(content);
-		if (asciiPath && !hasGroups && !hasChords && !voicesAdded && !compressed)
-		{
-			m_presenter.reset(m_lomse.open_document(lomse::k_view_vertical_book, filename.toStdString()));
+			m_presenter.reset(m_lomse.new_document(lomse::k_view_vertical_book,
+				content.toStdString(), lomse::Document::k_format_mxl));
 		}
 		else
 		{
-			for (int start = content.indexOf("<part-group"); start >= 0; start = content.indexOf(start, "<part-group"))
-			{
-				const int tagEnd = content.indexOf(start, ">");
-				if (tagEnd < 0)
-				{
-					break;
-				}
-				int end = tagEnd + 1;
-				if (content[tagEnd - 1] != '/')
-				{
-					const int close = content.indexOf(tagEnd, "</part-group>");
-					if (close < 0)
-					{
-						break;
-					}
-					end = close + (int)strlen("</part-group>");
-				}
-				content = content.substring(0, start) + content.substring(end);
-			}
-			m_presenter.reset(m_lomse.new_document(lomse::k_view_vertical_book,
-				content.toStdString(), lomse::Document::k_format_mxl));
+			m_presenter.reset(m_lomse.open_document(lomse::k_view_vertical_book, filename.toStdString()));
 		}
 	}
 	else
@@ -595,6 +669,7 @@ void LomseScoreComponent::PrepareImage()
 {
 	try
 	{
+		const uint32 start = Time::getMillisecondCounter();
 		m_image.reset();
 
 		int width = int(getWidth() * m_scale);
@@ -640,6 +715,10 @@ void LomseScoreComponent::PrepareImage()
 
 		UpdateABMarks(true);
 		UpdateTempoLine(false);
+
+		// (drawing a large score can take long, mainly in the Debug build)
+		juce::Logger::writeToLog("[SCORE] Drawn in " + String(Time::getMillisecondCounter() - start) +
+			" ms (" + String(width) + " x " + String(height) + " pixels)");
 	}
 	catch (runtime_error e)
 	{
@@ -677,7 +756,7 @@ void LomseScoreComponent::LomseEvent(SpEventInfo event)
 // in the scores exported by MuseScore). Without an answer the texts of the score (the
 // instrument names, the measure numbers, the tempo) are not drawn at all, so one of the
 // fonts shipped with the program is given.
-void LomseScoreComponent::LomseRequest(Request* request)
+static void AnswerFontRequest(Request* request, const String& resourcesPath)
 {
 	if (request == nullptr || !request->is_get_font_filename())
 	{
@@ -689,7 +768,12 @@ void LomseScoreComponent::LomseRequest(Request* request)
 		name.containsIgnoreCase("helvetica") ? "LiberationSans" : "LiberationSerif";
 	const String style = fontRequest->get_bold() ? (fontRequest->get_italic() ? "BoldItalic" : "Bold") :
 		(fontRequest->get_italic() ? "Italic" : "Regular");
-	fontRequest->set_font_fullname(NativePath(m_settings.resourcesPath + "/fonts/" + family + "-" + style + ".ttf"));
+	fontRequest->set_font_fullname(NativePath(resourcesPath + "/fonts/" + family + "-" + style + ".ttf"));
+}
+
+void LomseScoreComponent::LomseRequest(Request* request)
+{
+	AnswerFontRequest(request, m_settings.resourcesPath);
 }
 
 void LomseScoreComponent::SetViewport(int y)
@@ -785,6 +869,21 @@ void LomseScoreComponent::paint(Graphics& g)
 		g.setFont(16);
 		juce::Rectangle<int> rec(20, 80, getWidth() - 40, getHeight() - 100);
 		g.drawFittedText(text, rec, Justification::centredTop, 100, 1);
+	}
+	else if (m_checkedScore != File())
+	{
+		g.setColour(Colour(167,172,176));
+		g.setFont(16);
+		juce::Rectangle<int> rec(20, 80, getWidth() - 40, getHeight() - 100);
+		g.drawFittedText(TRANS("Checking the score..."), rec, Justification::centredTop, 100, 1);
+	}
+	else if (m_faultyScore.isNotEmpty())
+	{
+		g.setColour(Colour(230,120,90));
+		g.setFont(16);
+		juce::Rectangle<int> rec(20, 80, getWidth() - 40, getHeight() - 100);
+		g.drawFittedText(TRANS("Faulty score file: NAME").replace("NAME", m_faultyScore),
+			rec, Justification::centredTop, 100, 1);
 	}
 	else
 	{
@@ -1087,6 +1186,10 @@ void LomseScoreComponent::UpdateABMarks(bool force)
 void LomseScoreComponent::LoadSong()
 {
 	Cleanup();
+	m_check.reset(); // the check of the score of the previous song
+	m_checkNumber++;
+	m_checkedScore = File();
+	m_faultyScore = String();
 
 	// the score chosen by the user for this song comes before the scores found by name
 	const File chosenScore = m_chosenScore;
@@ -1138,11 +1241,246 @@ void LomseScoreComponent::LoadSong()
 	}
 }
 
+// The check of a score before it is shown: the score is drawn by a separate process (the
+// program started with --check-score, see ScoreComponent::CheckScoreFile). If Lomse freezes
+// or crashes on the score, only that process stops, and the score is not loaded. The
+// callback is called on the thread of the check, not on the message thread.
+class LomseScoreComponent::ScoreCheck : public Thread
+{
+public:
+	using Callback = std::function<void(const File& file, bool ok, const String& reason, const String& details)>;
+
+	ScoreCheck(const File& file, Callback callback) :
+		Thread("Score check"), m_file(file), m_callback(std::move(callback))
+	{
+		startThread();
+	}
+
+	~ScoreCheck() override
+	{
+		stopThread(3000); // the check process is stopped (see run)
+	}
+
+	void run() override
+	{
+		// the reason of an error is written into this file by the check process (its standard
+		// output is not read: Lomse writes many notes there, a full pipe would stop the process)
+		TemporaryFile resultFile(".txt");
+		ChildProcess process;
+		const StringArray arguments{ File::getSpecialLocation(File::currentExecutableFile).getFullPathName(),
+			ScoreComponent::CheckScoreArgument, m_file.getFullPathName(), resultFile.getFile().getFullPathName() };
+		if (!process.start(arguments, 0))
+		{
+			m_callback(m_file, true, String(), "the check process could not be started");
+			return;
+		}
+
+		const uint32 start = Time::getMillisecondCounter();
+		while (!process.waitForProcessToFinish(50))
+		{
+			if (threadShouldExit())
+			{
+				process.kill(); // another score is loaded, or the program is closed
+				return;
+			}
+			if (Time::getMillisecondCounter() - start > (uint32)TimeoutMs)
+			{
+				process.kill();
+				m_callback(m_file, false,
+					TRANS("Drawing the score did not finish in SECONDS seconds (it froze).")
+						.replace("SECONDS", String(TimeoutMs / 1000)),
+					"drawing did not finish in " + String(TimeoutMs) + " ms (frozen), the check process was stopped");
+				return;
+			}
+		}
+
+		const uint32 exitCode = process.getExitCode();
+		const String output = resultFile.getFile().loadFileAsString().trim();
+		juce::Logger::writeToLog("[SCORE] Checked " + m_file.getFileName() + " in " +
+			String(Time::getMillisecondCounter() - start) + " ms, exit code " + String((int)exitCode));
+		if (exitCode == 0)
+		{
+			m_callback(m_file, true, String(), String());
+		}
+		else if (exitCode == ScoreComponent::CheckScoreError && output.isNotEmpty())
+		{
+			m_callback(m_file, false, TRANS("Drawing the score failed: ERROR").replace("ERROR", output),
+				"Lomse error: " + output);
+		}
+		else
+		{
+			m_callback(m_file, false, TRANS("The score viewer crashed while drawing the score."),
+				"the check process crashed, exit code 0x" + String::toHexString((int)exitCode) +
+				(output.isNotEmpty() ? ", output: " + output : String()));
+		}
+	}
+
+private:
+	// the time a score may take to be drawn; the Debug build is much slower
+#if JUCE_DEBUG
+	static constexpr int TimeoutMs = 15000;
+#else
+	static constexpr int TimeoutMs = 5000;
+#endif
+
+	File m_file;
+	Callback m_callback;
+};
+
+// The check process (the program started with --check-score): draws the score as the score
+// window does and returns 0 if it went well; the reason of an error is written into
+// resultFile. It writes nothing anywhere else.
+int ScoreComponent::CheckScoreFile(const File& file, const File& resultFile)
+{
+	if (!file.existsAsFile())
+	{
+		resultFile.replaceWithText("the score file was not found");
+		return CheckScoreError;
+	}
+	const String resourcesPath = Settings().resourcesPath;
+	try
+	{
+		static std::ostream nullLog(nullptr);
+		LomseDoorway lomse(&nullLog, &nullLog);
+		lomse.init_library(k_pix_format_rgba32, 96, false);
+		lomse.set_default_fonts_path(NativePath(resourcesPath + "/fonts/"));
+		static String fontsPath;
+		fontsPath = resourcesPath;
+		lomse.set_request_callback(nullptr, [](void*, Request* request) { AnswerFontRequest(request, fontsPath); });
+
+		String content;
+		bool asText = false;
+		if (!PrepareScoreText(file.getFullPathName(), content, asText))
+		{
+			resultFile.replaceWithText("the compressed file has no score in it");
+			return CheckScoreError;
+		}
+		std::unique_ptr<Presenter> presenter(asText ?
+			lomse.new_document(k_view_vertical_book, content.toStdString(), Document::k_format_mxl) :
+			lomse.open_document(k_view_vertical_book, file.getFullPathName().toStdString()));
+		SpInteractor interactor = presenter->get_interactor(0).lock();
+
+		// the instruments are taken out of the score and put back, as the score window does
+		ImoDocument* imoDoc = presenter->get_document_raw_ptr()->get_im_root();
+		if (ImoScore* score = dynamic_cast<ImoScore*>(imoDoc->get_content_item(0)))
+		{
+			std::vector<ImoInstrument*> instruments;
+			while (score->get_num_instruments() > 0)
+			{
+				ImoInstrument* instr = score->get_instrument(0);
+				instr->set_measures_numbering(ImoInstrument::k_system);
+				instruments.push_back(instr);
+				score->get_instruments()->remove_child(instr);
+			}
+			score->end_of_changes();
+			for (ImoInstrument* instr : instruments)
+			{
+				score->add_instrument(instr);
+			}
+			score->end_of_changes();
+		}
+
+		// a page of a usual window size (1200 x 800 pixels), as in PrepareImage
+		const int width = 1200;
+		const int height = 800;
+		ImoPageInfo* pageInfo = imoDoc->get_page_info();
+		imoDoc->set_page_content_scale(1.0);
+		pageInfo->set_page_width(LUnits(width) * 26.5f);
+		pageInfo->set_page_height(LUnits(height) * 26.5f);
+		pageInfo->set_top_margin_odd(500);
+		pageInfo->set_left_margin_odd(300);
+		pageInfo->set_right_margin_odd(300);
+		pageInfo->set_bottom_margin_odd(500);
+		pageInfo->set_top_margin_even(500);
+		pageInfo->set_left_margin_even(300);
+		pageInfo->set_right_margin_even(300);
+		pageInfo->set_bottom_margin_even(500);
+		interactor->on_document_updated();
+
+		const float scale = std::max(0.01f, imoDoc->get_page_content_scale());
+		const unsigned bitmapWidth = (unsigned)std::max(1, int(width / scale));
+		const unsigned bitmapHeight = (unsigned)std::max(1, int(height / scale));
+		std::vector<unsigned char> bitmap((size_t)bitmapWidth * bitmapHeight * 4);
+		interactor->set_rendering_buffer(bitmap.data(), bitmapWidth, bitmapHeight);
+		interactor->redraw_bitmap();
+	}
+	catch (const std::exception& e)
+	{
+		resultFile.replaceWithText(String(e.what()).substring(0, 500));
+		return CheckScoreError;
+	}
+	catch (...)
+	{
+		resultFile.replaceWithText("unknown exception");
+		return CheckScoreError;
+	}
+	return 0;
+}
+
+// A score is checked before it is shown (see ScoreCheck): a faulty score file is not
+// loaded, a window tells about it and the reason is written into the log.
 void LomseScoreComponent::LoadScore(const File& file)
 {
 	Cleanup();
+	m_check.reset(); // an earlier check is not needed any more
+	m_checkNumber++;
+	m_checkedScore = File();
+	m_faultyScore = String();
 
+	// a file that is not well-formed XML is found without drawing it
+	const bool compressed = file.hasFileExtension(".mxl");
+	const String content = compressed ? ReadCompressedMusicXml(file) : file.loadFileAsString();
+	if (compressed && content.isEmpty())
+	{
+		ReportFaultyScore(file, TRANS("The compressed score file (.mxl) has no score in it."),
+			"no score in the zip archive");
+		return;
+	}
+	pugi::xml_document xml;
+	const std::string text = content.toStdString();
+	const pugi::xml_parse_result parsed = xml.load_buffer(text.data(), text.size());
+	if (!parsed)
+	{
+		const int line = 1 + (int)std::count(text.begin(), text.begin() +
+			std::min((std::ptrdiff_t)text.size(), (std::ptrdiff_t)parsed.offset), '\n');
+		ReportFaultyScore(file, TRANS("The file is not a readable MusicXML file (error in line LINE).")
+			.replace("LINE", String(line)), "XML error in line " + String(line) + ": " + parsed.description());
+		return;
+	}
+
+	if (IsCheckedScore(file))
+	{
+		ShowScore(file);
+		return;
+	}
+
+	// drawn first by a check process (see ScoreCheck); the score is shown when it has finished
+	m_checkedScore = file;
+	loadButton->setVisible(false);
+	repaint();
+	const int number = m_checkNumber;
+	m_check.reset(new ScoreCheck(file,
+		[this, number, self = Component::SafePointer<Component>(this)](const File& checked, bool ok,
+			const String& reason, const String& details)
+		{
+			MessageManager::callAsync([=]()
+				{
+					if (self != nullptr)
+					{
+						ScoreChecked(number, checked, ok, reason, details);
+					}
+				});
+		}));
+}
+
+void LomseScoreComponent::ShowScore(const File& file)
+{
+	Cleanup();
+
+	const uint32 start = Time::getMillisecondCounter();
 	LoadDocument(file.getFullPathName());
+	juce::Logger::writeToLog("[SCORE] Loaded " + file.getFileName() + " in " +
+		String(Time::getMillisecondCounter() - start) + " ms");
 
 	if (m_presenter)
 	{
@@ -1151,6 +1489,95 @@ void LomseScoreComponent::LoadScore(const File& file)
 
 	loadButton->setVisible(m_presenter == nullptr);
 	repaint();
+}
+
+void LomseScoreComponent::ScoreChecked(int number, const File& file, bool ok, const String& reason,
+	const String& details)
+{
+	if (number != m_checkNumber)
+	{
+		return; // another score has been loaded meanwhile
+	}
+	m_check.reset();
+	m_checkedScore = File();
+	if (ok)
+	{
+		if (details.isNotEmpty())
+		{
+			// the check could not be done (e.g. the check process could not be started):
+			// the score is shown as before the check existed
+			juce::Logger::writeToLog("[SCORE] The score could not be checked: " + file.getFullPathName() + ": " + details);
+		}
+		else
+		{
+			AddCheckedScore(file);
+		}
+		ShowScore(file);
+	}
+	else
+	{
+		ReportFaultyScore(file, reason, details);
+	}
+}
+
+void LomseScoreComponent::ReportFaultyScore(const File& file, const String& reason, const String& details)
+{
+	Cleanup();
+	m_faultyScore = file.getFileName();
+	loadButton->setVisible(true);
+	repaint();
+
+	juce::Logger::writeToLog("[SCORE] Faulty score file, not loaded: " + file.getFullPathName() + ": " + details);
+	AlertWindow::showMessageBoxAsync(MessageBoxIconType::WarningIcon, TRANS("Faulty score file"),
+		TRANS("The score could not be shown, so it was not loaded.") + "\n\n" +
+		file.getFileName() + "\n" + reason);
+}
+
+// The scores that have been checked without a fault are remembered (with their size, date
+// and the version of the program) in a file next to the settings, so a score is checked
+// only when it is new or has changed.
+static File CheckedScoresFile(const Settings& settings)
+{
+	return settings.GetLastStateFile().getSiblingFile("CheckedScores.txt");
+}
+
+String LomseScoreComponent::CheckedScoreKey(const File& file) const
+{
+	return JUCEApplication::getInstance()->getApplicationVersion() + "\t" + file.getFullPathName() + "\t" +
+		String(file.getSize()) + "\t" + String(file.getLastModificationTime().toMilliseconds());
+}
+
+bool LomseScoreComponent::IsCheckedScore(const File& file)
+{
+	if (!m_checkedScoresRead)
+	{
+		m_checkedScoresRead = true;
+		CheckedScoresFile(m_settings).readLines(m_checkedScores);
+		m_checkedScores.removeEmptyStrings();
+	}
+	return m_checkedScores.contains(CheckedScoreKey(file));
+}
+
+void LomseScoreComponent::AddCheckedScore(const File& file)
+{
+	IsCheckedScore(file); // reads the file if not yet read
+	const String key = CheckedScoreKey(file);
+	const String prefix = key.upToLastOccurrenceOf("\t", false, false).upToLastOccurrenceOf("\t", false, false) + "\t";
+	for (int i = m_checkedScores.size() - 1; i >= 0; i--)
+	{
+		// an earlier state of the same file
+		if (m_checkedScores[i].startsWith(prefix))
+		{
+			m_checkedScores.remove(i);
+		}
+	}
+	m_checkedScores.add(key);
+	const int MaxCheckedScores = 1000;
+	if (m_checkedScores.size() > MaxCheckedScores)
+	{
+		m_checkedScores.removeRange(0, m_checkedScores.size() - MaxCheckedScores);
+	}
+	CheckedScoresFile(m_settings).replaceWithText(m_checkedScores.joinIntoString("\n") + "\n");
 }
 
 void LomseScoreComponent::ShowMenu()
