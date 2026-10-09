@@ -6,7 +6,7 @@
 
 ## Letöltés
 
-A lefordított, Windowson (64 bit) futtatható változat a [Releases](https://github.com/Viktor318/conpianist/releases) oldalon található. A ZIP-fájlt egy tetszőleges mappába kell kicsomagolni, és a `ConPianist.exe`-t elindítani. A `Resources` mappának és a `.dll` fájloknak az `.exe` mellett kell maradniuk. A dalok és kották megnyitása, valamint a `.conmem` fájlok mentése és betöltése alapból a `%APPDATA%\ConPianist\Songs` mappában indul (a két csoport a saját, utoljára használt mappáját megjegyzi); a felvételek a `Songs\User Songs\Recorded Songs` mappába kerülnek. A ZIP-ben lévő `Demo Midi Songs` mappa tartalmát érdemes a `%APPDATA%\ConPianist\Songs\Demo Midi Songs` mappába másolni.
+A lefordított, Windowson (64 bit) futtatható változat a [Releases](https://github.com/Viktor318/conpianist/releases) oldalon található. A ZIP-fájlt egy tetszőleges mappába kell kicsomagolni, és a `ConPianist.exe`-t elindítani. A `Resources` mappának és a `.dll` fájloknak az `.exe` mellett kell maradniuk. A dalok és kották megnyitása alapból a `%APPDATA%\ConPianist\Songs`, a zongoraállapot (`.conmem`) mentése és betöltése a `%APPDATA%\ConPianist` mappában indul (mindkettő a saját, utoljára használt mappáját megjegyzi); a felvételek a `Songs\User Songs\Recorded Songs` mappába kerülnek. A ZIP-ben lévő `Demo Midi Songs` mappa tartalmát érdemes a `%APPDATA%\ConPianist\Songs\Demo Midi Songs` mappába másolni.
 
 ## Funkciók
 

@@ -96,9 +96,12 @@ public:
 	ScorePart scorePart = spRightAndLeft;
 	bool scoreShowMidiChannel = true;
 	// The folder used last for opening songs (MIDI files) and scores, and the one for
-	// registration memories (.conmem); both are remembered across restarts.
+	// saving and loading the piano state (.conmem); both are remembered across restarts.
 	String workingDirectory;
 	String memoryDirectory;
+	// The data folder of the program (Windows: %APPDATA%\ConPianist), next to the settings
+	// file: the default folder of the piano state files.
+	File GetDataDirectory() const;
 	bool logging = false;
 	bool rtpLogging = false;
 	String language; // UI language: "en", "hu" or empty (use the system language)

@@ -41,7 +41,7 @@ Settings::Settings()
 	opt.filenameSuffix = "settings";
 
 	workingDirectory = GetSongsDirectory().getFullPathName();
-	memoryDirectory = workingDirectory;
+	memoryDirectory = GetDataDirectory().getFullPathName();
 }
 
 void Settings::Save()
@@ -66,6 +66,7 @@ void Settings::Save()
 	prop.setValue("WorkingDirectory", workingDirectory);
 	prop.setValue("WorkingDirectory.Version", 1);
 	prop.setValue("MemoryDirectory", memoryDirectory);
+	prop.setValue("MemoryDirectory.Version", 1);
 	prop.setValue("Logging", logging);
 	prop.setValue("RtpLogging", rtpLogging);
 	prop.setValue("Language", language);
@@ -126,24 +127,30 @@ void Settings::Load()
 	scoreInstrumentNames = (ScoreInstrumentNames)prop.getIntValue("Score.InstrumentNames", scoreInstrumentNames);
 	scoreShowMidiChannel = prop.getIntValue("Score.ShowMidiChannel", scoreShowMidiChannel);
 	scorePart = (ScorePart)prop.getIntValue("Score.Part", scorePart);
-	// The folders used last: for songs and scores, and for registration memories. They
-	// start in the songs folder; the folder remembered by older versions (before 4.6) is
-	// replaced once. The registration memories start where the songs were opened last
-	// (until 4.7 they used the same folder). If a folder does not exist any more, the songs
-	// folder is used.
+	// The folders used last: for songs and scores, and for the piano state (.conmem). The
+	// songs start in the songs folder (the folder remembered by older versions, before 4.6,
+	// is replaced once), the piano state in the data folder (a folder remembered before
+	// this was so is replaced once too). If a folder does not exist any more, its default
+	// is used.
 	if (prop.getIntValue("WorkingDirectory.Version", 0) >= 1)
 	{
 		workingDirectory = prop.getValue("WorkingDirectory", workingDirectory);
 	}
-	memoryDirectory = prop.getValue("MemoryDirectory", workingDirectory);
-	for (String* directory : { &workingDirectory, &memoryDirectory })
+	if (prop.getIntValue("MemoryDirectory.Version", 0) >= 1)
 	{
-		if (!File::isAbsolutePath(*directory) || !File(*directory).isDirectory())
-		{
-			const File songs = GetSongsDirectory();
-			songs.createDirectory();
-			*directory = songs.getFullPathName();
-		}
+		memoryDirectory = prop.getValue("MemoryDirectory", memoryDirectory);
+	}
+	if (!File::isAbsolutePath(workingDirectory) || !File(workingDirectory).isDirectory())
+	{
+		const File songs = GetSongsDirectory();
+		songs.createDirectory();
+		workingDirectory = songs.getFullPathName();
+	}
+	if (!File::isAbsolutePath(memoryDirectory) || !File(memoryDirectory).isDirectory())
+	{
+		const File data = GetDataDirectory();
+		data.createDirectory();
+		memoryDirectory = data.getFullPathName();
 	}
 	logging = prop.getIntValue("Logging", logging);
 	rtpLogging = prop.getIntValue("RtpLogging", rtpLogging);
@@ -230,6 +237,11 @@ File Settings::GetLastStateFile() const
 File Settings::GetDefaultSongDirectory() const
 {
 	return GetSongsDirectory().getChildFile("Demo Midi Songs");
+}
+
+File Settings::GetDataDirectory() const
+{
+	return opt.getDefaultFile().getParentDirectory();
 }
 
 File Settings::GetSongsDirectory() const

@@ -1463,13 +1463,12 @@ void SceneComponent::switchLargePanel(Button* button)
 
 void SceneComponent::saveState()
 {
-	String initialLocation;
-	String songname = pianoController.GetSongName();
-	if (songname.isEmpty())
-	{
-		initialLocation = settings.memoryDirectory + File::getSeparatorString() + "Untitled.conmem";
-	}
-	else
+	// Offered next to the loaded song if it is a MIDI file (then it is loaded with the song
+	// next time), otherwise in the folder of the piano states. (A song of the piano has no
+	// file: its name, e.g. "\SONG\...", is not a path; it was taken as one on the desktop.)
+	String initialLocation = settings.memoryDirectory + File::getSeparatorString() + "Untitled.conmem";
+	const String songname = pianoController.GetSongName();
+	if (File::isAbsolutePath(songname) && File(songname).existsAsFile())
 	{
 		initialLocation = File(songname).withFileExtension(".conmem").getFullPathName();
 	}

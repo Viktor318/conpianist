@@ -22,7 +22,7 @@
 > - the connection recovers by itself after the USB cable is plugged in again; "Reset Connection" also reopens the MIDI device and rechecks the network;
 > - builds with current tools (Visual Studio 2026, recent JUCE, vcpkg); several crash and freeze fixes (including threading).
 >
-> A ready-to-run Windows (64-bit) build is available on the [Releases](https://github.com/Viktor318/conpianist/releases) page: unzip it to any folder and start `ConPianist.exe` (the `Resources` folder and the `.dll` files must stay next to the `.exe`). Opening songs and scores, and saving and loading `.conmem` files start in `%APPDATA%\ConPianist\Songs` (each of the two remembers the folder it used last); recordings go to `Songs\User Songs\Recorded Songs`. It is worth copying the contents of the included `Demo Midi Songs` folder to `%APPDATA%\ConPianist\Songs\Demo Midi Songs`.
+> A ready-to-run Windows (64-bit) build is available on the [Releases](https://github.com/Viktor318/conpianist/releases) page: unzip it to any folder and start `ConPianist.exe` (the `Resources` folder and the `.dll` files must stay next to the `.exe`). Opening songs and scores starts in `%APPDATA%\ConPianist\Songs`, saving and loading the piano state (`.conmem`) in `%APPDATA%\ConPianist` (each remembers the folder it used last); recordings go to `Songs\User Songs\Recorded Songs`. It is worth copying the contents of the included `Demo Midi Songs` folder to `%APPDATA%\ConPianist\Songs\Demo Midi Songs`.
 >
 > **Planned:** the plan of the next versions is in [docs/Tervek.md](docs/Tervek.md) (in Hungarian). Next: the list of the piano's built-in songs with a song selector, then a MIDI setup editor (editing and saving the initial settings of a loaded MIDI file), then improvements of the score display.
 
