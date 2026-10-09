@@ -206,4 +206,8 @@ void SeqPianoConnector::ClearQueue()
 	std::lock_guard<std::mutex> guard(m_mutex);
 	m_queue.clear();
 	m_waitConfirmation = false;
+	// the message that was repeated is dropped: its attempts must not count any more,
+	// otherwise the connection would be reset again on every check (every 250 ms) while
+	// the piano is not available, until another message is sent
+	m_attempt = 0;
 }
