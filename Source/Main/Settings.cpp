@@ -40,7 +40,8 @@ Settings::Settings()
 	opt.osxLibrarySubFolder = "Application Support";
 	opt.filenameSuffix = "settings";
 
-	workingDirectory = GetDefaultSongDirectory().getFullPathName();
+	workingDirectory = GetSongsDirectory().getFullPathName();
+	memoryDirectory = workingDirectory;
 }
 
 void Settings::Save()
@@ -64,6 +65,7 @@ void Settings::Save()
 	prop.setValue("Score.ShowMidiChannel", scoreShowMidiChannel);
 	prop.setValue("WorkingDirectory", workingDirectory);
 	prop.setValue("WorkingDirectory.Version", 1);
+	prop.setValue("MemoryDirectory", memoryDirectory);
 	prop.setValue("Logging", logging);
 	prop.setValue("RtpLogging", rtpLogging);
 	prop.setValue("Language", language);
@@ -124,18 +126,24 @@ void Settings::Load()
 	scoreInstrumentNames = (ScoreInstrumentNames)prop.getIntValue("Score.InstrumentNames", scoreInstrumentNames);
 	scoreShowMidiChannel = prop.getIntValue("Score.ShowMidiChannel", scoreShowMidiChannel);
 	scorePart = (ScorePart)prop.getIntValue("Score.Part", scorePart);
-	// The folder used last for loading and saving songs, scores and registration memories.
-	// It starts in the Demo Midi Songs folder; the folder remembered by older versions
-	// is replaced once. If the folder does not exist any more, the default is used.
+	// The folders used last: for songs and scores, and for registration memories. They
+	// start in the songs folder; the folder remembered by older versions (before 4.6) is
+	// replaced once. The registration memories start where the songs were opened last
+	// (until 4.7 they used the same folder). If a folder does not exist any more, the songs
+	// folder is used.
 	if (prop.getIntValue("WorkingDirectory.Version", 0) >= 1)
 	{
 		workingDirectory = prop.getValue("WorkingDirectory", workingDirectory);
 	}
-	if (!File::isAbsolutePath(workingDirectory) || !File(workingDirectory).isDirectory())
+	memoryDirectory = prop.getValue("MemoryDirectory", workingDirectory);
+	for (String* directory : { &workingDirectory, &memoryDirectory })
 	{
-		File directory = GetDefaultSongDirectory();
-		directory.createDirectory();
-		workingDirectory = directory.getFullPathName();
+		if (!File::isAbsolutePath(*directory) || !File(*directory).isDirectory())
+		{
+			const File songs = GetSongsDirectory();
+			songs.createDirectory();
+			*directory = songs.getFullPathName();
+		}
 	}
 	logging = prop.getIntValue("Logging", logging);
 	rtpLogging = prop.getIntValue("RtpLogging", rtpLogging);
