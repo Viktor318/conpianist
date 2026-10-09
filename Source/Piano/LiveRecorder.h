@@ -90,6 +90,10 @@ public:
 	// written into the file at its time, and the music after it is placed by the new
 	// tempo, so it sounds as it was played and its measures stay in place.
 	void AddTempo(int tempo);
+	// The time signature has changed while recording (e.g. a style with another time
+	// signature was chosen); thread safe. It is written into the file at the measure line
+	// nearest to its time, only if it differs from the one before.
+	void AddTimeSignature(int numerator, int denominator);
 	std::function<String(int chord)> chordName;
 
 	// A played message of a source (the channel of the message is ignored); thread safe.
@@ -159,6 +163,13 @@ private:
 		int tempo;
 	};
 	std::vector<TempoEvent> m_tempos;
+	struct TimeSignatureEvent
+	{
+		double time; // milliseconds from the start
+		int numerator;
+		int denominator;
+	};
+	std::vector<TimeSignatureEvent> m_timeSignatures;
 	// while a file is written: where the tempo changes (time, tick, ticks per millisecond)
 	struct TempoSegment
 	{

@@ -671,6 +671,15 @@ private:
 	std::atomic<int> m_metronomeVolume{100};
 	std::atomic<int> m_metronomeNumerator{4};
 	std::atomic<int> m_metronomeDenominator{4};
+	// After a style change the metronome takes the time signature in the name of the style
+	// (e.g. "6-8 Soul Ballad": 6/8). The piano sets its metronome to the style's own time
+	// signature (4/4) when the style is loaded, so the one of the name is sent again if the
+	// piano reports another one shortly after the change.
+	std::atomic<int> m_styleNumerator{0};
+	std::atomic<int> m_styleDenominator{0};
+	std::atomic<uint32> m_styleChangeMs{0};
+	std::atomic<int> m_styleMeterResends{0};
+	void ApplyStyleTimeSignature(const String& stylePath);
 	std::atomic<uint32> m_lastBeatMs{0};
 	class SoftMetronome;
 	std::unique_ptr<HighResolutionTimer> m_softMetronome;

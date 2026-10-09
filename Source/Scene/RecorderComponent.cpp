@@ -74,7 +74,7 @@ RecorderComponent::RecorderComponent(Settings& settings, PianoController& pianoC
 		};
 	addAndMakeVisible(tempoSlider);
 
-	static const int beats[][2] = {{2, 4}, {3, 4}, {4, 4}, {5, 4}, {6, 4}, {3, 8}, {6, 8}, {9, 8}, {12, 8}};
+	static const int beats[][2] = {{2, 4}, {3, 4}, {4, 4}, {5, 4}, {6, 4}, {7, 4}, {3, 8}, {6, 8}, {9, 8}, {12, 8}};
 	for (const auto& beat : beats)
 	{
 		beatCombo.addItem(String(beat[0]) + "/" + String(beat[1]), beat[0] * 100 + beat[1]);

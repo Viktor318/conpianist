@@ -41,6 +41,7 @@ void LiveRecorder::Begin(double nowMs, bool alignToDownbeat)
 	m_events.clear();
 	m_chords.clear();
 	m_tempos.clear();
+	m_timeSignatures.clear();
 	if (((m_currentChord >> 24) & 0x7f) != 0x7f)
 	{
 		m_chords.push_back({0.0, m_currentChord}); // the chord that is on at the beginning
@@ -69,6 +70,7 @@ void LiveRecorder::Arm()
 	m_events.clear();
 	m_chords.clear();
 	m_tempos.clear();
+	m_timeSignatures.clear();
 	m_noteCount = 0;
 	m_state = stArmed;
 }
@@ -85,6 +87,7 @@ void LiveRecorder::StartCountIn(int measures)
 	m_events.clear();
 	m_chords.clear();
 	m_tempos.clear();
+	m_timeSignatures.clear();
 	m_noteCount = 0;
 	// the next downbeat begins the count-in; the recording starts after its measures
 	m_downbeatsLeft = std::max(0, measures) + 1;
@@ -138,6 +141,10 @@ void LiveRecorder::MoveStart(double newStartMs)
 	{
 		event.time = std::max(0.0, event.time - delta);
 	}
+	for (TimeSignatureEvent& event : m_timeSignatures)
+	{
+		event.time = std::max(0.0, event.time - delta);
+	}
 	m_startMs = newStartMs;
 }
 
@@ -148,6 +155,16 @@ void LiveRecorder::AddTempo(int tempo)
 	if (m_state == stRecording && tempo > 0)
 	{
 		m_tempos.push_back({nowMs - m_startMs, tempo});
+	}
+}
+
+void LiveRecorder::AddTimeSignature(int numerator, int denominator)
+{
+	const double nowMs = NowMs();
+	const ScopedLock lock(m_lock);
+	if (m_state == stRecording && numerator > 0 && denominator > 0)
+	{
+		m_timeSignatures.push_back({nowMs - m_startMs, numerator, denominator});
 	}
 }
 
@@ -211,6 +228,7 @@ void LiveRecorder::Clear()
 	m_events.clear();
 	m_chords.clear();
 	m_tempos.clear();
+	m_timeSignatures.clear();
 	m_noteCount = 0;
 	m_state = stIdle;
 }
@@ -701,6 +719,51 @@ bool LiveRecorder::Save(const File& file, int tempo, int beatNumerator, int beat
 		}
 	}
 
+	// The time signatures: the one of the beginning, then the changes made while recording,
+	// each moved to the measure line (of the time signature before it) nearest to it, so
+	// the measures of the file stay whole. Two changes at the same line: the later one
+	// counts (e.g. the piano sets the style's own time signature, then the program the one
+	// in its name); a change to the same time signature is not written.
+	struct TimeSignatureChange
+	{
+		double tick;
+		int numerator;
+		int denominator;
+	};
+	std::vector<TimeSignatureChange> timeSignatures{{0.0, beatNumerator, beatDenominator}};
+	for (const TimeSignatureEvent& event : m_timeSignatures)
+	{
+		if (event.time > m_endMs - m_startMs + 1.0)
+		{
+			continue;
+		}
+		const TimeSignatureChange& last = timeSignatures.back();
+		const double measureTicks = ticksPerQuarter * 4.0 * std::max(1, last.numerator) / std::max(1, last.denominator);
+		const double measures = std::floor((TickOf(event.time) - last.tick) / measureTicks + 0.5);
+		const double tick = last.tick + std::max(0.0, measures) * measureTicks;
+		if (tick <= last.tick)
+		{
+			timeSignatures.back().numerator = event.numerator; // at the same line: the later one
+			timeSignatures.back().denominator = event.denominator;
+		}
+		else
+		{
+			timeSignatures.push_back({tick, event.numerator, event.denominator});
+		}
+	}
+	for (size_t i = 1; i < timeSignatures.size(); )
+	{
+		if (timeSignatures[i].numerator == timeSignatures[i - 1].numerator &&
+			timeSignatures[i].denominator == timeSignatures[i - 1].denominator)
+		{
+			timeSignatures.erase(timeSignatures.begin() + (long)i); // no change
+		}
+		else
+		{
+			i++;
+		}
+	}
+
 	// the sources that played notes
 	bool used[NumSources + 1] = {};
 	for (const Event& event : m_events)
@@ -768,13 +831,14 @@ bool LiveRecorder::Save(const File& file, int tempo, int beatNumerator, int beat
 
 	// conductor track: tempo, beat, reverb type
 	MidiMessageSequence conductor;
+	for (const TimeSignatureChange& change : timeSignatures)
 	{
 		// written by hand: 24 MIDI clocks per metronome click and 8 thirty-second notes
 		// per quarter note, the usual values (some programs do not accept others)
 		int power = 0;
-		while ((1 << (power + 1)) <= std::max(1, beatDenominator)) power++;
-		const uint8 data[] = {0xff, 0x58, 0x04, (uint8)jlimit(1, 127, beatNumerator), (uint8)power, 24, 8};
-		conductor.addEvent(MidiMessage(data, (int)sizeof(data), 0.0), 0);
+		while ((1 << (power + 1)) <= std::max(1, change.denominator)) power++;
+		const uint8 data[] = {0xff, 0x58, 0x04, (uint8)jlimit(1, 127, change.numerator), (uint8)power, 24, 8};
+		conductor.addEvent(MidiMessage(data, (int)sizeof(data), change.tick));
 	}
 	conductor.addEvent(MidiMessage::tempoMetaEvent(60000000 / std::max(1, tempo)), 0);
 	for (const auto& change : tempoChanges)
