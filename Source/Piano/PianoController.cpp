@@ -1361,12 +1361,9 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 		}
 		utf8[raw.length()] = 0;
 		bool changed = false;
-		bool wasKnown = false;
-		const String styleName = String::fromUTF8(utf8.data());
 		{
 			const ScopedLock lock(m_styleLock);
-			const String& name = styleName;
-			wasKnown = m_styleNameKnown;
+			const String name = String::fromUTF8(utf8.data());
 			changed = name != m_styleName;
 			m_styleName = name;
 			m_styleNameKnown = true;
@@ -1385,11 +1382,6 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 		if (changed)
 		{
 			ForgetStyleOffParts(); // the parts remembered belong to the old style
-		}
-		if (changed && wasKnown)
-		{
-			// another style was chosen (not the one the piano had when connecting)
-			ApplyStyleTimeSignature(styleName);
 		}
 		NotifyChanged(apStyle);
 		if (changed)
@@ -1537,20 +1529,10 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 			m_metronomeNumerator = data[0];
 			m_metronomeDenominator = data[1];
 			m_pianoCountPeriod = 0;
-			m_recorder.AddTimeSignature(data[0], data[1]); // (written only if it changed)
+			// (the piano sets the time signature of a style when it is loaded: a change
+			// while recording is written into the recording, only if it changed)
+			m_recorder.AddTimeSignature(data[0], data[1]);
 			NotifyChanged(apMetronome);
-
-			// the piano has set the style's own time signature after a style change: the
-			// one in the name of the style is sent again (a few times at most)
-			const int numerator = m_styleNumerator;
-			const int denominator = m_styleDenominator;
-			const bool shortlyAfter = Time::getMillisecondCounter() - m_styleChangeMs < 3000;
-			if (numerator > 0 && shortlyAfter && (data[0] != numerator || data[1] != denominator) &&
-				++m_styleMeterResends <= 3)
-			{
-				m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::MetronomeBeat,
-					(numerator << 7) + denominator));
-			}
 		}
 	}
 	else if (property == Property::MetronomeCount)
@@ -2483,30 +2465,6 @@ void PianoController::SetMetronomeBeat(int numerator, int denominator)
 	}
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::MetronomeBeat,
 		(numerator << 7) + denominator));
-}
-
-// A style was chosen (on the piano, in the Accompaniment window, by a registration memory
-// or by another app): the metronome takes the time signature in its name (see Style). The
-// piano sets its metronome to the style's own time signature when it loads the style; the
-// one of the name is sent now and again if the piano reports another one soon (see the
-// MetronomeBeat message). A recording goes on: the change is written into it.
-void PianoController::ApplyStyleTimeSignature(const String& stylePath)
-{
-	const Style* style = Presets::FindStyle(stylePath);
-	if (style == nullptr || style->beats <= 0 || style->beatUnit <= 0)
-	{
-		m_styleNumerator = 0; // not a known style: the piano's setting stays
-		return;
-	}
-	m_styleNumerator = style->beats;
-	m_styleDenominator = style->beatUnit;
-	m_styleChangeMs = Time::getMillisecondCounter();
-	m_styleMeterResends = 0;
-	if (style->beats != m_metronomeNumerator || style->beatUnit != m_metronomeDenominator)
-	{
-		m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::MetronomeBeat,
-			(style->beats << 7) + style->beatUnit));
-	}
 }
 
 String PianoController::GetStyleName()

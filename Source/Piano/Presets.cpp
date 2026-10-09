@@ -4686,26 +4686,6 @@ const std::vector<Style>& Presets::Styles()
 				style.pianoBeatUnit = data.beatUnit;
 				style.beats = data.beats;
 				style.beatUnit = data.beatUnit;
-				// a time signature in the name, written with a hyphen: digits, '-', 4 or 8
-				// that is not followed by another digit (e.g. "6-8", "12-8", "2-4")
-				const int hyphen = style.title.indexOfChar('-');
-				if (hyphen > 0 && hyphen + 1 < style.title.length())
-				{
-					int start = hyphen;
-					while (start > 0 && CharacterFunctions::isDigit(style.title[start - 1]))
-					{
-						start--;
-					}
-					const juce_wchar unit = style.title[hyphen + 1];
-					const bool unitEnds = hyphen + 2 >= style.title.length() ||
-						!CharacterFunctions::isDigit(style.title[hyphen + 2]);
-					const int named = style.title.substring(start, hyphen).getIntValue();
-					if (start < hyphen && named > 0 && unitEnds && (unit == '4' || unit == '8'))
-					{
-						style.beats = named;
-						style.beatUnit = unit - '0';
-					}
-				}
 				list.push_back(style);
 			}
 			return list;

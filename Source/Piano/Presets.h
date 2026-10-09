@@ -72,12 +72,12 @@ struct Style
 	String group;    // e.g. Pop
 	String type;     // Pro, Session, Pianist or Free Play
 	int tempo;       // default tempo
-	// The time signature to show: the one in the name of the style if the name has one
-	// (e.g. "6-8 Modern" is 6/8, "12-8 Ballad" is 12/8), otherwise the one of the piano.
+	// The time signature of the style as the piano has it; the piano sets its metronome to
+	// it when the style is loaded (e.g. "6-8 Modern" is 4/4 on the piano, and the piano
+	// counts and plays it so; the time signature in the name is not used).
 	int beats;       // beats in a measure ...
 	int beatUnit;    // ... and the note value of a beat
-	// The default time signature as the piano has it (it counts 6/8 as 4/4, for example).
-	int pianoBeats;
+	int pianoBeats;  // (the same)
 	int pianoBeatUnit;
 };
 

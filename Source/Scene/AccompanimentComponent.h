@@ -89,7 +89,7 @@ private:
 	// Filter of the style lists: only the styles of the chosen time signature are listed
 	// (and only the categories and groups that have such styles). It is not saved.
 	// The time signatures are the ones the styles are shown with. Item id: 1 no filter,
-	// otherwise note value * 100 + beats (e.g. 403: 3/4, 806: 6/8).
+	// otherwise note value * 100 + beats (e.g. 403: 3/4, 406: 6/4).
 	Label meterLabel;
 	ComboBox meterCombo;
 	static int meterId(const Style& style) { return style.beatUnit * 100 + style.beats; }
