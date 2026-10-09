@@ -229,6 +229,11 @@ File Settings::GetSongsDirectory() const
 	return opt.getDefaultFile().getSiblingFile("Songs");
 }
 
+File Settings::GetRecordingsDirectory() const
+{
+	return GetSongsDirectory().getChildFile("User Songs").getChildFile("Recorded Songs");
+}
+
 void Settings::CreateSongFolders() const
 {
 	const File songs = GetSongsDirectory();

@@ -410,7 +410,7 @@ void RecorderComponent::buttonClicked(Button* button)
 		}
 		else
 		{
-			const File directory = settings.GetDefaultSongDirectory();
+			const File directory = settings.GetRecordingsDirectory();
 			directory.createDirectory();
 			directory.startAsProcess();
 		}
@@ -518,7 +518,7 @@ void RecorderComponent::save()
 		return;
 	}
 
-	File directory = settings.GetDefaultSongDirectory();
+	File directory = settings.GetRecordingsDirectory();
 	directory.createDirectory();
 	const File file = directory.getChildFile(name + ".mid");
 

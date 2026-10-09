@@ -37,6 +37,9 @@ public:
 	// The songs folder (Windows: %APPDATA%\ConPianist\Songs), with the folders of the song
 	// selector; they are created at start if they do not exist.
 	File GetSongsDirectory() const;
+	// The folder of the recordings of the Recording window (User Songs/Recorded Songs in the
+	// songs folder, as in Smart Pianist).
+	File GetRecordingsDirectory() const;
 	void CreateSongFolders() const;
 	// The score of a song of the piano in the folder of its category: named after the
 	// title of the song (without the characters a file name cannot have), its short name
