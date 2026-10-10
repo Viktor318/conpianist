@@ -695,7 +695,7 @@ private:
 	std::atomic<int> m_styleChordArea{caUnknown};
 	std::atomic<int> m_styleLeftSound{-1};
 	int m_styleOffParts = 0; // the parts that were on when the accompaniment was switched off (bits)
-	int m_styleGroupOffParts[3] = {0, 0, 0}; // the same for the groups (NumStyleGroups)
+	int m_styleGroupOffParts[NumStyleGroups] = {}; // the same for the groups
 	void ForgetStyleOffParts();
 	// default volume, pan and reverb of the parts and (last) of the whole accompaniment;
 	// -1000: not known. "Pending": the next value reported by the piano is the default.

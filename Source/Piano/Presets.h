@@ -77,8 +77,6 @@ struct Style
 	// counts and plays it so; the time signature in the name is not used).
 	int beats;       // beats in a measure ...
 	int beatUnit;    // ... and the note value of a beat
-	int pianoBeats;  // (the same)
-	int pianoBeatUnit;
 };
 
 // A song of the piano. It is loaded by its path; a file of it (for the own player) and its

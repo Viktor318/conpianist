@@ -4682,8 +4682,6 @@ const std::vector<Style>& Presets::Styles()
 				style.group = folder.fromFirstOccurrenceOf("/", false, false);
 				style.type = data.type;
 				style.tempo = data.tempo;
-				style.pianoBeats = data.beats;
-				style.pianoBeatUnit = data.beatUnit;
 				style.beats = data.beats;
 				style.beatUnit = data.beatUnit;
 				list.push_back(style);
