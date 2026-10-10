@@ -644,7 +644,12 @@ private:
 	bool m_networkTempoSet = false;
 	// switching from the piano's player to the own one after a tempo was set: the piano is
 	// first put to the beginning of the measure, so its tempo there can be compared with
-	// the tempo of the file at the same place
+	// the tempo of the file at the same place. Pending: waiting for that (to m_pendingSource);
+	// a request to another player meanwhile cancels it (m_switchRequest: the number of the
+	// delayed switch). At measure start: the delayed switch is being done.
+	bool m_switchPending = false;
+	PlaybackSource m_pendingSource = psPiano;
+	int m_switchRequest = 0;
 	bool m_switchAtMeasureStart = false;
 	bool m_shownNotes[16][128] = {}; // notes of the local player shown on the virtual keyboard
 	PlaybackSource m_playbackSource = psPiano;

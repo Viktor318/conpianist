@@ -3255,6 +3255,18 @@ void PianoController::SetPlaybackAvailability(bool network, bool local, bool mid
 
 void PianoController::SetPlaybackSource(PlaybackSource source, bool automatic)
 {
+	if (m_switchPending)
+	{
+		if (source == m_pendingSource)
+		{
+			return; // on its way: switched when the piano is at the beginning of the measure
+		}
+		// another player was chosen meanwhile: the delayed switch is cancelled (otherwise it
+		// would switch to the player chosen first after this one)
+		m_switchPending = false;
+		m_switchRequest++;
+	}
+
 	const bool available = source == psPiano ? m_networkPlaybackAvailable :
 		source == psLocal ? m_localPlaybackAvailable : m_midiDevicePlaybackAvailable;
 	if (source == m_playbackSource || !available)
@@ -3278,14 +3290,18 @@ void PianoController::SetPlaybackSource(PlaybackSource source, bool automatic)
 	{
 		// the tempo was set on the piano's player: the piano goes to the beginning of the
 		// measure first, its tempo there is compared with the file's (after its report)
-		m_switchAtMeasureStart = true;
+		m_switchPending = true;
+		m_pendingSource = source;
+		const int request = ++m_switchRequest;
 		Stop();
 		SetPosition({jmax(1, measure), 1});
 		std::weak_ptr<bool> alive = m_alive;
-		Timer::callAfterDelay(600, [this, alive, source, automatic]()
+		Timer::callAfterDelay(600, [this, alive, source, automatic, request]()
 			{
-				if (alive.lock())
+				if (alive.lock() && m_switchPending && request == m_switchRequest)
 				{
+					m_switchPending = false;
+					m_switchAtMeasureStart = true;
 					SetPlaybackSource(source, automatic);
 					m_switchAtMeasureStart = false;
 				}
