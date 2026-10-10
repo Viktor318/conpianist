@@ -3885,6 +3885,18 @@ public:
         if (has_attribute("placement"))
             set_placement();
 
+        //ConPianist fork: without placement, the side is taken from default-y (relative
+        //to the note), as the notation program placed it: MuseScore writes e.g. the
+        //fingering of a lower voice below the staff only with a negative default-y
+        else if (has_attribute("default-y"))
+        {
+            float y = get_attribute_as_float("default-y", 0.0f);
+            if (y < 0.0f)
+                m_placement = k_placement_below;
+            else if (y > 0.0f)
+                m_placement = k_placement_above;
+        }
+
         //get value
         set_fingering(m_analysedNode.value());
 
