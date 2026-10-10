@@ -419,9 +419,56 @@ static String ChordSymbolName(const XmlElement& harmony)
 	return name;
 }
 
+// The highest voice number used by the notes of a MusicXML text (0 if none).
+static int HighestVoice(const std::string& text)
+{
+	static const std::string voiceTag = "<voice>";
+	int highest = 0;
+	for (size_t start = text.find(voiceTag); start != std::string::npos; start = text.find(voiceTag, start + 1))
+	{
+		highest = jmax(highest, std::atoi(text.c_str() + start + voiceTag.size()));
+	}
+	return highest;
+}
+
+// The duration (in divisions) of the first note after the given position of a MusicXML
+// text, or 0 if it is a grace note or it has no whole number as duration.
+static int NextNoteDuration(const std::string& text, size_t position)
+{
+	static const std::string openTag = "<note";
+	static const std::string closeTag = "</note>";
+	for (size_t start = text.find(openTag, position); start != std::string::npos; start = text.find(openTag, start + 1))
+	{
+		const char next = start + openTag.size() < text.size() ? text[start + openTag.size()] : '\0';
+		if (next != '>' && !CharacterFunctions::isWhitespace(next))
+		{
+			continue; // another element (e.g. <notehead>, <notations>)
+		}
+		const size_t close = text.find(closeTag, start);
+		if (close == std::string::npos)
+		{
+			return 0;
+		}
+		const std::string_view note(text.data() + start, close - start);
+		const size_t duration = note.find("<duration>");
+		if (note.find("<grace") != std::string_view::npos || duration == std::string_view::npos)
+		{
+			return 0;
+		}
+		return std::atoi(std::string(note.substr(duration + 10, 12)).c_str());
+	}
+	return 0;
+}
+
 // Lomse does not show the chord symbols of MusicXML (<harmony>): they are written into the
 // text as words above the staff (<direction>), at the same place, so they are shown like
 // the other texts of the score. The file itself is not changed.
+// A chord symbol may be later than the note it is written before (<offset>, e.g. more chord
+// symbols over one long note). Lomse does not use the offset of a direction, so these would
+// be drawn over each other. The chord symbols written before the same note are taken
+// together, and those with an offset are moved forward in a voice of their own (one that
+// no note uses; Lomse fills it with invisible rests) up to the end of that note, so that
+// there is room for them; then the time goes back to the note.
 static String ChordSymbolsAsWords(const String& content)
 {
 	// (searched in the bytes of the text: the positions of a juce::String are counted from
@@ -429,9 +476,56 @@ static String ChordSymbolsAsWords(const String& content)
 	static const std::string openTag = "<harmony";
 	static const std::string closeTag = "</harmony>";
 	const std::string text = content.toStdString();
+	// the voice for the moved chord symbols (Lomse allows 64 voices in a part)
+	const int highestVoice = HighestVoice(text);
+	const String offsetVoice = highestVoice < 63 ? String(highestVoice + 1) : String();
+	auto words = [](const String& name, const String& staffNumber)
+		{
+			// above the staff, higher than the notes on the top line usually reach
+			String direction;
+			direction << "<direction placement=\"above\"><direction-type><words relative-y=\"40\" font-weight=\"bold\">"
+				<< name << "</words></direction-type><staff>" << staffNumber << "</staff></direction>";
+			return direction;
+		};
+	// the chord symbols with an offset of the current group (offset, words), and their staff
+	std::vector<std::pair<int, String>> moved;
+	String movedStaff;
 	std::string result;
 	result.reserve(text.size() + 4096);
 	size_t position = 0; // the text before this position is in the result
+	// writes the moved chord symbols of the group that ends at the position
+	auto writeMoved = [&]()
+		{
+			if (moved.empty())
+			{
+				return;
+			}
+			std::stable_sort(moved.begin(), moved.end(),
+				[](const auto& a, const auto& b) { return a.first < b.first; });
+			String forward = "</duration><voice>" + offsetVoice + "</voice><staff>" + movedStaff + "</staff></forward>";
+			String chain;
+			int time = 0;
+			for (const auto& [offset, direction] : moved)
+			{
+				if (offset > time)
+				{
+					chain << "<forward><duration>" << (offset - time) << forward;
+					time = offset;
+				}
+				chain << direction;
+			}
+			// up to the end of the note, with an invisible word at its end (a non-breaking
+			// space): Lomse fills the voice with a rest only up to a following object
+			const int rest = NextNoteDuration(text, position) - time;
+			if (rest > 0)
+			{
+				chain << "<forward><duration>" << rest << forward << words(CharPointer_UTF8("\xc2\xa0"), movedStaff);
+				time += rest;
+			}
+			chain << "<backup><duration>" << time << "</duration></backup>";
+			result += chain.toStdString();
+			moved.clear();
+		};
 	for (size_t start = text.find(openTag); start != std::string::npos; start = text.find(openTag, start + 1))
 	{
 		const char next = start + openTag.size() < text.size() ? text[start + openTag.size()] : '\0';
@@ -454,6 +548,11 @@ static String ChordSymbolsAsWords(const String& content)
 			}
 			end = close + closeTag.size();
 		}
+		// a group ends where something else than white space comes after a chord symbol
+		if (text.find_first_not_of(" \t\r\n", position) < start)
+		{
+			writeMoved();
+		}
 		std::unique_ptr<XmlElement> harmony = parseXML(String::fromUTF8(text.data() + start, (int)(end - start)));
 		result.append(text, position, start - position);
 		position = end;
@@ -466,17 +565,34 @@ static String ChordSymbolsAsWords(const String& content)
 		{
 			continue;
 		}
-		const XmlElement* offset = harmony->getChildByName("offset");
 		const XmlElement* staff = harmony->getChildByName("staff");
-		// above the staff, higher than the notes on the top line usually reach
-		String direction;
-		direction << "<direction placement=\"above\"><direction-type><words relative-y=\"40\" font-weight=\"bold\">"
-			<< name.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-			<< "</words></direction-type>"
-			<< (offset != nullptr ? "<offset>" + offset->getAllSubText().trim() + "</offset>" : String())
-			<< "<staff>" << (staff != nullptr ? staff->getAllSubText().trim() : String("1")) << "</staff></direction>";
-		result += direction.toStdString();
+		const String staffNumber = staff != nullptr ? staff->getAllSubText().trim() : String("1");
+		const String direction = words(name.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"), staffNumber);
+		// the offset in divisions, if it is a whole positive number (only such a <forward>
+		// can be written)
+		int offset = 0;
+		if (const XmlElement* offsetElement = harmony->getChildByName("offset"))
+		{
+			const String value = offsetElement->getAllSubText().trim();
+			if (value.containsOnly("0123456789") && value.length() <= 6)
+			{
+				offset = value.getIntValue();
+			}
+		}
+		if (offset > 0 && offsetVoice.isNotEmpty())
+		{
+			if (moved.empty())
+			{
+				movedStaff = staffNumber;
+			}
+			moved.emplace_back(offset, direction);
+		}
+		else
+		{
+			result += direction.toStdString();
+		}
 	}
+	writeMoved();
 	result.append(text, position, std::string::npos);
 	return String::fromUTF8(result.data(), (int)result.size());
 }
@@ -1789,9 +1905,10 @@ static File CheckedScoresFile(const Settings& settings)
 
 String LomseScoreComponent::CheckedScoreKey(const File& file) const
 {
-	// the revision of the check: increased when the check does more (2: the playback order),
-	// so the scores already checked are checked again
-	const int checkRevision = 2;
+	// the revision of the check: increased when the check does more (2: the playback order)
+	// or the score is prepared differently (3: chord symbols moved by their offset), so the
+	// scores already checked are checked again
+	const int checkRevision = 3;
 	return JUCEApplication::getInstance()->getApplicationVersion() + "/" + String(checkRevision) + "\t" + file.getFullPathName() + "\t" +
 		String(file.getSize()) + "\t" + String(file.getLastModificationTime().toMilliseconds());
 }
