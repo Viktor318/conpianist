@@ -10,14 +10,13 @@ mód váltásakor a dal rossz ütemre ugrana).
 
 A szkript ezt az ütemet törli:
 - a beállító adatok megmaradnak a fájl elején, változatlan sorrendben;
-- a beállító ütem ideiglenes tempója és ütemmutatója csak akkor marad ki, ha a dalnak van
-  saját tempója, illetve ütemmutatója a 2. ütem elején: ilyenkor a dal sajátja kerül a
-  helyükre. Ha nincs, az ideiglenes megmarad a fájl elején, és a lista ezt jelzi;
+- a beállító ütem ideiglenes tempója és ütemmutatója kimarad, helyükre a dal saját, a 2.
+  ütem elején álló tempója és ütemmutatója kerül;
 - minden más (hangok, tempóváltások, pedál, akkordjelölések) pontosan egy ütemmel előrébb
   kerül.
 
 Csak azokat a fájlokat alakítja át, amelyek első ütemében nincs hang, de vannak beállító
-adatok (így írja a Yamaha). A már átalakított fájlokat, és amelyek nem ilyenek,
+adatok, és a 2. ütem elején saját tempó és ütemmutató áll (így írja a Yamaha). A már átalakított fájlokat, és amelyek nem ilyenek,
 kihagyja, és megírja, miért. Az eredeti fájlokat nem változtatja meg: az újakat egy külön
 mappába írja, ugyanazokkal az almappákkal és nevekkel. Átalakítás után visszaolvassa és
 ellenőrzi az új fájlt.
@@ -50,15 +49,17 @@ ellenőrzi az új fájlt.
    ```
 
 4. A szkript minden fájlról egy sort ír:
-   - `MIDI-fájl sikeresen átalakítva, üres kezdő ütem törölve.` (ha az ideiglenes tempó vagy
-     ütemmutató megmaradt, egy megjegyzés is áll utána);
+   - `MIDI-fájl sikeresen átalakítva, üres kezdő ütem törölve.`
    - `Nem találtam üres ütemet a fájl elején, MIDI-fájl kihagyva.` (ilyen a már átalakított
      fájl is);
+   - `Az első ütem üres, de nincsenek benne a Yamaha beállító adatai (hangszínek, hangerő,
+     GM/XG-reset), MIDI-fájl kihagyva.` (például egy szándékosan üresen hagyott ütem);
+   - `Az első ütem üres, de a második ütem elején nincs saját tempó (vagy ütemmutató, vagy
+     egyik sem) (nem a Yamaha beállító üteme), MIDI-fájl kihagyva.`
+   - `A fájlban nincs hang, MIDI-fájl kihagyva.`
    - `A konvertálás nem sikerült, hibás a MIDI-fájl (...)`, zárójelben az okkal.
 
-   Ritkán még ez a kettő jöhet elő, ezeket is kihagyja: a fájlban nincs hang; vagy az első
-   ütem üres, de nincsenek benne beállító adatok (nem a Yamaha beállító üteme, például egy
-   szándékos üres ütem). A végén összesítés áll.
+   A végén összesítés áll.
 5. Az átalakított fájlokat másold a `Songs` mappában a régiek helyére (előtte készíts
    róluk biztonsági másolatot a `Songs` mappán kívül), és a kottákból is töröld az üres
    első ütemet. Ha a szkriptet közvetlenül a `Songs` valamelyik mappájában futtatod, a

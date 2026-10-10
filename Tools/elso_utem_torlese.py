@@ -6,12 +6,12 @@ which the song is set up (GM/XG reset, voices, volumes, reverb, the XF data); th
 own copy of the song starts without it. So that the measures of the MIDI file, of the score
 and of the piano's song are the same, this measure is removed:
 - the setup data of the measure stays at the beginning of the file, in its order;
-- the temporary tempo and time signature of the setup measure are dropped if the song has
-  its own at the beginning of the second measure (they take their place); if it has not,
-  the temporary one stays at the beginning;
+- the temporary tempo and time signature of the setup measure are dropped (the song's own,
+  at the beginning of the second measure, take their place);
 - everything else moves one measure earlier.
 
-A file is changed only if its first measure has no notes but has setup data (as Yamaha
+A file is changed only if its first measure has no notes but has setup data, and the song's
+own tempo and time signature are set at the beginning of the second measure (as Yamaha
 writes these files); other files, and files already changed, are left out. The original files are not changed: the new ones are written into
 the output folder, with the same subfolders and names.
 
@@ -35,9 +35,8 @@ A bemeneti mappa összes MIDI-fájlját (az almappákkal együtt) megnézi; az �
 fájlok a kimeneti mappába kerülnek, pontosan az eredeti nevükkel, ugyanazokkal az
 almappákkal (a Converted mappát magát nem nézi át). Az eredeti
 fájlok nem változnak. Csak azokat a fájlokat alakítja át, amelyek első ütemében nincs hang,
-de vannak beállító adatok (így írja a Yamaha); a többit, és a már átalakítottakat kihagyja.
-Az ideiglenes tempót és ütemmutatót csak akkor veszi ki, ha a dalnak van sajátja a 2. ütem
-elején; ha nincs, az ideiglenes megmarad, és a lista ezt jelzi.
+de vannak beállító adatok, és a 2. ütem elején saját tempó és ütemmutató áll (így írja a
+Yamaha); a többit, és a már átalakítottakat kihagyja, és megírja, miért.
 """
 
 
@@ -165,7 +164,7 @@ def first_measure_length(tracks, division):
 
 
 def convert(source, target):
-    """Returns (True, notes) if the file was converted, otherwise (False, the reason)."""
+    """Returns (True, "") if the file was converted, otherwise (False, the reason)."""
     header, division, chunks = read_midi(source)
     tracks = [content for chunk_id, content in chunks if chunk_id == 'MTrk']
     measure = first_measure_length(tracks, division)
@@ -175,23 +174,20 @@ def convert(source, target):
     if any(e.is_note() and e.tick < measure for e in events):
         return False, "Nem találtam üres ütemet a fájl elején, MIDI-fájl kihagyva."
     if not any(e.tick < measure and (e.kind == 'sysex' or e.kind == 'midi') for e in events):
-        return False, ("Az első ütem üres, de nincsenek benne beállító adatok (nem a Yamaha beállító "
-                       "üteme), MIDI-fájl kihagyva.")
+        return False, ("Az első ütem üres, de nincsenek benne a Yamaha beállító adatai (hangszínek, "
+                       "hangerő, GM/XG-reset), MIDI-fájl kihagyva.")
+    # Yamaha sets the song's own tempo and time signature again at the beginning of the
+    # second measure; a file without them is left out (it may be another kind of file)
+    has_tempo = any(e.is_meta(0x51) and e.tick == measure for e in events)
+    has_signature = any(e.is_meta(0x58) and e.tick == measure for e in events)
+    if not has_tempo or not has_signature:
+        missing = "saját tempó és ütemmutató" if not has_tempo and not has_signature else \
+            "saját tempó" if not has_tempo else "saját ütemmutató"
+        return False, ("Az első ütem üres, de a második ütem elején nincs %s (nem a Yamaha beállító "
+                       "üteme), MIDI-fájl kihagyva." % missing)
 
-    # The temporary tempo and time signature of the setup measure are dropped only if the song
-    # has its own at the beginning of the second measure; otherwise the last one of the setup
-    # measure stays at the beginning of the file.
-    notes = []
-    dropped = set()
-    for meta_type, name in ((0x51, "tempó"), (0x58, "ütemmutató")):
-        temporary = [e for e in events if e.is_meta(meta_type) and e.tick < measure]
-        if not temporary:
-            continue
-        if any(e.is_meta(meta_type) and e.tick == measure for e in events):
-            dropped.update(id(e) for e in temporary)
-        else:
-            dropped.update(id(e) for e in temporary[:-1])
-            notes.append("a dalnak nincs saját %sja, az ideiglenes megmaradt" % name)
+    # the temporary tempo and time signature of the setup measure: the song's own take their place
+    dropped = set(id(e) for e in events if e.tick < measure and (e.is_meta(0x51) or e.is_meta(0x58)))
 
     new_chunks = []
     for chunk_id, content in chunks:
@@ -220,7 +216,7 @@ def convert(source, target):
     if written != read_back or old_notes != new_notes:
         os.remove(target)
         raise ValueError("az átalakított fájl ellenőrzése hibát talált, az új fájl nem készült el")
-    return True, "; ".join(notes)
+    return True, ""
 
 
 def midi_files(folder, skip):
