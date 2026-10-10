@@ -10558,19 +10558,24 @@ void MxlWedgesBuilder::add_relation_to_staffobjs(ImoWedgeDto* pEndDto)
     //set data taken from start dto
     pWedge->set_wedge_number( pStartDto->get_wedge_number() );
     pWedge->set_color( pStartDto->get_color() );
-    if (pStartDto->get_spread() != 0.0f)
-        pWedge->set_start_spread( pStartDto->get_spread() );
-
-    //set data taken from end dto
-    if (pEndDto->get_spread() != 0.0f)
-        pWedge->set_end_spread( pEndDto->get_spread() );
 
     //set data that can be on any of them
     pWedge->set_niente( pStartDto->is_niente() || pEndDto->is_niente() );
     pWedge->set_crescendo( pStartDto->is_crescendo() || pEndDto->is_crescendo());
 
-    //set default spread when no spread is specified
-    if (pEndDto->get_spread() == 0.0f && pStartDto->get_spread() == 0.0f)
+    //ConPianist fork: the spread is the opening of the wedge, at the end of a crescendo
+    //and at the start of a diminuendo, whichever element gives it (MuseScore writes it
+    //at the start of a crescendo and at the stop of a diminuendo, so that it was drawn
+    //the other way round); the closed end is always 0
+    Tenths spread = max(pStartDto->get_spread(), pEndDto->get_spread());
+    if (spread != 0.0f)
+    {
+        if (pWedge->is_crescendo())
+            pWedge->set_end_spread(spread);
+        else
+            pWedge->set_start_spread(spread);
+    }
+    else    //set default spread when no spread is specified
     {
         if (pWedge->is_crescendo())
             pWedge->set_default_spreads(0.0f, 15.0f);

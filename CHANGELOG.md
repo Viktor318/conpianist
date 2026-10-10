@@ -6,6 +6,7 @@ Ez a fájl a ConPianist változásait dokumentálja. Az 1.0–3.0 verziók az er
 
 ### Javítva
 - **A kotta eleji tempójelzés nem ütközik az ujjrenddel.** A MuseScore a tempójelzést (például „Allegretto (♩ = 112)”) két részben írja a kottába: a szöveget és a metronómjelzést. A kottamegjelenítő a metronómjelzés megadott helyét nem olvasta be, ezért az első hang fölé tette, az ujjrend közé. Most a kotta elején a metronómjelzés oda kerül, ahová a kotta kéri: a szöveg alá, a kulcs fölé. A darab közbeni tempóváltások a hangjuk fölött maradnak, ahogy eddig. A Lomse hatodik saját javítása (`lomse_mxl_analyser.cpp`, `lomse_metronome_engraver.cpp`).
+- **A crescendo és a diminuendo villája a helyes irányba nyílik.** A MuseScore a villa nyílásának méretét a crescendo elejénél és a diminuendo végénél írja a kottába. A kottamegjelenítő ezt a jel ottani nyílásának vette, ezért a crescendót záródónak, a diminuendót nyílónak rajzolta. Most a nyílás mindig a crescendo végére és a diminuendo elejére kerül, bármelyik végénél van megadva. A Lomse hetedik saját javítása (`lomse_mxl_analyser.cpp`).
 
 ## 4.8 (fork) – 2026. október 10.
 
