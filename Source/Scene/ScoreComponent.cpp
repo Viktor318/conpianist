@@ -1673,11 +1673,13 @@ public:
 	}
 
 private:
-	// the time a score may take to be drawn; the Debug build is much slower
+	// the time a score may take to be drawn (only a limit: a score drawn sooner is shown at
+	// once; a large score may take several seconds on a slower computer); the Debug build is
+	// much slower
 #if JUCE_DEBUG
-	static constexpr int TimeoutMs = 15000;
+	static constexpr int TimeoutMs = 45000;
 #else
-	static constexpr int TimeoutMs = 5000;
+	static constexpr int TimeoutMs = 15000;
 #endif
 
 	File m_file;
