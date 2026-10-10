@@ -21,13 +21,19 @@ import os
 import struct
 import sys
 
-USAGE = """Az üres első ütem (a Yamaha beállító üteme) törlése MIDI-fájlokból.
+USAGE = r"""Az üres első ütem (a Yamaha beállító üteme) törlése MIDI-fájlokból.
 
 Használat:
-    python elso_utem_torlese.py <bemeneti mappa vagy fájl> <kimeneti mappa>
+    python elso_utem_torlese.py [bemeneti mappa vagy fájl] [kimeneti mappa]
+
+Bemeneti mappa nélkül az aktuális mappát nézi; kimeneti mappa nélkül az átalakított fájlok
+a bemeneti mappán belül a Converted mappába kerülnek. Például a MIDI-fájlok mappájában:
+    python C:\...\conpianist\Tools\elso_utem_torlese.py
+ekkor az új fájlok helye: .\Converted
 
 A bemeneti mappa összes MIDI-fájlját (az almappákkal együtt) megnézi; az átalakított
-fájlok a kimeneti mappába kerülnek, ugyanazokkal az almappákkal és nevekkel. Az eredeti
+fájlok a kimeneti mappába kerülnek, pontosan az eredeti nevükkel, ugyanazokkal az
+almappákkal (a Converted mappát magát nem nézi át). Az eredeti
 fájlok nem változnak. Csak azokat a fájlokat alakítja át, amelyek első ütemében nincs hang,
 de vannak beállító adatok (így írja a Yamaha); a többit, és a már átalakítottakat kihagyja.
 Az ideiglenes tempót és ütemmutatót csak akkor veszi ki, ha a dalnak van sajátja a 2. ütem
@@ -218,7 +224,9 @@ def convert(source, target):
 
 def midi_files(folder, skip):
     for root, dirs, files in os.walk(folder):
-        if skip and os.path.abspath(root).startswith(skip):
+        # the output folder (if it is inside the input folder) is not read
+        dirs[:] = [d for d in dirs if not (os.path.abspath(os.path.join(root, d)) + os.sep).startswith(skip)]
+        if (os.path.abspath(root) + os.sep).startswith(skip):
             continue
         for name in sorted(files):
             if name.lower().endswith(('.mid', '.midi')):
@@ -226,10 +234,16 @@ def midi_files(folder, skip):
 
 
 def main():
-    if len(sys.argv) != 3:
+    if len(sys.argv) > 3 or (len(sys.argv) > 1 and sys.argv[1] in ('-h', '--help', '/?')):
         print(USAGE)
         return 2
-    source, output = os.path.abspath(sys.argv[1]), os.path.abspath(sys.argv[2])
+    # without arguments: the current folder; without an output folder: Converted in the
+    # folder of the input
+    source = os.path.abspath(sys.argv[1] if len(sys.argv) > 1 else '.')
+    if len(sys.argv) > 2:
+        output = os.path.abspath(sys.argv[2])
+    else:
+        output = os.path.join(source if os.path.isdir(source) else os.path.dirname(source), 'Converted')
     if os.path.isfile(source):
         files, base = [source], os.path.dirname(source)
     elif os.path.isdir(source):

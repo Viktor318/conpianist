@@ -26,24 +26,36 @@ ellenőrzi az új fájlt.
 
 1. Telepítsd a Pythont a [python.org](https://www.python.org/downloads/) oldalról (a
    telepítőben jelöld be: „Add python.exe to PATH”). Más nem kell hozzá.
-2. Nyiss egy parancssort (Start menü → „cmd”), és lépj a repó `Tools` mappájába, például:
+2. Nyiss egy parancssort (Start menü → „cmd”), és lépj abba a mappába, ahol a MIDI-fájlok
+   vannak, például:
 
    ```
-   cd C:\...\conpianist\Tools
+   cd "C:\MIDI\Classics"
    ```
 
-3. Futtasd a bemeneti és a kimeneti mappával (szóközös útvonal idézőjelben):
+3. Futtasd a szkriptet a repó `Tools` mappájából, paraméterek nélkül:
 
    ```
-   python elso_utem_torlese.py "C:\MIDI\eredeti" "C:\MIDI\atalakitott"
+   python "C:\...\conpianist\Tools\elso_utem_torlese.py"
    ```
 
-   Egyetlen fájl is megadható a bemeneti mappa helyett.
+   Az átalakított fájlok a mappán belül a `Converted` mappába kerülnek (`.\Converted`),
+   pontosan az eredeti nevükkel, az almappákkal együtt. A `Converted` mappát magát a szkript
+   nem nézi át, így többször is futtatható. Más mappa is megadható:
+
+   ```
+   python elso_utem_torlese.py "C:\MIDI\eredeti"                         (→ C:\MIDI\eredeti\Converted)
+   python elso_utem_torlese.py "C:\MIDI\eredeti" "C:\MIDI\atalakitott"   (saját kimeneti mappa)
+   python elso_utem_torlese.py "C:\MIDI\eredeti\dal.mid"                (egyetlen fájl)
+   ```
+
 4. A végén a lista mutatja, melyik fájl készült el (ÁTALAKÍTVA; zárójelben, ha az ideiglenes
    tempó vagy ütemmutató megmaradt), melyik maradt ki és miért (KIHAGYVA), és melyiket nem
    lehetett beolvasni (HIBA).
 5. Az átalakított fájlokat másold a `Songs` mappában a régiek helyére (előtte készíts
    róluk biztonsági másolatot a `Songs` mappán kívül), és a kottákból is töröld az üres
-   első ütemet.
+   első ütemet. Ha a szkriptet közvetlenül a `Songs` valamelyik mappájában futtatod, a
+   cserék után töröld a `Converted` mappát, különben a Dalválasztó a saját mappáknál
+   (például Music Library) a benne lévő fájlokat is mutatja.
 
 A dalfájlok nem kerülnek a repóba.
