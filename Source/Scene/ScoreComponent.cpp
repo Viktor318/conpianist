@@ -50,11 +50,13 @@ int ScoreComponent::CheckScoreFile(const File& file, const File& resultFile)
 #include <lomse_gm_basic.h>
 #include <lomse_graphical_model.h>
 #include <lomse_im_measures_table.h>
+#include <lomse_midi_table.h>
 #include <pugixml/pugixml.hpp>
 #include <functional>
 #include <string>
 #include <string_view>
 #include <cstdlib>
+#include <algorithm>
 
 #include "GuiHelper.h"
 #include "ScoreComponent.h"
@@ -139,6 +141,11 @@ private:
 	String m_faultyScore;
 	StringArray m_checkedScores; // see IsCheckedScore
 	bool m_checkedScoresRead = false;
+	// The playback order of the measures of a score with repeats (see ReadPlaybackOrder),
+	// and the number of measures of the score
+	std::vector<int> m_playOrder;
+	std::vector<int> m_passStarts;
+	int m_scoreMeasures = 0;
 
 	void LoadDocument(String filename);
 	void PrepareImage();
@@ -148,6 +155,9 @@ private:
 	static TimeUnits BeatLocation(ImoScore* score, int measure, int beat);
 	static TimeUnits BeatTimepos(ImoScore* score, int measure, int beat);
 	int MeasureAtPoint(SpInteractor& interactor, ImoScore* score, int x, int y);
+	bool FollowsPlaybackOrder();
+	int ScoreMeasure(int playedMeasure);
+	int PlayedMeasure(int scoreMeasure);
 	void SetViewport(int y);
 	void LimitViewport();
 	int ScoreBottom();
@@ -711,6 +721,55 @@ static bool PrepareScoreText(const String& filename, String& content, bool& asTe
 	return true;
 }
 
+// The playback order of the measures of a score with repeats (repeat signs, voltas, D.C.,
+// D.S., Fine, Coda), as Lomse works it out: for each played measure (0..) the measure of
+// the score (0..). The passes (the parts played straight through, between two jumps) are
+// given by their first played measure. Both are empty if the score is played straight
+// through. The measures are counted as in the song positions: the first measure of the
+// score (a pickup measure too) is the first. numMeasures: the number of measures of the
+// score.
+static void ReadPlaybackOrder(ImoScore* score, std::vector<int>& order, std::vector<int>& passStarts,
+	int& numMeasures)
+{
+	order.clear();
+	passStarts.clear();
+	numMeasures = 0;
+	if (score == nullptr)
+	{
+		return;
+	}
+	SoundEventsTable* table = score->get_midi_table();
+	numMeasures = table->get_num_measures();
+	for (MeasuresJumpsEntry* pass : table->get_measures_jumps())
+	{
+		const int from = pass->get_from_measure();
+		const int to = pass->get_to_measure() == 0 ? numMeasures : pass->get_to_measure(); // 0: to the end
+		if (from < 1 || to < from || to > numMeasures)
+		{
+			continue; // e.g. the jump of a D.S. without a segno
+		}
+		passStarts.push_back((int)order.size());
+		for (int measure = from; measure <= to; measure++)
+		{
+			order.push_back(measure - 1);
+		}
+		if (order.size() > 100000)
+		{
+			break; // (jumps that would never end)
+		}
+	}
+	bool straight = (int)order.size() == numMeasures;
+	for (int i = 0; straight && i < (int)order.size(); i++)
+	{
+		straight = order[i] == i;
+	}
+	if (straight)
+	{
+		order.clear();
+		passStarts.clear();
+	}
+}
+
 void LomseScoreComponent::LoadDocument(String filename)
 {
 	//first, we will create a 'presenter'. It takes care of creating and maintaining
@@ -757,6 +816,22 @@ void LomseScoreComponent::LoadDocument(String filename)
 	tempoLine->set_color(Color(15, 90, 235, 128));   // light orange
 
 	interactor->switch_task(TaskFactory::k_task_drag_view);
+
+	// the playback order of the measures, while all instruments are in the score
+	ReadPlaybackOrder(dynamic_cast<ImoScore*>(m_presenter->get_document_raw_ptr()->get_im_root()->get_content_item(0)),
+		m_playOrder, m_passStarts, m_scoreMeasures);
+	if (!m_playOrder.empty())
+	{
+		String passes;
+		for (size_t i = 0; i < m_passStarts.size(); i++)
+		{
+			const int first = m_passStarts[i];
+			const int last = (i + 1 < m_passStarts.size() ? m_passStarts[i + 1] : (int)m_playOrder.size()) - 1;
+			passes << (i > 0 ? ", " : "") << (m_playOrder[first] + 1) << "-" << (m_playOrder[last] + 1);
+		}
+		juce::Logger::writeToLog("[SCORE] Playback order " + passes + " (" + String((int)m_playOrder.size()) +
+			" measures, the score has " + String(m_scoreMeasures) + ")");
+	}
 
 	PrepareInstruments();
 	ConfigureInstruments();
@@ -1109,7 +1184,7 @@ int LomseScoreComponent::MeasureAtPoint(SpInteractor& interactor, ImoScore* scor
 }
 
 // Double click on the score: the playback jumps to the beginning of the clicked measure
-// (with repeats in the score: to its first occurrence).
+// (with repeats in the score: to its occurrence chosen by PlayedMeasure).
 void LomseScoreComponent::mouseDoubleClick(const MouseEvent& event)
 {
 	if (!m_presenter || !m_image || getWidth() <= 0 || getHeight() <= 0) return;
@@ -1136,7 +1211,74 @@ void LomseScoreComponent::mouseDoubleClick(const MouseEvent& event)
 	}
 	if (measure < 0) return;
 
-	m_pianoController.SetPosition({measure + 1, 1});
+	const int played = PlayedMeasure(measure);
+	if (played < 0) return; // the measure is not played (e.g. after Fine)
+
+	m_pianoController.SetPosition({played + 1, 1});
+}
+
+// The song is played in the playback order of the score (with its repeats) if its length
+// is nearer to the length of the playback order than to the number of measures of the
+// score. A MIDI file may also have been made without the repeats: then its measures are
+// those of the score.
+bool LomseScoreComponent::FollowsPlaybackOrder()
+{
+	if (m_playOrder.empty())
+	{
+		return false;
+	}
+	const int length = m_pianoController.IsSongLoaded() ? m_pianoController.GetLength().measure : 0;
+	if (length <= 0)
+	{
+		return true; // not known
+	}
+	return std::abs(length - (int)m_playOrder.size()) < std::abs(length - m_scoreMeasures);
+}
+
+// The measure of the score (0..) shown for a measure of the song (0..).
+int LomseScoreComponent::ScoreMeasure(int playedMeasure)
+{
+	if (playedMeasure < 0 || !FollowsPlaybackOrder())
+	{
+		return playedMeasure;
+	}
+	return m_playOrder[std::min(playedMeasure, (int)m_playOrder.size() - 1)];
+}
+
+// The measure of the song (0..) to jump to for a measure of the score (0..), or -1 if the
+// measure is not played. A measure played more than once (with repeats): its occurrence in
+// the current pass (the part played straight through, in which the playback position is),
+// otherwise the occurrence nearest to the playback position (the later one of two equally
+// near).
+int LomseScoreComponent::PlayedMeasure(int scoreMeasure)
+{
+	if (!FollowsPlaybackOrder())
+	{
+		return scoreMeasure;
+	}
+	const int count = (int)m_playOrder.size();
+	const int current = jlimit(0, count - 1, m_pianoController.GetPosition().measure - 1);
+
+	const auto nextPass = std::upper_bound(m_passStarts.begin(), m_passStarts.end(), current);
+	const int passStart = nextPass == m_passStarts.begin() ? 0 : *(nextPass - 1);
+	const int passEnd = nextPass == m_passStarts.end() ? count : *nextPass;
+	for (int i = passStart; i < passEnd; i++)
+	{
+		if (m_playOrder[i] == scoreMeasure)
+		{
+			return i;
+		}
+	}
+
+	int nearest = -1;
+	for (int i = 0; i < count; i++)
+	{
+		if (m_playOrder[i] == scoreMeasure && (nearest < 0 || std::abs(i - current) <= std::abs(nearest - current)))
+		{
+			nearest = i;
+		}
+	}
+	return nearest;
 }
 
 void LomseScoreComponent::mouseDrag(const MouseEvent& event)
@@ -1207,7 +1349,7 @@ void LomseScoreComponent::UpdateTempoLine(bool scroll)
 	PianoController::Position songPosition = m_pianoController.GetPosition();
 	Document* doc = m_presenter->get_document_raw_ptr();
 	ImoScore* score = dynamic_cast<ImoScore*>(doc->get_im_root()->get_content_item(0));
-	const int measure = songPosition.measure - 1;
+	const int measure = ScoreMeasure(songPosition.measure - 1);
 	const TimeUnits location = BeatLocation(score, measure, songPosition.beat - 1);
 	if (scroll)
 	{
@@ -1263,7 +1405,7 @@ void LomseScoreComponent::UpdateABMarks(bool force)
 		if (loop.begin.measure > 0 || loopStart.measure > 0)
 		{
 			TimeUnits timepos = BeatTimepos(score,
-				loop.begin.measure > 0 ? loop.begin.measure - 1 : loopStart.measure - 1,
+				ScoreMeasure(loop.begin.measure > 0 ? loop.begin.measure - 1 : loopStart.measure - 1),
 				loop.begin.measure > 0 ? loop.begin.beat - 1 : loopStart.beat - 1);
 			loopStartMark = interactor->add_fragment_mark_at_note_rest(m_scoreId, timepos);
 			loopStartMark->color(Color(15, 90, 235, 128)); // light orange
@@ -1273,7 +1415,7 @@ void LomseScoreComponent::UpdateABMarks(bool force)
 
 		if (loop.end.measure > 0)
 		{
-			TimeUnits timepos = BeatTimepos(score, loop.end.measure - 1, loop.end.beat - 1);
+			TimeUnits timepos = BeatTimepos(score, ScoreMeasure(loop.end.measure - 1), loop.end.beat - 1);
 			timepos -= 1;
 			loopEndMark = interactor->add_fragment_mark_at_note_rest(m_scoreId, timepos);
 			loopEndMark->color(Color(15, 90, 235, 128)); // light orange
@@ -1459,10 +1601,15 @@ int ScoreComponent::CheckScoreFile(const File& file, const File& resultFile)
 			lomse.open_document(k_view_vertical_book, file.getFullPathName().toStdString()));
 		SpInteractor interactor = presenter->get_interactor(0).lock();
 
-		// the instruments are taken out of the score and put back, as the score window does
+		// the playback order of the measures is worked out, and the instruments are taken
+		// out of the score and put back, as the score window does
 		ImoDocument* imoDoc = presenter->get_document_raw_ptr()->get_im_root();
 		if (ImoScore* score = dynamic_cast<ImoScore*>(imoDoc->get_content_item(0)))
 		{
+			std::vector<int> order, passStarts;
+			int numMeasures = 0;
+			ReadPlaybackOrder(score, order, passStarts, numMeasures);
+
 			std::vector<ImoInstrument*> instruments;
 			while (score->get_num_instruments() > 0)
 			{
@@ -1642,7 +1789,10 @@ static File CheckedScoresFile(const Settings& settings)
 
 String LomseScoreComponent::CheckedScoreKey(const File& file) const
 {
-	return JUCEApplication::getInstance()->getApplicationVersion() + "\t" + file.getFullPathName() + "\t" +
+	// the revision of the check: increased when the check does more (2: the playback order),
+	// so the scores already checked are checked again
+	const int checkRevision = 2;
+	return JUCEApplication::getInstance()->getApplicationVersion() + "/" + String(checkRevision) + "\t" + file.getFullPathName() + "\t" +
 		String(file.getSize()) + "\t" + String(file.getLastModificationTime().toMilliseconds());
 }
 
