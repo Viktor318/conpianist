@@ -6,13 +6,13 @@ which the song is set up (GM/XG reset, voices, volumes, reverb, the XF data); th
 own copy of the song starts without it. So that the measures of the MIDI file, of the score
 and of the piano's song are the same, this measure is removed:
 - the setup data of the measure stays at the beginning of the file, in its order;
-- the time signature and the tempo of the setup measure are dropped (those at the beginning
-  of the second measure take their place);
+- the temporary tempo and time signature of the setup measure are dropped if the song has
+  its own at the beginning of the second measure (they take their place); if it has not,
+  the temporary one stays at the beginning;
 - everything else moves one measure earlier.
 
-A file is changed only if its first measure has no notes and the time signature is set
-again at the end of it (as Yamaha writes these files); other files, and files already
-changed, are left out. The original files are not changed: the new ones are written into
+A file is changed only if its first measure has no notes but has setup data (as Yamaha
+writes these files); other files, and files already changed, are left out. The original files are not changed: the new ones are written into
 the output folder, with the same subfolders and names.
 
 Usage: see USAGE (Python 3, nothing else is needed).
@@ -29,8 +29,9 @@ Használat:
 A bemeneti mappa összes MIDI-fájlját (az almappákkal együtt) megnézi; az átalakított
 fájlok a kimeneti mappába kerülnek, ugyanazokkal az almappákkal és nevekkel. Az eredeti
 fájlok nem változnak. Csak azokat a fájlokat alakítja át, amelyek első ütemében nincs hang,
-és utána új ütemmutató kezdődik (így írja a Yamaha); a többit, és a már átalakítottakat
-kihagyja.
+de vannak beállító adatok (így írja a Yamaha); a többit, és a már átalakítottakat kihagyja.
+Az ideiglenes tempót és ütemmutatót csak akkor veszi ki, ha a dalnak van sajátja a 2. ütem
+elején; ha nincs, az ideiglenes megmarad, és a lista ezt jelzi.
 """
 
 
@@ -158,16 +159,32 @@ def first_measure_length(tracks, division):
 
 
 def convert(source, target):
-    """Returns None if the file was converted, otherwise the reason why it was left out."""
+    """Returns (True, notes) if the file was converted, otherwise (False, the reason)."""
     header, division, chunks = read_midi(source)
     tracks = [content for chunk_id, content in chunks if chunk_id == 'MTrk']
     measure = first_measure_length(tracks, division)
-    if not any(e.is_note() for events in tracks for e in events):
-        return "nincs benne hang"
-    if any(e.is_note() and e.tick < measure for events in tracks for e in events):
-        return "az első ütemben van hang (már átalakított, vagy nem Yamaha-fájl)"
-    if not any(e.is_meta(0x58) and e.tick == measure for events in tracks for e in events):
-        return "az első ütem után nincs új ütemmutató (nem a Yamaha beállító üteme)"
+    events = [e for track in tracks for e in track]
+    if not any(e.is_note() for e in events):
+        return False, "nincs benne hang"
+    if any(e.is_note() and e.tick < measure for e in events):
+        return False, "az első ütemben van hang (már átalakított, vagy nincs beállító üteme)"
+    if not any(e.tick < measure and (e.kind == 'sysex' or e.kind == 'midi') for e in events):
+        return False, "az első ütem üres, nincsenek benne beállító adatok (nem a Yamaha beállító üteme)"
+
+    # The temporary tempo and time signature of the setup measure are dropped only if the song
+    # has its own at the beginning of the second measure; otherwise the last one of the setup
+    # measure stays at the beginning of the file.
+    notes = []
+    dropped = set()
+    for meta_type, name in ((0x51, "tempó"), (0x58, "ütemmutató")):
+        temporary = [e for e in events if e.is_meta(meta_type) and e.tick < measure]
+        if not temporary:
+            continue
+        if any(e.is_meta(meta_type) and e.tick == measure for e in events):
+            dropped.update(id(e) for e in temporary)
+        else:
+            dropped.update(id(e) for e in temporary[:-1])
+            notes.append("a dalnak nincs saját %sja, az ideiglenes megmaradt" % name)
 
     new_chunks = []
     for chunk_id, content in chunks:
@@ -177,9 +194,8 @@ def convert(source, target):
         setup, rest = [], []
         for event in content:
             if event.tick < measure:
-                if event.is_meta(0x51) or event.is_meta(0x58):
-                    continue  # the tempo and the time signature of the setup measure
-                setup.append(Event(0, event.kind, event.status, event.data, event.meta_type))
+                if id(event) not in dropped:
+                    setup.append(Event(0, event.kind, event.status, event.data, event.meta_type))
             else:
                 rest.append(Event(event.tick - measure, event.kind, event.status, event.data, event.meta_type))
         new_chunks.append(('MTrk', setup + rest))
@@ -197,7 +213,7 @@ def convert(source, target):
     if written != read_back or old_notes != new_notes:
         os.remove(target)
         raise ValueError("az ellenőrzés hibát talált, az új fájl nem készült el")
-    return None
+    return True, "; ".join(notes)
 
 
 def midi_files(folder, skip):
@@ -230,17 +246,17 @@ def main():
         relative = os.path.relpath(path, base)
         target = os.path.join(output, relative)
         try:
-            reason = convert(path, target)
+            done, note = convert(path, target)
         except (IndexError, struct.error):
             failed.append((relative, "sérült fájl (váratlanul véget ér)"))
             continue
         except Exception as error:  # a damaged file does not stop the others
             failed.append((relative, str(error)))
             continue
-        (skipped.append((relative, reason)) if reason else converted.append(relative))
+        (converted if done else skipped).append((relative, note))
 
-    for relative in converted:
-        print("ÁTALAKÍTVA:  " + relative)
+    for relative, note in converted:
+        print("ÁTALAKÍTVA:  " + relative + (" (%s)" % note if note else ""))
     for relative, reason in skipped:
         print("KIHAGYVA:    %s (%s)" % (relative, reason))
     for relative, reason in failed:

@@ -10,13 +10,14 @@ mód váltásakor a dal rossz ütemre ugrana).
 
 A szkript ezt az ütemet törli:
 - a beállító adatok megmaradnak a fájl elején, változatlan sorrendben;
-- a beállító ütem ideiglenes tempója és ütemmutatója kimarad, helyükre a 2. ütem elején
-  álló, valódi tempó és ütemmutató kerül;
+- a beállító ütem ideiglenes tempója és ütemmutatója csak akkor marad ki, ha a dalnak van
+  saját tempója, illetve ütemmutatója a 2. ütem elején: ilyenkor a dal sajátja kerül a
+  helyükre. Ha nincs, az ideiglenes megmarad a fájl elején, és a lista ezt jelzi;
 - minden más (hangok, tempóváltások, pedál, akkordjelölések) pontosan egy ütemmel előrébb
   kerül.
 
-Csak azokat a fájlokat alakítja át, amelyek első ütemében nincs hang, és utána új
-ütemmutató kezdődik (így írja a Yamaha). A már átalakított fájlokat, és amelyek nem ilyenek,
+Csak azokat a fájlokat alakítja át, amelyek első ütemében nincs hang, de vannak beállító
+adatok (így írja a Yamaha). A már átalakított fájlokat, és amelyek nem ilyenek,
 kihagyja, és megírja, miért. Az eredeti fájlokat nem változtatja meg: az újakat egy külön
 mappába írja, ugyanazokkal az almappákkal és nevekkel. Átalakítás után visszaolvassa és
 ellenőrzi az új fájlt.
@@ -38,8 +39,9 @@ ellenőrzi az új fájlt.
    ```
 
    Egyetlen fájl is megadható a bemeneti mappa helyett.
-4. A végén a lista mutatja, melyik fájl készült el (ÁTALAKÍTVA), melyik maradt ki és miért
-   (KIHAGYVA), és melyiket nem lehetett beolvasni (HIBA).
+4. A végén a lista mutatja, melyik fájl készült el (ÁTALAKÍTVA; zárójelben, ha az ideiglenes
+   tempó vagy ütemmutató megmaradt), melyik maradt ki és miért (KIHAGYVA), és melyiket nem
+   lehetett beolvasni (HIBA).
 5. Az átalakított fájlokat másold a `Songs` mappában a régiek helyére (előtte készíts
    róluk biztonsági másolatot a `Songs` mappán kívül), és a kottákból is töröld az üres
    első ütemet.
