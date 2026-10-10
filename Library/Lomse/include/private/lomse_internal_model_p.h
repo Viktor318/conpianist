@@ -3883,6 +3883,10 @@ protected:
     //exported
     ImoId m_idNR = k_no_imoid;
 
+    //ConPianist fork: the MusicXML <offset> of the direction: it belongs to this much
+    //later (or earlier, if negative) than where it is written
+    TimeUnits m_timeShift = 0.0;
+
 
     friend class ImFactory;
     ImoDirection() : ImoStaffObj(k_imo_direction) {}
@@ -3900,9 +3904,11 @@ public:
     inline EPlacement get_placement() const { return m_placement; }
     inline int get_display_repeat() { return m_displayRepeat; }
     inline int get_sound_repeat() { return m_soundRepeat; }
+    inline TimeUnits get_time_shift() const { return m_timeShift; }
 
     //setters
     inline void set_width(Tenths space) { m_space = space; }
+    inline void set_time_shift(TimeUnits shift) { m_timeShift = shift; }
     inline void set_placement(EPlacement placement) { m_placement = placement; }
     inline void set_display_repeat(int repeat) { m_displayRepeat = repeat; }
     inline void set_sound_repeat(int repeat) { m_soundRepeat = repeat; }

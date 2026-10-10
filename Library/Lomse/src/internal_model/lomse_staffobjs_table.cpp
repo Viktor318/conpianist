@@ -1318,7 +1318,17 @@ void ColStaffObjsBuilderEngine2x::determine_timepos(ImoStaffObj* pSO)
         time = m_instrTime;
     }
 
-    pSO->set_time(time);
+    //ConPianist fork: a direction with a MusicXML <offset> is placed where it belongs
+    //(not before the start of the measure); the time of the voice does not change
+    TimeUnits shownTime = time;
+    if (pSO->is_direction())
+    {
+        TimeUnits shift = static_cast<ImoDirection*>(pSO)->get_time_shift();
+        if (shift != 0.0)
+            shownTime = max(m_rStartSegmentTime, time + shift);
+    }
+
+    pSO->set_time(shownTime);
     m_instrTime = time + duration;
     m_rMaxSegmentTime = max(m_rMaxSegmentTime, m_instrTime);
 //    cout << ", assigned timepos=" << time << endl;

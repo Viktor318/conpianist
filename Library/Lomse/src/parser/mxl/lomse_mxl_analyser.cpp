@@ -3339,7 +3339,13 @@ public:
         // offset?
         if (get_optional("offset"))
         {
-            //TODO
+            //ConPianist fork: the offset (in divisions) tells where the direction
+            //belongs; MuseScore writes e.g. a wedge that starts or ends in the middle of
+            //a long note after the note, with a negative offset. Without it the wedge
+            //started or ended at the end of the note (often at the barline)
+            long offset = get_child_value_long(0L);
+            if (offset != 0L)
+                pDirection->set_time_shift( m_pAnalyser->duration_to_time_units(offset) );
         }
 
         // %editorial-voice; = (footnote?, level?, voice?)
