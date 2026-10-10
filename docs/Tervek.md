@@ -22,7 +22,7 @@ Ide bármikor beírható egy új ötlet, egy sorban, akár félkészen is. A kö
 
 ## Folyamatban
 
-**4.8 – Dalválasztó:** elkészült, a kódátnézés és a verzióemelés kész (október 10.); a kiadáshoz hátravan a Release build, a ZIP és a GitHub release. Utána az útmutató következik.
+**4.8 – Dalválasztó:** kiadva (október 10., `v4.8`). Következik az útmutató, utána a 4.9.
 
 ### Javítandó hibák
 
