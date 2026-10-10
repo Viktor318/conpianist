@@ -1700,42 +1700,17 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 			if (m_pendingMeasure > 1 || m_pendingSnapshot.valid)
 			{
 				// the song was loaded again after switching the player: go back to the
-				// measure where it was and restore the settings; a short delay lets the
-				// piano finish loading
+				// measure where it was and restore the settings, when the piano has
+				// finished loading (see RestorePendingSongState)
 				const int measure = m_pendingMeasure;
 				std::weak_ptr<bool> alive = m_alive;
 				MessageManager::callAsync([this, alive, measure]()
 					{
 						Timer::callAfterDelay(500, [this, alive, measure]()
 							{
-								double speed = 0.0;
-								if (alive.lock() && !m_localPlayback && m_songLoaded)
-								{
-									if (m_pendingSnapshot.valid)
-									{
-										ApplySnapshot(m_pendingSnapshot);
-										speed = m_pendingSnapshot.speedFactor;
-									}
-									if (measure > 1)
-									{
-										SetPosition({measure, 1});
-									}
-								}
 								if (alive.lock())
 								{
-									m_pendingSnapshot.valid = false;
-								}
-								if (alive.lock() && speed > 0 && std::abs(speed - 1.0) > 0.001)
-								{
-									// from the own player: the same speed, from the piano's own
-									// tempo at the measure (reported after the jump)
-									Timer::callAfterDelay(500, [this, alive, speed]()
-										{
-											if (alive.lock() && !m_localPlayback && m_songLoaded)
-											{
-												SetTempo(jlimit((int)MinTempo, (int)MaxTempo, roundToInt(m_tempo * speed)));
-											}
-										});
+									RestorePendingSongState(measure, 0);
 								}
 							});
 					});
@@ -3842,6 +3817,57 @@ void PianoController::NotifyChanged(Aspect aspect, Channel channel)
 void PianoController::NotifyNoteMessage(const MidiMessage& message)
 {
 	m_listeners.call([&message](Listener& listener) { listener.PianoNoteMessage(message); });
+}
+
+// After the piano's player loaded the song again (switching the player): the measure where
+// it was and the settings. The piano reports the name of the song before it has finished
+// loading it; until then it reports the length as 0 and the song counts as not loaded, and
+// a jump would be lost. So the length is waited for, at most about 5 seconds.
+void PianoController::RestorePendingSongState(int measure, int attempt)
+{
+	std::weak_ptr<bool> alive = m_alive;
+	if (!m_localPlayback && !m_songLoaded && attempt < 18)
+	{
+		Timer::callAfterDelay(250, [this, alive, measure, attempt]()
+			{
+				if (alive.lock())
+				{
+					RestorePendingSongState(measure, attempt + 1);
+				}
+			});
+		return;
+	}
+
+	double speed = 0.0;
+	if (!m_localPlayback && m_songLoaded)
+	{
+		if (m_pendingSnapshot.valid)
+		{
+			ApplySnapshot(m_pendingSnapshot);
+			speed = m_pendingSnapshot.speedFactor;
+		}
+		if (measure > 1)
+		{
+			SetPosition({measure, 1});
+		}
+	}
+	else if (!m_localPlayback)
+	{
+		Logger::writeToLog("The piano has not finished loading the song: its measure and settings are not restored");
+	}
+	m_pendingSnapshot.valid = false;
+	if (speed > 0 && std::abs(speed - 1.0) > 0.001)
+	{
+		// from the own player: the same speed, from the piano's own tempo at the measure
+		// (reported after the jump)
+		Timer::callAfterDelay(500, [this, alive, speed]()
+			{
+				if (alive.lock() && !m_localPlayback && m_songLoaded)
+				{
+					SetTempo(jlimit((int)MinTempo, (int)MaxTempo, roundToInt(m_tempo * speed)));
+				}
+			});
+	}
 }
 
 // The listeners are called with the lock of the listener list held, and some of them ask

@@ -799,6 +799,8 @@ private:
 	void NotifyChangedLater(Aspect aspect, Channel channel = chNone);
 	void NotifyNoteMessageLater(const MidiMessage& message);
 	void ResyncStateFromPiano();
+	// the measure and the settings after the piano's player loaded the song again
+	void RestorePendingSongState(int measure, int attempt);
 	String DecodeSongName(String rawValue);
 	bool LoadLocalSong(const File& file);
 	bool LoadSongInternal(const File& file);
