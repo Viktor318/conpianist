@@ -22,7 +22,7 @@ Ide bármikor beírható egy új ötlet, egy sorban, akár félkészen is. A kö
 
 ## Folyamatban
 
-**4.8 – Dalválasztó:** elkészült, tesztelés alatt.
+**4.8 – Dalválasztó:** elkészült, tesztelés alatt. Hátralévő sorrend: kódátnézés, verzióemelés, majd az útmutató.
 
 ### Javítandó hibák
 
@@ -44,7 +44,6 @@ Ide bármikor beírható egy új ötlet, egy sorban, akár félkészen is. A kö
 | Alapértelmezett mappa | **Kész, tesztelésre vár** (október 9.): a fájlműveletek alapértelmezett mappája az adatmappa `Songs` mappája; ide tér vissza a program, ha a megjegyzett mappa megszűnt. | – | |
 | Mappa fájlműveletenként | **Kész, tesztelésre vár** (október 9.): két csoport, mindkettő a saját utoljára használt mappáját jegyzi meg (újraindítás után is): dalok és kották megnyitása (alapból a `Songs` mappa); zongoraállapot mentése és betöltése (alapból az adatmappa, `%APPDATA%\ConPianist`). A felvételek mindig a Recorded Songs mappába kerülnek. | – | |
 | Metronóm a stílus ütemével | **Elvetve / kész más formában** (október 9.): a zongora stílusváltáskor maga állítja a metronóm tempóját és ütemmutatóját a stílus saját (zárójeles) ütemére, és így is szól; a program nem küld ütemet. A Kíséret ablak és az Ütem szűrő újra a zongora szerinti ütemmutatót mutatja (2/4, 3/4, 4/4, 5/4, 6/4). Felvétel közben az ütemmutató-váltás bekerül a fájlba, a legközelebbi ütemvonalra igazítva, csak ha változott. | – | Kipróbálva (október 9.): a Smart Pianistból betöltött stílusoknál is minden érték automatikusan beállt. |
-| Rövid útmutató | 10–15 oldalas magyar PDF útmutató képekkel, Markdown forrásból. | Kö | A képernyőképeket Viktor készíti lista alapján. |
 | Lomse frissítése | **Kész** (a következő verzióban): a kottamegjelenítő könyvtár 0.27.0-ról 0.30.0-ra frissült. Megjelennek a pedáljelek, a szövegek a kotta saját betűméretével; a tömörített MusicXML és az ismétlőjel-követés külön tétel. | – | A 0.30.0 utáni, kiadatlan javítások is átvéve. A Lomse forrásában öt saját javítás van (lásd CHANGELOG). Ismert szépséghibák Dorico-kottáknál: torlódó, le nem zárt pedálvonalak; többszörös kapcsos zárójel; egymásra csúszó tempófeliratok (javításuk a 4.9-ben). |
 | Ugrás a kottában | **Kész:** dupla kattintásra a lejátszás a kattintott ütem elejére ugrik. | – | Ismétlésnél lásd az Ismétlőjelek kezelése tételt. |
 | Ismétlőjelek kezelése | **Kész, tesztelésre vár** (október 10., az 5.0-ból előrehozva): a kotta jelzővonala és az A–B jelek a lejátszás sorrendjét követik (ismétlőjel, volta, D.C., D.S., Fine, Coda); dupla kattintásra ismétlődő ütemnél az aktuális körben, különben a legközelebbi előfordulásra ugrik. | – | Ha a dal hossza szerint az ismétlések nincsenek kibontva, marad a közvetlen megfeleltetés. Az Air On the G String (ismétlés és volta) kipróbálva; a D.C.-s, D.S.-es vagy Codás kotta tesztje a 4.9-be került. |
@@ -53,6 +52,7 @@ Ide bármikor beírható egy új ötlet, egy sorban, akár félkészen is. A kö
 | Ujjrend megjelenítése | Az ujjrend megjelenítése a kottában, MusicXML-ből. | K–Kö | **Elkészült, tesztelésre vár** (október 9.): a Lomse megjeleníti, csak a program mellé a régi Bravura betűkészlet került (abban nincsenek ujjrend-jelek). A Projucer-projekt utómásolási lépése javítva. Ujjrendes Dorico-kottával is ki kell próbálni. |
 | Védelem hibás kottafájl ellen | **Elkészült, tesztelésre vár** (október 9., az 5.0-ból előrehozva): egy hibás MusicXML nem fagyasztja le és nem omlasztja össze a programot. Betöltés előtt XML-ellenőrzés, utána a kotta próbamegjelenítése egy ablak nélküli programpéldányban (`--check-score`); ha az nem végez (Release 5 mp, Debug 15 mp) vagy összeomlik, a kotta nem töltődik be, ablak jelzi, és az ok a naplóba kerül. A hibátlan kották a `CheckedScores.txt`-be kerülnek (útvonal, méret, dátum, programverzió), így csak egyszer ellenőrződnek. | – | Közben kiderült, hogy a nagy kották lassú betöltését (Sound of Silence, kb. 20 mp) a kotta szövegének előfeldolgozása okozta (a szólamszám-javítás és az akkordjelek átalakítása a szöveg hosszával négyzetesen lassult); javítva, a teljes ellenőrzés most kb. 0,3 mp. |
 | Kódátnézés | Az első teljes kódátnézés az Alapelvekben leírt módon, a 4.8 kiadása előtt (a 4.7 óta változott fájlok és a kényes közös részek). | Kö | Az október 8-i holtponthiba (a saját lejátszó és az ablakok értesítése) indította. A szálkezelés október 8-án már át lett nézve (a valódi hibák javítva); hátravan az alacsony kockázatúak: a PianoController destruktora állítsa le a saját lejátszót; az ablakok jelentkezzenek le az értesítésekről (RemoveListener); a saját lejátszó a konstruktorban jöjjön létre; a GuiHelper::CallAsync SafePointer-je a fő szálon készüljön; az RTP-kapcsolat a bejövő üzeneteket a saját zárja elengedése után adja tovább; a LiveRecorder mentése ne tartsa a zárat a fájlírás alatt. |
+| Útmutató | Egyetlen tömör magyar PDF útmutató (kb. 24 oldal, képernyőképekkel, kattintható tartalomjegyzékkel), amely minden funkcióra kitér, túlzott részletesség nélkül; Markdown forrásból (`docs` mappa). Fejezetek: bevezetés és első indítás; főablak; Dalválasztó és saját dalok; kotta; hangszínek és Piano Room; Keverő és élő játék; Hangerőegyensúly; Kíséret; Kíséret keverő; regisztrációs memória; Felvétel; mentés, beállítások, alaphelyzet; gyorsbillentyűk és hibaelhárítás. | Kö | Döntés (október 10.): külön rövid útmutató és részletes kézikönyv helyett csak ez az egy készül, verzióemeléskor a változott fejezetek frissülnek. A képernyőképeket Viktor készíti lista alapján. |
 
 ### 4.9 – Akkordmenet-lejátszó
 
@@ -87,7 +87,6 @@ Egyetlen funkció, amely a korábban külön tervezett „betöltött MIDI-fájl
 | Tétel | Leírás | Munka | Megjegyzés |
 |---|---|---|---|
 | Kotta transzponálása | A kotta a dallal együtt transzponálódik (csak megjelenítés). | Kö | |
-| Részletes kézikönyv | Teljes magyar kézikönyv az 5.0-hoz. | N | |
 
 ## Később (elfogadott, nincs ütemezve)
 
