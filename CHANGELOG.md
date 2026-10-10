@@ -2,6 +2,11 @@
 
 Ez a fájl a ConPianist változásait dokumentálja. Az 1.0–3.0 verziók az eredeti [hugbug/conpianist](https://github.com/hugbug/conpianist) projekt kiadásai (lásd az [eredeti release-eket](https://github.com/hugbug/conpianist/releases)); az ez utáni bejegyzések ennek a fork-nak ([Viktor318/conpianist](https://github.com/Viktor318/conpianist)) a saját, magáncélú fejlesztései.
 
+## Következő verzió (fejlesztés alatt)
+
+### Javítva
+- **A kotta eleji tempójelzés nem ütközik az ujjrenddel.** A MuseScore a tempójelzést (például „Allegretto (♩ = 112)”) két részben írja a kottába: a szöveget és a metronómjelzést. A kottamegjelenítő a metronómjelzés megadott helyét nem olvasta be, ezért az első hang fölé tette, az ujjrend közé. Most a kotta elején a metronómjelzés oda kerül, ahová a kotta kéri: a szöveg alá, a kulcs fölé. A darab közbeni tempóváltások a hangjuk fölött maradnak, ahogy eddig. A Lomse hatodik saját javítása (`lomse_mxl_analyser.cpp`, `lomse_metronome_engraver.cpp`).
+
 ## 4.8 (fork) – 2026. október 10.
 
 ### Új

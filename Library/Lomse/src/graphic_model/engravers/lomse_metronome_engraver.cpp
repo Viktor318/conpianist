@@ -30,6 +30,7 @@ MetronomeMarkEngraver::MetronomeMarkEngraver(const EngraverContext& ctx)
     , m_pMainShape(nullptr)
     , m_fontSize(0.0)
     , m_pCreatorImo(nullptr)
+    , m_xShift(0.0f)
 {
 }
 
@@ -42,6 +43,10 @@ GmoShape* MetronomeMarkEngraver::create_shape(ImoMetronomeMark* pImo, UPoint uPo
     m_pCreatorImo = pImo;
     m_uPos = uPos;
     m_uPos.y -= m_pMeter->tenths_to_logical(20.0f, m_iInstr, m_iStaff);
+    //ConPianist fork: the horizontal position given in the score (see the analyser)
+    m_xShift = m_pMeter->tenths_to_logical(pImo->get_user_ref_point_x())
+               + m_pMeter->tenths_to_logical(pImo->get_user_location_x());
+    m_uPos.x += m_xShift;
     m_color = color;
 
     create_main_container_shape();
@@ -131,7 +136,8 @@ void MetronomeMarkEngraver::create_text_shape(const string& text)
     ImoStyle* pStyle = m_pMeter->get_style_info("Metronome marks");
     TextEngraver engr(m_libraryScope, m_pMeter, text, "", pStyle,
                       TextEngraver::k_class_metronome_text);
-    GmoShape* pShape = engr.create_shape(m_pCreatorImo, 0, m_uPos.x, y);
+    //(the text engraver adds the horizontal position of the creator again)
+    GmoShape* pShape = engr.create_shape(m_pCreatorImo, 0, m_uPos.x - m_xShift, y);
 	m_pMainShape->add(pShape);
     m_uPos.x += pShape->get_width();
 }

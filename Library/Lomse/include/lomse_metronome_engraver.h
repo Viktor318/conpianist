@@ -33,6 +33,7 @@ protected:
     double m_fontSize;
     ImoMetronomeMark* m_pCreatorImo;
     Color m_color;
+    LUnits m_xShift;    //ConPianist fork: horizontal position given in the score
 
 public:
     MetronomeMarkEngraver(const EngraverContext& ctx);
