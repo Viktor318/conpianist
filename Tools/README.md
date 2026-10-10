@@ -49,9 +49,16 @@ ellenőrzi az új fájlt.
    python elso_utem_torlese.py "C:\MIDI\eredeti\dal.mid"                (egyetlen fájl)
    ```
 
-4. A végén a lista mutatja, melyik fájl készült el (ÁTALAKÍTVA; zárójelben, ha az ideiglenes
-   tempó vagy ütemmutató megmaradt), melyik maradt ki és miért (KIHAGYVA), és melyiket nem
-   lehetett beolvasni (HIBA).
+4. A szkript minden fájlról egy sort ír:
+   - `MIDI-fájl sikeresen átalakítva, üres kezdő ütem törölve.` (ha az ideiglenes tempó vagy
+     ütemmutató megmaradt, egy megjegyzés is áll utána);
+   - `Nem találtam üres ütemet a fájl elején, MIDI-fájl kihagyva.` (ilyen a már átalakított
+     fájl is);
+   - `A konvertálás nem sikerült, hibás a MIDI-fájl (...)`, zárójelben az okkal.
+
+   Ritkán még ez a kettő jöhet elő, ezeket is kihagyja: a fájlban nincs hang; vagy az első
+   ütem üres, de nincsenek benne beállító adatok (nem a Yamaha beállító üteme, például egy
+   szándékos üres ütem). A végén összesítés áll.
 5. Az átalakított fájlokat másold a `Songs` mappában a régiek helyére (előtte készíts
    róluk biztonsági másolatot a `Songs` mappán kívül), és a kottákból is töröld az üres
    első ütemet. Ha a szkriptet közvetlenül a `Songs` valamelyik mappájában futtatod, a

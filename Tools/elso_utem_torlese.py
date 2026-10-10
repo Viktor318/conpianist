@@ -105,7 +105,7 @@ def parse_track(data):
                 running = b
                 pos += 1
             if running is None:
-                raise ValueError("sérült sáv (adat státuszbájt nélkül)")
+                raise ValueError("sérült sáv, adat státuszbájt nélkül")
             n = 1 if (running & 0xF0) in (0xC0, 0xD0) else 2
             events.append(Event(tick, 'midi', running, data[pos:pos + n]))
             pos += n
@@ -121,7 +121,7 @@ def read_midi(path):
     header = data[8:8 + header_length]
     fmt, _, division = struct.unpack('>HHH', header[:6])
     if fmt not in (0, 1) or division & 0x8000:
-        raise ValueError("nem támogatott MIDI-fájl (%d. formátum)" % fmt)
+        raise ValueError("nem támogatott, %d. formátumú MIDI-fájl" % fmt)
     chunks = []  # ('MTrk', events) or (chunk id, bytes), in the order of the file
     pos = 8 + header_length
     while pos + 8 <= len(data):
@@ -129,7 +129,7 @@ def read_midi(path):
         length = struct.unpack('>I', data[pos + 4:pos + 8])[0]
         body = data[pos + 8:pos + 8 + length]
         if len(body) < length:
-            raise ValueError("sérült fájl (váratlanul véget ér)")
+            raise ValueError("a fájl váratlanul véget ér")
         chunks.append(('MTrk', parse_track(body)) if chunk_id == b'MTrk' else (chunk_id, body))
         pos += 8 + length
     return header, division, chunks
@@ -171,11 +171,12 @@ def convert(source, target):
     measure = first_measure_length(tracks, division)
     events = [e for track in tracks for e in track]
     if not any(e.is_note() for e in events):
-        return False, "nincs benne hang"
+        return False, "A fájlban nincs hang, MIDI-fájl kihagyva."
     if any(e.is_note() and e.tick < measure for e in events):
-        return False, "az első ütemben van hang (már átalakított, vagy nincs beállító üteme)"
+        return False, "Nem találtam üres ütemet a fájl elején, MIDI-fájl kihagyva."
     if not any(e.tick < measure and (e.kind == 'sysex' or e.kind == 'midi') for e in events):
-        return False, "az első ütem üres, nincsenek benne beállító adatok (nem a Yamaha beállító üteme)"
+        return False, ("Az első ütem üres, de nincsenek benne beállító adatok (nem a Yamaha beállító "
+                       "üteme), MIDI-fájl kihagyva.")
 
     # The temporary tempo and time signature of the setup measure are dropped only if the song
     # has its own at the beginning of the second measure; otherwise the last one of the setup
@@ -218,7 +219,7 @@ def convert(source, target):
     new_notes = sorted((e.tick, e.encode()) for i, c in check if i == 'MTrk' for e in c if e.is_note())
     if written != read_back or old_notes != new_notes:
         os.remove(target)
-        raise ValueError("az ellenőrzés hibát talált, az új fájl nem készült el")
+        raise ValueError("az átalakított fájl ellenőrzése hibát talált, az új fájl nem készült el")
     return True, "; ".join(notes)
 
 
@@ -255,28 +256,32 @@ def main():
         print("Nem található: " + source)
         return 2
 
-    converted, skipped, failed = [], [], []
+    # every file is reported as it is done, in the order of the folder
+    converted, skipped, failed = 0, 0, 0
     for path in files:
         relative = os.path.relpath(path, base)
         target = os.path.join(output, relative)
         try:
             done, note = convert(path, target)
         except (IndexError, struct.error):
-            failed.append((relative, "sérült fájl (váratlanul véget ér)"))
-            continue
+            done, note = None, "a fájl váratlanul véget ér"
         except Exception as error:  # a damaged file does not stop the others
-            failed.append((relative, str(error)))
-            continue
-        (converted if done else skipped).append((relative, note))
+            done, note = None, str(error)
+        if done:
+            converted += 1
+            message = "MIDI-fájl sikeresen átalakítva, üres kezdő ütem törölve."
+            if note:
+                message += " Megjegyzés: " + note + "."
+        elif done is None:
+            failed += 1
+            message = "A konvertálás nem sikerült, hibás a MIDI-fájl (%s)." % note
+        else:
+            skipped += 1
+            message = note
+        print("%s: %s" % (relative, message))
 
-    for relative, note in converted:
-        print("ÁTALAKÍTVA:  " + relative + (" (%s)" % note if note else ""))
-    for relative, reason in skipped:
-        print("KIHAGYVA:    %s (%s)" % (relative, reason))
-    for relative, reason in failed:
-        print("HIBA:        %s (%s)" % (relative, reason))
     print("\nÖsszesen %d fájl: %d átalakítva, %d kihagyva, %d hibás. Az új fájlok helye: %s"
-          % (len(files), len(converted), len(skipped), len(failed), output))
+          % (len(files), converted, skipped, failed, output))
     return 1 if failed else 0
 
 
