@@ -85,7 +85,6 @@ Egyetlen funkció, amely a korábban külön tervezett „betöltött MIDI-fájl
 
 | Tétel | Leírás | Munka | Megjegyzés |
 |---|---|---|---|
-| PDF megjelenítő | PDF-kotta megjelenítése; a dal betöltésekor a program előbb MusicXML-t, utána PDF-et keres, menüből választható. | N | Új könyvtár kell hozzá; a pozíciókövetés PDF-nél nem lehetséges. |
 | Kotta transzponálása | A kotta a dallal együtt transzponálódik (csak megjelenítés). | Kö | |
 | Részletes kézikönyv | Teljes magyar kézikönyv az 5.0-hoz. | N | |
 
@@ -116,10 +115,10 @@ Egyetlen funkció, amely a korábban külön tervezett „betöltött MIDI-fájl
 - **A zongora pop dalainak kiolvasása MIDI-fájlként:** a zongora a saját lejátszójának hangjait nem küldi ki USB-n, sem a Smart Pianistből, sem a ConPianistből indított lejátszásnál (kipróbálva 2026. október 6-án). Csak a dal adatai érkeznek meg: útvonal, hossz, pozíció, a csatornák hangszíne és keverőállása.
 - **Külső stílusfájl (`.sty`) betöltése a zongorába:** a zongora minden nem beépített stílusútvonalat elutasít (kipróbálva).
 - **Oldalanként befotózott kották** a népszerű beépített dalokhoz.
+- **PDF-kotta megjelenítése a programban** (október 10.): a PDF-ben nincs ütem-információ, így a kotta pontos követése csak sok munkával (kottasorok és ütemvonalak felismerése, kézi javítás) lenne megoldható. Helyette a PDF-kották kottafelismerővel (például Audiveris, a MuseScore PDF-importja) MusicXML-lé alakítva, MuseScore-ban javítva kerülnek a programba.
 - **Kottaszerkesztés és kotta generálása MIDI-ből a programban:** a kotta a felvett MIDI-fájlból Doricóval készül. Az elkészült kottákat (MusicXML) a programban Doricóból exportálva kell tesztelni.
 
 ## Nyitott kérdések
 
 1. **Mappa fájlműveletenként:** mely műveletek tartoznak össze? Javaslat: dal megnyitása; `.conmem` megnyitása és mentése (egy pár); felvétel mentése; MIDI mentése szerkesztés után.
-2. **PDF-kotta:** elég a megjelenítés lapozással, vagy kell hozzá automatikus lapozás a lejátszás közben?
-3. **Akkordmenet-lejátszó:** a szerkesztőablak pontos elrendezése (vázlat alapján), és hogy egy dal önálló fájl legyen-e, vagy a regisztrációs memóriához kapcsolódjon.
+2. **Akkordmenet-lejátszó:** a szerkesztőablak pontos elrendezése (vázlat alapján), és hogy egy dal önálló fájl legyen-e, vagy a regisztrációs memóriához kapcsolódjon.
