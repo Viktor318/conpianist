@@ -599,9 +599,12 @@ void PlaybackComponent::buttonClicked (Button* buttonThatWasClicked)
             longPressDone = false; // held: already jumped to the end
             return;
         }
-        pianoController.SetPosition({pianoController.GetPosition().measure +
-        	(ModifierKeys::getCurrentModifiers().isShiftDown() ? 0 : 1),
-        	(ModifierKeys::getCurrentModifiers().isShiftDown() ? pianoController.GetPosition().beat + 1 : 1)});
+        const PianoController::Position position = pianoController.GetPosition();
+        const bool beat = ModifierKeys::getCurrentModifiers().isShiftDown();
+        // not past the last measure (see lastMeasure)
+        const int measure = beat ? position.measure :
+        	std::min(position.measure + 1, std::max(lastMeasure(), position.measure));
+        pianoController.SetPosition({measure, beat ? position.beat + 1 : 1});
         //[/UserButtonCode_forwardButton]
     }
     else if (buttonThatWasClicked == chooseSongButton.get())
@@ -975,8 +978,19 @@ void PlaybackComponent::jumpToSongEdge(bool end)
 	{
 		return;
 	}
-	const int measure = end ? std::max(1, pianoController.GetLength().measure) : 1;
+	const int measure = end ? lastMeasure() : 1;
 	pianoController.SetPosition({measure, 1});
+}
+
+// The last measure of the song that can be played. The length of the song is its end
+// position: if that is the first beat of a measure (e.g. the song ends with an incomplete
+// measure after a pickup, and the end of the file lies just after the bar line), that
+// measure has nothing in it; jumping there put the piano at the very end, so the playback
+// stopped at once and went back to the beginning.
+int PlaybackComponent::lastMeasure()
+{
+	const PianoController::Position length = pianoController.GetLength();
+	return std::max(1, length.beat <= 1 ? length.measure - 1 : length.measure);
 }
 
 void PlaybackComponent::mouseUp(const MouseEvent& event)

@@ -65,6 +65,7 @@ public:
 	void mouseDown(const MouseEvent& event) override;
 	void mouseUp(const MouseEvent& event) override;
 	void jumpToSongEdge(bool end);
+	int lastMeasure();
 	void mouseDoubleClick (const MouseEvent& event) override;
 	void loopButtonClicked();
 	void showStreamLightsMenu();

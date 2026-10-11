@@ -1356,7 +1356,9 @@ int LomseScoreComponent::ScoreMeasure(int playedMeasure)
 {
 	if (playedMeasure < 0 || !FollowsPlaybackOrder())
 	{
-		return playedMeasure;
+		// the song may go on after the score (e.g. an empty measure at its end): the
+		// position line stays in the last measure of the score
+		return m_scoreMeasures > 0 ? std::min(playedMeasure, m_scoreMeasures - 1) : playedMeasure;
 	}
 	return m_playOrder[std::min(playedMeasure, (int)m_playOrder.size() - 1)];
 }
