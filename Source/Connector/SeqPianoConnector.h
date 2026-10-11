@@ -42,6 +42,8 @@ public:
 	Time GetStallTime() { return m_stallTime; }
 	void run() override;
 	int QueueSize();
+	// Nothing is waiting to be sent or for the confirmation of the piano.
+	bool IsIdle();
 	void ClearQueue();
 	// With a general MIDI device (not a Yamaha piano) no piano messages are sent.
 	void SetPianoMessagesEnabled(bool enabled);

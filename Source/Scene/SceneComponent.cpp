@@ -302,6 +302,17 @@ SceneComponent::~SceneComponent()
 {
     //[Destructor_pre]. You can add your own custom destruction code here..
     pianoController.RemoveListener(this); // no more notifications while it is destroyed
+    // A song played by the piano (network playback) would go on after the program is
+    // closed: it is stopped, and the program waits (at most 2 s) until the piano confirms
+    // it, because the connections are closed below.
+    if (pianoController.StopPianoSongOnExit())
+    {
+        const uint32 start = Time::getMillisecondCounter();
+        while (!pianoConnector.IsIdle() && Time::getMillisecondCounter() - start < 2000)
+        {
+            Thread::sleep(10);
+        }
+    }
     recorderWindow = nullptr;
     accompanimentWindow = nullptr;
     styleMixerWindow = nullptr;

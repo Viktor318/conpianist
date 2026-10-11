@@ -223,6 +223,9 @@ public:
 	void SetLocalPlayback(bool enabled);
 	bool IsLocalPlayback() const { return m_localPlayback; }
 	void ShutdownLocalPlayer();
+	// On exit: stops the song if the piano plays it (network playback), so it does not go on
+	// after the program is closed. Returns true if the stop message was sent.
+	bool StopPianoSongOnExit();
 	// Playback source:
 	// - psPiano: the piano's own player (the song is uploaded over the network,
 	//   Stream Lights and Guide work),

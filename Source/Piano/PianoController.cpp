@@ -3619,6 +3619,16 @@ void PianoController::ShutdownLocalPlayer()
 	m_localPlayback = false;
 }
 
+bool PianoController::StopPianoSongOnExit()
+{
+	if (m_localPlayback || !m_connected || !m_playing)
+	{
+		return false;
+	}
+	Stop();
+	return true;
+}
+
 bool PianoController::LoadLocalSong(const File& file)
 {
 	ClearSentSongVoices(); // the new song sets its own voices

@@ -201,6 +201,12 @@ int SeqPianoConnector::QueueSize()
 	return (int)m_queue.size();
 }
 
+bool SeqPianoConnector::IsIdle()
+{
+	std::lock_guard<std::mutex> guard(m_mutex);
+	return m_queue.empty() && !m_waitConfirmation;
+}
+
 void SeqPianoConnector::ClearQueue()
 {
 	std::lock_guard<std::mutex> guard(m_mutex);
