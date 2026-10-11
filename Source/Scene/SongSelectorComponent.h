@@ -78,9 +78,11 @@ private:
 		File score;                 // the score next to it (if there is one)
 		String title;
 		String composer;
+		String folder;              // its folder in the tree ("Score/50 Popular/Pop" etc.)
 		bool available = true;      // can be loaded with the current playback source
 	};
 
+	void ScanSongs();
 	void UpdateEntries();
 	void UpdateInfo();
 	void UpdateButtons();
@@ -108,6 +110,10 @@ private:
 	TextButton closeButton;
 
 	String currentFolder;
+	// every song with its files, read once when the window is opened (see Refresh); the
+	// list shows the ones in the chosen folder or matching the search
+	std::vector<Entry> allEntries;
+	bool scanned = false;
 	std::vector<Entry> entries;
 	String message; // shown in the info line instead of the hint until the selection changes
 	// a song loaded with a double click is played when the player reports it loaded

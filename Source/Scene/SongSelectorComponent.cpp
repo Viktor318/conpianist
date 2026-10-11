@@ -308,6 +308,7 @@ void SongSelectorComponent::StartPendingPlayback()
 
 void SongSelectorComponent::Refresh()
 {
+	scanned = false; // files may have been added to the folders meanwhile
 	UpdateEntries();
 }
 
@@ -373,46 +374,29 @@ File SongSelectorComponent::FindScore(const File& midiFile)
 	return {};
 }
 
-void SongSelectorComponent::UpdateEntries()
+// Reads the songs of the folders: the piano's own songs with their MIDI files and scores,
+// and the MIDI files of the other folders (with their subfolders). The folders are read
+// only here, not each time the list changes (e.g. at each key typed in the search).
+void SongSelectorComponent::ScanSongs()
 {
-	// the selected song stays selected if it is still in the list
-	const int selected = songTable.getSelectedRow();
-	const String selectedTitle = selected >= 0 && selected < (int)entries.size() ? entries[selected].title : String();
+	allEntries.clear();
 
-	entries.clear();
-	const String search = searchEditor.getText().trim();
-	const bool searching = search.isNotEmpty();
-	const bool pianoPlayback = pianoController.GetPlaybackSource() == PianoController::psPiano;
-
-	auto inFolder = [&](const String& folder)
-		{
-			return searching || (currentFolder.isNotEmpty() &&
-				(folder == currentFolder || folder.startsWith(currentFolder + "/")));
-		};
-
-	// the piano's own songs
 	for (const Song& song : Presets::Songs())
 	{
-		if (!inFolder(song.folder) ||
-			(searching && !song.title.containsIgnoreCase(search) && !song.composer.containsIgnoreCase(search)))
-		{
-			continue;
-		}
 		Entry entry;
 		entry.song = &song;
 		entry.title = song.title;
 		entry.composer = song.composer;
+		entry.folder = song.folder;
 		entry.file = settings.GetSongMidi(song);
 		entry.score = settings.GetSongScore(song);
-		entry.available = pianoPlayback || entry.file.existsAsFile();
-		entries.push_back(entry);
+		allEntries.push_back(entry);
 	}
 
-	// the MIDI files of the other folders (with their subfolders)
 	const File songsDirectory = settings.GetSongsDirectory();
 	for (const String& folder : Presets::SongFolders())
 	{
-		if (IsPresetFolder(folder) || !inFolder(folder))
+		if (IsPresetFolder(folder))
 		{
 			continue;
 		}
@@ -423,17 +407,48 @@ void SongSelectorComponent::UpdateEntries()
 			});
 		for (const File& file : files)
 		{
-			const String title = file.getFileNameWithoutExtension();
-			if (searching && !title.containsIgnoreCase(search))
-			{
-				continue;
-			}
 			Entry entry;
 			entry.file = file;
-			entry.title = title;
+			entry.title = file.getFileNameWithoutExtension();
+			entry.folder = folder;
 			entry.score = FindScore(file);
-			entries.push_back(entry);
+			allEntries.push_back(entry);
 		}
+	}
+	scanned = true;
+}
+
+void SongSelectorComponent::UpdateEntries()
+{
+	if (!scanned)
+	{
+		ScanSongs();
+	}
+
+	// the selected song stays selected if it is still in the list (the same song of the
+	// piano or the same file: two songs may have the same title)
+	const int selected = songTable.getSelectedRow();
+	const bool hadSelection = selected >= 0 && selected < (int)entries.size();
+	const Song* selectedSong = hadSelection ? entries[selected].song : nullptr;
+	const File selectedFile = hadSelection ? entries[selected].file : File();
+
+	entries.clear();
+	const String search = searchEditor.getText().trim();
+	const bool searching = search.isNotEmpty();
+	const bool pianoPlayback = pianoController.GetPlaybackSource() == PianoController::psPiano;
+
+	for (const Entry& song : allEntries)
+	{
+		const bool inFolder = searching || (currentFolder.isNotEmpty() &&
+			(song.folder == currentFolder || song.folder.startsWith(currentFolder + "/")));
+		if (!inFolder ||
+			(searching && !song.title.containsIgnoreCase(search) && !song.composer.containsIgnoreCase(search)))
+		{
+			continue;
+		}
+		Entry entry = song;
+		entry.available = song.song == nullptr || pianoPlayback || song.file != File();
+		entries.push_back(entry);
 	}
 
 	if (searching)
@@ -447,11 +462,11 @@ void SongSelectorComponent::UpdateEntries()
 
 	songTable.updateContent();
 	songTable.deselectAllRows();
-	if (selectedTitle.isNotEmpty())
+	if (hadSelection)
 	{
 		for (int i = 0; i < (int)entries.size(); i++)
 		{
-			if (entries[i].title == selectedTitle)
+			if (entries[i].song == selectedSong && (selectedSong != nullptr || entries[i].file == selectedFile))
 			{
 				songTable.selectRow(i);
 				break;
