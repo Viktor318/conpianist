@@ -301,6 +301,7 @@ bool LocalSongPlayer::Load(const File& file)
 	m_tempoFactor = 1.0;
 	m_loopBeginTick = NoValue;
 	m_loopEndTick = NoValue;
+	m_stopTick = NoValue;
 	m_reportedPosition = {1, 1};
 	m_loaded = true;
 
@@ -357,7 +358,7 @@ void LocalSongPlayer::Play()
 			return;
 		}
 
-		if (m_nextEvent >= m_events.size())
+		if (m_nextEvent >= m_events.size() || (m_stopTick != NoValue && m_songSeconds >= m_stopSeconds))
 		{
 			// at the end of the song: start again from the beginning
 			SeekToTick(0);
@@ -516,6 +517,21 @@ void LocalSongPlayer::ResetLoop()
 	m_loopEndTick = NoValue;
 }
 
+void LocalSongPlayer::SetEndPosition(Position position)
+{
+	const ScopedLock lock(m_lock);
+	m_stopTick = NoValue;
+	if (m_loaded && position.measure > 0)
+	{
+		const int tick = PositionToTick(position);
+		if (tick > 0 && tick < m_endTick)
+		{
+			m_stopTick = tick;
+			m_stopSeconds = TickToSeconds(tick);
+		}
+	}
+}
+
 void LocalSongPlayer::ResetMixer()
 {
 	for (int ch = 0; ch < NumChannels; ch++)
@@ -640,7 +656,10 @@ void LocalSongPlayer::hiResTimerCallback()
 			Rebase();
 		}
 
-		while (m_nextEvent < m_events.size() && m_events[m_nextEvent].seconds <= m_songSeconds)
+		// the end of the score (see SetEndPosition): the notes from there on are not played
+		const bool scoreEnd = m_stopTick != NoValue && m_songSeconds >= m_stopSeconds;
+		while (m_nextEvent < m_events.size() && m_events[m_nextEvent].seconds <= m_songSeconds &&
+			!(scoreEnd && m_events[m_nextEvent].tick >= m_stopTick))
 		{
 			const Event& event = m_events[m_nextEvent++];
 			if (!event.setup)
@@ -649,7 +668,7 @@ void LocalSongPlayer::hiResTimerCallback()
 			}
 		}
 
-		if (m_nextEvent >= m_events.size() && m_songSeconds >= m_endSeconds)
+		if (scoreEnd || (m_nextEvent >= m_events.size() && m_songSeconds >= m_endSeconds))
 		{
 			// end of the song: stop and go back to the beginning, like the piano does
 			m_playing = false;

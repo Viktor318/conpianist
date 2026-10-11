@@ -176,6 +176,7 @@ private:
 	bool FollowsPlaybackOrder();
 	int ScoreMeasure(int playedMeasure);
 	int PlayedMeasure(int scoreMeasure);
+	void UpdateScoreEnd();
 	void SetViewport(int y);
 	void LimitViewport();
 	int ScoreBottom();
@@ -1511,6 +1512,40 @@ bool LomseScoreComponent::FollowsPlaybackOrder()
 	return std::abs(length - (int)m_playOrder.size()) < std::abs(length - m_scoreMeasures);
 }
 
+// The end of the score in the song (see PianoController::SetScoreEnd): the last beat of
+// the last played measure (with repeats: of the playback order, e.g. the Fine). The song
+// is played up to there, also if the file goes on after it.
+void LomseScoreComponent::UpdateScoreEnd()
+{
+	ImoScore* score = GetScore();
+	ImMeasuresTable* table = score != nullptr && score->get_num_instruments() > 0 ?
+		score->get_instrument(0)->get_measures_table() : nullptr;
+	const int played = FollowsPlaybackOrder() ? (int)m_playOrder.size() : m_scoreMeasures;
+	const int measure = played > 0 ? ScoreMeasure(played - 1) : -1;
+	ImMeasuresTableEntry* entry = table != nullptr && measure >= 0 ? table->get_measure(measure) : nullptr;
+	if (entry == nullptr || entry->get_bottom_ts_beat_duration() <= 0.0)
+	{
+		m_pianoController.SetScoreEnd({0,0});
+		return;
+	}
+
+	// the length of the measure: up to the next one, or to the end of the score; the last
+	// measure may be incomplete (after a pickup)
+	ImMeasuresTableEntry* next = table->get_measure(measure + 1);
+	ColStaffObjs* staffObjs = score->get_staffobjs_table();
+	ColStaffObjsEntry* last = staffObjs != nullptr ? staffObjs->back() : nullptr;
+	const TimeUnits end = next != nullptr ? next->get_timepos() :
+		last != nullptr ? last->time() + last->imo_object()->get_duration() : entry->get_timepos();
+	TimeUnits length = end - entry->get_timepos();
+	if (measure == 0 && staffObjs != nullptr && staffObjs->is_anacrusis_start())
+	{
+		length += staffObjs->anacrusis_missing_time(); // (see BeatLocation)
+	}
+	// (a beat begun is played to its end)
+	const int beats = std::max(1, (int)std::ceil(length / entry->get_bottom_ts_beat_duration() - 0.01));
+	m_pianoController.SetScoreEnd({played, beats});
+}
+
 // The measure of the score (0..) shown for a measure of the song (0..).
 int LomseScoreComponent::ScoreMeasure(int playedMeasure)
 {
@@ -1803,6 +1838,11 @@ void LomseScoreComponent::PianoStateChanged(PianoController::Aspect aspect, Pian
 	{
 		GuiHelper::CallAsync(this, [=](){UpdateSongState();});
 	}
+	else if (aspect == PianoController::apLength)
+	{
+		// the length of the song decides whether it follows the repeats of the score
+		GuiHelper::CallAsync(this, [=](){UpdateScoreEnd();});
+	}
 	else if (aspect == PianoController::apSongLoaded ||
 		(aspect == PianoController::apSongName && m_firstSync))
 	{
@@ -1962,6 +2002,7 @@ void LomseScoreComponent::UpdateABMarks(bool force)
 void LomseScoreComponent::LoadSong()
 {
 	Cleanup();
+	m_pianoController.SetScoreEnd({0,0}); // until the score of the song is shown
 	m_check.reset(); // the check of the score of the previous song
 	m_checkNumber++;
 	m_checkedScore = File();
@@ -2272,6 +2313,7 @@ void LomseScoreComponent::ShowScore(const File& file, const String& content)
 	{
 		PrepareImage();
 	}
+	UpdateScoreEnd();
 
 	loadButton->setVisible(m_presenter == nullptr);
 	repaint();

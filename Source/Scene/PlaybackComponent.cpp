@@ -811,7 +811,9 @@ void PlaybackComponent::updatePlaybackState(PianoController::Aspect aspect)
 	}
 	else if (aspect == PianoController::apLength)
 	{
-		int songLength = pianoController.GetLength().measure > 0 ? pianoController.GetLength().measure : 001;
+		// with a score the song ends with the last measure of the score
+		int songLength = pianoController.GetScoreEnd().measure > 0 ? lastMeasure() :
+			pianoController.GetLength().measure > 0 ? pianoController.GetLength().measure : 1;
 		lengthLabel->setText(String::formatted("%03d", songLength), NotificationType::dontSendNotification);
 		positionSlider->setRange(1, std::max(songLength, 2), 1);
 	}
@@ -983,15 +985,11 @@ void PlaybackComponent::jumpToSongEdge(bool end)
 	pianoController.SetPosition({measure, 1});
 }
 
-// The last measure of the song that can be played. The length of the song is its end
-// position: if that is the first beat of a measure (e.g. the song ends with an incomplete
-// measure after a pickup, and the end of the file lies just after the bar line), that
-// measure has nothing in it; jumping there put the piano at the very end, so the playback
-// stopped at once and went back to the beginning.
+// The last measure of the song that can be played (see PianoController::GetLastMeasure):
+// with a score, its last measure.
 int PlaybackComponent::lastMeasure()
 {
-	const PianoController::Position length = pianoController.GetLength();
-	return std::max(1, length.beat <= 1 ? length.measure - 1 : length.measure);
+	return pianoController.GetLastMeasure();
 }
 
 void PlaybackComponent::mouseUp(const MouseEvent& event)

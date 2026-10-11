@@ -580,6 +580,42 @@ void PianoController::SetPosition(const Position position)
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::Position, 0, data, 4));
 }
 
+void PianoController::SetScoreEnd(const Position lastBeat)
+{
+	if (lastBeat == GetScoreEnd())
+	{
+		return;
+	}
+	m_scoreEndMeasure = lastBeat.measure;
+	m_scoreEndBeat = lastBeat.beat;
+	if (m_localPlayer)
+	{
+		// the playback stops at the beginning of the next beat
+		m_localPlayer->SetEndPosition(lastBeat.measure > 0 ?
+			LocalSongPlayer::Position{lastBeat.measure, lastBeat.beat + 1} : LocalSongPlayer::Position{0, 0});
+	}
+	if (lastBeat.measure > 0)
+	{
+		Logger::writeToLog("End of the score: measure " + String(lastBeat.measure) + ", beat " + String(lastBeat.beat));
+	}
+	NotifyChanged(apLength);
+}
+
+// The song length is its end position: if that is the first beat of a measure (e.g. the
+// song ends with an incomplete measure after a pickup, and the end of the file lies just
+// after the bar line), that measure has nothing in it; jumping there put the piano at the
+// very end, so the playback stopped at once and went back to the beginning.
+int PianoController::GetLastMeasure()
+{
+	const Position length = GetLength();
+	int last = std::max(1, length.beat <= 1 ? length.measure - 1 : length.measure);
+	if (m_scoreEndMeasure > 0)
+	{
+		last = std::max(1, std::min(last, (int)m_scoreEndMeasure));
+	}
+	return last;
+}
+
 void PianoController::SetVolume(Channel ch, int volume)
 {
 	const bool liveOnly = IsLiveOnlyChannel(ch);
@@ -1237,6 +1273,20 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 				m_playingSnapshot = TakeSnapshot();
 			}
 			m_lastPlayedMeasure = m_position.measure;
+
+			// past the end of the score while the song goes on: the playback stops (like
+			// the Stop button, the piano goes back to the beginning); at the end of the
+			// song itself the piano stops (and the settings are restored, see Play)
+			const int endMeasure = m_scoreEndMeasure, endBeat = m_scoreEndBeat;
+			const bool pastScore = endMeasure > 0 && (m_position.measure > endMeasure ||
+				(m_position.measure == endMeasure && m_position.beat > endBeat));
+			const bool beforeSongEnd = m_position.measure < m_length.measure ||
+				(m_position.measure == m_length.measure && m_position.beat < m_length.beat);
+			if (pastScore && beforeSongEnd && !m_stopRequested)
+			{
+				Logger::writeToLog("End of the score: stopping the playback");
+				Stop();
+			}
 		}
 		NotifyChanged(apPosition);
 	}
@@ -1752,6 +1802,8 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 			{
 				m_networkTempoSet = false; // a new song of the piano's player: its own tempo
 			}
+			m_scoreEndMeasure = 0; // the score of the new song sets it again
+			m_scoreEndBeat = 0;
 			NotifyChanged(apSongLoaded);
 
 			if (m_pendingMeasure > 1 || m_pendingSnapshot.valid)
@@ -3642,6 +3694,8 @@ bool PianoController::LoadLocalSong(const File& file)
 		}
 	}
 
+	m_scoreEndMeasure = 0; // the score of the new song sets it again (Load resets the player's)
+	m_scoreEndBeat = 0;
 	if (!m_localPlayer || !m_localPlayer->Load(file))
 	{
 		return false;
@@ -3726,6 +3780,8 @@ void PianoController::ClearSongState()
 	m_speedFactor = 1.0;
 	m_position = {0,0};
 	m_length = {0,0};
+	m_scoreEndMeasure = 0; // the score of the new song sets it again
+	m_scoreEndBeat = 0;
 	m_loop = {{0,0},{0,0}};
 	m_loopStart = {0,0};
 

@@ -485,6 +485,14 @@ public:
 	Position GetLength();
 	Position GetPosition();
 	void SetPosition(const Position position);
+	// The end of the score shown for the song (set by the score window): its last played
+	// beat; {0,0}: no score. If the song goes on after it, the playback stops there (the
+	// score comes first), and the song ends with the last measure of the score.
+	void SetScoreEnd(const Position lastBeat);
+	Position GetScoreEnd() const { return {m_scoreEndMeasure, m_scoreEndBeat}; }
+	// The last measure of the song that can be played (jumping to the end of the song):
+	// the last measure of the score, or of the file if it is shorter or there is no score.
+	int GetLastMeasure();
 	Loop GetLoop() { return m_loop; }
 	void SetLoop(Loop loop);
 	Position GetLoopStart() { return m_loopStart; }
@@ -676,6 +684,9 @@ private:
 	int m_recordedNumerator = 4;
 	int m_recordedDenominator = 4;
 	std::atomic<bool> m_metronome{false};
+	// see SetScoreEnd (also read on the thread of the piano's messages)
+	std::atomic<int> m_scoreEndMeasure{0};
+	std::atomic<int> m_scoreEndBeat{0};
 	std::atomic<bool> m_metronomeBell{false};
 	std::atomic<int> m_metronomeVolume{100};
 	std::atomic<int> m_metronomeNumerator{4};

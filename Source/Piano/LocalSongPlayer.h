@@ -92,6 +92,10 @@ public:
 
 	void SetLoop(Position begin, Position end);
 	void ResetLoop();
+	// The song ends at this position (the end of its score) if the file goes on after it:
+	// the playback stops there and goes back to the beginning. {0,0}: at the end of the
+	// file. Reset when a song is loaded.
+	void SetEndPosition(Position position);
 
 	// A muted channel (1..16) plays silently: its notes are not sent, but its controllers
 	// and program changes are, so it sounds right when it is switched on again.
@@ -186,6 +190,8 @@ private:
 	int m_sounding[NumChannels][128]; // note actually sent for each original note, or NoValue
 	int m_loopBeginTick = NoValue;
 	int m_loopEndTick = NoValue;
+	int m_stopTick = NoValue; // see SetEndPosition
+	double m_stopSeconds = 0.0;
 	Position m_reportedPosition{1, 1};
 
 	void hiResTimerCallback() override;
