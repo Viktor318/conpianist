@@ -46,10 +46,15 @@ A tesztelés közben talált hibák javítása (a már elkészülteket a CHANGEL
 
 ### 2. OTS (One Touch Setting)
 
-A stílushoz tartozó panelbeállítások (hangszínek és társaik) egy gombnyomással behívhatók, ahogy a hangszeren. Munka: Kö (a teszt eredményétől függ).
+A stílushoz tartozó hangszín-beállítások egy gombnyomással behívhatók, ahogy a Yamaha hangszereken. Munka: Kö (kb. 1–2 nap). Döntés (október 11.): a program saját OTS-e (B változat), a CSP-170 tesztje nélkül.
 
-- **Előbb teszt:** működik-e a CSP-170-en, és elérhető-e a programból (PSR-rel tesztelve). Ha a zongora nem támogatja, eldöntendő, hogy a program maga állítsa-e be a stílushoz illő hangszíneket.
-- **Utána a megvalósítás:** a kezelés helye (például a Kíséret ablak) és a beállítások köre a teszt után dől el.
+- **Miért nem a zongora gyári OTS-e:** a CSP-170-en nincs OTS gomb, a beépített stílusok a zongorában vannak (fájlként nem érhetők el), és nem tudjuk, hogy a Smart Pianist üzenetei között van-e OTS. A gyári OTS (A változat) csak teszttel és a forgalom visszafejtésével volna lehetséges, ha egyáltalán létezik; később ráépíthető (az üres gomb a zongora gyári beállítását töltené be).
+- **Kezelés:** a Kíséret ablakban 4 gomb (OTS 1–4). Kattintás: az aktuális stílus adott OTS-ének behívása. Mentés: Shift+kattintás vagy a gomb menüje – az aktuális hangszín-beállítások az adott gombra kerülnek az aktuális stílushoz. Üres gombnál a behívás nem változtat semmit.
+- **Mit tárol egy OTS:** csak a hangszín-beállításokat: a Main, Layer és Left hangszínt, a Layer és a Left be/ki állapotát, a három rész hangerejét és oktávját. Nem tárolja: a split pontot, a kíséret tempóját, hangerejét és egyéb beállításait.
+- **Tárolás:** a program beállításai között, stílusonként (a stílus azonosítója szerint); újraindítás után is megmarad. A `.conmem` fájlokba nem kerül (felesleges kétszer tárolni), így minden memóriából elérhető.
+- **OTS Link:** be- és kikapcsolható kapcsoló a gombok mellett, az állása megmarad; az első indításkor bekapcsolva. Bekapcsolva stílusváltáskor (a Kíséret ablakból, stílusfájl betöltésével vagy a zongora kezelőjéről) behívja az új stílus OTS 1-ét; ha az üres, nem változtat semmit. Nem lép működésbe a legutóbbi állapot (`LastState.conmem`) visszatöltésekor és `.conmem` betöltésekor: ott a fájlban mentett hangszínek az erősebbek.
+- **Végrehajtás:** a beállításokat a Hangszín fül meglévő, működő üzenetei küldik a zongorának (új, ismeretlen üzenet nem kell).
+- **Kézikönyv:** a Kíséret fejezetben.
 
 ### 3. Kézikönyv
 
