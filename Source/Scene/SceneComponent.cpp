@@ -382,6 +382,18 @@ SceneComponent::~SceneComponent()
 
     //[Destructor]. You can add your own custom destruction code here..
     logStep("windows deleted");
+    // the panels are deleted here (not with the members), so that their time is logged
+    playbackViewport = nullptr;
+    playbackComponent = nullptr;
+    logStep("playback panel deleted");
+    scoreComponent = nullptr;
+    logStep("score deleted");
+    voiceComponent = nullptr;
+    mixerComponent = nullptr;
+    keyboardComponent = nullptr;
+    logStep("other panels deleted");
+    audioDeviceManager.closeAudioDevice();
+    logStep("audio device closed");
     //[/Destructor]
 }
 
