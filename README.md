@@ -81,6 +81,6 @@ Ez a változat saját, magáncélú felhasználásra készül egy Yamaha CSP-170
 
 A részletes változáslista a [CHANGELOG.md](CHANGELOG.md) fájlban található.
 
-A `Tools` mappában segédprogram van a zongora dalaiból mentett MIDI-fájlokhoz: törli az üres első (beállító) ütemet, hogy a fájl, a kotta és a zongora dala ütemre egyezzen (leírás: [Tools/README.md](Tools/README.md)).
+A `Tools` mappában segédprogram van a zongora dalaiból mentett MIDI-fájlokhoz: törli az üres kezdő ütemeket (a beállító ütemet és az utána esetleg következő üres ütemeket), hogy a fájl, a kotta és a zongora dala ütemre egyezzen (leírás: [Tools/README.md](Tools/README.md)).
 
 **Tervezett fejlesztés:** a következő verziók terve a [docs/Tervek.md](docs/Tervek.md) fájlban található. A következő kiadás az 5.0: hibajavítások és kisebb kódjavítások (például a Dalválasztó gyorsítása), az OTS (One Touch Setting: stílusonként 4 elmenthető hangszín-beállítás, egy gombnyomással behívható, stílusváltáskor automatikusan is) és egy magyar kézikönyv. Utána az akkordmenet-lejátszó (előre megírt akkordokkal és átmenetekkel szóló kíséret) és a gyári OTS beolvasása Yamaha stílusfájlokból (PSR-S970, PSR-SX), a MIDI áthangszerelő (a betöltött MIDI-fájl kezdeti beállításainak szerkesztése és mentése), majd a kottakezelés fejlesztése következik.

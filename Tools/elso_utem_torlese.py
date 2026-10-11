@@ -1,14 +1,18 @@
 # -*- coding: utf-8 -*-
-"""Removes the setup measure (the first measure without notes) of Yamaha MIDI files.
+"""Removes the empty measures at the beginning of Yamaha MIDI files.
 
 The MIDI files saved from the songs of the piano begin with a measure without notes, in
-which the song is set up (GM/XG reset, voices, volumes, reverb, the XF data); the piano's
-own copy of the song starts without it. So that the measures of the MIDI file, of the score
-and of the piano's song are the same, this measure is removed:
-- the setup data of the measure stays at the beginning of the file, in its order;
-- the temporary tempo and time signature of the setup measure are dropped (the song's own,
-  at the beginning of the second measure, take their place);
-- everything else moves one measure earlier.
+which the song is set up (GM/XG reset, voices, volumes, reverb, the XF data); some songs
+also begin with further measures of silence (e.g. Classic21, the Prelude in C major: two
+empty measures). The scores begin with the first measure that has notes. So that the
+measures of the MIDI file and of the score are the same, all the empty measures at the
+beginning are removed:
+- the setup data of the first measure stays at the beginning of the file, in its order,
+  followed by the other data of the empty measures (controllers, texts etc.);
+- the temporary tempo and time signature of the setup measure are dropped; the tempo and
+  time signature valid at the first measure with notes take their place;
+- everything else moves earlier by the removed measures. A measure that begins with a rest
+  (e.g. the whole measure in which a pickup is played at its end) is kept.
 
 A file is changed only if its first measure has no notes but has setup data, and the song's
 own tempo and time signature are set at the beginning of the second measure (as Yamaha
@@ -21,7 +25,8 @@ import os
 import struct
 import sys
 
-USAGE = r"""Az üres első ütem (a Yamaha beállító üteme) törlése MIDI-fájlokból.
+USAGE = r"""Az üres kezdő ütemek (a Yamaha beállító üteme és az utána következő üres
+ütemek) törlése MIDI-fájlokból.
 
 Használat:
     python elso_utem_torlese.py [bemeneti mappa vagy fájl] [kimeneti mappa]
@@ -36,7 +41,9 @@ fájlok a kimeneti mappába kerülnek, pontosan az eredeti nevükkel, ugyanazokk
 almappákkal (a Converted mappát magát nem nézi át). Az eredeti
 fájlok nem változnak. Csak azokat a fájlokat alakítja át, amelyek első ütemében nincs hang,
 de vannak beállító adatok, és a 2. ütem elején saját tempó és ütemmutató áll (így írja a
-Yamaha); a többit, és a már átalakítottakat kihagyja, és megírja, miért.
+Yamaha); a többit, és a már átalakítottakat kihagyja, és megírja, miért. Ha a beállító
+ütem után további üres ütemek is vannak, azokat is törli, egészen az első hangot tartalmazó
+ütemig (ez az ütem megmarad, akkor is, ha szünettel kezdődik, például felütésnél).
 """
 
 
@@ -163,6 +170,29 @@ def first_measure_length(tracks, division):
     return division * 4 * numerator // denominator
 
 
+def measure_starts(events, division, first_measure):
+    """The beginnings of the measures from the second one on (the first measure is
+    first_measure long; after it the time signatures of the file count)."""
+    signatures = {e.tick: (e.data[0], 2 ** e.data[1]) for e in events
+                  if e.is_meta(0x58) and len(e.data) >= 2 and e.tick >= first_measure}
+    start, numerator, denominator = first_measure, 4, 4
+    while True:
+        numerator, denominator = signatures.get(start, (numerator, denominator))
+        yield start
+        start += division * 4 * numerator // denominator
+
+
+def measure_of(events, division, first_measure, tick):
+    """The beginning of the measure that contains tick, and the number of the measure (1..)."""
+    if tick < first_measure:
+        return 0, 1
+    previous = None
+    for number, start in enumerate(measure_starts(events, division, first_measure), 2):
+        if start > tick:
+            return previous, number - 1
+        previous = start
+
+
 def convert(source, target):
     """Returns (True, "") if the file was converted, otherwise (False, the reason)."""
     header, division, chunks = read_midi(source)
@@ -186,8 +216,22 @@ def convert(source, target):
         return False, ("Az első ütem üres, de a második ütem elején nincs %s (nem a Yamaha beállító "
                        "üteme), MIDI-fájl kihagyva." % missing)
 
-    # the temporary tempo and time signature of the setup measure: the song's own take their place
+    # all the empty measures are removed: up to the beginning of the measure of the first note
+    first_note = min(e.tick for e in events if e.is_note())
+    cut, first_note_measure = measure_of(events, division, measure, first_note)
+    removed = first_note_measure - 1
+
+    # the tempo and time signature of the removed measures: only the ones valid at the cut
+    # remain (the temporary ones of the setup measure are always dropped)
     dropped = set(id(e) for e in events if e.tick < measure and (e.is_meta(0x51) or e.is_meta(0x58)))
+    for meta_type in (0x51, 0x58):
+        if not any(e.is_meta(meta_type) and e.tick == cut for e in events):
+            earlier = [e for e in events if e.is_meta(meta_type) and measure <= e.tick < cut]
+            if earlier:
+                last = max(earlier, key=lambda e: e.tick)
+                dropped.update(id(e) for e in earlier if e is not last)
+                continue
+        dropped.update(id(e) for e in events if e.is_meta(meta_type) and measure <= e.tick < cut)
 
     new_chunks = []
     for chunk_id, content in chunks:
@@ -196,27 +240,27 @@ def convert(source, target):
             continue
         setup, rest = [], []
         for event in content:
-            if event.tick < measure:
+            if event.tick < cut:
                 if id(event) not in dropped:
                     setup.append(Event(0, event.kind, event.status, event.data, event.meta_type))
             else:
-                rest.append(Event(event.tick - measure, event.kind, event.status, event.data, event.meta_type))
+                rest.append(Event(event.tick - cut, event.kind, event.status, event.data, event.meta_type))
         new_chunks.append(('MTrk', setup + rest))
 
     os.makedirs(os.path.dirname(target) or '.', exist_ok=True)
     write_midi(target, header, new_chunks)
 
     # check: the new file is read again; its events must be those written, and its notes
-    # those of the old file, one measure earlier
+    # those of the old file, earlier by the removed measures
     _, _, check = read_midi(target)
     written = [[e.encode() for e in c] for i, c in new_chunks if i == 'MTrk']
     read_back = [[e.encode() for e in c] for i, c in check if i == 'MTrk']
-    old_notes = sorted((e.tick - measure, e.encode()) for events in tracks for e in events if e.is_note())
+    old_notes = sorted((e.tick - cut, e.encode()) for events in tracks for e in events if e.is_note())
     new_notes = sorted((e.tick, e.encode()) for i, c in check if i == 'MTrk' for e in c if e.is_note())
     if written != read_back or old_notes != new_notes:
         os.remove(target)
         raise ValueError("az átalakított fájl ellenőrzése hibát talált, az új fájl nem készült el")
-    return True, ""
+    return True, ("%d üres kezdő ütem törölve" % removed) if removed > 1 else ""
 
 
 def midi_files(folder, skip):
@@ -265,9 +309,7 @@ def main():
             done, note = None, str(error)
         if done:
             converted += 1
-            message = "MIDI-fájl sikeresen átalakítva, üres kezdő ütem törölve."
-            if note:
-                message += " Megjegyzés: " + note + "."
+            message = "MIDI-fájl sikeresen átalakítva, %s." % (note or "üres kezdő ütem törölve")
         elif done is None:
             failed += 1
             message = "A konvertálás nem sikerült, hibás a MIDI-fájl (%s)." % note

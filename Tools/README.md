@@ -1,6 +1,6 @@
 # Segédprogramok
 
-## elso_utem_torlese.py – az üres első ütem törlése MIDI-fájlokból
+## elso_utem_torlese.py – az üres kezdő ütemek törlése MIDI-fájlokból
 
 A zongora saját dalaiból mentett Yamaha MIDI-fájlok első üteme egy hang nélküli
 „beállító ütem”: GM/XG-reset, hangszínek, hangerő, zengetés, az XF-adatok (cím, szerző).
@@ -8,12 +8,22 @@ A zongora saját példánya enélkül kezdődik, ezért a fájl, a kotta és a z
 egy ütem eltérés lenne (hálózati lejátszásnál a kotta egy ütemmel lemaradna, lejátszási
 mód váltásakor a dal rossz ütemre ugrana).
 
-A szkript ezt az ütemet törli:
-- a beállító adatok megmaradnak a fájl elején, változatlan sorrendben;
-- a beállító ütem ideiglenes tempója és ütemmutatója kimarad, helyükre a dal saját, a 2.
-  ütem elején álló tempója és ütemmutatója kerül;
-- minden más (hangok, tempóváltások, pedál, akkordjelölések) pontosan egy ütemmel előrébb
-  kerül.
+Egyes dalok a beállító ütem után további üres (csendes) ütemekkel kezdődnek (például a
+Classic21, Bach C-dúr prelúdiuma: két üres ütem), a kották viszont az első hangot tartalmazó
+ütemmel indulnak.
+
+A szkript az összes üres kezdő ütemet törli, egészen az első hangot tartalmazó ütemig:
+- a beállító adatok megmaradnak a fájl elején, változatlan sorrendben, utánuk a többi üres
+  ütem egyéb adatai (vezérlők, szövegek stb.);
+- a beállító ütem ideiglenes tempója és ütemmutatója kimarad, helyükre az első hangot
+  tartalmazó ütem elején érvényes tempó és ütemmutató kerül (a közbülső üres ütemek tempói
+  közül csak ez marad meg);
+- minden más (hangok, tempóváltások, pedál, akkordjelölések) pontosan a törölt ütemekkel
+  előrébb kerül;
+- az első hangot tartalmazó ütem megmarad akkor is, ha szünettel kezdődik (például a
+  felütésnél, amelyet a Yamaha egy egész ütem végére tesz).
+
+Ha egy ütemnél többet töröl, a kiírt sorban megadja a számukat.
 
 Csak azokat a fájlokat alakítja át, amelyek első ütemében nincs hang, de vannak beállító
 adatok, és a 2. ütem elején saját tempó és ütemmutató áll (így írja a Yamaha). A már átalakított fájlokat, és amelyek nem ilyenek,
@@ -49,7 +59,8 @@ ellenőrzi az új fájlt.
    ```
 
 4. A szkript minden fájlról egy sort ír:
-   - `MIDI-fájl sikeresen átalakítva, üres kezdő ütem törölve.`
+   - `MIDI-fájl sikeresen átalakítva, üres kezdő ütem törölve.` (vagy: `..., 2 üres kezdő
+     ütem törölve.`, ha több ütemet törölt);
    - `Nem találtam üres ütemet a fájl elején, MIDI-fájl kihagyva.` (ilyen a már átalakított
      fájl is);
    - `Az első ütem üres, de nincsenek benne a Yamaha beállító adatai (hangszínek, hangerő,
@@ -62,7 +73,9 @@ ellenőrzi az új fájlt.
    A végén összesítés áll.
 5. Az átalakított fájlokat másold a `Songs` mappában a régiek helyére (előtte készíts
    róluk biztonsági másolatot a `Songs` mappán kívül), és a kottákból is töröld az üres
-   első ütemet. Ha a szkriptet közvetlenül a `Songs` valamelyik mappájában futtatod, a
+   kezdő ütemeket, ha vannak bennük. A régi szkripttel már átalakított, egy üres ütemmel
+   kezdődő fájlokat az eredeti (a zongorából mentett) fájlból alakítsd át újra: az átalakított
+   fájlban már nincs meg a beállító ütem, ezért a szkript kihagyja. Ha a szkriptet közvetlenül a `Songs` valamelyik mappájában futtatod, a
    cserék után töröld a `Converted` mappát, különben a Dalválasztó a saját mappáknál
    (például Music Library) a benne lévő fájlokat is mutatja.
 
