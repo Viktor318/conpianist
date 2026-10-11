@@ -115,7 +115,16 @@ public:
 
 private:
     //[UserVariables]   -- You can add your own custom variables in this section.
+    // Logs when it is deleted: the members are deleted in reverse order, so these two show
+    // the time of deleting the audio device manager, and of the members declared after it
+    struct ExitLogStep
+    {
+        const char* step;
+        ~ExitLogStep() { Logger::writeToLog(String("Exit: ") + step); }
+    };
+    ExitLogStep audioDeviceManagerDeleted{"audio device manager deleted"};
     AudioDeviceManager audioDeviceManager;
+    ExitLogStep membersDeleted{"piano controller and connections deleted"};
     PianoController pianoController;
 	SeqPianoConnector pianoConnector;
     std::unique_ptr<PlaybackComponent> playbackComponent;
