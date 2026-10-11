@@ -83,4 +83,4 @@ A részletes változáslista a [CHANGELOG.md](CHANGELOG.md) fájlban található
 
 A `Tools` mappában segédprogram van a zongora dalaiból mentett MIDI-fájlokhoz: törli az üres első (beállító) ütemet, hogy a fájl, a kotta és a zongora dala ütemre egyezzen (leírás: [Tools/README.md](Tools/README.md)).
 
-**Tervezett fejlesztés:** a következő verziók terve a [docs/Tervek.md](docs/Tervek.md) fájlban található. A soron következő csomag egy magyar útmutató, utána az akkordmenet-lejátszó (előre megírt akkordokkal és átmenetekkel szóló kíséret), a MIDI áthangszerelő (a betöltött MIDI-fájl kezdeti beállításainak szerkesztése és mentése), majd a kottakezelés fejlesztése.
+**Tervezett fejlesztés:** a következő verziók terve a [docs/Tervek.md](docs/Tervek.md) fájlban található. A következő kiadás az 5.0: hibajavítások, az OTS (One Touch Setting, a stílushoz tartozó beállítások egy gombnyomással) és egy magyar kézikönyv. Utána az akkordmenet-lejátszó (előre megírt akkordokkal és átmenetekkel szóló kíséret), a MIDI áthangszerelő (a betöltött MIDI-fájl kezdeti beállításainak szerkesztése és mentése), majd a kottakezelés fejlesztése következik.

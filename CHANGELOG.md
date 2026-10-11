@@ -2,7 +2,7 @@
 
 Ez a fájl a ConPianist változásait dokumentálja. Az 1.0–3.0 verziók az eredeti [hugbug/conpianist](https://github.com/hugbug/conpianist) projekt kiadásai (lásd az [eredeti release-eket](https://github.com/hugbug/conpianist/releases)); az ez utáni bejegyzések ennek a fork-nak ([Viktor318/conpianist](https://github.com/Viktor318/conpianist)) a saját, magáncélú fejlesztései.
 
-## Következő verzió (fejlesztés alatt)
+## 5.0 (fejlesztés alatt)
 
 ### Új
 - **Az A–B jelek egérrel mozgathatók a kottában.** Ha az egeret egy A vagy B jel fölé viszed, a mutató vízszintes nyíllá változik; lenyomott gombbal a jel ütésről ütésre követi az egeret (Shift-tel ütemkezdetre ugrik), a kotta következő sorába is átvihető. Elengedéskor az új szakasz beállítódik a zongorán vagy a saját lejátszón, lejátszás közben is. Az A nem kerülhet a B mögé, legalább egy ütés marad köztük. Máshol a húzás továbbra is a kottát görgeti.

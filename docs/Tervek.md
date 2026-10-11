@@ -2,7 +2,7 @@
 
 Ez a fájl a ConPianist jövőbeli fejlesztéseit gyűjti egy helyre. Új ötlet ide kerül be, verzióemeléskor pedig átnézzük és átrendezzük. Az elkészült változásokat a [CHANGELOG.md](../CHANGELOG.md) tartalmazza.
 
-**Állapot:** 2026. október 10., a 4.8 kiadása után. A verziókra bontás javaslat, a sorrend verzióemeléskor változhat.
+**Állapot:** 2026. október 11. A következő kiadás az **5.0**: addig csak a hibajavítások, az OTS funkció és a kézikönyv készül el, minden más terv az 5.0 utáni verziókba került. Az 5.0 utáni verziókra bontás javaslat, a sorrend verzióemeléskor változhat.
 
 **Munkaigény:** K = kicsi (egy alkalom), Kö = közepes (néhány alkalom), N = nagy (több hét, vagy bizonytalan kimenetel).
 
@@ -20,27 +20,46 @@ Ide bármikor beírható egy új ötlet, egy sorban, akár félkészen is. A kö
 
 - (üres)
 
-## Folyamatban
+## 5.0 – a következő kiadás
 
-A 4.8 kiadva (október 10., `v4.8`). Most az útmutató készül, utána a 4.9 következik.
+A 4.8 kiadva (október 10., `v4.8`). Döntés (október 11.): az 5.0-ig három dolog készül el, minden más terv az 5.0 utáni verziókba került. A kiadás előtt a szokásos kódátnézés (lásd Alapelvek).
 
-**Útmutató** (munka: Kö): egyetlen tömör magyar PDF útmutató (kb. 24 oldal, képernyőképekkel, kattintható tartalomjegyzékkel), amely minden funkcióra kitér, túlzott részletesség nélkül; Markdown forrásból (`docs` mappa). Fejezetek: bevezetés és első indítás; főablak; Dalválasztó és saját dalok; kotta; hangszínek és Piano Room; Keverő és élő játék; Hangerőegyensúly; Kíséret; Kíséret keverő; regisztrációs memória; Felvétel; mentés, beállítások, alaphelyzet; gyorsbillentyűk és hibaelhárítás. Döntés (október 10.): külön rövid útmutató és részletes kézikönyv helyett csak ez az egy készül, verzióemeléskor a változott fejezetek frissülnek. A képernyőképeket Viktor készíti lista alapján. A Dalválasztó fejezetbe: a zongora dalaiból mentett MIDI-fájlok üres első (beállító) ütemét a fájlból (`Tools/elso_utem_torlese.py`) és a kottából is törölni kell.
+### 1. Hibajavítások
 
-### Javítandó hibák
+A tesztelés közben talált hibák javítása (a már elkészülteket a CHANGELOG „5.0 (fejlesztés alatt)” része tartalmazza), és a kiadás előtti tesztkör.
+
+| Tétel | Leírás | Munka | Megjegyzés |
+|---|---|---|---|
+| Tesztkör | A 4.8-ból áthozva (október 10.): az ismétléskövetés kipróbálása D.C.-s, D.S.-es vagy Codás kottával, és az eltolt akkordjelek (például a Let It Go 11. és 13. ütemében) megjelenése a programban. Ugyanekkor a 4.8 többi, még ki nem próbált része: a saját dalok mappái (a Dalválasztó a bennük lévő MIDI-fájlokat mutatja, a Felvétel ablak a User Songs › Recorded Songs mappába ment), és az ujjrend ujjrendes Dorico-kottával. | K | |
+| Kották ellenőrzése | A zongora dalaihoz készült kották (MusicXML) összevetése a MIDI-fájllal és a PDF-fel, dalonként. Az eddig ellenőrzöttek: Canon D dur, Air On the G String, Tempest 3. tétel, Ode to Joy, Twinkle. A közben talált kottamegjelenítő-hibák (Lomse) javítása. | Kö | Viktor küldi a dalokat (PDF, MIDI, MusicXML). |
+| Kotta megjelenítési hibái Dorico-exportnál | A 4.8-ból áthozva (október 10.): a le nem zárt pedálvonalak torlódása, a többszörös kapcsos zárójel és az egymásra csúszó tempófeliratok javítása. | Kö | A „folytatódik” típusú jelölések (pedál, oktávjel) kezelése hiányzik a Lomse-ból. A kotta és néhány képernyőkép kell hozzá. |
+
+**Javítandó hibák (tesztelésre várnak):**
 
 - **Lefagy a program, ha üzenetcsere közben indítják a lejátszást** (2026. október 8.): a lejátszás gombját akkor megnyomva, amikor a program és a zongora még üzeneteket vált (például betöltés vagy csatlakozás után). Valószínűleg ugyanaz a holtpont okozta, mint a következőt (lásd ott); az október 8-i javítás óta nem jelentkezett, **tesztelésre vár**. Ha újra előjön, pontos lépések és a napló kell hozzá.
 - **Lefagyás USB-s módban a Felvétel ablak tempójának állítgatása közben** (2026. október 8., 13:26): a napló a tempó (159) elküldése és a zongora visszaigazolása után megszakad, a program nem állt le szabályosan. Lehet, hogy ugyanaz a hiba, mint az előző. Újra előfordult (október 8., 14:55): hálózati és USB-s mód közötti váltás után USB-n a tempó gyors állítgatása közben, a zongorának küldött tempó visszaigazolása után. Közös pont: USB-s lejátszás, csatlakoztatott zongora, gyorsan egymás után küldött tempók. **Valószínű ok megtalálva, javítva, tesztelésre vár:** a saját lejátszó szála a hangok küldése közben (a saját zárát tartva) közvetlenül értesítette az ablakokat, egy ablak pedig ugyanekkor a lejátszó állapotát kérdezte le; a két szál kölcsönösen egymásra várt. Ha a javítás után is előfordul, a Visual Studio hívási verme kell (Break All, Parallel Stacks). Pontos lépések kellenek (melyik ablak, betöltött dal, szólt-e a lejátszás).
 
-## Következő verziók (javaslat)
+### 2. OTS (One Touch Setting)
 
-### 4.9 – Akkordmenet-lejátszó
+A stílushoz tartozó panelbeállítások (hangszínek és társaik) egy gombnyomással behívhatók, ahogy a hangszeren. Munka: Kö (a teszt eredményétől függ).
+
+- **Előbb teszt:** működik-e a CSP-170-en, és elérhető-e a programból (PSR-rel tesztelve). Ha a zongora nem támogatja, eldöntendő, hogy a program maga állítsa-e be a stílushoz illő hangszíneket.
+- **Utána a megvalósítás:** a kezelés helye (például a Kíséret ablak) és a beállítások köre a teszt után dől el.
+
+### 3. Kézikönyv
+
+Egyetlen tömör magyar PDF kézikönyv (kb. 24 oldal, képernyőképekkel, kattintható tartalomjegyzékkel), amely minden funkcióra kitér, túlzott részletesség nélkül; Markdown forrásból (`docs` mappa). Munka: Kö. Az 5.0 állapotát írja le, az OTS-szel és az 5.0 újdonságaival együtt (például az A–B jelek egérrel mozgatása), ezért a funkciók elkészülte után véglegesedik.
+
+Fejezetek: bevezetés és első indítás; főablak; Dalválasztó és saját dalok; kotta; hangszínek és Piano Room; Keverő és élő játék; Hangerőegyensúly; Kíséret (OTS-szel); Kíséret keverő; regisztrációs memória; Felvétel; mentés, beállítások, alaphelyzet; gyorsbillentyűk és hibaelhárítás. Döntés (október 10.): külön rövid útmutató és részletes kézikönyv helyett csak ez az egy készül, verzióemeléskor a változott fejezetek frissülnek. A képernyőképeket Viktor készíti lista alapján. A Dalválasztó fejezetbe: a zongora dalaiból mentett MIDI-fájlok üres első (beállító) ütemét a fájlból (`Tools/elso_utem_torlese.py`) és a kottából is törölni kell. A kotta fejezetbe: az A–B jelek húzása és a Ctrl+kattintás, a felütéses dalok.
+
+## Az 5.0 utáni verziók (javaslat)
+
+### 5.1 – Akkordmenet-lejátszó
 
 A kíséret előre megírt akkordokkal és átmenetekkel szól, a zongora beépített stílusaival. Kipróbálandó előfeltétele nincs: a zongora elfogadja a második portra küldött akkordhangokat, küldi a stílus ütempozícióját, és a Keverő csatornáin játszott hangok nem zavarják a stílust (tesztelve).
 
 | Tétel | Leírás | Munka | Megjegyzés |
 |---|---|---|---|
-| Tesztkör a 4.8 kottafunkcióihoz | A 4.8-ból áthozva (október 10.): az ismétléskövetés kipróbálása D.C.-s, D.S.-es vagy Codás kottával, és az eltolt akkordjelek (például a Let It Go 11. és 13. ütemében) megjelenése a programban. Ugyanekkor a 4.8 többi, még ki nem próbált része: a saját dalok mappái (a Dalválasztó a bennük lévő MIDI-fájlokat mutatja, a Felvétel ablak a User Songs › Recorded Songs mappába ment), és az ujjrend ujjrendes Dorico-kottával. | K | |
-| Kotta megjelenítési hibái Dorico-exportnál | A 4.8-ból áthozva (október 10.): a le nem zárt pedálvonalak torlódása, a többszörös kapcsos zárójel és az egymásra csúszó tempófeliratok javítása. | Kö | A „folytatódik” típusú jelölések (pedál, oktávjel) kezelése hiányzik a Lomse-ból. A kotta és néhány képernyőkép kell hozzá. |
 | A Dalválasztó gyorsítása | A kódátnézésből (október 10.): a Dalválasztó most a mappák minden frissítésekor (keresésnél minden leütéskor) végigolvassa a `Songs` összes almappáját, és minden beépített dalnál több fájlnevet ellenőriz. A fájllista a megnyitáskor (Refresh) egyszer készüljön el, a keresés és a mappaváltás abban szűrjön. Ugyanekkor: frissítéskor a kijelölés ne csak a cím alapján maradjon meg (két azonos című dalnál az elsőt jelöli ki). | K | A mostani mappaméretnél nem érezhető; sok saját dalnál vagy hálózati mappánál akadozhat. |
 | Szálkezelés: a fennmaradó pontok | A 4.8 kódátnézéséből (október 10.), alacsony kockázatú pontok: a PianoController destruktora állítsa le a saját lejátszót; az ablakok jelentkezzenek le az értesítésekről (RemoveListener); a saját lejátszó a konstruktorban jöjjön létre; a GuiHelper::CallAsync SafePointer-je a fő szálon készüljön; az RTP-kapcsolat a bejövő üzeneteket a saját zárja elengedése után adja tovább; a LiveRecorder mentése ne tartsa a zárat a fájlírás alatt. | K–Kö | Egyik sem okozott eddig hibát; a működést nem változtatja, utána tesztelni kell (lejátszási mód váltása, kilépés lejátszás közben). |
 | Szerkesztőablak | Külön ablak: ütemrács szakaszokra bontva (egy ütem több akkordra osztható, az üres ütem az előzőt tartja); akkordpaletta a beállított hangnem fokaiból, szakaszpaletta (Intro, Main A–D, Ending), automatikus Fill In a szakaszváltás előtt, Break, ismétlésszám, kész dalszerkezet-sablonok, gyors beírás egy sorban. | N | A lehető legegyszerűbb szerkesztés, előre felajánlott elemekkel. Megvalósítás előtt vázlat készül. |
@@ -50,7 +69,7 @@ A kíséret előre megírt akkordokkal és átmenetekkel szól, a zongora beép�
 | Élő játék a Keverő csatornáin | Lejátszás közben a külső billentyűzet csak a Keverő csatornáin szól, így a játék nem keveredik a küldött akkordokkal, és a teljes billentyűzet használható. | K | |
 | Tárolás | A menet szövegfájlként a Roaming adatmappában (stílus, tempó, hangnem, akkordok). | K | Eldöntendő: önálló fájl, vagy a regisztrációs memóriához kapcsolódik. |
 
-### 4.10 – MIDI áthangszerelő
+### 5.2 – MIDI áthangszerelő
 
 Egyetlen funkció, amely a korábban külön tervezett „betöltött MIDI-fájl szerkesztése” és a két MIDI-segédprogram helyébe lép. Csak a fájl **kezdeti** beállításairól szól: a hangjegyekhez nem nyúl.
 
@@ -63,7 +82,7 @@ Egyetlen funkció, amely a korábban külön tervezett „betöltött MIDI-fájl
 | Meglévő MusicXML frissítése | A MIDI mentésekor a hozzá tartozó MusicXML hangzásadatai is frissülnek. | Kö | Később is hozzátehető. |
 | MIDI In 2 átengedő mód | A program a MIDI In 2-n érkező hangokat továbbadja a zongorának, az órajelet, a start és a stop üzenetet kiszűri, a szakaszváltást továbbítja (PSR kísérete a zongorán). | Kö | Független a többi tételtől, előbbre is hozható. |
 
-### 5.0 – Kotta
+### 5.3 – Kotta
 
 | Tétel | Leírás | Munka | Megjegyzés |
 |---|---|---|---|
@@ -72,7 +91,7 @@ Egyetlen funkció, amely a korábban külön tervezett „betöltött MIDI-fájl
 ## Később (elfogadott, nincs ütemezve)
 
 - **Lejátszás és gyakorlás:** Segéd mód és billentyűfények a saját lejátszóval; a kotta aktuális akkordjának kijelzése lejátszás közben (például a Kíséret ablak akkordkijelzőjében); tempóemelés ismétléses gyakorláshoz; setlist; legutóbbi dalok; további gyorsbillentyűk.
-- **Saját arranger**, az akkordmenet-lejátszó (4.9) folytatásaként, két lépésben: (1) az akkordmenet-szerkesztő a program saját lejátszójával, külső `.sty` fájlokhoz; (2) élő akkordfelismerés a split pont alatt. Csak akkor, ha minden más kész.
+- **Saját arranger**, az akkordmenet-lejátszó (5.1) folytatásaként, két lépésben: (1) az akkordmenet-szerkesztő a program saját lejátszójával, külső `.sty` fájlokhoz; (2) élő akkordfelismerés a split pont alatt. Csak akkor, ha minden más kész.
 - **Protokoll feltérképezése** a Smart Pianist többi funkciójának eléréséhez.
 - **Más rendszerek:** iOS-változat (iPad), utána Android.
 - **Angol útmutató**, ha lesz rá igény.
@@ -84,7 +103,6 @@ Egyetlen funkció, amely a korábban külön tervezett „betöltött MIDI-fájl
 | Tétel | Mit kell megtudni |
 |---|---|
 | Beépített dal betöltése útvonallal | **Kipróbálva, működik** (2026. október): a zongora az útvonal alapján betölti és lejátssza a saját dalát, a pozíciót is küldi, így a kotta követi. A dalválasztó erre épül. |
-| OTS (One Touch Setting) | Működik-e a CSP-170-en, és elérhető-e a programból (PSR-rel tesztelve). |
 | Metronóm ütemei | **Kipróbálva** (október 9.): a zongora elfogadja a 2/4–6/4, 3/8, 6/8, 9/8 és 12/8 ütemet, a csengő a helyén szól. Stílusváltáskor a zongora a metronómot a stílus saját (zárójeles) ütemére állítja, a tempóval együtt. |
 | Tempó a módváltáskor a zongora paneljén állított tempóval | Hálózatról USB-re váltáskor a program csak a programban állított tempót viszi át arányosan; a zongora paneljén állított tempót nem. A zongora ütem eleji tempójának mindenkori összevetése a fájléval kipróbálva (október 8.) rosszabb eredményt adott (a dal érezhetően gyorsult vagy lassult), ezért visszavonva. Ki kell deríteni, miért tér el a zongora jelzett tempója a fájlétól ugyanannál az ütemnél (ütemszámozás, a jelzés késése). |
 | Sebesség hálózati módban | A Sebesség csúszka hálózati lejátszásnál is működhetne, ha a dalhoz van MIDI-fájl (feltöltött saját fájl, vagy beépített dal a mappájában lévő MIDI-fájllal): a program a fájlból tudja a dal tempóját az adott helyen, a szorzót a zongora tárolja. Előbb meg kell nézni, hogy a zongora belső példánya és a fájl tempói ugyanott ugyanazok-e (például a Canon D dur bevezető ütemét a zongora átugorja): ugyanannál az ütemnél USB-n és hálózaton ugyanazt a tempót mutatja-e. Addig hálózaton a Sebesség szürke. |
