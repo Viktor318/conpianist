@@ -36,7 +36,7 @@ public:
 	{
 		int measure;
 		int beat;
-		bool operator==(const Position& rhs) { return rhs.measure == measure && rhs.beat == beat; }
+		bool operator==(const Position& rhs) const { return rhs.measure == measure && rhs.beat == beat; }
 	};
 
 	struct Loop

@@ -146,6 +146,10 @@ private:
 	std::vector<int> m_playOrder;
 	std::vector<int> m_passStarts;
 	int m_scoreMeasures = 0;
+	// Moving the A-B marks with the mouse: the mark being dragged (0: none, 1: A, 2: B)
+	// and the position it is shown at while dragged
+	int m_dragMark = 0;
+	PianoController::Position m_dragPos{0,0};
 
 	void LoadDocument(String filename);
 	void PrepareImage();
@@ -155,6 +159,19 @@ private:
 	static TimeUnits BeatLocation(ImoScore* score, int measure, int beat);
 	static TimeUnits BeatTimepos(ImoScore* score, int measure, int beat);
 	int MeasureAtPoint(SpInteractor& interactor, ImoScore* score, int x, int y);
+	ImoScore* GetScore();
+	TimeUnits TimeposAtPoint(SpInteractor& interactor, ImoScore* score, int x, int y);
+	struct BeatPoint
+	{
+		int scoreMeasure; // measure of the score (0..)
+		int beat;         // beat boundary in the measure (0..beats; beats: its end)
+		int beats;        // number of beats of the measure
+		PianoController::Position played; // the position for the piano
+	};
+	bool BeatAtPoint(const MouseEvent& event, bool wholeMeasure, BeatPoint& point);
+	bool IsMarkAt(const BeatPoint& point, PianoController::Position mark);
+	int MarkAtPoint(const MouseEvent& event);
+	void SetMarkAtPoint(const MouseEvent& event, bool end);
 	bool FollowsPlaybackOrder();
 	int ScoreMeasure(int playedMeasure);
 	int PlayedMeasure(int scoreMeasure);
@@ -1252,6 +1269,22 @@ void LomseScoreComponent::mouseDown(const MouseEvent& event)
 {
 	if (!m_presenter || !m_image) return;
 
+	// Ctrl+click: the A mark there, Ctrl+Shift+click: the B mark there
+	if (event.mods.isLeftButtonDown() && event.mods.isCtrlDown())
+	{
+		SetMarkAtPoint(event, event.mods.isShiftDown());
+		return;
+	}
+
+	// pressed on an A-B mark: it is dragged (otherwise the view)
+	m_dragMark = event.mods.isLeftButtonDown() ? MarkAtPoint(event) : 0;
+	if (m_dragMark > 0)
+	{
+		m_dragPos = m_dragMark == 1 ?
+			(loop.begin.measure > 0 ? loop.begin : loopStart) : loop.end;
+		return;
+	}
+
 	SpInteractor interactor = m_presenter->get_interactor(0).lock();
 	interactor->on_mouse_button_down(int(event.getMouseDownScreenX() * m_scale),
 		int(event.getScreenY() * m_scale), GetMouseFlags(event));
@@ -1261,6 +1294,33 @@ void LomseScoreComponent::mouseUp(const MouseEvent& event)
 {
 	if (!m_presenter || !m_image) return;
 
+	if (m_dragMark > 0)
+	{
+		// the mark dropped: the new A-B loop (nothing if the mark was not moved)
+		const int mark = m_dragMark;
+		const PianoController::Position pos = m_dragPos;
+		m_dragMark = 0;
+		if (mark == 1 && loop.begin.measure > 0 && !(pos == loop.begin))
+		{
+			m_pianoController.SetLoop({pos, loop.end});
+		}
+		else if (mark == 1 && loop.begin.measure <= 0 && !(pos == loopStart))
+		{
+			m_pianoController.SetLoopStart(pos);
+		}
+		else if (mark == 2 && !(pos == loop.end))
+		{
+			m_pianoController.SetLoop({loop.begin, pos});
+		}
+		UpdateABMarks(true);
+		UpdateTempoLine(false);
+		return;
+	}
+	if (event.mods.isCtrlDown())
+	{
+		return; // (see mouseDown)
+	}
+
 	SpInteractor interactor = m_presenter->get_interactor(0).lock();
 	interactor->on_mouse_button_up(int(event.getMouseDownScreenX() * m_scale),
 		int(event.getScreenY() * m_scale), GetMouseFlags(event));
@@ -1269,6 +1329,13 @@ void LomseScoreComponent::mouseUp(const MouseEvent& event)
 void LomseScoreComponent::mouseMove(const MouseEvent& event)
 {
 	if (!m_presenter || !m_image) return;
+
+	// over an A-B mark: it can be dragged
+	if (!event.mods.isAnyMouseButtonDown())
+	{
+		setMouseCursor(MarkAtPoint(event) > 0 ? MouseCursor::LeftRightResizeCursor :
+			MouseCursor::NormalCursor);
+	}
 
 	SpInteractor interactor = m_presenter->get_interactor(0).lock();
 	interactor->on_mouse_move(int(event.getMouseDownScreenX() * m_scale),
@@ -1401,8 +1468,214 @@ int LomseScoreComponent::PlayedMeasure(int scoreMeasure)
 
 void LomseScoreComponent::mouseDrag(const MouseEvent& event)
 {
+	if (m_dragMark > 0)
+	{
+		// the dragged mark follows the mouse, beat by beat (with Shift: to the beginning
+		// of the measures); A stays before B
+		BeatPoint point;
+		if (!BeatAtPoint(event, event.mods.isShiftDown(), point))
+		{
+			return;
+		}
+		const PianoController::Position pos = point.played;
+		auto before = [](PianoController::Position a, PianoController::Position b)
+			{ return a.measure < b.measure || (a.measure == b.measure && a.beat < b.beat); };
+		if ((m_dragMark == 1 && loop.end.measure > 0 && !before(pos, loop.end)) ||
+			(m_dragMark == 2 && !before(loop.begin, pos)) || pos == m_dragPos)
+		{
+			return;
+		}
+		m_dragPos = pos;
+		UpdateABMarks(true);
+		UpdateTempoLine(false); // (draws the marks again)
+		return;
+	}
+	if (event.mods.isCtrlDown())
+	{
+		return; // (see mouseDown)
+	}
 	mouseMove(event);
 	LimitViewport();
+}
+
+ImoScore* LomseScoreComponent::GetScore()
+{
+	Document* doc = m_presenter ? m_presenter->get_document_raw_ptr() : nullptr;
+	return doc != nullptr ? dynamic_cast<ImoScore*>(doc->get_im_root()->get_content_item(0)) : nullptr;
+}
+
+// The time position in the score at a point of the score image, -1 if the point is not on
+// a staff. (On the first measure of a system Lomse gives measure 0 with the time position
+// counted from the beginning of the score, and nothing on the clef and the key
+// signature: the first point to the right with a time position is taken then, see
+// MeasureAtPoint.)
+TimeUnits LomseScoreComponent::TimeposAtPoint(SpInteractor& interactor, ImoScore* score, int x, int y)
+{
+	for (int probe = x; probe < m_image->getWidth(); probe += 6)
+	{
+		const MeasureLocator locator = interactor->find_click_info_at(probe, y).ml;
+		if (locator.iMeasure < 0)
+		{
+			return -1.0;
+		}
+		if (locator.iMeasure > 0)
+		{
+			return ScoreAlgorithms::get_timepos_for(score, locator.iMeasure, 0) + locator.location;
+		}
+		if (locator.location > 0.0 || probe - x > 120)
+		{
+			return locator.location;
+		}
+	}
+	return -1.0;
+}
+
+// The beat boundary nearest to the mouse (with wholeMeasure: the beginning or the end of
+// the measure), in the measure of the score under the mouse or the nearest staff above or
+// below it; false if there is none.
+bool LomseScoreComponent::BeatAtPoint(const MouseEvent& event, bool wholeMeasure, BeatPoint& point)
+{
+	ImoScore* score = GetScore();
+	if (score == nullptr || score->get_num_instruments() == 0 || getWidth() <= 0 || getHeight() <= 0)
+	{
+		return false;
+	}
+	SpInteractor interactor = m_presenter->get_interactor(0).lock();
+	const int x = event.x * m_image->getWidth() / getWidth();
+	const int y = event.y * m_image->getHeight() / getHeight();
+	const int range = jmax(20, m_image->getHeight() / 12);
+	TimeUnits timepos = -1.0;
+	for (int distance = 0; distance <= range && timepos < 0.0; distance += 3)
+	{
+		timepos = TimeposAtPoint(interactor, score, x, y - distance);
+		if (timepos < 0.0 && distance > 0)
+		{
+			timepos = TimeposAtPoint(interactor, score, x, y + distance);
+		}
+	}
+	if (timepos < 0.0)
+	{
+		return false;
+	}
+
+	ImMeasuresTable* table = score->get_instrument(0)->get_measures_table();
+	const MeasureLocator locator = ScoreAlgorithms::get_locator_for(score, timepos);
+	ImMeasuresTableEntry* entry = table != nullptr ? table->get_measure(locator.iMeasure) : nullptr;
+	if (entry == nullptr || entry->get_bottom_ts_beat_duration() <= 0.0)
+	{
+		return false;
+	}
+	const TimeUnits beat = entry->get_bottom_ts_beat_duration();
+	ImMeasuresTableEntry* next = table->get_measure(locator.iMeasure + 1);
+	TimeUnits length = next != nullptr ? next->get_timepos() - entry->get_timepos() :
+		std::max(locator.location, beat);
+	// the beats of the piano in a pickup are counted from the start of the whole measure
+	// (see BeatLocation)
+	ColStaffObjs* staffObjs = score->get_staffobjs_table();
+	TimeUnits missing = 0.0;
+	if (locator.iMeasure == 0 && staffObjs != nullptr && staffObjs->is_anacrusis_start())
+	{
+		missing = staffObjs->anacrusis_missing_time();
+	}
+	point.scoreMeasure = locator.iMeasure;
+	point.beats = std::max(1, roundToInt((length + missing) / beat));
+	const int first = roundToInt(missing / beat);
+	if (wholeMeasure)
+	{
+		point.beat = locator.location * 2 < length ? first : point.beats;
+	}
+	else
+	{
+		point.beat = jlimit(first, point.beats, roundToInt((locator.location + missing) / beat));
+	}
+
+	// the position for the piano: in the measure played in the current pass (see
+	// PlayedMeasure), its end is the beginning of the next played measure
+	int played = PlayedMeasure(point.scoreMeasure);
+	if (played < 0)
+	{
+		return false; // not played (e.g. after Fine)
+	}
+	point.played = point.beat < point.beats ? PianoController::Position{played + 1, point.beat + 1} :
+		PianoController::Position{played + 2, 1};
+	return true;
+}
+
+// Whether a beat boundary of the score is where an A-B mark (a position of the piano)
+// is shown. The end of a measure is also the beginning of the next one.
+bool LomseScoreComponent::IsMarkAt(const BeatPoint& point, PianoController::Position mark)
+{
+	if (mark.measure <= 0)
+	{
+		return false;
+	}
+	if (point.scoreMeasure == ScoreMeasure(mark.measure - 1) && point.beat == mark.beat - 1)
+	{
+		return true;
+	}
+	return point.beat == point.beats && mark.beat == 1 && mark.measure > 1 &&
+		point.scoreMeasure == ScoreMeasure(mark.measure - 2);
+}
+
+// The A-B mark at the mouse (1: A, 2: B), 0 if none.
+int LomseScoreComponent::MarkAtPoint(const MouseEvent& event)
+{
+	if (loop.begin.measure <= 0 && loopStart.measure <= 0)
+	{
+		return 0;
+	}
+	BeatPoint point;
+	if (!BeatAtPoint(event, false, point))
+	{
+		return 0;
+	}
+	if (IsMarkAt(point, loop.begin.measure > 0 ? loop.begin : loopStart))
+	{
+		return 1;
+	}
+	return loop.end.measure > 0 && IsMarkAt(point, loop.end) ? 2 : 0;
+}
+
+// Ctrl+click: the A mark (end: the B mark) at the beat at the mouse. A without a B, or
+// after it: only A is set (as with the A-B button); B before A is not set; B without an A:
+// the loop starts at the beginning of the song.
+void LomseScoreComponent::SetMarkAtPoint(const MouseEvent& event, bool end)
+{
+	BeatPoint point;
+	if (!BeatAtPoint(event, false, point))
+	{
+		return;
+	}
+	const PianoController::Position pos = point.played;
+	auto before = [](PianoController::Position a, PianoController::Position b)
+		{ return a.measure < b.measure || (a.measure == b.measure && a.beat < b.beat); };
+	const PianoController::Position begin = loop.begin.measure > 0 ? loop.begin : loopStart;
+	if (!end)
+	{
+		if (loop.end.measure > 0 && before(pos, loop.end))
+		{
+			m_pianoController.SetLoop({pos, loop.end});
+		}
+		else
+		{
+			if (loop.begin.measure > 0)
+			{
+				m_pianoController.ResetLoop();
+			}
+			m_pianoController.SetLoopStart(pos);
+		}
+	}
+	else if (begin.measure <= 0)
+	{
+		if (before(PianoController::Position{1, 1}, pos))
+		{
+			m_pianoController.SetLoop({{1, 1}, pos});
+		}
+	}
+	else if (before(begin, pos))
+	{
+		m_pianoController.SetLoop({begin, pos});
+	}
 }
 
 void LomseScoreComponent::mouseWheelMove(const MouseEvent& event, const MouseWheelDetails& details)
@@ -1535,25 +1808,60 @@ void LomseScoreComponent::UpdateABMarks(bool force)
 
 		interactor->remove_mark(loopStartMark);
 		interactor->remove_mark(loopEndMark);
+		loopStartMark = nullptr;
+		loopEndMark = nullptr;
 
-		if (loop.begin.measure > 0 || loopStart.measure > 0)
+		// a mark being dragged is shown where it is dragged
+		PianoController::Position begin = loop.begin.measure > 0 ? loop.begin : loopStart;
+		PianoController::Position end = loop.end;
+		if (m_dragMark == 1)
 		{
-			TimeUnits timepos = BeatTimepos(score,
-				ScoreMeasure(loop.begin.measure > 0 ? loop.begin.measure - 1 : loopStart.measure - 1),
-				loop.begin.measure > 0 ? loop.begin.beat - 1 : loopStart.beat - 1);
-			loopStartMark = interactor->add_fragment_mark_at_note_rest(m_scoreId, timepos);
-			loopStartMark->color(Color(15, 90, 235, 128)); // light orange
-			loopStartMark->type(k_mark_open_rounded);
-			loopStartMark->x_shift(-5);
+			begin = m_dragPos;
+		}
+		else if (m_dragMark == 2)
+		{
+			end = m_dragPos;
 		}
 
-		if (loop.end.measure > 0)
+		if (begin.measure > 0)
 		{
-			TimeUnits timepos = BeatTimepos(score, ScoreMeasure(loop.end.measure - 1), loop.end.beat - 1);
+			TimeUnits timepos = BeatTimepos(score, ScoreMeasure(begin.measure - 1), begin.beat - 1);
+			loopStartMark = interactor->add_fragment_mark_at_note_rest(m_scoreId, timepos);
+			if (loopStartMark != nullptr)
+			{
+				loopStartMark->color(Color(15, 90, 235, 128)); // light orange
+				loopStartMark->type(k_mark_open_rounded);
+				loopStartMark->x_shift(-5);
+			}
+		}
+
+		if (end.measure > 0)
+		{
+			// just before the position of B; at the beginning of a measure: at the end of the
+			// measure played before it (with repeats not always the one before it in the
+			// score; after the last measure: at the end of the score)
+			TimeUnits timepos = 0.0;
+			ImMeasuresTable* table = score != nullptr && score->get_num_instruments() > 0 ?
+				score->get_instrument(0)->get_measures_table() : nullptr;
+			if (end.beat <= 1 && end.measure > 1 && table != nullptr)
+			{
+				ImMeasuresTableEntry* next = table->get_measure(ScoreMeasure(end.measure - 2) + 1);
+				ColStaffObjs* staffObjs = score->get_staffobjs_table();
+				ColStaffObjsEntry* last = staffObjs != nullptr ? staffObjs->back() : nullptr;
+				timepos = next != nullptr ? next->get_timepos() :
+					last != nullptr ? last->time() + last->imo_object()->get_duration() : 0.0;
+			}
+			else
+			{
+				timepos = BeatTimepos(score, ScoreMeasure(end.measure - 1), end.beat - 1);
+			}
 			timepos -= 1;
 			loopEndMark = interactor->add_fragment_mark_at_note_rest(m_scoreId, timepos);
-			loopEndMark->color(Color(15, 90, 235, 128)); // light orange
-			loopEndMark->type(k_mark_close_rounded);
+			if (loopEndMark != nullptr)
+			{
+				loopEndMark->color(Color(15, 90, 235, 128)); // light orange
+				loopEndMark->type(k_mark_close_rounded);
+			}
 		}
 	}
 }
