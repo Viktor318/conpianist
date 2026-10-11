@@ -137,6 +137,7 @@ private:
 	class ScoreCheck;
 	std::unique_ptr<ScoreCheck> m_check;
 	File m_checkedScore;
+	String m_checkedScoreText; // its text, shown when the check has finished
 	int m_checkNumber = 0;
 	String m_faultyScore;
 	StringArray m_checkedScores; // see IsCheckedScore
@@ -151,7 +152,7 @@ private:
 	int m_dragMark = 0;
 	PianoController::Position m_dragPos{0,0};
 
-	void LoadDocument(String filename);
+	void LoadDocument(String content);
 	void PrepareImage();
 	LUnits ScaledUnits(int pixels);
 	unsigned GetMouseFlags(const MouseEvent& event);
@@ -181,7 +182,7 @@ private:
 	void UpdateABMarks(bool force);
 	void BuildControls();
 	void LoadScore(const File& file);
-	void ShowScore(const File& file);
+	void ShowScore(const File& file, const String& content);
 	void ScoreChecked(int number, const File& file, bool ok, const String& reason, const String& details);
 	void ReportFaultyScore(const File& file, const String& reason, const String& details);
 	String CheckedScoreKey(const File& file) const;
@@ -815,11 +816,16 @@ static void RemovePartGroups(String& content)
 	content = String::fromUTF8(result.data(), (int)result.size());
 }
 
-// Reads a score file and prepares its text for Lomse. The file is passed to Lomse as text
-// (asText) in these cases, otherwise Lomse opens the file itself:
-// - the file is a compressed MusicXML (.mxl): it is unpacked here;
-// - the path has non-ASCII characters (e.g. accented letters): Lomse cannot open
-//   such a file on Windows;
+// The text of a score file; a compressed MusicXML (.mxl) is unpacked (empty if it has no
+// score in it). The file is read only once: the text is checked, prepared (see
+// PrepareScoreText) and passed to Lomse as text, so Lomse does not open the file itself
+// (it could not open a path with non-ASCII characters on Windows either).
+static String ReadScoreText(const File& file)
+{
+	return file.hasFileExtension(".mxl") ? ReadCompressedMusicXml(file) : file.loadFileAsString();
+}
+
+// Prepares the text of a score for Lomse:
 // - the score has part groups (brackets joining the instruments, written e.g. by
 //   Dorico): Lomse cannot draw them if an instrument of the group is not shown,
 //   so the groups are left out;
@@ -828,30 +834,18 @@ static void RemovePartGroups(String& content)
 // - a note of a chord has no voice (Sibelius): it is added (see AddVoiceToChordNotes).
 // - the side of the fingerings is given by their position (MuseScore): it is written into
 //   them (see SetFingeringPlacement).
-// Returns false if a compressed file has no score in it.
-static bool PrepareScoreText(const String& filename, String& content, bool& asText)
+static void PrepareScoreText(String& content)
 {
-	const bool compressed = filename.endsWithIgnoreCase(".mxl");
-	content = compressed ? ReadCompressedMusicXml(File(filename)) : File(filename).loadFileAsString();
-	if (compressed && content.isEmpty())
-	{
-		return false;
-	}
-	const bool asciiPath = CharPointer_ASCII::isValidString(filename.toRawUTF8(), (int)filename.getNumBytesAsUTF8());
-	const bool hasGroups = content.contains("<part-group");
-	const bool hasChords = content.contains("<harmony");
-	if (hasChords)
+	if (content.contains("<harmony"))
 	{
 		content = ChordSymbolsAsWords(content);
 	}
-	const bool voicesAdded = AddVoiceToChordNotes(content);
-	const bool placementsSet = SetFingeringPlacement(content);
-	asText = !asciiPath || hasGroups || hasChords || voicesAdded || placementsSet || compressed;
-	if (asText)
+	AddVoiceToChordNotes(content);
+	SetFingeringPlacement(content);
+	if (content.contains("<part-group"))
 	{
 		RemovePartGroups(content);
 	}
-	return true;
 }
 
 // The playback order of the measures of a score with repeats (repeat signs, voltas, D.C.,
@@ -903,31 +897,17 @@ static void ReadPlaybackOrder(ImoScore* score, std::vector<int>& order, std::vec
 	}
 }
 
-void LomseScoreComponent::LoadDocument(String filename)
+void LomseScoreComponent::LoadDocument(String content)
 {
 	//first, we will create a 'presenter'. It takes care of creating and maintaining
 	//all objects and relationships between the document, its views and the interactors
 	//to interact with the view
-	if (filename.isNotEmpty())
+	if (content.isNotEmpty())
 	{
-		// load from file (see PrepareScoreText)
-		String content;
-		bool asText = false;
-		if (!PrepareScoreText(filename, content, asText))
-		{
-			// not a compressed MusicXML file: nothing is shown
-			m_presenter.reset();
-			return;
-		}
-		if (asText)
-		{
-			m_presenter.reset(m_lomse.new_document(lomse::k_view_vertical_book,
-				content.toStdString(), lomse::Document::k_format_mxl));
-		}
-		else
-		{
-			m_presenter.reset(m_lomse.open_document(lomse::k_view_vertical_book, filename.toStdString()));
-		}
+		// the text of the score file (see ReadScoreText)
+		PrepareScoreText(content);
+		m_presenter.reset(m_lomse.new_document(lomse::k_view_vertical_book,
+			content.toStdString(), lomse::Document::k_format_mxl));
 	}
 	else
 	{
@@ -1872,6 +1852,7 @@ void LomseScoreComponent::LoadSong()
 	m_check.reset(); // the check of the score of the previous song
 	m_checkNumber++;
 	m_checkedScore = File();
+	m_checkedScoreText = String();
 	m_faultyScore = String();
 
 	// the score chosen by the user for this song comes before the scores found by name
@@ -2033,16 +2014,15 @@ int ScoreComponent::CheckScoreFile(const File& file, const File& resultFile)
 		fontsPath = resourcesPath;
 		lomse.set_request_callback(nullptr, [](void*, Request* request) { AnswerFontRequest(request, fontsPath); });
 
-		String content;
-		bool asText = false;
-		if (!PrepareScoreText(file.getFullPathName(), content, asText))
+		String content = ReadScoreText(file);
+		if (content.isEmpty())
 		{
 			resultFile.replaceWithText("the compressed file has no score in it");
 			return CheckScoreError;
 		}
-		std::unique_ptr<Presenter> presenter(asText ?
-			lomse.new_document(k_view_vertical_book, content.toStdString(), Document::k_format_mxl) :
-			lomse.open_document(k_view_vertical_book, file.getFullPathName().toStdString()));
+		PrepareScoreText(content);
+		std::unique_ptr<Presenter> presenter(
+			lomse.new_document(k_view_vertical_book, content.toStdString(), Document::k_format_mxl));
 		SpInteractor interactor = presenter->get_interactor(0).lock();
 
 		// the playback order of the measures is worked out, and the instruments are taken
@@ -2115,11 +2095,12 @@ void LomseScoreComponent::LoadScore(const File& file)
 	m_check.reset(); // an earlier check is not needed any more
 	m_checkNumber++;
 	m_checkedScore = File();
+	m_checkedScoreText = String();
 	m_faultyScore = String();
 
 	// a file that is not well-formed XML is found without drawing it
 	const bool compressed = file.hasFileExtension(".mxl");
-	const String content = compressed ? ReadCompressedMusicXml(file) : file.loadFileAsString();
+	const String content = ReadScoreText(file);
 	if (compressed && content.isEmpty())
 	{
 		ReportFaultyScore(file, TRANS("The compressed score file (.mxl) has no score in it."),
@@ -2140,12 +2121,14 @@ void LomseScoreComponent::LoadScore(const File& file)
 
 	if (IsCheckedScore(file))
 	{
-		ShowScore(file);
+		ShowScore(file, content);
 		return;
 	}
 
 	// drawn first by a check process (see ScoreCheck); the score is shown when it has finished
+	// (from the text read here)
 	m_checkedScore = file;
+	m_checkedScoreText = content;
 	loadButton->setVisible(false);
 	repaint();
 	const int number = m_checkNumber;
@@ -2163,12 +2146,12 @@ void LomseScoreComponent::LoadScore(const File& file)
 		}));
 }
 
-void LomseScoreComponent::ShowScore(const File& file)
+void LomseScoreComponent::ShowScore(const File& file, const String& content)
 {
 	Cleanup();
 
 	const uint32 start = Time::getMillisecondCounter();
-	LoadDocument(file.getFullPathName());
+	LoadDocument(content);
 	juce::Logger::writeToLog("[SCORE] Loaded " + file.getFileName() + " in " +
 		String(Time::getMillisecondCounter() - start) + " ms");
 
@@ -2190,6 +2173,8 @@ void LomseScoreComponent::ScoreChecked(int number, const File& file, bool ok, co
 	}
 	m_check.reset();
 	m_checkedScore = File();
+	const String content = m_checkedScoreText;
+	m_checkedScoreText = String();
 	if (ok)
 	{
 		if (details.isNotEmpty())
@@ -2202,7 +2187,7 @@ void LomseScoreComponent::ScoreChecked(int number, const File& file, bool ok, co
 		{
 			AddCheckedScore(file);
 		}
-		ShowScore(file);
+		ShowScore(file, content);
 	}
 	else
 	{
