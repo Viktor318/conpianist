@@ -302,6 +302,13 @@ SceneComponent::~SceneComponent()
 {
     //[Destructor_pre]. You can add your own custom destruction code here..
     pianoController.RemoveListener(this); // no more notifications while it is destroyed
+    // the steps of the exit are logged with their time, to find a slow one
+    const uint32 exitStart = Time::getMillisecondCounter();
+    const auto logStep = [exitStart](const char* step)
+        {
+            Logger::writeToLog(String("Exit: ") + step + " (" + String(Time::getMillisecondCounter() - exitStart) + " ms)");
+        };
+    logStep("start");
     // A song played by the piano (network playback) would go on after the program is
     // closed: it is stopped, and the program waits (at most 2 s) until the piano confirms
     // it, because the connections are closed below.
@@ -312,6 +319,7 @@ SceneComponent::~SceneComponent()
         {
             Thread::sleep(10);
         }
+        logStep("song of the piano stopped");
     }
     recorderWindow = nullptr;
     accompanimentWindow = nullptr;
@@ -323,6 +331,7 @@ SceneComponent::~SceneComponent()
     recorderButton = nullptr;
     songSelectorButton = nullptr;
     saveLastState(); // restored at the next start
+    logStep("state saved");
     // MIDI In 2 is closed first (the output stays open), so no more notes arrive;
     // then the notes still held there or on the virtual keyboard are released
     midiDevice.SetPorts("", midiDevice.GetOutputName());
@@ -330,14 +339,18 @@ SceneComponent::~SceneComponent()
     pianoController.ReleaseLive();
     pianoController.ShutdownLocalPlayer();
     pianoController.sendToPianoKeyboard = nullptr;
+    logStep("players stopped");
     pianoKeyboardPort.SetPorts("", "");
     midiDevice.SetPorts("", "");
+    logStep("MIDI ports closed");
     pianoConnector.SetMidiConnector(nullptr); // nothing is sent to the connectors any more
     if (rtpMidiConnector)
     {
 		rtpMidiConnector->stopThread(3000);
+		logStep("network connection closed");
 	}
 	pianoConnector.stopThread(1000);
+	logStep("connections closed");
 
     //[/Destructor_pre]
 
@@ -1649,6 +1662,7 @@ void SceneComponent::showBalance()
 
 void SceneComponent::requestExit()
 {
+	Logger::writeToLog("Exit requested");
 	if (!pianoController.GetRecorder().IsUnsaved())
 	{
 		JUCEApplication::quit();
