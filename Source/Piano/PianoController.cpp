@@ -660,6 +660,7 @@ void PianoController::SetTempo(int tempo)
 		return;
 	}
 	m_networkTempoSet = true;
+	m_networkTempo = tempo;
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::Tempo, tempo));
 }
 
@@ -1217,7 +1218,11 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 			// own settings (voices, volumes etc.) again. The settings made in ConPianist
 			// are restored, after a short delay that lets the piano finish.
 			Logger::writeToLog("End of the song: restoring the settings");
-			const MixSnapshot snapshot = m_playingSnapshot;
+			MixSnapshot snapshot = m_playingSnapshot;
+			// the tempo the piano reported last is the song's tempo at its end (the piano
+			// reports the tempo changes of the song, e.g. a ritardando): only a tempo set in
+			// the program is restored, otherwise the song keeps its own tempo
+			snapshot.tempo = m_networkTempoSet ? m_networkTempo : 0;
 			m_playingSnapshot.valid = false;
 			std::weak_ptr<bool> alive = m_alive;
 			MessageManager::callAsync([this, alive, snapshot]()
@@ -3509,6 +3514,10 @@ void PianoController::ApplySnapshot(const MixSnapshot& snapshot)
 	if (snapshot.speedFactor > 0 && m_localPlayback)
 	{
 		SetSpeedFactor(snapshot.speedFactor); // own player to own player: the same speed
+	}
+	else if (snapshot.speedFactor <= 0 && snapshot.tempo <= 0)
+	{
+		// the tempo is not restored (see the end of the song)
 	}
 	else if (snapshot.speedFactor <= 0 && IsLocalSongLoaded())
 	{

@@ -642,6 +642,7 @@ private:
 	// is a speed other than 100% taken over by the own player when the player is switched
 	// (the tempo the piano reports may differ from the file's even at the same measure)
 	bool m_networkTempoSet = false;
+	int m_networkTempo = DefaultTempo; // the tempo set then
 	// switching from the piano's player to the own one after a tempo was set: the piano is
 	// first put to the beginning of the measure, so its tempo there can be compared with
 	// the tempo of the file at the same place. Pending: waiting for that (to m_pendingSource);
