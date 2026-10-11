@@ -1488,7 +1488,23 @@ TimeUnits LomseScoreComponent::BeatLocation(ImoScore* score, int measure, int be
 	}
 	ImMeasuresTable* table = score->get_instrument(0)->get_measures_table();
 	ImMeasuresTableEntry* entry = table != nullptr ? table->get_measure(measure) : nullptr;
-	return entry != nullptr ? entry->get_bottom_ts_beat_duration() * beat : 0.0;
+	if (entry == nullptr)
+	{
+		return 0.0;
+	}
+	TimeUnits location = entry->get_bottom_ts_beat_duration() * beat;
+
+	// A pickup (an incomplete first measure) is the end of a whole measure for the piano:
+	// a MIDI file starts its first measure with the missing beats (Yamaha files are like
+	// that), so the beats of the piano are counted from the start of the whole measure.
+	// Without this the position line ran past the pickup into the second measure and
+	// jumped back when the piano reached it.
+	ColStaffObjs* staffObjs = score->get_staffobjs_table();
+	if (measure == 0 && staffObjs != nullptr && staffObjs->is_anacrusis_start())
+	{
+		location = std::max(0.0, location - staffObjs->anacrusis_missing_time());
+	}
+	return location;
 }
 
 // Time position of a beat of the piano in the score.
