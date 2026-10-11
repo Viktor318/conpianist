@@ -2,7 +2,7 @@
 
 Ez a fájl a ConPianist jövőbeli fejlesztéseit gyűjti egy helyre. Új ötlet ide kerül be, verzióemeléskor pedig átnézzük és átrendezzük. Az elkészült változásokat a [CHANGELOG.md](../CHANGELOG.md) tartalmazza.
 
-**Állapot:** 2026. október 11. A következő kiadás az **5.0**: addig csak a hibajavítások, az OTS funkció és a kézikönyv készül el, minden más terv az 5.0 utáni verziókba került. Az 5.0 utáni verziókra bontás javaslat, a sorrend verzióemeléskor változhat.
+**Állapot:** 2026. október 11. A következő kiadás az **5.0**: addig csak a hibajavítások, az OTS funkció (a program saját OTS-e; a gyári OTS stílusfájlokból az 5.1-ben) és a kézikönyv készül el, minden más terv az 5.0 utáni verziókba került. Az 5.0 utáni verziókra bontás javaslat, a sorrend verzióemeléskor változhat.
 
 **Munkaigény:** K = kicsi (egy alkalom), Kö = közepes (néhány alkalom), N = nagy (több hét, vagy bizonytalan kimenetel).
 
