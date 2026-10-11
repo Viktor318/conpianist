@@ -392,6 +392,7 @@ PlaybackComponent::PlaybackComponent (Settings& settings, PianoController& piano
 PlaybackComponent::~PlaybackComponent()
 {
     //[Destructor_pre]. You can add your own custom destruction code here..
+    pianoController.RemoveListener(this); // no more notifications while it is destroyed
     //[/Destructor_pre]
 
     songGroup = nullptr;

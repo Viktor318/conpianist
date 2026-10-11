@@ -88,6 +88,7 @@ MixerComponent::MixerComponent (Settings& settings, PianoController& pianoContro
 MixerComponent::~MixerComponent()
 {
     //[Destructor_pre]. You can add your own custom destruction code here..
+    pianoController.RemoveListener(this); // no more notifications while it is destroyed
     //[/Destructor_pre]
 
     channelViewport = nullptr;

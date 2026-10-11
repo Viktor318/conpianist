@@ -987,6 +987,9 @@ bool LiveRecorder::Save(const File& file, int tempo, int beatNumerator, int beat
 		midiFile.addTrack(track);
 	}
 
+	// the file is written without the lock (the MIDI file is complete): the recording of
+	// incoming notes is not held up while the disk is busy
+	const ScopedUnlock unlock(m_lock);
 	file.getParentDirectory().createDirectory();
 	file.deleteFile();
 	FileOutputStream stream(file);

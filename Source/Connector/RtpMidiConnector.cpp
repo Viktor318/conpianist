@@ -134,6 +134,10 @@ public:
 
 	bool wantsInvite = true;
 	int64 lastSensing = 0;
+	// The messages read while g_rtpMutex is held; the connector's thread passes them on
+	// after releasing it (see run), so a listener sending a message at once does not wait
+	// for the lock held by the same thread.
+	std::vector<MidiMessage> received;
 
 private:
 	MidiConnector::Listener* m_listener = nullptr;
@@ -227,8 +231,7 @@ void RtpMidi::OnMidiNoteOn(byte channel, byte note, byte velocity)
 
 	if (g_rtpMidi->m_listener)
 	{
-		MidiMessage msg = MidiMessage::noteOn(channel, note, velocity);
-		g_rtpMidi->m_listener->IncomingMidiMessage(msg);
+		g_rtpMidi->received.push_back(MidiMessage::noteOn(channel, note, velocity));
 	}
 }
 
@@ -239,8 +242,7 @@ void RtpMidi::OnMidiNoteOff(byte channel, byte note, byte velocity)
 
 	if (g_rtpMidi->m_listener)
 	{
-		MidiMessage msg = MidiMessage::noteOff(channel, note, velocity);
-		g_rtpMidi->m_listener->IncomingMidiMessage(msg);
+		g_rtpMidi->received.push_back(MidiMessage::noteOff(channel, note, velocity));
 	}
 }
 
@@ -259,7 +261,7 @@ void RtpMidi::OnSysEx(const byte* data, uint16_t size)
 
 	if (data[0] == 0xf0 && data[size-1] == 0xf7)
 	{
-		m_listener->IncomingMidiMessage(MidiMessage::createSysExMessage(data + 1, size - 2));
+		received.push_back(MidiMessage::createSysExMessage(data + 1, size - 2));
 		m_buf.clear();
 		return;
 	}
@@ -268,8 +270,7 @@ void RtpMidi::OnSysEx(const byte* data, uint16_t size)
 
 	if (data[size-1] == 0xf7)
 	{
-		MidiMessage msg = MidiMessage::createSysExMessage(m_buf.data(), (int)m_buf.size());
-		m_listener->IncomingMidiMessage(msg);
+		received.push_back(MidiMessage::createSysExMessage(m_buf.data(), (int)m_buf.size()));
 		m_buf.clear();
 	}
 }
@@ -312,6 +313,7 @@ void RtpMidiConnector::run()
 		}
 
 		bool processed = false;
+		std::vector<MidiMessage> received;
 		{
 			std::lock_guard<std::mutex> guard(g_rtpMutex);
 			if (g_owner != this || !g_rtpMidi || !g_midi)
@@ -341,8 +343,18 @@ void RtpMidiConnector::run()
 
 			// process incoming messages
 			g_midi->read();
+			received.swap(g_rtpMidi->received);
 
 			processed = g_rtpMidi->WasDataTransferred();
+		}
+
+		// the messages read are passed on with g_rtpMutex released
+		if (m_listener != nullptr)
+		{
+			for (const MidiMessage& message : received)
+			{
+				m_listener->IncomingMidiMessage(message);
+			}
 		}
 
 		if (!processed)

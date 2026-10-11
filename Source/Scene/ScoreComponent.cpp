@@ -257,6 +257,7 @@ LomseScoreComponent::LomseScoreComponent(Settings& settings, PianoController& pi
 
 LomseScoreComponent::~LomseScoreComponent()
 {
+	m_pianoController.RemoveListener(this); // no more notifications while it is destroyed
 	m_check.reset();
 	Cleanup();
 }

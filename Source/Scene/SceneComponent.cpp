@@ -301,6 +301,7 @@ SceneComponent::SceneComponent (Settings& settings)
 SceneComponent::~SceneComponent()
 {
     //[Destructor_pre]. You can add your own custom destruction code here..
+    pianoController.RemoveListener(this); // no more notifications while it is destroyed
     recorderWindow = nullptr;
     accompanimentWindow = nullptr;
     styleMixerWindow = nullptr;

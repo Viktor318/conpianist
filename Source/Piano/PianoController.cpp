@@ -55,10 +55,62 @@ PianoController::PianoController()
 			m_styleDefaultPending[i][which] = false;
 		}
 	}
+	CreateLocalPlayer();
 }
 
 PianoController::~PianoController()
 {
+	// the own player and the metronome stop (and wait for their timer threads) before the
+	// members they use are destroyed; nothing is sent (the connectors may be gone)
+	m_softMetronome.reset();
+	m_localPlayer.reset();
+}
+
+// The own player (USB and MIDI device playback) is created with the controller, on the
+// message thread, so it is never created while other threads may already use it.
+void PianoController::CreateLocalPlayer()
+{
+	m_localPlayer = std::make_unique<LocalSongPlayer>();
+	// notes are sent directly (not through the message queue) for exact timing
+	m_localPlayer->sendMidi = [this](const MidiMessage& message)
+		{
+			SendToOutput(message);
+			OnLocalMessage(message);
+		};
+	// the chords written into the song are shown like the chords the piano recognizes
+	m_localPlayer->onChord = [this](int chord)
+		{
+			m_styleChord = chord;
+			NotifyChanged(apStyle);
+		};
+	m_localPlayer->onChanged = [this](bool positionChanged, bool playingChanged)
+		{
+			if (positionChanged)
+			{
+				NotifyChanged(apPosition);
+				// the song may change its tempo: the shown tempo follows it
+				std::weak_ptr<bool> alive = m_alive;
+				MessageManager::callAsync([this, alive]()
+					{
+						if (alive.lock())
+						{
+							UpdateLocalTempo();
+						}
+					});
+				if (m_localPlayer && m_localPlayer->IsPlaying())
+				{
+					OnBeat(m_localPlayer->GetPosition().beat);
+				}
+			}
+			if (playingChanged)
+			{
+				NotifyChanged(apPlayback);
+				if (m_localPlayer && !m_localPlayer->IsPlaying())
+				{
+					ResumeStyleSyncStartLater();
+				}
+			}
+		};
 }
 
 void PianoController::SetPianoConnector(PianoConnector* pianoConnector)
@@ -1768,51 +1820,6 @@ void PianoController::ApplyPlaybackSource(PlaybackSource source)
 	}
 	const bool enabled = m_localPlayback;
 	Logger::writeToLog("Playback: " + String(source == psPiano ? "piano" : source == psLocal ? "own player (USB)" : "own player (MIDI device)"));
-
-	if (enabled && !m_localPlayer)
-	{
-		m_localPlayer = std::make_unique<LocalSongPlayer>();
-		// notes are sent directly (not through the message queue) for exact timing
-		m_localPlayer->sendMidi = [this](const MidiMessage& message)
-			{
-				SendToOutput(message);
-				OnLocalMessage(message);
-			};
-		// the chords written into the song are shown like the chords the piano recognizes
-		m_localPlayer->onChord = [this](int chord)
-			{
-				m_styleChord = chord;
-				NotifyChanged(apStyle);
-			};
-		m_localPlayer->onChanged = [this](bool positionChanged, bool playingChanged)
-			{
-				if (positionChanged)
-				{
-					NotifyChanged(apPosition);
-					// the song may change its tempo: the shown tempo follows it
-					std::weak_ptr<bool> alive = m_alive;
-					MessageManager::callAsync([this, alive]()
-						{
-							if (alive.lock())
-							{
-								UpdateLocalTempo();
-							}
-						});
-					if (m_localPlayer && m_localPlayer->IsPlaying())
-					{
-						OnBeat(m_localPlayer->GetPosition().beat);
-					}
-				}
-				if (playingChanged)
-				{
-					NotifyChanged(apPlayback);
-					if (m_localPlayer && !m_localPlayer->IsPlaying())
-					{
-						ResumeStyleSyncStartLater();
-					}
-				}
-			};
-	}
 
 	ClearSongState();
 
@@ -3810,6 +3817,13 @@ PianoController::Position PianoController::GetLength()
 
 void PianoController::AddListener(Listener* listener)
 {
+	// A window posts its updates with GuiHelper::CallAsync, often from the thread that
+	// notifies it; its safe pointer (the weak reference of the component) is made here
+	// first, on the message thread, so it is not made the first time on another thread.
+	if (Component* component = dynamic_cast<Component*>(listener))
+	{
+		Component::SafePointer<Component> prepared(component);
+	}
 	m_listeners.add(listener);
 }
 

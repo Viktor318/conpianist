@@ -779,6 +779,7 @@ private:
 	int m_lastPlayedMeasure = 0;
 	bool m_stopRequested = false; // stopped or paused by the user (not the end of the song)
 	bool m_skipRegistrationMemory = false;
+	void CreateLocalPlayer();
 	MixSnapshot TakeSnapshot();
 	void ApplySnapshot(const MixSnapshot& snapshot);
 	bool m_playbackSourceAutomatic = false;
