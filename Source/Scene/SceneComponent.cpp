@@ -351,6 +351,16 @@ SceneComponent::~SceneComponent()
 	}
 	pianoConnector.stopThread(1000);
 	logStep("connections closed");
+	// the piano's MIDI port (USB) is closed here, so that its time is logged: closing the
+	// port of a piano switched off meanwhile may take Windows several seconds
+	midiConnector = nullptr;
+	localMidiConnector = nullptr;
+	for (auto& device : MidiInput::getAvailableDevices())
+	{
+		audioDeviceManager.setMidiInputDeviceEnabled(device.identifier, false);
+	}
+	audioDeviceManager.setDefaultMidiOutputDevice("");
+	logStep("piano MIDI port closed");
 
     //[/Destructor_pre]
 
@@ -371,6 +381,7 @@ SceneComponent::~SceneComponent()
 
 
     //[Destructor]. You can add your own custom destruction code here..
+    logStep("windows deleted");
     //[/Destructor]
 }
 

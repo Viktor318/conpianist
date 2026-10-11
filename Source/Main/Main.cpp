@@ -178,6 +178,9 @@ public:
 
 		~MainWindow()
 		{
+			// the window disappears at once: closing the connections and the MIDI ports
+			// may take some seconds (e.g. after the piano was switched off)
+			setVisible(false);
 			settings.windowPos = getBounds();
 			settings.Save();
 			content = nullptr; // this destroys the SceneComponent
