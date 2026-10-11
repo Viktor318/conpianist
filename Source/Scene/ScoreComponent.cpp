@@ -686,13 +686,147 @@ static bool AddVoiceToChordNotes(String& content)
 	return changed;
 }
 
-// The side of a fingering (above or below its note) as MuseScore shows it. MuseScore writes
-// its position relative to the note: default-y is where MuseScore placed it (it is left out
-// if the side was set by hand, then the placement attribute gives the side), relative-y is
-// how far it was moved by hand. Lomse does not read these positions, and the placement
-// attribute is not the side shown when the fingering was moved to the other side, so
-// e.g. the fingerings of the lower voice in the upper staff were above, among those of
-// the upper voice. The side shown is written as placement into the fingerings.
+// The side of each fingering of a MuseScore score (above or below its note) as MuseScore
+// shows it, in the order of the <fingering> elements of the text: 1 above, -1 below, 0 not
+// known (left as it is).
+// MuseScore writes the position of a fingering relative to its note: default-y is where
+// MuseScore placed it (it is left out if the side was set by hand, then the placement
+// attribute gives the side), relative-y is how far it was moved by hand. The automatic
+// place is beyond all the notes sounding at the same time in the staff (a chord, or the
+// notes of the other voices), and beyond the fingerings of those notes on the same side;
+// default-y does not show this. A fingering moved by hand is on the other side only if it
+// was moved past all these notes: e.g. a fingering of the lower note moved down from
+// above the fingering of the upper note stays above the notes.
+static std::vector<int> FingeringSides(const std::string& text)
+{
+	std::vector<int> sides;
+	pugi::xml_document doc;
+	if (!doc.load_buffer(text.data(), text.size()))
+	{
+		return sides;
+	}
+
+	// the notes: their measure, staff, time in the measure and vertical place
+	struct NoteInfo
+	{
+		int measure;
+		std::string staff;
+		int time;
+		double y;
+		bool rest;
+		pugi::xml_node node;
+	};
+	std::vector<NoteInfo> notes;
+	std::map<const void*, size_t> noteIndex; // note element -> index in notes
+	int measureNumber = 0;
+	for (pugi::xml_node part : doc.child("score-partwise").children("part"))
+	{
+		for (pugi::xml_node measure : part.children("measure"))
+		{
+			measureNumber++;
+			int position = 0;
+			int chordTime = 0;
+			for (pugi::xml_node element : measure.children())
+			{
+				const std::string name = element.name();
+				if (name == "backup")
+				{
+					position -= element.child("duration").text().as_int();
+				}
+				else if (name == "forward")
+				{
+					position += element.child("duration").text().as_int();
+				}
+				else if (name == "note")
+				{
+					const bool inChord = element.child("chord");
+					const int time = inChord ? chordTime : position;
+					pugi::xml_node staff = element.child("staff");
+					noteIndex[element.internal_object()] = notes.size();
+					notes.push_back({measureNumber, staff ? staff.text().as_string() : "1", time,
+						element.attribute("default-y").as_double(), !element.child("pitch"), element});
+					if (!inChord && !element.child("grace"))
+					{
+						chordTime = position;
+						position += element.child("duration").text().as_int();
+					}
+				}
+			}
+		}
+	}
+
+	// the side a fingering was given (by MuseScore or by hand), before it was moved
+	const auto givenSide = [](pugi::xml_node fingering, const std::string& staff) -> int
+	{
+		const pugi::xml_attribute defaultY = fingering.attribute("default-y");
+		if (defaultY)
+		{
+			return defaultY.as_double() > 0.0 ? 1 : -1;
+		}
+		const std::string placement = fingering.attribute("placement").as_string();
+		return placement == "above" ? 1 : placement == "below" ? -1 : (staff == "1" ? 1 : -1);
+	};
+
+	for (const pugi::xpath_node& found : doc.select_nodes("//fingering"))
+	{
+		const pugi::xml_node fingering = found.node();
+		int side = 0;
+		pugi::xml_node note = fingering.parent();
+		while (note && std::string(note.name()) != "note")
+		{
+			note = note.parent();
+		}
+		const auto entry = note ? noteIndex.find(note.internal_object()) : noteIndex.end();
+		if (entry != noteIndex.end() &&
+			(fingering.attribute("default-y") || fingering.attribute("relative-y")))
+		{
+			const NoteInfo& info = notes[entry->second];
+			side = givenSide(fingering, info.staff);
+			const double moved = fingering.attribute("relative-y").as_double();
+			if (moved != 0.0)
+			{
+				// the notes at the same time in the staff, relative to this note, and the
+				// fingerings of the other notes on the same side
+				double top = 0.0, bottom = 0.0;
+				int stacked = 0;
+				for (const NoteInfo& other : notes)
+				{
+					if (other.measure != info.measure || other.staff != info.staff ||
+						other.time != info.time || other.rest)
+					{
+						continue;
+					}
+					top = std::max(top, other.y - info.y);
+					bottom = std::min(bottom, other.y - info.y);
+					if (other.node != info.node)
+					{
+						for (const pugi::xpath_node& f : other.node.select_nodes(".//fingering"))
+						{
+							stacked += givenSide(f.node(), other.staff) == side ? 1 : 0;
+						}
+					}
+				}
+				// MuseScore puts a fingering about 1.5 spaces from the notes, one space apart
+				if (side > 0 && top + 15.0 + 10.0 * stacked + moved < bottom)
+				{
+					side = -1;
+				}
+				else if (side < 0 && bottom - 15.0 - 10.0 * stacked + moved > top)
+				{
+					side = 1;
+				}
+			}
+		}
+		sides.push_back(side);
+	}
+	return sides;
+}
+
+// The side of the fingerings (above or below the note) as MuseScore shows them (see
+// FingeringSides) is written as placement into them. Lomse does not read the positions,
+// and the placement attribute is not the side shown when a fingering was moved to the
+// other side, so e.g. the fingerings of the lower voice in the upper staff were above,
+// among those of the upper voice.
 // Returns false (and leaves the text as it is) if there is no fingering to change.
 static bool SetFingeringPlacement(String& content)
 {
@@ -702,58 +836,35 @@ static bool SetFingeringPlacement(String& content)
 	}
 	// (searched in the bytes of the text, see ChordSymbolsAsWords)
 	static const std::string openTag = "<fingering";
-	// the value of an attribute of the tag (empty if the tag has no such attribute)
-	const auto attribute = [](std::string_view tag, const std::string& name) -> std::string_view
-	{
-		const std::string key = " " + name + "=\"";
-		const size_t start = tag.find(key);
-		if (start == std::string_view::npos)
-		{
-			return std::string_view();
-		}
-		const size_t valueStart = start + key.size();
-		const size_t valueEnd = tag.find('"', valueStart);
-		return valueEnd == std::string_view::npos ? std::string_view() : tag.substr(valueStart, valueEnd - valueStart);
-	};
-	const auto number = [](std::string_view value)
-	{
-		return std::atof(std::string(value).c_str());
-	};
 	const std::string text = content.toStdString();
+	const std::vector<int> sides = FingeringSides(text);
 	std::string result;
 	bool changed = false;
 	size_t position = 0; // the text before this position is in the result
+	size_t index = 0;    // of the <fingering> element (the order of sides)
 	for (size_t start = text.find(openTag); start != std::string::npos; start = text.find(openTag, start + 1))
 	{
 		const size_t attributes = start + openTag.size();
+		const char next = attributes < text.size() ? text[attributes] : '\0';
+		if (next != '>' && next != '/' && !CharacterFunctions::isWhitespace(next))
+		{
+			continue; // another element
+		}
+		const int side = index < sides.size() ? sides[index] : 0;
+		index++;
 		const size_t tagEnd = text.find('>', attributes);
 		if (tagEnd == std::string::npos)
 		{
 			break;
 		}
-		std::string_view tag(text.data() + attributes, tagEnd - attributes);
-		if (tag.empty() || !CharacterFunctions::isWhitespace(tag[0]))
-		{
-			continue; // no attributes
-		}
-		if (tag.back() == '/')
-		{
-			tag.remove_suffix(1); // an empty element
-		}
-		const std::string_view defaultY = attribute(tag, "default-y");
-		const std::string_view relativeY = attribute(tag, "relative-y");
-		const std::string_view placement = attribute(tag, "placement");
-		if (defaultY.empty() && relativeY.empty())
-		{
-			continue; // the side is the placement, if given
-		}
-		// MuseScore puts a fingering about 1.5 spaces from the note
-		double y = !defaultY.empty() ? number(defaultY)
-			: placement == "above" ? 15.0 : placement == "below" ? -15.0 : 0.0;
-		y += relativeY.empty() ? 0.0 : number(relativeY);
-		if (y == 0.0)
+		if (side == 0)
 		{
 			continue;
+		}
+		std::string_view tag(text.data() + attributes, tagEnd - attributes);
+		if (!tag.empty() && tag.back() == '/')
+		{
+			tag.remove_suffix(1); // an empty element
 		}
 		if (!changed)
 		{
@@ -768,17 +879,18 @@ static bool SetFingeringPlacement(String& content)
 			const size_t valueEnd = newTag.find('"', oldPlacement + 12);
 			newTag.erase(oldPlacement, valueEnd == std::string::npos ? std::string::npos : valueEnd + 1 - oldPlacement);
 		}
-		result += y > 0.0 ? " placement=\"above\"" : " placement=\"below\"";
+		result += side > 0 ? " placement=\"above\"" : " placement=\"below\"";
 		result += newTag;
 		position = attributes + tag.size();
 		changed = true;
 	}
-	if (changed)
+	if (changed && index == sides.size()) // (else the elements were not found as in the text)
 	{
 		result.append(text, position, std::string::npos);
 		content = String::fromUTF8(result.data(), (int)result.size());
+		return true;
 	}
-	return changed;
+	return false;
 }
 
 // Removes the part groups (the brackets joining instruments) from the text of a score.
