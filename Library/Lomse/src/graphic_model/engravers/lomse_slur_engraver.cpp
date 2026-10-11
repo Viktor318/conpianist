@@ -46,6 +46,16 @@ void SlurEngraver::set_start_staffobj(ImoRelObj* pRO, const AuxObjContext& aoc)
 
     m_pStartNote = static_cast<ImoNote*>(aoc.pSO);
     m_pStartNoteShape = static_cast<GmoShapeNote*>(aoc.pStaffObjShape);
+
+    //ConPianist fork: the staff of the end note. If the slur ends in a later system,
+    //the first part is engraved before set_end_staffobj() is invoked, and the end staff
+    //was 0: the first part of a slur in the lower staff of a piano took the profile of
+    //the upper staff and was drawn high above its notes. The end note is in the same
+    //instrument; set_end_staffobj() sets the value again.
+    ImoNote* pEndNote = m_pSlur->get_end_note();
+    m_idxStaffEnd = (pEndNote != nullptr && m_pStartNote != nullptr
+                     ? m_idxStaffStart - m_pStartNote->get_staff() + pEndNote->get_staff()
+                     : m_idxStaffStart);
 }
 
 //---------------------------------------------------------------------------------------
@@ -409,9 +419,9 @@ void SlurEngraver::compute_end_of_staff_point()
 
     //if current instrument has more than one staff it is necessary to place the end
     //of the slur at the same staff than slur end note
-    int iStaff = m_idxStaffStart;
-    if (m_idxStaffEnd != m_idxStaffStart)
-        iStaff = m_pSlur->get_end_note()->get_staff();
+    //ConPianist fork: always the staff of the end note in the instrument (iStaff is an
+    //index in the instrument; m_idxStaffStart is an index in the system)
+    int iStaff = m_pSlur->get_end_note()->get_staff();
 
     if (m_fSlurBelow)
         y3 = m_pInstrEngrv->get_bottom_line_of_staff(iStaff) + tenths_to_logical(60.0f);
