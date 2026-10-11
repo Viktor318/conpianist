@@ -48,7 +48,7 @@ A tesztelés közben talált hibák javítása (a már elkészülteket a CHANGEL
 
 A stílushoz tartozó hangszín-beállítások egy gombnyomással behívhatók, ahogy a Yamaha hangszereken. Munka: Kö (kb. 1–2 nap). Döntés (október 11.): a program saját OTS-e (B változat), a CSP-170 tesztje nélkül.
 
-- **Miért nem a zongora gyári OTS-e:** a CSP-170-en nincs OTS gomb, a beépített stílusok a zongorában vannak (fájlként nem érhetők el), és nem tudjuk, hogy a Smart Pianist üzenetei között van-e OTS. A gyári OTS (A változat) csak teszttel és a forgalom visszafejtésével volna lehetséges, ha egyáltalán létezik; később ráépíthető (az üres gomb a zongora gyári beállítását töltené be). Másik lehetőség később: a gyári OTS beolvasása Yamaha stílusfájlokból (`.sty`, például egy PSR stílusai), ha a stílus megvan fájlként; ehhez a fájl OTS-részét kell értelmezni, és a hangszereket a CSP-170 hangszíneire kell leképezni.
+- **Miért nem a zongora gyári OTS-e:** a CSP-170-en nincs OTS gomb, a beépített stílusok a zongorában vannak (fájlként nem érhetők el), és nem tudjuk, hogy a Smart Pianist üzenetei között van-e OTS. A gyári OTS (A változat) csak teszttel és a forgalom visszafejtésével volna lehetséges, ha egyáltalán létezik; nem tervezzük. Helyette az 5.1-ben a gyári OTS Yamaha stílusfájlokból kerül beolvasásra (lásd ott); az üres OTS gomb azt hívja be.
 - **Kezelés:** a Kíséret ablakban 4 gomb (OTS 1–4). Kattintás: az aktuális stílus adott OTS-ének behívása. Mentés: Shift+kattintás vagy a gomb menüje – az aktuális hangszín-beállítások az adott gombra kerülnek az aktuális stílushoz. Üres gombnál a behívás nem változtat semmit.
 - **Mit tárol egy OTS:** csak a hangszín-beállításokat: a Main, Layer és Left hangszínt, a Layer és a Left be/ki állapotát, a három rész hangerejét és oktávját. Nem tárolja: a split pontot, a kíséret tempóját, hangerejét és egyéb beállításait.
 - **Tárolás:** a program beállításai között, stílusonként (a stílus azonosítója szerint); újraindítás után is megmarad. A `.conmem` fájlokba nem kerül (felesleges kétszer tárolni), így minden memóriából elérhető.
@@ -76,6 +76,14 @@ A kíséret előre megírt akkordokkal és átmenetekkel szól, a zongora beép�
 | Végtelenített mód | A beírt akkordsort leállításig ismétli. | K | Eldöntendő: az egész menetet vagy kijelölt szakaszt is; Intro csak az első körben, Ending leállításkor (javaslat). |
 | Élő játék a Keverő csatornáin | Lejátszás közben a külső billentyűzet csak a Keverő csatornáin szól, így a játék nem keveredik a küldött akkordokkal, és a teljes billentyűzet használható. | K | |
 | Tárolás | A menet szövegfájlként a Roaming adatmappában (stílus, tempó, hangnem, akkordok). | K | Eldöntendő: önálló fájl, vagy a regisztrációs memóriához kapcsolódik. |
+
+**Ugyancsak az 5.1-ben: a gyári OTS beolvasása stílusfájlokból** (döntés: október 11.). Az 5.0 saját OTS-ére épül: az üres OTS gomb a stílus gyári OTS-ét hívja be, a mentett saját OTS elsőbbséget kap, és a gyári egy menüponttal visszaállítható. Viktornak megvannak a Genos, a PSR-SX900 és a PSR-SX700 stílusfájljai (`.sty`, `.prs`, `.sst`, `.pcs`, `.fps` – azonos felépítés: MIDI-rész, utána a Yamaha-blokkok, köztük az OTS, `OTSc`). Munka: Kö (kb. 2–3 nap).
+
+| Tétel | Leírás | Munka | Megjegyzés |
+|---|---|---|---|
+| Stílusfájlok beolvasása | A beállításokban megadott mappa(ák) stílusfájljainak egyszeri beolvasása: stílusnév → 4 OTS (Right 1–2 és Left hangszíne, hangereje, oktávja, be/ki állapota). A fájlok a gépen maradnak, a repóba nem kerülnek. | K–Kö | Előbb 2–3 mintafájl (ugyanaz a stílus Genosból és SX900-ból) felépítésének ellenőrzése. |
+| Stílus párosítása | A CSP-170 stílusai név szerint; több forrásnál a sorrend: SX900, SX700, Genos (a PSR hangszínkészlete közelebb áll a CSP-170-éhez). | K | |
+| Hangszín-leképezés | A Genos/PSR hangszínszám (bank MSB/LSB + program) a CSP-170 hangszínére: pontos egyezés (pl. XG/GM), majd név szerint (a Genos és az SX Data List hangszínlistája alapján), végül azonos GM-kategória. A Right 3 kimarad (a CSP-170-en csak Main, Layer, Left van). | Kö | A leginkább bizonytalan rész: lesznek közelítő találatok. |
 
 ### 5.2 – MIDI áthangszerelő
 
