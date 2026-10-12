@@ -496,6 +496,14 @@ void LocalSongPlayer::SetTranspose(int semitones)
 void LocalSongPlayer::SetLoop(Position begin, Position end)
 {
 	const ScopedLock lock(m_lock);
+	if (!m_loaded)
+	{
+		// no song (e.g. a registration memory with an A–B loop loaded before any song): the
+		// positions cannot be converted into ticks
+		m_loopBeginTick = NoValue;
+		m_loopEndTick = NoValue;
+		return;
+	}
 	const int beginTick = PositionToTick(begin);
 	const int endTick = PositionToTick(end);
 	if (endTick > beginTick)
@@ -939,6 +947,10 @@ LocalSongPlayer::Position LocalSongPlayer::TickToPosition(int tick) const
 int LocalSongPlayer::PositionToTick(Position position) const
 {
 	// find the time signature valid for the requested measure
+	if (m_timeSignatures.empty())
+	{
+		return 0; // no song loaded
+	}
 	const int measure = std::max(0, position.measure - 1);
 	const TimeSignaturePoint* point = &m_timeSignatures.front();
 	for (const TimeSignaturePoint& p : m_timeSignatures)

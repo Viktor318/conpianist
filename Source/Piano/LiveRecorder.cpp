@@ -990,15 +990,30 @@ bool LiveRecorder::Save(const File& file, int tempo, int beatNumerator, int beat
 	// the file is written without the lock (the MIDI file is complete): the recording of
 	// incoming notes is not held up while the disk is busy
 	const ScopedUnlock unlock(m_lock);
+	// The file is written into a temporary file next to it first, and replaces the old file
+	// only if every byte was written (e.g. not on a full disk): so a failed save neither
+	// destroys an earlier recording of the same name nor reports success.
 	file.getParentDirectory().createDirectory();
-	file.deleteFile();
-	FileOutputStream stream(file);
-	if (!stream.openedOk() || !midiFile.writeTo(stream, 1))
+	TemporaryFile temporary(file);
+	{
+		FileOutputStream stream(temporary.getFile());
+		if (!stream.openedOk() || !midiFile.writeTo(stream, 1))
+		{
+			error = "Cannot write the file";
+			return false;
+		}
+		stream.flush();
+		if (stream.getStatus().failed())
+		{
+			error = "Cannot write the file";
+			return false;
+		}
+	}
+	if (!temporary.overwriteTargetFileWithTemporary())
 	{
 		error = "Cannot write the file";
 		return false;
 	}
-	stream.flush();
 	if (skipped > 0)
 	{
 		error = "Not all parts fit into the 16 MIDI channels";
