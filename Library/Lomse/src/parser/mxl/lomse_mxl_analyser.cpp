@@ -8683,7 +8683,11 @@ public:
         //TODO
         //%line-shape;
         //%position;
+
         //%placement;
+        //ConPianist: the side given in the score (e.g. "above" for the numbers of a lower
+        //voice, where the fingering is below the notes); without it, the side of the stems
+        m_pInfo->set_placement(get_attribute_placement());
 
         //compute default values for actual/normal numbers
         if (m_pInfo->is_start_of_tuplet())

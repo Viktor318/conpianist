@@ -193,7 +193,27 @@ void TupletEngraver::compute_y_coordinates(GmoShapeNote* pStart, GmoShapeNote* p
     GmoShapeBeam* pBeamShapeEnd = static_cast<GmoShapeBeam*>(
                                     pEnd->find_related_shape(GmoObj::k_shape_beam) );
 
-    if (pBeamShapeStart && pBeamShapeStart == pBeamShapeEnd)
+    if ((pBeamShapeStart || pBeamShapeEnd) && m_fAbove != pStart->is_up())
+    {
+        //ConPianist: the tuplet is on the side of the noteheads, not on the side of the
+        //stems and the beam (its placement is given in the score, e.g. above the notes of
+        //a lower voice): the beam is not the reference, the bracket is horizontal, just
+        //beyond the noteheads
+        LUnits y = (m_fAbove ? pStart->get_top() : pStart->get_bottom());
+        std::list< pair<ImoNoteRest*, GmoShape*> >::iterator it;
+        for (it = m_noteRests.begin(); it != m_noteRests.end(); ++it)
+        {
+            if ((*it).second->is_shape_note())
+            {
+                GmoShape* pShape = (*it).second;
+                y = (m_fAbove ? min(y, pShape->get_top()) : max(y, pShape->get_bottom()));
+            }
+        }
+        m_yStart = y;
+        m_yEnd = y;
+    }
+
+    else if (pBeamShapeStart && pBeamShapeStart == pBeamShapeEnd)
     {
         //tuplet encloses a whole beamed group. Use the beam as reference
         UPoint pos = pBeamShapeStart->get_outer_left_reference_point();
