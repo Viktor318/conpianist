@@ -130,7 +130,7 @@ private:
 	Settings::ScorePart m_scorePart = Settings::spRightAndLeft;
 	bool m_scoreShowMidiChannel = true;
 	String m_error;
-	bool m_firstSync = true;
+	String m_scoreSongName; // the song whose score was looked for last (see LoadSong)
 	File m_chosenScore; // score chosen by the user, shown when its song has been loaded
 	// Checking a score before it is shown (see ScoreCheck): the score being checked, the
 	// number of the check (a result of an earlier check is dropped) and the last faulty score.
@@ -1843,11 +1843,33 @@ void LomseScoreComponent::PianoStateChanged(PianoController::Aspect aspect, Pian
 		// the length of the song decides whether it follows the repeats of the score
 		GuiHelper::CallAsync(this, [=](){UpdateScoreEnd();});
 	}
-	else if (aspect == PianoController::apSongLoaded ||
-		(aspect == PianoController::apSongName && m_firstSync))
+	else if (aspect == PianoController::apSongLoaded)
 	{
-		m_firstSync = false;
 		GuiHelper::CallAsync(this, [=](){LoadSong();});
+	}
+	else if (aspect == PianoController::apSongName)
+	{
+		// The piano reports a song that the program did not load (no apSongLoaded comes):
+		// the song of the piano at the start, or when its player is used again (e.g. after
+		// switching to the network playback, the song still loaded in the piano), or a song
+		// chosen on the piano. The score is looked for if it is another song. Looked at a
+		// little later: a song loaded by the program reports its name just before
+		// apSongLoaded, which looks for the score itself.
+		GuiHelper::CallAsync(this, [this, self = Component::SafePointer<Component>(this)]()
+			{
+				Timer::callAfterDelay(300, [this, self]()
+					{
+						if (self == nullptr)
+						{
+							return;
+						}
+						const String name = m_pianoController.GetSongName();
+						if (name.isNotEmpty() && name != m_scoreSongName)
+						{
+							LoadSong();
+						}
+					});
+			});
 	}
 	else if (aspect == PianoController::apPartChannel &&
 		m_settings.scorePart != Settings::spAll &&
@@ -2001,6 +2023,7 @@ void LomseScoreComponent::UpdateABMarks(bool force)
 
 void LomseScoreComponent::LoadSong()
 {
+	m_scoreSongName = m_pianoController.GetSongName();
 	Cleanup();
 	m_pianoController.SetScoreEnd({0,0}); // until the score of the song is shown
 	m_check.reset(); // the check of the score of the previous song
