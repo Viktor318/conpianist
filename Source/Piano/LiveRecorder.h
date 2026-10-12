@@ -96,6 +96,11 @@ public:
 	void AddTimeSignature(int numerator, int denominator);
 	std::function<String(int chord)> chordName;
 
+	// The accompaniment is recorded too (the Recording window's option): then it also
+	// starts an armed recording (its first note, e.g. after the style's Start button), and
+	// the automatic stop waits for it too (see GetSecondsSinceLastEvent).
+	void SetStyleCounts(bool counts) { const ScopedLock lock(m_lock); m_styleCounts = counts; }
+
 	// A played message of a source (the channel of the message is ignored); thread safe.
 	void Add(int source, const MidiMessage& message);
 	// A message of the piano's accompaniment (channel 9..16): the voices and settings are
@@ -145,6 +150,7 @@ private:
 	// the last accompaniment event: the accompaniment may go on after the last note of the
 	// player (e.g. an Ending), its notes are released at the end of the accompaniment
 	double m_lastStyleEventMs = 0;
+	bool m_styleCounts = false; // see SetStyleCounts
 	double m_styleEndMs = 0;
 	// a tempo or time signature set while armed or counting in: the one of the beginning
 	int m_pendingTempo = NoValue;

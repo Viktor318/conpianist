@@ -38,7 +38,7 @@ RecorderComponent::RecorderComponent(Settings& settings, PianoController& pianoC
 	initLabel(modeLabel, TRANS("Start and stop"));
 
 	autoButton.setButtonText(TRANS("Automatic"));
-	autoButton.setTooltip(TRANS("The recording starts with the first played note and stops after the given silence"));
+	autoButton.setTooltip(TRANS("The recording starts with the first played note and stops after the given silence; if the accompaniment is recorded too, its start also starts the recording, and it does not stop while the accompaniment is playing"));
 	autoButton.setRadioGroupId(1);
 	autoButton.setClickingTogglesState(true);
 	autoButton.addListener(this);
@@ -418,6 +418,8 @@ void RecorderComponent::buttonClicked(Button* button)
 	else if (button == &autoButton || button == &manualButton || button == &styleButton ||
 		button == &quantizeButton || button == &quantizeEndsButton || button == &quantizeFillButton)
 	{
+		// a recorded accompaniment starts and keeps the automatic recording going
+		pianoController.GetRecorder().SetStyleCounts(styleButton.getToggleState());
 		saveOptions();
 		updateControls();
 	}
@@ -471,6 +473,8 @@ void RecorderComponent::startRecording()
 	// automatic file name with the date and time; it can be changed until it is saved
 	nameEditor.setText(TRANS("Recording") + " " + Time::getCurrentTime().formatted("%Y-%m-%d %H-%M-%S"), false);
 	const int countIn = jlimit(0, 2, countInCombo.getSelectedId() - 1);
+	// a recorded accompaniment starts and keeps the automatic recording going
+	pianoController.GetRecorder().SetStyleCounts(styleButton.getToggleState());
 	if (autoButton.getToggleState())
 	{
 		pianoController.StartRecording(true);

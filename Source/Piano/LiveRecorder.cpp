@@ -241,7 +241,7 @@ void LiveRecorder::Stop()
 		// may go on after it (its events are recorded until the stop): then its held notes
 		// are released at the stop, not before their beginning
 		const double endMs = m_lastEventMs;
-		const double styleEndMs = m_lastStyleEventMs > endMs ? NowMs() : endMs;
+		const double styleEndMs = m_lastStyleEventMs > 0 && m_lastStyleEventMs >= endMs ? NowMs() : endMs;
 		for (int source = 1; source <= NumSources; source++)
 		{
 			const double releaseMs = source >= srcStyle9 ? styleEndMs : endMs;
@@ -434,7 +434,13 @@ void LiveRecorder::AddStyle(const MidiMessage& message)
 		}
 	}
 
-	// the accompaniment does not start the recording, it is only recorded with it
+	// If the accompaniment is recorded, its first note starts an armed recording (as the
+	// first played note does, see Add); otherwise it does not start the recording, it is
+	// only recorded with it.
+	if (m_styleCounts && (m_state == stArmed || m_state == stCountIn) && message.isNoteOn())
+	{
+		Begin(nowMs, true);
+	}
 	if (m_state != stRecording)
 	{
 		return;
@@ -446,7 +452,10 @@ void LiveRecorder::AddStyle(const MidiMessage& message)
 	}
 	const double lastEventMs = m_lastEventMs;
 	Store(source, message, nowMs);
-	m_lastEventMs = lastEventMs; // the automatic stop waits for the player, not for the style
+	if (!m_styleCounts)
+	{
+		m_lastEventMs = lastEventMs; // the automatic stop waits for the player, not for the style
+	}
 	m_lastStyleEventMs = nowMs;
 }
 

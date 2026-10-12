@@ -210,7 +210,7 @@ countries: hu
 "Start and stop" = "Indítás és leállítás"
 "Automatic" = "Automatikus"
 "Manual" = "Kézi"
-"The recording starts with the first played note and stops after the given silence" = "A felvétel az első leütött hangra indul, és a megadott hosszú csend után áll le"
+"The recording starts with the first played note and stops after the given silence; if the accompaniment is recorded too, its start also starts the recording, and it does not stop while the accompaniment is playing" = "A felvétel az első leütött hangra indul, és a megadott hosszú csend után áll le; ha a kíséretet is felveszed, a kíséret indulása is elindítja, és amíg a kíséret szól, nem áll le"
 "The recording is started and stopped with the buttons" = "A felvételt a gombok indítják és állítják le"
 "Stop after silence (seconds)" = "Leállás ennyi csend után (mp)"
 "Record accompaniment" = "Kíséret felvétele"
