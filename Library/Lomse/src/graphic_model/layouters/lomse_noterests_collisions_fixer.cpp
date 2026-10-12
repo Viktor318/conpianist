@@ -92,6 +92,10 @@ void NoterestsCollisionsFixer::fix_spacing_issues()
     if (!m_fMoreThanOneLine)
         return;
 
+    //rests sounding together with notes of another voice are placed first (above or
+    //below the notes of the other voice); their collisions are not fixed again below
+    const std::vector<bool> placed = place_rests_of_two_voices();
+
     //for each note/rest check that it does not overlap any other note/rest that is
     //in a different line, by checking bounding boxes. Note that note/rests
     //in the same line never overlap.
@@ -100,7 +104,7 @@ void NoterestsCollisionsFixer::fix_spacing_issues()
         for (size_t j=i; j < m_notes.size(); ++j)
         {
             //check if conflict between the two noterests when in different lines
-            if (m_notes[i]->line != m_notes[j]->line)
+            if (m_notes[i]->line != m_notes[j]->line && !placed[i] && !placed[j])
             {
                 URect bbox = m_notes[i]->pShape->get_bounds();
                 bbox.intersection( m_notes[j]->pShape->get_bounds() );
@@ -157,6 +161,114 @@ void NoterestsCollisionsFixer::fix_spacing_issues()
             }   //both in different line
         }   //j loop
     }   //i loop
+}
+
+//---------------------------------------------------------------------------------------
+// ConPianist: when two voices sound together on a staff, the rest of the upper voice is
+// placed above the notes of the other voice and the rest of the lower voice below them,
+// as engraving rules and the notation programs do. Before, a rest was only moved when it
+// overlapped a notehead, in the direction given by the stem of that note, and when it
+// overlapped only the stem it was shifted to the left (e.g. between the notehead and the
+// stem of a half note); a rest that did not overlap stayed on the middle line, so the
+// rests of the same voice were at different heights from measure to measure. A rest with
+// a position given in the score (display-step) is not moved.
+// Returns, for each note/rest, whether it is a rest placed here.
+std::vector<bool> NoterestsCollisionsFixer::place_rests_of_two_voices()
+{
+    std::vector<bool> placed(m_notes.size(), false);
+    const LUnits space = m_pMeter->tenths_to_logical_for_staff(5.0f, m_idxStaff);
+    for (size_t i=0; i < m_notes.size(); ++i)
+    {
+        if (!m_notes[i]->is_rest())
+            continue;
+        ImoRest* pRest = static_cast<ImoRest*>(m_notes[i]->pNR);
+        if (pRest->get_step() != k_step_undefined)
+            continue;   //position given in the score
+
+        //the notes of the other voices at this time on this staff
+        bool fNotes = false;
+        int otherVoice = 0;
+        LUnits top = 0.0f;
+        LUnits bottom = 0.0f;
+        for (size_t j=0; j < m_notes.size(); ++j)
+        {
+            if (j == i || m_notes[j]->line == m_notes[i]->line || m_notes[j]->is_rest())
+                continue;
+            GmoShape* pShape = m_notes[j]->pShape;
+            if (!fNotes)
+            {
+                top = pShape->get_top();
+                bottom = pShape->get_bottom();
+                otherVoice = m_notes[j]->pNR->get_voice();
+                fNotes = true;
+            }
+            else
+            {
+                top = min(top, pShape->get_top());
+                bottom = max(bottom, pShape->get_bottom());
+            }
+        }
+        if (!fNotes)
+            continue;
+
+        //above the notes (and their stems going up), or below them (and their stems
+        //going down); not moved if it is already there
+        GmoShape* pRestShape = m_notes[i]->pShape;
+        if (is_upper_voice(pRest, otherVoice))
+        {
+            const LUnits limit = top - space;
+            if (pRestShape->get_bottom() > limit)
+                move_rest(i, limit - pRestShape->get_bottom());
+        }
+        else
+        {
+            const LUnits limit = bottom + space;
+            if (pRestShape->get_top() < limit)
+                move_rest(i, limit - pRestShape->get_top());
+        }
+        placed[i] = true;
+    }
+    return placed;
+}
+
+//---------------------------------------------------------------------------------------
+// Whether the voice of the rest is the upper one: by the notated stems of the notes of
+// its voice on its staff in the measure (more up than down: upper); if they do not tell,
+// the voice with the smaller number is the upper one.
+bool NoterestsCollisionsFixer::is_upper_voice(ImoNoteRest* pRest, int otherVoice)
+{
+    const int voice = pRest->get_voice();
+    const int staff = pRest->get_staff();
+    int up = 0;
+    int down = 0;
+    auto count = [&](ImoObj* pObj)
+    {
+        if (pObj->is_note())
+        {
+            ImoNote* pNote = static_cast<ImoNote*>(pObj);
+            if (pNote->get_voice() == voice && pNote->get_staff() == staff)
+            {
+                if (pNote->is_stem_up())
+                    ++up;
+                else if (pNote->is_stem_down())
+                    ++down;
+            }
+        }
+    };
+    //the measure: from the previous barline to the next one
+    for (ImoObj* pObj = pRest->get_prev_sibling(); pObj && !pObj->is_barline();
+         pObj = pObj->get_prev_sibling())
+    {
+        count(pObj);
+    }
+    for (ImoObj* pObj = pRest->get_next_sibling(); pObj && !pObj->is_barline();
+         pObj = pObj->get_next_sibling())
+    {
+        count(pObj);
+    }
+    if (up != down)
+        return up > down;
+    return voice <= otherVoice;
 }
 
 //---------------------------------------------------------------------------------------

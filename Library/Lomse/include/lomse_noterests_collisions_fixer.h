@@ -94,6 +94,8 @@ protected:
         k_overlap_unison,       //Overlap. Unison
     };
 
+    std::vector<bool> place_rests_of_two_voices();
+    bool is_upper_voice(ImoNoteRest* pRest, int otherVoice);
     void fix_two_rests_overlap(size_t i, size_t j);
     void fix_note_and_rest_overlap(size_t i, size_t j);
     void fix_chord_and_rest_overlap(size_t i, size_t j);
