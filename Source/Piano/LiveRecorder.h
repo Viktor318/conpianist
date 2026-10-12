@@ -142,6 +142,14 @@ private:
 	double m_startMs = 0;
 	double m_lastEventMs = 0;
 	double m_endMs = 0;
+	// the last accompaniment event: the accompaniment may go on after the last note of the
+	// player (e.g. an Ending), its notes are released at the end of the accompaniment
+	double m_lastStyleEventMs = 0;
+	double m_styleEndMs = 0;
+	// a tempo or time signature set while armed or counting in: the one of the beginning
+	int m_pendingTempo = NoValue;
+	int m_pendingNumerator = NoValue;
+	int m_pendingDenominator = NoValue;
 	double m_lastBeatMs = 0;
 	double m_lastDownbeatMs = 0;
 	int m_downbeatsLeft = 0;
@@ -179,6 +187,7 @@ private:
 	};
 	mutable std::vector<TempoSegment> m_saveTempoMap;
 	double TickOf(double timeMs) const; // not rounded
+	void ClearPending(); // forgets the tempo and time signature set while armed (lock held)
 	int m_currentChord = NoChord;
 	bool m_keyMinor = false;
 	int m_held[NumSources + 1][128] = {}; // held notes of each source

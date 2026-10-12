@@ -56,6 +56,18 @@ void LiveRecorder::Begin(double nowMs, bool alignToDownbeat)
 	}
 	m_lastEventMs = nowMs;
 	m_endMs = nowMs;
+	m_lastStyleEventMs = 0;
+	m_styleEndMs = nowMs;
+	// what was set while armed or counting in is valid from the beginning
+	if (m_pendingTempo != NoValue)
+	{
+		m_tempos.push_back({0.0, m_pendingTempo});
+	}
+	if (m_pendingNumerator != NoValue)
+	{
+		m_timeSignatures.push_back({0.0, m_pendingNumerator, m_pendingDenominator});
+	}
+	ClearPending();
 	for (auto& source : m_held)
 	{
 		std::fill(std::begin(source), std::end(source), 0);
@@ -72,6 +84,7 @@ void LiveRecorder::Arm()
 	m_tempos.clear();
 	m_timeSignatures.clear();
 	m_noteCount = 0;
+	ClearPending();
 	m_state = stArmed;
 }
 
@@ -91,6 +104,7 @@ void LiveRecorder::StartCountIn(int measures)
 	m_noteCount = 0;
 	// the next downbeat begins the count-in; the recording starts after its measures
 	m_downbeatsLeft = std::max(0, measures) + 1;
+	ClearPending();
 	m_state = stCountIn;
 }
 
@@ -152,9 +166,17 @@ void LiveRecorder::AddTempo(int tempo)
 {
 	const double nowMs = NowMs();
 	const ScopedLock lock(m_lock);
-	if (m_state == stRecording && tempo > 0)
+	if (tempo <= 0)
+	{
+		return;
+	}
+	if (m_state == stRecording)
 	{
 		m_tempos.push_back({nowMs - m_startMs, tempo});
+	}
+	else if (m_state == stArmed || m_state == stCountIn)
+	{
+		m_pendingTempo = tempo; // the tempo of the beginning (see Begin)
 	}
 }
 
@@ -162,10 +184,26 @@ void LiveRecorder::AddTimeSignature(int numerator, int denominator)
 {
 	const double nowMs = NowMs();
 	const ScopedLock lock(m_lock);
-	if (m_state == stRecording && numerator > 0 && denominator > 0)
+	if (numerator <= 0 || denominator <= 0)
+	{
+		return;
+	}
+	if (m_state == stRecording)
 	{
 		m_timeSignatures.push_back({nowMs - m_startMs, numerator, denominator});
 	}
+	else if (m_state == stArmed || m_state == stCountIn)
+	{
+		m_pendingNumerator = numerator; // the time signature of the beginning (see Begin)
+		m_pendingDenominator = denominator;
+	}
+}
+
+void LiveRecorder::ClearPending()
+{
+	m_pendingTempo = NoValue;
+	m_pendingNumerator = NoValue;
+	m_pendingDenominator = NoValue;
 }
 
 // The place of a time in the file (ticks), by the tempo map of the file being written.
@@ -199,26 +237,32 @@ void LiveRecorder::Stop()
 	const ScopedLock lock(m_lock);
 	if (m_state == stRecording)
 	{
-		// the end is the last played event, not the moment of stopping
+		// the end is the last played event, not the moment of stopping; the accompaniment
+		// may go on after it (its events are recorded until the stop): then its held notes
+		// are released at the stop, not before their beginning
 		const double endMs = m_lastEventMs;
+		const double styleEndMs = m_lastStyleEventMs > endMs ? NowMs() : endMs;
 		for (int source = 1; source <= NumSources; source++)
 		{
+			const double releaseMs = source >= srcStyle9 ? styleEndMs : endMs;
 			for (int note = 0; note < 128; note++)
 			{
 				if (m_held[source][note] > 0)
 				{
-					m_events.push_back({endMs - m_startMs, source, MidiMessage::noteOff(1, note)});
+					m_events.push_back({releaseMs - m_startMs, source, MidiMessage::noteOff(1, note)});
 					m_held[source][note] = 0;
 				}
 			}
 			if (m_pedal[source] > 0)
 			{
-				m_events.push_back({endMs - m_startMs, source, MidiMessage::controllerEvent(1, 64, 0)});
+				m_events.push_back({releaseMs - m_startMs, source, MidiMessage::controllerEvent(1, 64, 0)});
 				m_pedal[source] = 0;
 			}
 		}
 		m_endMs = endMs;
+		m_styleEndMs = styleEndMs;
 	}
+	ClearPending();
 	m_state = stIdle;
 }
 
@@ -230,6 +274,7 @@ void LiveRecorder::Clear()
 	m_tempos.clear();
 	m_timeSignatures.clear();
 	m_noteCount = 0;
+	ClearPending();
 	m_state = stIdle;
 }
 
@@ -402,6 +447,7 @@ void LiveRecorder::AddStyle(const MidiMessage& message)
 	const double lastEventMs = m_lastEventMs;
 	Store(source, message, nowMs);
 	m_lastEventMs = lastEventMs; // the automatic stop waits for the player, not for the style
+	m_lastStyleEventMs = nowMs;
 }
 
 bool LiveRecorder::HasData() const
@@ -675,24 +721,38 @@ bool LiveRecorder::Save(const File& file, int tempo, int beatNumerator, int beat
 	}
 
 	const int ticksPerQuarter = TicksPerQuarter;
-	const double ticksPerMs = tempo * ticksPerQuarter / 60000.0;
+	// the end of what is written: the accompaniment may go on after the player's last note
+	const double endTime = (includeStyle ? std::max(m_endMs, m_styleEndMs) : m_endMs) - m_startMs + 1.0;
+
+	// The tempo of the beginning: the one when the recording was started, or the last one
+	// set before the music began (while armed or counting in, or before the first note:
+	// these changes are at the beginning of the recording).
+	int startTempo = tempo;
+	for (const TempoEvent& event : m_tempos)
+	{
+		if (event.time < 1.0)
+		{
+			startTempo = event.tempo;
+		}
+	}
+	const double ticksPerMs = startTempo * ticksPerQuarter / 60000.0;
 
 	// The tempo map: the tempo of the beginning, then the changes made while recording.
-	// A change right at the beginning (or the same tempo again) is not a change.
+	// The same tempo again is not a change.
 	m_saveTempoMap.clear();
 	m_saveTempoMap.push_back({0.0, 0.0, ticksPerMs});
 	std::vector<std::pair<double, int>> tempoChanges; // tick, tempo
 	{
-		int lastTempo = tempo;
+		int lastTempo = startTempo;
 		for (const TempoEvent& event : m_tempos)
 		{
-			if (event.tempo == lastTempo || event.time > m_endMs - m_startMs + 1.0)
+			if (event.tempo == lastTempo || event.time > endTime)
 			{
 				continue;
 			}
 			if (event.time < 1.0)
 			{
-				continue; // before the music: the tempo of the beginning is what was set
+				continue; // before the music: already the tempo of the beginning
 			}
 			double tick = std::floor(TickOf(event.time) + 0.5);
 			if (quantizeTicks > 0)
@@ -704,7 +764,12 @@ bool LiveRecorder::Save(const File& file, int tempo, int beatNumerator, int beat
 			{
 				if (tempoChanges.empty())
 				{
-					continue; // at the very beginning: the tempo of the beginning stays
+					// at the very beginning (e.g. moved to the grid line 0): it is the tempo of
+					// the beginning
+					startTempo = event.tempo;
+					m_saveTempoMap.front().ticksPerMs = event.tempo * ticksPerQuarter / 60000.0;
+					lastTempo = event.tempo;
+					continue;
 				}
 				// two changes at the same place: the later one counts
 				m_saveTempoMap.back().ticksPerMs = event.tempo * ticksPerQuarter / 60000.0;
@@ -733,7 +798,7 @@ bool LiveRecorder::Save(const File& file, int tempo, int beatNumerator, int beat
 	std::vector<TimeSignatureChange> timeSignatures{{0.0, beatNumerator, beatDenominator}};
 	for (const TimeSignatureEvent& event : m_timeSignatures)
 	{
-		if (event.time > m_endMs - m_startMs + 1.0)
+		if (event.time > endTime)
 		{
 			continue;
 		}
@@ -840,7 +905,7 @@ bool LiveRecorder::Save(const File& file, int tempo, int beatNumerator, int beat
 		const uint8 data[] = {0xff, 0x58, 0x04, (uint8)jlimit(1, 127, change.numerator), (uint8)power, 24, 8};
 		conductor.addEvent(MidiMessage(data, (int)sizeof(data), change.tick));
 	}
-	conductor.addEvent(MidiMessage::tempoMetaEvent(60000000 / std::max(1, tempo)), 0);
+	conductor.addEvent(MidiMessage::tempoMetaEvent(60000000 / std::max(1, startTempo)), 0);
 	for (const auto& change : tempoChanges)
 	{
 		MidiMessage message = MidiMessage::tempoMetaEvent(60000000 / std::max(1, change.second));
@@ -860,7 +925,7 @@ bool LiveRecorder::Save(const File& file, int tempo, int beatNumerator, int beat
 		double lastTick = -1;
 		for (const ChordEvent& event : m_chords)
 		{
-			if (event.time > m_endMs - m_startMs + 1.0 || event.chord == lastChord)
+			if (event.time > endTime || event.chord == lastChord)
 			{
 				continue; // after the end of the recording, or the same chord again
 			}
