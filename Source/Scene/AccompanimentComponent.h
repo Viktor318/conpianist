@@ -209,6 +209,8 @@ private:
 	void recallRegistration(int index);
 	void finishRecall();
 	void showRegistrationMenu(int index);
+	void deleteRegistration(int index);
+	void askDeleteRegistration(int index);
 	void askRegistrationName(int index, const String& title, std::function<void(const String&)> done);
 	String registrationTooltip(int index) const;
 	void setMemoryArmed(bool armed);

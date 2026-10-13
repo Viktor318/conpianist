@@ -260,7 +260,7 @@ AccompanimentComponent::AccompanimentComponent(Settings& settings, PianoControll
 	partGroupButtons[PianoController::sgOthers].setTooltip(TRANS("The other parts of the accompaniment (Chord 1, Chord 2, Pad, Phrase 1, Phrase 2) on / off (E)"));
 
 	initButton(memoryButton, TRANS("Memory"));
-	memoryButton.setTooltip(TRANS("Saves the style, the tempo, the key and the voices of the keyboard: press it, then the number of the memory (or F1 - F8). Press it again (or Esc) to cancel."));
+	memoryButton.setTooltip(TRANS("Saves the style, the tempo, the key and the voices of the keyboard: press it, then the number of the memory (or F1 - F8). Press it again (or Esc) to cancel. Shift+click on a number saves at once."));
 	for (int i = 0; i < NumRegistrations; i++)
 	{
 		initButton(registrationButtons[i], String(i + 1));
@@ -470,7 +470,29 @@ void AccompanimentComponent::buttonClicked(Button* button)
 		{
 			if (button == &registrationButtons[i])
 			{
-				registrationPressed(i);
+				// Shift: saves into it at once (as Memory, then this button); Ctrl+Shift:
+				// deletes it (after asking)
+				const ModifierKeys mods = ModifierKeys::getCurrentModifiers();
+				const bool ctrl = mods.isCtrlDown() || mods.isCommandDown();
+				if (mods.isShiftDown() && ctrl)
+				{
+					askDeleteRegistration(i);
+				}
+				else if (mods.isShiftDown())
+				{
+					if (memoryArmed)
+					{
+						setMemoryArmed(false);
+					}
+					if (pianoController.IsConnected())
+					{
+						storeRegistration(i);
+					}
+				}
+				else
+				{
+					registrationPressed(i);
+				}
 			}
 		}
 		for (int i = 0; i < NumIntros; i++)
@@ -1613,14 +1635,52 @@ void AccompanimentComponent::showRegistrationMenu(int index)
 			}
 			else if (result == 2)
 			{
-				registrations[index] = Registration();
-				if (currentRegistration == index)
-				{
-					currentRegistration = -1;
-				}
-				saveRegistrations();
-				update();
+				deleteRegistration(index);
 			}
+		});
+}
+
+void AccompanimentComponent::deleteRegistration(int index)
+{
+	registrations[index] = Registration();
+	if (currentRegistration == index)
+	{
+		currentRegistration = -1;
+	}
+	saveRegistrations();
+	update();
+}
+
+// Ctrl+Shift+click on a number button: deletes the memory after asking (a click can slip).
+void AccompanimentComponent::askDeleteRegistration(int index)
+{
+	if (!registrations[index].used)
+	{
+		return;
+	}
+	const String number = String(index + 1);
+	const String name = registrations[index].name;
+	const String question = name.isNotEmpty() ?
+		TRANS("Delete memory NUMBER (NAME)?").replace("NUMBER", number).replace("NAME", name) :
+		TRANS("Delete memory NUMBER?").replace("NUMBER", number);
+	AlertWindow::showAsync(MessageBoxOptions()
+			.withIconType(MessageBoxIconType::QuestionIcon)
+			.withTitle("ConPianist")
+			.withMessage(question)
+			.withButton(TRANS("Yes"))
+			.withButton(TRANS("Cancel"))
+			.withAssociatedComponent(this),
+		[this, index, self = Component::SafePointer<Component>(this)](int button)
+		{
+			if (self == nullptr)
+			{
+				return;
+			}
+			if (button == 1)
+			{
+				deleteRegistration(index);
+			}
+			self->grabKeyboardFocus(); // the shortcuts work again at once
 		});
 }
 
@@ -1634,7 +1694,7 @@ String AccompanimentComponent::registrationTooltip(int index) const
 	if (!reg.used)
 	{
 		return TRANS("Memory NUMBER").replace("NUMBER", number) + shortcut + dash + TRANS("empty") + "\n" +
-			TRANS("To save: Memory, then this button");
+			TRANS("To save: Memory, then this button, or Shift+click");
 	}
 	String text = (reg.name.isNotEmpty() ? number + ". " + reg.name : TRANS("Memory NUMBER").replace("NUMBER", number)) + shortcut + "\n";
 	text << TRANS("Style:") << " " << styleTitle(reg.style) << "\n";
@@ -1677,6 +1737,7 @@ String AccompanimentComponent::registrationTooltip(int index) const
 	{
 		text << TRANS("Transpose") << " (Piano Room): " << signedNumber(reg.keyboardTranspose) << "\n";
 	}
+	text << "\n" << TRANS("Shift+click: save, Ctrl+Shift+click: delete, right button: rename, delete");
 	return text.trimEnd();
 }
 
