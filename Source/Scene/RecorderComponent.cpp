@@ -811,9 +811,9 @@ void RecorderComponent::updateControls()
 	quantizeFillButton.setEnabled(quantizeButton.getToggleState());
 }
 
-// Shows the tempo and the time signature of the accompaniment and the recording (the song
-// has its own tempo, on the Playback panel) and the state of the metronome as they are now
-// (they can change on the piano too).
+// Shows the tempo and the time signature of the piano (of the accompaniment and the
+// recording; the song has its own tempo, on the Playback panel) and the state of the
+// metronome as they are now (they can change on the piano and with the song too).
 void RecorderComponent::updateMetronome()
 {
 	if (!tempoSlider.hasKeyboardFocus(true) && !tempoSlider.isMouseButtonDown(true))
@@ -823,8 +823,8 @@ void RecorderComponent::updateMetronome()
 
 	if (!beatCombo.isPopupActive())
 	{
-		const int numerator = pianoController.GetStyleBeatNumerator();
-		const int denominator = pianoController.GetStyleBeatDenominator();
+		const int numerator = pianoController.GetMetronomeBeatNumerator();
+		const int denominator = pianoController.GetMetronomeBeatDenominator();
 		const int id = numerator * 100 + denominator;
 		if (beatCombo.indexOfItemId(id) >= 0)
 		{

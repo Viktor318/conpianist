@@ -333,15 +333,12 @@ public:
 	void ChangeStyleMainWithFill(int main);
 	Position GetStylePosition() const;
 	StyleChord GetStyleChord() const;
-	// The tempo of the piano. There is one tempo in every playback mode: when ConPianist
-	// plays a song itself, the tempo of its player and the tempo of the piano (the
-	// accompaniment, the metronome) follow each other.
-	// The tempo of the accompaniment (also of the metronome and the recording): the one tempo
-	// of the piano. The song has its own tempo (GetTempo): the piano gets the song's tempo
-	// when the song starts and this one back when it stops or pauses. While no song is
-	// playing, the tempo reported by the piano is this one; while a song plays, the piano's
-	// reports belong to the song and do not change it.
-	int GetStyleTempo() const { return m_styleTempoKnown ? (int)m_styleTempo : (int)m_pianoTempo; }
+	// The tempo of the piano: of the accompaniment, the metronome and the recording
+	// (Accompaniment and Recording window). The song has its own tempo (GetTempo, the
+	// Playback panel): while the song does not play, setting this one does not change it,
+	// and the song's tempo goes to the piano when the song starts. While the song plays,
+	// the two follow each other.
+	int GetStyleTempo() const { return m_pianoTempo; }
 	void SetStyleTempo(int tempo);
 	// Where the chords of the accompaniment are recognized: below the split point or on
 	// the whole keyboard (caUnknown: the piano has not reported it yet).
@@ -436,10 +433,6 @@ public:
 	void SetMetronomeVolume(int volume);
 	int GetMetronomeBeatNumerator() const { return m_metronomeNumerator; }
 	int GetMetronomeBeatDenominator() const { return m_metronomeDenominator; }
-	// the time signature of the accompaniment and the recording (Recording window): kept like
-	// the tempo of the accompaniment (see GetStyleTempo)
-	int GetStyleBeatNumerator() const { return m_styleBeatKnown ? (int)m_styleNumerator : (int)m_metronomeNumerator; }
-	int GetStyleBeatDenominator() const { return m_styleBeatKnown ? (int)m_styleDenominator : (int)m_metronomeDenominator; }
 	void SetMetronomeBeat(int numerator, int denominator);
 	// true if the beats of the metronome or of a playing song are known now
 	bool HasBeats() const;
@@ -722,22 +715,13 @@ private:
 	std::atomic<int> m_styleChord{0x7f7f7f7f}; // root, type, bass root, bass type
 	std::atomic<int> m_pianoTempo{DefaultTempo};
 	std::atomic<bool> m_pianoTempoKnown{false};  // the piano has reported its tempo
-	// the tempo and the time signature of the accompaniment (see GetStyleTempo)
-	std::atomic<int> m_styleTempo{DefaultTempo};
-	std::atomic<bool> m_styleTempoKnown{false};
-	std::atomic<int> m_styleNumerator{4};
-	std::atomic<int> m_styleDenominator{4};
-	std::atomic<bool> m_styleBeatKnown{false};
-	// the piano has the song's tempo (from the start of the song until the accompaniment's
-	// is sent back): its tempo and time signature reports do not change the accompaniment's
-	std::atomic<bool> m_songTempoOnPiano{false};
-	int m_styleRestoreRequest = 0; // the latest request to send the accompaniment's back
-	// the piano's player has just loaded a song: its tempo reports are the song's for a while
+	// The Tempo of the Playback panel with the piano's player, while the song does not play
+	// (see the Tempo report): only a song loaded changes it. When the piano has just loaded
+	// a song (the time of its name report), its tempo reports are the song's for a while;
+	// the song's tempo is also reported (index 1) just before the name: kept until then.
 	std::atomic<uint32> m_songLoadedMs{0};
-	// the song has just stopped or paused: until then the piano's tempo reports (its own
-	// tempo, and the accompaniment's tempo sent back) do not change the Tempo of the
-	// Playback panel
-	std::atomic<uint32> m_songStoppedUntilMs{0};
+	std::atomic<int> m_songTempoReport{0};
+	std::atomic<uint32> m_songTempoReportMs{0};
 	// when the accompaniment's tempo was last sent to the piano: its echo is not the song's
 	std::atomic<uint32> m_styleSentMs{0};
 	int m_songOwnTempo = 0; // the tempo of the piano's song when it was loaded (0: not known)
@@ -876,9 +860,6 @@ private:
 	void SendLocalTempo(bool force = false);
 	// the song starts: the piano gets the song's tempo
 	void SongTempoToPiano();
-	// the song has stopped or paused: the piano gets the accompaniment's tempo and time
-	// signature back (after delayMs)
-	void RestoreStyleTempo(int delayMs);
 	// the tempo the piano plays with now: the song's while it plays, otherwise the
 	// accompaniment's
 	int CurrentTempo();

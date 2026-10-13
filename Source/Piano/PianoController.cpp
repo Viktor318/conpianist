@@ -108,19 +108,6 @@ void PianoController::CreateLocalPlayer()
 				if (m_localPlayer && !m_localPlayer->IsPlaying())
 				{
 					ResumeStyleSyncStartLater();
-					// the accompaniment's tempo back to the piano
-					std::weak_ptr<bool> alive = m_alive;
-					MessageManager::callAsync([this, alive]()
-						{
-							if (alive.lock())
-							{
-								RestoreStyleTempo(0);
-							}
-						});
-				}
-				else
-				{
-					m_songTempoOnPiano = true;
 				}
 			}
 		};
@@ -1280,13 +1267,6 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 		const int pianoTempo = pm->GetIntValue();
 		const bool changed = m_pianoTempoKnown && pianoTempo != m_pianoTempo;
 		m_pianoTempo = pianoTempo;
-		if (!m_songTempoOnPiano)
-		{
-			// no song plays: the piano's tempo is the accompaniment's (a new style, the
-			// tempo set on the piano)
-			m_styleTempo = pianoTempo;
-			m_styleTempoKnown = true;
-		}
 		m_recorder.AddTempo(pianoTempo); // a change of the tempo is recorded with the music
 		m_pianoTempoKnown = true;
 		NotifyChanged(apStyle);
@@ -1380,23 +1360,7 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 		m_playing = boolValue;
 		if (wasPlaying && !m_playing)
 		{
-			// the tempo reports of the next 3 s are not the song's (see the Tempo report)
-			m_songStoppedUntilMs = Time::getMillisecondCounter() + 3000;
 			ResumeStyleSyncStartLater();
-			// the accompaniment's tempo back to the piano; a little later, because at the
-			// end of the song the piano sets the song's own settings again first
-			std::weak_ptr<bool> alive = m_alive;
-			MessageManager::callAsync([this, alive]()
-				{
-					if (alive.lock())
-					{
-						RestoreStyleTempo(800);
-					}
-				});
-		}
-		else if (m_playing && !wasPlaying)
-		{
-			m_songTempoOnPiano = true; // (also when started on the piano)
 		}
 		if (m_playing && !wasPlaying)
 		{
@@ -1546,24 +1510,33 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 	else if (property == Property::Tempo)
 	{
 		// The piano's player (the own player's reports are not used): the Tempo of the
-		// Playback panel is the song's. While the song does not play, the piano's tempo is
-		// the accompaniment's, except just after a song was loaded (the song's own tempo),
-		// the tempo of the song itself (index 1), and when no song tempo is known yet; a
-		// tempo set for the song (sent when it starts) is kept.
+		// Playback panel is the song's. While the song plays, every report is the song's.
+		// While it does not play, the piano's tempo is the accompaniment's (Accompaniment or
+		// Recording window, a style, the tempo set on the piano), and after a jump the
+		// piano reports the song's tempo relative to it: only a song loaded changes the
+		// panel then (just after its name is reported; its tempo reported just before the
+		// name is taken then, see SongName). The echo of the accompaniment's tempo sent by
+		// the program is never the song's.
 		const uint32 now = Time::getMillisecondCounter();
-		const bool justLoaded = now - m_songLoadedMs < 3000 && now - m_styleSentMs > 700;
-		// just after the song stopped: the piano reports its own tempo at once, and the
-		// accompaniment's tempo is sent back (see RestoreStyleTempo): not the song's
-		const bool justStopped = !m_playing && (int)(m_songStoppedUntilMs - now) > 0;
-		if (!justStopped &&
-			(m_playing || ((justLoaded || m_songOwnTempo == 0 || pm->GetIndex() == 1) && !m_networkTempoSet)))
+		if (m_playing)
 		{
-			if (!m_playing)
-			{
-				m_songOwnTempo = intValue;
-			}
 			m_tempo = intValue;
 			NotifyChanged(apTempo);
+		}
+		else
+		{
+			if (pm->GetIndex() == 1)
+			{
+				m_songTempoReport = intValue;
+				m_songTempoReportMs = now;
+			}
+			const bool justLoaded = now - m_songLoadedMs < 3000 && now - m_styleSentMs > 700;
+			if (justLoaded && !m_networkTempoSet)
+			{
+				m_songOwnTempo = intValue;
+				m_tempo = intValue;
+				NotifyChanged(apTempo);
+			}
 		}
 	}
 	else if (property == Property::StyleName)
@@ -1744,13 +1717,6 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 		{
 			m_metronomeNumerator = data[0];
 			m_metronomeDenominator = data[1];
-			if (!m_songTempoOnPiano)
-			{
-				// no song plays: the accompaniment's time signature
-				m_styleNumerator = data[0];
-				m_styleDenominator = data[1];
-				m_styleBeatKnown = true;
-			}
 			m_pianoCountPeriod = 0;
 			// (the piano sets the time signature of a style when it is loaded: a change
 			// while recording is written into the recording, only if it changed)
@@ -1911,12 +1877,24 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 		String name = DecodeSongName(pm->GetStrValue());
 		SetSongNameValue(name);
 		NotifyChanged(apSongName);
-		if (name.isNotEmpty())
+		if (name.isNotEmpty() && !m_localPlayback)
 		{
 			// the piano's player has loaded a song: its tempo reports are the song's for a
-			// while (see the Tempo report)
-			m_songLoadedMs = Time::getMillisecondCounter();
+			// while, and the song's tempo reported just before the name is its own tempo
+			// (see the Tempo report)
+			const uint32 now = Time::getMillisecondCounter();
+			m_songLoadedMs = now;
 			m_songOwnTempo = 0;
+			const int reported = m_songTempoReport.exchange(0);
+			if (reported > 0 && now - m_songTempoReportMs < 2000 && !m_playing)
+			{
+				m_songOwnTempo = reported;
+				if (m_songLoading || !m_networkTempoSet)
+				{
+					m_tempo = reported;
+					NotifyChanged(apTempo);
+				}
+			}
 		}
 		if (m_songLoading)
 		{
@@ -2617,9 +2595,6 @@ void PianoController::SetMetronomeBell(bool on)
 
 void PianoController::SetMetronomeBeat(int numerator, int denominator)
 {
-	m_styleNumerator = numerator;
-	m_styleDenominator = denominator;
-	m_styleBeatKnown = true;
 	if (m_genericDevice)
 	{
 		m_metronomeNumerator = numerator;
@@ -2653,7 +2628,7 @@ PianoController::StyleState PianoController::GetStyleState()
 	{
 		state.style = GetStyleName();
 	}
-	state.tempo = m_styleTempoKnown || m_pianoTempoKnown ? GetStyleTempo() : 0;
+	state.tempo = m_pianoTempoKnown ? (int)m_pianoTempo : 0;
 	state.chordArea = m_styleChordArea;
 	state.leftSound = m_styleLeftSound;
 	state.splitPoint = m_styleSplitPoint;
@@ -3168,21 +3143,22 @@ PianoController::StyleChord PianoController::GetStyleChord() const
 	return chord;
 }
 
-// The tempo of the accompaniment (Accompaniment and Recording window, registration memory).
-// It goes to the piano at once, also while a song plays (then the song follows it, as on
-// the piano); the song's own tempo is kept (see GetStyleTempo).
+// The tempo of the piano (Accompaniment and Recording window, registration memory): it goes
+// to the piano, not to the song's tempo (see GetStyleTempo). While the song plays, the song
+// follows it, as on the piano.
 void PianoController::SetStyleTempo(int tempo)
 {
 	tempo = jlimit((int)MinTempo, (int)MaxTempo, tempo);
-	m_styleTempo = tempo;
-	m_styleTempoKnown = true;
-	NotifyChanged(apStyle);
 	if (!m_connected)
 	{
+		// no piano that reports it (e.g. a MIDI device only): kept here, for the
+		// metronome of the program and the recording
+		m_pianoTempo = tempo;
 		if (!GetPlaying())
 		{
-			m_recorder.AddTempo(tempo); // no piano that reports it: recorded from here
+			m_recorder.AddTempo(tempo);
 		}
+		NotifyChanged(apStyle);
 		return;
 	}
 	m_styleSentMs = Time::getMillisecondCounter();
@@ -3196,8 +3172,6 @@ int PianoController::CurrentTempo()
 
 void PianoController::SongTempoToPiano()
 {
-	m_songTempoOnPiano = true;
-	const int request = ++m_styleRestoreRequest; // a pending send back is not needed
 	if (m_localPlayback)
 	{
 		SendLocalTempo(true);
@@ -3210,50 +3184,6 @@ void PianoController::SongTempoToPiano()
 	{
 		m_pianoConnector->SendPianoMessage(PianoMessage(Action::Reset, Property::Tempo)); // the song's own
 	}
-	// if the song does not start after all, the piano gets the accompaniment's tempo back
-	std::weak_ptr<bool> alive = m_alive;
-	Timer::callAfterDelay(3000, [this, alive, request]()
-		{
-			if (alive.lock() && request == m_styleRestoreRequest && !GetPlaying())
-			{
-				RestoreStyleTempo(0);
-			}
-		});
-}
-
-void PianoController::RestoreStyleTempo(int delayMs)
-{
-	const int request = ++m_styleRestoreRequest;
-	std::weak_ptr<bool> alive = m_alive;
-	Timer::callAfterDelay(jmax(1, delayMs), [this, alive, request]()
-		{
-			if (!alive.lock() || request != m_styleRestoreRequest || GetPlaying())
-			{
-				return; // started again meanwhile
-			}
-			if (m_connected)
-			{
-				if (m_styleTempoKnown)
-				{
-					m_styleSentMs = Time::getMillisecondCounter();
-					m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::Tempo, (int)m_styleTempo));
-				}
-				if (m_styleBeatKnown && (m_styleNumerator != m_metronomeNumerator ||
-					m_styleDenominator != m_metronomeDenominator))
-				{
-					SetMetronomeBeat(m_styleNumerator, m_styleDenominator);
-				}
-			}
-			NotifyChanged(apStyle);
-			// the piano's reports belong to the accompaniment again, after the echo of these
-			Timer::callAfterDelay(700, [this, alive, request]()
-				{
-					if (alive.lock() && request == m_styleRestoreRequest && !GetPlaying())
-					{
-						m_songTempoOnPiano = false;
-					}
-				});
-		});
 }
 
 void PianoController::StartRecordingWithCountIn(int measures)
