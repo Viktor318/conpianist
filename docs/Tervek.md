@@ -2,7 +2,7 @@
 
 Ez a fájl a ConPianist jövőbeli fejlesztéseit gyűjti egy helyre. Új ötlet ide kerül be, verzióemeléskor pedig átnézzük és átrendezzük. Az elkészült változásokat a [CHANGELOG.md](../CHANGELOG.md) tartalmazza.
 
-**Állapot:** 2026. október 11. A következő kiadás az **5.0**: addig csak a hibajavítások, az OTS funkció (a program saját OTS-e; a gyári OTS stílusfájlokból az 5.1-ben) és a kézikönyv készül el, minden más terv az 5.0 utáni verziókba került. Az 5.0 utáni verziókra bontás javaslat, a sorrend verzióemeléskor változhat.
+**Állapot:** 2026. október 11. A következő kiadás az **5.0**: addig csak a hibajavítások, az OTS funkció (a program saját OTS-e; a gyári OTS stílusfájlokból az 5.1-ben), a Dal felvétele a Felvétel ablakban és a kézikönyv készül el, minden más terv az 5.0 utáni verziókba került. Az 5.0 utáni verziókra bontás javaslat, a sorrend verzióemeléskor változhat.
 
 **Munkaigény:** K = kicsi (egy alkalom), Kö = közepes (néhány alkalom), N = nagy (több hét, vagy bizonytalan kimenetel).
 
@@ -22,7 +22,7 @@ Ide bármikor beírható egy új ötlet, egy sorban, akár félkészen is. A kö
 
 ## 5.0 – a következő kiadás
 
-A 4.8 kiadva (október 10., `v4.8`). Döntés (október 11.): az 5.0-ig három dolog készül el, minden más terv az 5.0 utáni verziókba került. A kiadás előtt a szokásos kódátnézés (lásd Alapelvek). Az október 10-i átnézésben a keret elfogyása miatt három rész mélyebb, fájlonkénti hibakeresése elmaradt; ebből kettő október 13-án elkészült (vezérlő és kapcsolatok: PianoController, Connector; kotta és dalok: ScoreComponent, Dalválasztó, VoiceComponent, Keverő; a találatok lent). A kiadás előtti átnézésben még külön sorra kell venni a harmadikat, az ablakokat (SceneComponent, Playback, Recorder, Kíséret, Kíséret keverő, Connection, Settings, Main, GuiHelper, LookAndFeel), mert az OTS ezeket módosítja.
+A 4.8 kiadva (október 10., `v4.8`). Döntés (október 11.): az 5.0-ig három dolog készül el (október 13-án negyedikként a Dal felvétele is bekerült), minden más terv az 5.0 utáni verziókba került. A kiadás előtt a szokásos kódátnézés (lásd Alapelvek). Az október 10-i átnézésben a keret elfogyása miatt három rész mélyebb, fájlonkénti hibakeresése elmaradt; ebből kettő október 13-án elkészült (vezérlő és kapcsolatok: PianoController, Connector; kotta és dalok: ScoreComponent, Dalválasztó, VoiceComponent, Keverő; a találatok lent). A kiadás előtti átnézésben még külön sorra kell venni a harmadikat, az ablakokat (SceneComponent, Playback, Recorder, Kíséret, Kíséret keverő, Connection, Settings, Main, GuiHelper, LookAndFeel), mert az OTS ezeket módosítja.
 
 ### 1. Hibajavítások
 
@@ -75,7 +75,16 @@ A stílushoz tartozó hangszín-beállítások egy gombnyomással behívhatók, 
 - **Szabályok a végrehajtáshoz** (a vezérlő átnézéséből, október 13.): minden értéket feltétel nélkül kell küldeni, mert a `GetX()` csak a zongora által visszaigazolt értéket adja (K3); előbb a hangszín, utána az oktáv (a hangszín hozhat saját oktávot), az oktáv −2..+2 közé szorítva; a hangszíneket a `Presets::FindVoice`-szal kell összevetni, nem szövegként; az értesítések más szálon jönnek, csak a fő szálra szabad továbbadni őket; az `apStyle` minden ütemre, akkordra és tempóra is jön, szűrni kell; a billentyűzet részeire nincs `apEnable`; küldés előtt `IsConnected()`; MIDI-eszköz módban a K2 javítása nélkül a hangerő nem jut el; a szekcióváltás a sorban várakozik, és a `GetStyleSection()` csak a zongora jelzésekor változik.
 - **Kézikönyv:** a Kíséret fejezetben.
 
-### 3. Kézikönyv
+### 3. Dal felvétele a Felvétel ablakban
+
+Viktor ötlete (október 13.), döntés: az 5.0-ba, az OTS után. Munka: K–Kö (kb. egy alkalom), utána tesztkör.
+
+- **Kezelés:** új „Dal felvétele” jelölőnégyzet a „Kíséret felvétele” mellett; az állapota a beállításokban megmarad. Csak USB-s és MIDI-eszközös lejátszásnál kapcsolható be (ott a program saját lejátszója szól, a dal hangjai a programon mennek át), hálózaton szürke. Nem zárja ki a „Kíséret felvétele” opciót, bár a kettőnek együtt nincs sok értelme.
+- **Felvétel:** a saját lejátszó hangjai, vezérlő-üzenetei és hangszínváltásai a Keverő csatornáinak már meglévő sávjaiba kerülnek (ugyanoda, ahová a Keverő csatornáin élőben játszott hangok; ha mindkettő ugyanazon a csatornán szól, egy sávba kerülnek – elfogadva); a sávok a felvétel elején a dal csatornáinak hangszínét kapják. Lejátszás közbeni ugráskor és a dal leállásakor a szóló dalhangok kikapcsolása is bekerül (nincs lógó hang). A tempó és az ütemmutató-váltások már most is bekerülnek.
+- **Automatikus felvétel:** bekapcsolva a dal indítása is elindítja az élesített felvételt, és a dal hangjai is életben tartják (mint a kíséretnél).
+- **Kézikönyv:** a Felvétel fejezetben.
+
+### 4. Kézikönyv
 
 Egyetlen tömör magyar PDF kézikönyv (kb. 24 oldal, képernyőképekkel, kattintható tartalomjegyzékkel), amely minden funkcióra kitér, túlzott részletesség nélkül; Markdown forrásból (`docs` mappa). Munka: Kö. Az 5.0 állapotát írja le, az OTS-szel és az 5.0 újdonságaival együtt (például az A–B jelek egérrel mozgatása), ezért a funkciók elkészülte után véglegesedik.
 
