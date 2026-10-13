@@ -266,6 +266,7 @@ AccompanimentComponent::AccompanimentComponent(Settings& settings, PianoControll
 	for (int i = 0; i < NumRegistrations; i++)
 	{
 		initButton(registrationButtons[i], String(i + 1));
+		registrationButtons[i].getProperties().set("value", true); // drawn with its own marks
 		registrationButtons[i].onMenu = [this, i]() { showRegistrationMenu(i); };
 	}
 	loadRegistrations();

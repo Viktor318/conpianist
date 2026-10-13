@@ -27,9 +27,14 @@ void ::LookAndFeel::drawButtonBackground(Graphics& gr, Button& btn, const Colour
 	bool toggle = btn.getProperties().contains("toggle");
 	bool tab = btn.getProperties().contains("tab");
 	bool live = btn.getProperties().contains("live"); // Mixer channel used for Live Play only
+	// a button that holds a value (e.g. a registration memory): its own marks, no orange frame
+	bool value = btn.getProperties().contains("value");
 	bool enabled = btn.isEnabled();
 
-	Colour outline = live && enabled ? Colours::white : Colour(toggle && enabled ? 0xFEEE6C0A : 0xff4e5b62);
+	// every usable function button has the orange frame (as in the Piano Room); disabled ones
+	// and the tabs a grey one
+	Colour outline = live && enabled ? Colours::white :
+		Colour(enabled && !tab && (toggle || !value) ? 0xFEEE6C0A : 0xff4e5b62);
 	Colour fill = Colour(0x0);
 
 	if (((isMouseOverButton || isButtonDown) && !toggle) || (btn.getToggleState() && (toggle || tab)))
