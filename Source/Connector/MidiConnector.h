@@ -37,5 +37,6 @@ public:
 	virtual bool IsConnected() = 0;
 
 protected:
-	Listener* m_listener = nullptr;
+	// set on the message thread, read on the connector's own thread
+	std::atomic<Listener*> m_listener{nullptr};
 };

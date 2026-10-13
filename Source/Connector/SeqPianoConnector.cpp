@@ -112,6 +112,10 @@ void SeqPianoConnector::IncomingMidiMessage(const MidiMessage& message)
 					prevMessage.GetIndex() == pianoMessage.GetIndex())
 				{
 					m_waitConfirmation = false;
+					// the message got through: its repeats must not count any more, otherwise
+					// the stall check would reset a healthy connection 10 s after the first
+					// send if nothing else is sent meanwhile
+					m_attempt = 0;
 					PrintLog("CONFIRM", m_lastMessage);
 				}
 			}

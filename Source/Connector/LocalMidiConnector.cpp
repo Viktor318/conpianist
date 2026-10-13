@@ -40,9 +40,10 @@ LocalMidiConnector::~LocalMidiConnector()
 
 void LocalMidiConnector::handleIncomingMidiMessage(MidiInput* source, const MidiMessage& message)
 {
-	if (m_listener)
+	// read once: the listener may be cleared on the message thread meanwhile
+	if (MidiConnector::Listener* listener = m_listener.load())
 	{
-		m_listener->IncomingMidiMessage(message);
+		listener->IncomingMidiMessage(message);
 	}
 }
 

@@ -362,6 +362,14 @@ void PianoController::Reset()
 
 void PianoController::Disconnect()
 {
+	{
+		// the messages still waiting are dropped with the connection
+		const ScopedLock lock(m_stringLock);
+		for (ChannelInfo& info : m_channels)
+		{
+			info.requestedVoice.clear();
+		}
+	}
 	if (m_connected)
 	{
 		m_connected = false;
@@ -624,7 +632,7 @@ void PianoController::SetVolume(Channel ch, int volume)
 		LiveStateFor(ch).volume = volume;
 	}
 
-	if (m_genericDevice)
+	if (IsDeviceChannel(ch))
 	{
 		// the song's own volume changes (CC7) are kept, scaled to the mixer setting
 		m_channels[ch].volume = volume;
@@ -651,7 +659,7 @@ void PianoController::SetVolume(Channel ch, int volume)
 
 void PianoController::ResetVolume(Channel ch)
 {
-	if (m_genericDevice)
+	if (IsDeviceChannel(ch))
 	{
 		SetVolume(ch, ch == chMidiMaster ? DefaultVolume : GenericSetupValue(ch, 7, DefaultVolume));
 		return;
@@ -668,7 +676,7 @@ void PianoController::SetPan(Channel ch, int pan)
 		LiveStateFor(ch).pan = pan;
 	}
 
-	if (m_genericDevice)
+	if (IsDeviceChannel(ch))
 	{
 		m_channels[ch].pan = pan;
 		if (liveOnly)
@@ -688,7 +696,7 @@ void PianoController::SetPan(Channel ch, int pan)
 
 void PianoController::ResetPan(Channel ch)
 {
-	if (m_genericDevice)
+	if (IsDeviceChannel(ch))
 	{
 		SetPan(ch, GenericSetupValue(ch, 10, PanBase) - PanBase);
 		return;
@@ -705,7 +713,7 @@ void PianoController::SetReverb(Channel ch, int reverb)
 		LiveStateFor(ch).reverb = reverb;
 	}
 
-	if (m_genericDevice)
+	if (IsDeviceChannel(ch))
 	{
 		m_channels[ch].reverb = reverb;
 		if (liveOnly)
@@ -725,7 +733,7 @@ void PianoController::SetReverb(Channel ch, int reverb)
 
 void PianoController::ResetReverb(Channel ch)
 {
-	if (m_genericDevice)
+	if (IsDeviceChannel(ch))
 	{
 		SetReverb(ch, GenericSetupValue(ch, 91, GenericDefaultReverb));
 		return;
@@ -947,7 +955,17 @@ void PianoController::SetLoopStart(const Position loopStart)
 
 void PianoController::SetVoice(Channel ch, const String& voice)
 {
+	{
+		const ScopedLock lock(m_stringLock);
+		m_channels[ch].requestedVoice = voice;
+	}
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::VoicePreset, ch, voice));
+}
+
+String PianoController::GetTargetVoice(Channel ch) const
+{
+	const ScopedLock lock(m_stringLock);
+	return m_channels[ch].requestedVoice.isNotEmpty() ? m_channels[ch].requestedVoice : m_channels[ch].voice;
 }
 
 // Sets the voice of a song channel (Midi1..Midi16) the same way a MIDI file does it:

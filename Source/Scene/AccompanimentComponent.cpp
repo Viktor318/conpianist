@@ -1433,9 +1433,10 @@ void AccompanimentComponent::askRegistrationName(int index, const String& title,
 	}
 }
 
-// Sends what differs from the current state of the piano. The style comes last: the
-// piano sets the default tempo of a style when it loads it, so the saved tempo (and the
-// volume of the accompaniment) is sent when the piano reports the new style.
+// Sends the registration to the piano (the voices only if they differ, see below). The
+// style comes last: the piano sets the default tempo of a style when it loads it, so the
+// saved tempo (and the volume of the accompaniment) is sent when the piano reports the
+// new style.
 void AccompanimentComponent::recallRegistration(int index)
 {
 	const Registration& reg = registrations[index];
@@ -1448,33 +1449,22 @@ void AccompanimentComponent::recallRegistration(int index)
 	{
 		const PianoController::Channel ch = RegistrationPartChannels[i];
 		const Registration::Part& part = reg.parts[i];
-		const String voice = pianoController.GetVoice(ch);
+		// The voice is compared with the one the channel will have (a voice sent by a
+		// registration recalled just before may not be reported back yet): loading a voice
+		// takes time, so it is sent only if it differs. The other values are cheap and are
+		// always sent: the piano's reported values may still be the ones before a previous
+		// recall, and they come after the voice, which may bring its own octave.
+		const String voice = pianoController.GetTargetVoice(ch);
 		Voice* preset = Presets::FindVoice(voice);
 		if (part.voice.isNotEmpty() && part.voice != (preset ? preset->path : voice))
 		{
 			pianoController.SetVoice(ch, part.voice);
-			pianoController.SetOctave(ch, part.octave); // a new voice may bring its own octave
 		}
-		else if (part.octave != pianoController.GetOctave(ch))
-		{
-			pianoController.SetOctave(ch, part.octave);
-		}
-		if (part.volume != pianoController.GetVolume(ch))
-		{
-			pianoController.SetVolume(ch, part.volume);
-		}
-		if (part.pan != pianoController.GetPan(ch))
-		{
-			pianoController.SetPan(ch, part.pan);
-		}
-		if (part.reverb != pianoController.GetReverb(ch))
-		{
-			pianoController.SetReverb(ch, part.reverb);
-		}
-		if (part.active != pianoController.GetActive(ch))
-		{
-			pianoController.SetActive(ch, part.active);
-		}
+		pianoController.SetOctave(ch, part.octave);
+		pianoController.SetVolume(ch, part.volume);
+		pianoController.SetPan(ch, part.pan);
+		pianoController.SetReverb(ch, part.reverb);
+		pianoController.SetActive(ch, part.active);
 	}
 	// The piano keeps the split point of the accompaniment at or below the one of the Left
 	// part, moving one with the other: if either differs, both are sent, the Left one first.

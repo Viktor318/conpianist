@@ -1121,10 +1121,17 @@ void LomseScoreComponent::PrepareImage()
 		juce::Logger::writeToLog("[SCORE] Drawn in " + String(Time::getMillisecondCounter() - start) +
 			" ms (" + String(width) + " x " + String(height) + " pixels)");
 	}
-	catch (runtime_error e)
+	catch (const std::exception& e)
 	{
+		m_image.reset();
 		m_error = e.what();
-		juce::Logger::writeToLog("[SCORE] runtime_error: " + m_error);
+		juce::Logger::writeToLog("[SCORE] Drawing failed: " + m_error);
+	}
+	catch (...)
+	{
+		m_image.reset();
+		m_error = "unknown error";
+		juce::Logger::writeToLog("[SCORE] Drawing failed: " + m_error);
 	}
 }
 
@@ -1864,7 +1871,14 @@ void LomseScoreComponent::PianoStateChanged(PianoController::Aspect aspect, Pian
 							return;
 						}
 						const String name = m_pianoController.GetSongName();
-						if (name.isNotEmpty() && name != m_scoreSongName)
+						if (name.isEmpty())
+						{
+							// the song is gone (e.g. switching between USB and network
+							// playback): when the same song comes back, its score must be
+							// loaded again, which also sets the end of the score again
+							m_scoreSongName = String();
+						}
+						else if (name != m_scoreSongName)
 						{
 							LoadSong();
 						}
@@ -2269,6 +2283,9 @@ int ScoreComponent::CheckScoreFile(const File& file, const File& resultFile)
 void LomseScoreComponent::LoadScore(const File& file)
 {
 	Cleanup();
+	// the end of the score shown before must not stop the song any more, even if this
+	// score turns out to be faulty (LoadSong does this too)
+	m_pianoController.SetScoreEnd({0,0});
 	m_check.reset(); // an earlier check is not needed any more
 	m_checkNumber++;
 	m_checkedScore = File();
@@ -2328,7 +2345,38 @@ void LomseScoreComponent::ShowScore(const File& file, const String& content)
 	Cleanup();
 
 	const uint32 start = Time::getMillisecondCounter();
-	LoadDocument(content);
+	// an exception from Lomse must not reach the message loop (the program would stop)
+	String error;
+	try
+	{
+		LoadDocument(content);
+	}
+	catch (const std::exception& e)
+	{
+		error = e.what();
+	}
+	catch (...)
+	{
+		error = "unknown error";
+	}
+	if (error.isNotEmpty())
+	{
+		juce::Logger::writeToLog("[SCORE] Loading failed: " + error);
+		try
+		{
+			ReportFaultyScore(file, TRANS("Drawing the score failed: ERROR").replace("ERROR", error),
+				"loading failed: " + error);
+		}
+		catch (...)
+		{
+			// the half-built document cannot even be deleted: it is left (a small leak
+			// instead of a crash)
+			m_presenter.release();
+			loadButton->setVisible(true);
+			repaint();
+		}
+		return;
+	}
 	juce::Logger::writeToLog("[SCORE] Loaded " + file.getFileName() + " in " +
 		String(Time::getMillisecondCounter() - start) + " ms");
 
@@ -2491,12 +2539,27 @@ void LomseScoreComponent::UpdateInstruments(bool force)
 		m_rightChannel != m_pianoController.GetPartChannel(PianoController::paRight) ||
 		m_leftChannel != m_pianoController.GetPartChannel(PianoController::paLeft)))
 	{
-		ConfigureInstruments();
-
 		m_rightChannel = m_pianoController.GetPartChannel(PianoController::paRight);
 		m_leftChannel = m_pianoController.GetPartChannel(PianoController::paLeft);
 
-		PrepareImage();
+		try
+		{
+			ConfigureInstruments();
+			PrepareImage();
+		}
+		catch (const std::exception& e)
+		{
+			// shown in the window instead of the score (see paint)
+			m_image.reset();
+			m_error = e.what();
+			juce::Logger::writeToLog("[SCORE] Configuring the parts failed: " + m_error);
+		}
+		catch (...)
+		{
+			m_image.reset();
+			m_error = "unknown error";
+			juce::Logger::writeToLog("[SCORE] Configuring the parts failed: " + m_error);
+		}
 		repaint();
 	}
 }
@@ -2602,27 +2665,34 @@ void LomseScoreComponent::ConfigureInstruments()
 	int rightChannel = m_pianoController.GetPartChannel(PianoController::paRight) - PianoController::chMidi0;
 	int leftChannel = m_pianoController.GetPartChannel(PianoController::paLeft) - PianoController::chMidi0;
 
-	// add right hand part to score
-	for (ImoInstrument* instr : m_instruments)
+	// An instrument must not be added twice: Lomse does not unlink a node that is already
+	// in the list, so the list of the instruments would loop on itself (and Lomse would
+	// freeze counting them). This could happen when both hands have the same channel, or
+	// when both are "none" (0) and an instrument has no MIDI channel (also 0): a hand set
+	// to "none" therefore matches no instrument.
+	std::vector<ImoInstrument*> added;
+	auto addHand = [&](int handChannel, bool shown)
 	{
-		int midiChannel = MidiChannelOfInstrument(instr);
-		if (midiChannel == rightChannel &&
-			(m_settings.scorePart == Settings::spRight || m_settings.scorePart == Settings::spRightAndLeft))
+		if (!shown || handChannel <= 0)
 		{
-			score->add_instrument(instr);
+			return;
 		}
-	}
+		for (ImoInstrument* instr : m_instruments)
+		{
+			if (MidiChannelOfInstrument(instr) == handChannel &&
+				std::find(added.begin(), added.end(), instr) == added.end())
+			{
+				score->add_instrument(instr);
+				added.push_back(instr);
+			}
+		}
+	};
+
+	// add right hand part to score
+	addHand(rightChannel, m_settings.scorePart == Settings::spRight || m_settings.scorePart == Settings::spRightAndLeft);
 
 	// add left hand part to score
-	for (ImoInstrument* instr : m_instruments)
-	{
-		int midiChannel = MidiChannelOfInstrument(instr);
-		if (midiChannel == leftChannel &&
-			(m_settings.scorePart == Settings::spLeft || m_settings.scorePart == Settings::spRightAndLeft))
-		{
-			score->add_instrument(instr);
-		}
-	}
+	addHand(leftChannel, m_settings.scorePart == Settings::spLeft || m_settings.scorePart == Settings::spRightAndLeft);
 
 	// add other parts to score
 	for (ImoInstrument* instr : m_instruments)

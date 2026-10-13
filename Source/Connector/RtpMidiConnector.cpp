@@ -349,11 +349,12 @@ void RtpMidiConnector::run()
 		}
 
 		// the messages read are passed on with g_rtpMutex released
-		if (m_listener != nullptr)
+		// read once: the listener may be cleared on the message thread meanwhile
+		if (MidiConnector::Listener* listener = m_listener.load())
 		{
 			for (const MidiMessage& message : received)
 			{
-				m_listener->IncomingMidiMessage(message);
+				listener->IncomingMidiMessage(message);
 			}
 		}
 
@@ -389,7 +390,7 @@ void RtpMidiConnector::ResetMidi()
 
 	g_owner = this;
 	g_midi.reset();
-	g_rtpMidi = std::make_unique<RtpMidi>(m_listener, m_connected, m_detailLogging, "ConPianist", port);
+	g_rtpMidi = std::make_unique<RtpMidi>(m_listener.load(), m_connected, m_detailLogging, "ConPianist", port);
 	g_midi = std::make_unique<Midi_t>(*g_rtpMidi.get());
 
 	g_rtpMidi->SetupEvents();

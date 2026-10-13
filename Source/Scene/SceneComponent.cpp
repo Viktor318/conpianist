@@ -809,17 +809,19 @@ void SceneComponent::resetMidiConnector()
 	// Nothing is sent to the old connector any more (a message being sent is waited
 	// for), then the old connector is stopped and deleted, and only then is the new
 	// one created: the two never run at the same time.
+	// The RTP thread is stopped before its listener is cleared, so it cannot be passing
+	// on received messages meanwhile.
 	pianoConnector.SetMidiConnector(nullptr);
+	if (rtpMidiConnector)
+	{
+		rtpMidiConnector->stopThread(3000);
+	}
 	if (midiConnector)
 	{
 		midiConnector->SetListener(nullptr);
 	}
 	midiConnector = nullptr;
-	if (rtpMidiConnector)
-	{
-		rtpMidiConnector->stopThread(3000);
-		rtpMidiConnector.reset();
-	}
+	rtpMidiConnector.reset();
 	localMidiConnector.reset();
 
 	pianoController.SetRemoteIp(settings.pianoIp);

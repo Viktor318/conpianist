@@ -76,6 +76,8 @@ public:
 		int reverb = DefaultReverb; // 0..127
 		int octave = DefaultOctave; // -2..+2
 		String voice;
+		// a voice sent to the piano (SetVoice) and not reported back yet; empty: none
+		String requestedVoice;
 	};
 
 	enum Part
@@ -533,6 +535,10 @@ public:
 	int GetPartAuto() { return m_partAuto; }
 	void SetPartAuto(bool enable);
 	String GetVoice(Channel ch) const { return VoiceOf(ch); }
+	// The voice the channel will have: the one last sent to the piano while the piano has
+	// not reported it back yet, otherwise the one reported. For "send only if it differs"
+	// checks: GetVoice() changes only when the piano reports the new voice.
+	String GetTargetVoice(Channel ch) const;
 	void SetVoice(Channel ch, const String& voice);
 	void SetSongChannelVoice(Channel ch, int voiceNum);
 	// The voice to send for a saved voice number (see the function).
@@ -619,7 +625,7 @@ private:
 	// copied while it is replaced, so they are only accessed under this lock.
 	mutable CriticalSection m_stringLock;
 	String VoiceOf(Channel ch) const { const ScopedLock lock(m_stringLock); return m_channels[ch].voice; }
-	void SetVoiceOf(Channel ch, const String& voice) { const ScopedLock lock(m_stringLock); m_channels[ch].voice = voice; }
+	void SetVoiceOf(Channel ch, const String& voice) { const ScopedLock lock(m_stringLock); m_channels[ch].voice = voice; m_channels[ch].requestedVoice.clear(); }
 	void SetSongNameValue(const String& name) { const ScopedLock lock(m_stringLock); m_songName = name; }
 	int m_transpose = DefaultTranspose;
 	Position m_loopStart{0,0};
@@ -842,4 +848,8 @@ private:
 	void ResetLocalMixState();
 	void UpdateLocalMutes();
 	static bool IsSongChannel(Channel ch) { return chMidi1 <= ch && ch <= chMidi16; }
+	// In MIDI device playback the mixer of the song channels and the master volume go to
+	// the MIDI device (the own player); the keyboard parts, the accompaniment and the
+	// microphone are still on the piano.
+	bool IsDeviceChannel(Channel ch) const { return m_genericDevice && (IsSongChannel(ch) || ch == chMidiMaster); }
 };
