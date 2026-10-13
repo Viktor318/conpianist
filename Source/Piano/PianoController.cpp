@@ -1544,20 +1544,29 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 	else if (property == Property::Tempo)
 	{
 		// The piano's player (the own player's reports are not used): the Tempo of the
-		// Playback panel is the song's. While the song does not play, the piano's tempo is
-		// the accompaniment's, except just after a song was loaded (the song's own tempo),
-		// the tempo of the song itself (index 1), and when no song tempo is known yet; a
-		// tempo set for the song (sent when it starts) is kept.
+		// Playback panel is the song's. While the song plays, every report is the song's.
+		// While it does not play, the piano's tempo is the accompaniment's: only the first
+		// report after a song was loaded is the song's own tempo (see SongName). The echo
+		// of the accompaniment's tempo sent by the program is never the song's: the piano
+		// answers a tempo with the same value in several reports (indexes 0, 1 and 2).
 		const uint32 now = Time::getMillisecondCounter();
-		const bool justLoaded = now - m_songLoadedMs < 3000 && now - m_styleSentMs > 700;
-		if (m_playing || ((justLoaded || m_songOwnTempo == 0 || pm->GetIndex() == 1) && !m_networkTempoSet))
+		const bool styleEcho = now - m_styleSentMs < 1500;
+		const uint32 loadedMs = m_songLoadedMs;
+		if (m_playing)
 		{
-			if (!m_playing)
-			{
-				m_songOwnTempo = intValue;
-			}
 			m_tempo = intValue;
 			NotifyChanged(apTempo);
+		}
+		else if (loadedMs != 0 && now - loadedMs < 10000 && !styleEcho)
+		{
+			// the song's own tempo (a tempo set for the song is sent when it starts)
+			m_songLoadedMs = 0;
+			m_songOwnTempo = intValue;
+			if (!m_networkTempoSet)
+			{
+				m_tempo = intValue;
+				NotifyChanged(apTempo);
+			}
 		}
 	}
 	else if (property == Property::StyleName)
@@ -1907,9 +1916,9 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 		NotifyChanged(apSongName);
 		if (name.isNotEmpty())
 		{
-			// the piano's player has loaded a song: its tempo reports are the song's for a
-			// while (see the Tempo report)
-			m_songLoadedMs = Time::getMillisecondCounter();
+			// the piano's player has loaded a song: its next tempo report is the song's own
+			// tempo (see the Tempo report; not waited for longer than 10 s)
+			m_songLoadedMs = jmax((uint32)1, Time::getMillisecondCounter());
 			m_songOwnTempo = 0;
 		}
 		if (m_songLoading)
