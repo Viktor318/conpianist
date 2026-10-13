@@ -67,9 +67,10 @@ RecorderComponent::RecorderComponent(Settings& settings, PianoController& pianoC
 	tempoSlider.onValueChange = [this]()
 		{
 			const int tempo = roundToInt(tempoSlider.getValue());
-			if (tempo != this->pianoController.GetTempo())
+			// the tempo of the accompaniment and the recording, not the song's
+			if (tempo != this->pianoController.GetStyleTempo())
 			{
-				this->pianoController.SetTempo(tempo);
+				this->pianoController.SetStyleTempo(tempo);
 			}
 		};
 	addAndMakeVisible(tempoSlider);
@@ -810,19 +811,20 @@ void RecorderComponent::updateControls()
 	quantizeFillButton.setEnabled(quantizeButton.getToggleState());
 }
 
-// Shows the tempo, the time signature and the state of the metronome as they are now
-// (they can change on the piano and with the song too).
+// Shows the tempo and the time signature of the accompaniment and the recording (the song
+// has its own tempo, on the Playback panel) and the state of the metronome as they are now
+// (they can change on the piano too).
 void RecorderComponent::updateMetronome()
 {
 	if (!tempoSlider.hasKeyboardFocus(true) && !tempoSlider.isMouseButtonDown(true))
 	{
-		tempoSlider.setValue(pianoController.GetTempo(), dontSendNotification);
+		tempoSlider.setValue(pianoController.GetStyleTempo(), dontSendNotification);
 	}
 
 	if (!beatCombo.isPopupActive())
 	{
-		const int numerator = pianoController.GetMetronomeBeatNumerator();
-		const int denominator = pianoController.GetMetronomeBeatDenominator();
+		const int numerator = pianoController.GetStyleBeatNumerator();
+		const int denominator = pianoController.GetStyleBeatDenominator();
 		const int id = numerator * 100 + denominator;
 		if (beatCombo.indexOfItemId(id) >= 0)
 		{
