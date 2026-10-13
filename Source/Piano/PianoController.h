@@ -734,6 +734,10 @@ private:
 	int m_styleRestoreRequest = 0; // the latest request to send the accompaniment's back
 	// the piano's player has just loaded a song: its tempo reports are the song's for a while
 	std::atomic<uint32> m_songLoadedMs{0};
+	// the song has just stopped or paused: until then the piano's tempo reports (its own
+	// tempo, and the accompaniment's tempo sent back) do not change the Tempo of the
+	// Playback panel
+	std::atomic<uint32> m_songStoppedUntilMs{0};
 	// when the accompaniment's tempo was last sent to the piano: its echo is not the song's
 	std::atomic<uint32> m_styleSentMs{0};
 	int m_songOwnTempo = 0; // the tempo of the piano's song when it was loaded (0: not known)
