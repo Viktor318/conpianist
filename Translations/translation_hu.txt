@@ -285,6 +285,8 @@ countries: hu
 "Intro" = "Intro"
 "Ending" = "Ending"
 "Main section (key NUMBER)" = "Main szakasz (NUMBER billentyű)"
+"Intro NUMBER (Shift+NUMBER)" = "Intro NUMBER (Shift+NUMBER)"
+"Ending NUMBER (Ctrl+NUMBER)" = "Ending NUMBER (Ctrl+NUMBER)"
 "Fill In" = "Fill In"
 "One measure of fill in, staying in the same main section (F)" = "Egy ütem kitöltés, ugyanabban a Main szakaszban maradva (F)"
 "Break" = "Break"

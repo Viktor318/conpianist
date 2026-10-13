@@ -212,6 +212,7 @@ AccompanimentComponent::AccompanimentComponent(Settings& settings, PianoControll
 	for (int i = 0; i < NumIntros; i++)
 	{
 		initButton(introButtons[i], String(i + 1));
+		introButtons[i].setTooltip(TRANS("Intro NUMBER (Shift+NUMBER)").replace("NUMBER", String(i + 1)));
 	}
 	for (int i = 0; i < NumMains; i++)
 	{
@@ -221,6 +222,7 @@ AccompanimentComponent::AccompanimentComponent(Settings& settings, PianoControll
 	for (int i = 0; i < NumEndings; i++)
 	{
 		initButton(endingButtons[i], String(i + 1));
+		endingButtons[i].setTooltip(TRANS("Ending NUMBER (Ctrl+NUMBER)").replace("NUMBER", String(i + 1)));
 	}
 	initButton(autoFillButton, TRANS("Auto Fill"));
 	autoFillButton.setTooltip(TRANS("When on, a fill in is played before the new main section when the main section is changed (A)"));
@@ -579,6 +581,8 @@ void AccompanimentComponent::showShortcuts()
 	String text;
 	text << TRANS("Space") << dash << TRANS("Start / Stop") << "\n"
 		<< "1, 2, 3, 4" << dash << "Main A, B, C, D" << "\n"
+		<< "Shift+1, 2, 3" << dash << "Intro 1, 2, 3" << "\n"
+		<< "Ctrl+1, 2, 3" << dash << "Ending 1, 2, 3" << "\n"
 		<< "F" << dash << TRANS("Fill In") << "\n"
 		<< "A" << dash << TRANS("Auto Fill on / off") << "\n"
 		<< "G" << dash << TRANS("Break") << "\n"
@@ -638,10 +642,26 @@ void AccompanimentComponent::toggleAutoFill()
 }
 
 // Shortcuts while the window is active: Space - start and stop, 1..4 - Main A..D,
-// F - fill in, B - break.
+// Shift+1..3 - Intro 1..3, Ctrl+1..3 - Ending 1..3, F - fill in, G - break (see showShortcuts).
 bool AccompanimentComponent::keyPressed(const KeyPress& key)
 {
-	if (key.getModifiers().isAnyModifierKeyDown())
+	// Shift or Ctrl with a number key (its key code: with Shift the character depends on
+	// the keyboard layout): Intro and Ending
+	const ModifierKeys mods = key.getModifiers();
+	const int keyCode = key.getKeyCode();
+	if (keyCode >= '1' && keyCode <= '3' && !mods.isAltDown() &&
+		mods.isShiftDown() != mods.isCommandDown())
+	{
+		if (!pianoController.IsConnected())
+		{
+			return false;
+		}
+		const int number = keyCode - '1';
+		pianoController.SetStyleSection(mods.isShiftDown() ?
+			PianoController::ssIntro1 + number : PianoController::ssEnding1 + number);
+		return true;
+	}
+	if (mods.isAnyModifierKeyDown())
 	{
 		return false;
 	}
