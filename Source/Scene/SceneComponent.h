@@ -142,13 +142,14 @@ private:
     std::unique_ptr<BalanceWindow> balanceWindow; // Balance window, likewise
     std::unique_ptr<PianoRoomWindow> pianoRoomWindow; // Piano Room window, likewise
     std::unique_ptr<SongSelectorWindow> songSelectorWindow; // Song Selector window, likewise
-    // top bar buttons drawn in code, from left to right; the Balance button is between
-    // the Accompaniment and the Accompaniment mixer button
+    // top bar buttons created in code, from left to right; then come the Balance button
+    // (created by the Projucer) and the Piano Room button
     std::unique_ptr<TopBarButton> songSelectorButton;
     std::unique_ptr<TopBarButton> recorderButton;
     std::unique_ptr<TopBarButton> accompanimentButton;
     std::unique_ptr<TopBarButton> otsButton;
     std::unique_ptr<TopBarButton> styleMixerButton;
+    std::unique_ptr<ImageButton> pianoRoomButton;
 	std::unique_ptr<LocalMidiConnector> localMidiConnector;
 	std::unique_ptr<RtpMidiConnector> rtpMidiConnector;
 	MidiConnector* midiConnector = nullptr;

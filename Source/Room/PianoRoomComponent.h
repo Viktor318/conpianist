@@ -72,8 +72,8 @@ private:
 };
 
 //[EndFile] You can add extra defines here...
-// The Piano Room window: not modal, like the Balance window, but not always on top (it is
-// large and would cover the main window). Closing only hides it.
+// The Piano Room window: not modal and always on top, like the Balance window. Closing
+// only hides it.
 class PianoRoomWindow : public DocumentWindow
 {
 public:

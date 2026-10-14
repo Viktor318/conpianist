@@ -179,6 +179,7 @@ PianoRoomWindow::PianoRoomWindow(Settings& settings, PianoController& pianoContr
 	setUsingNativeTitleBar(usingNativeTitleBar);
 	setContentOwned(new PianoRoomComponent(settings, pianoController), true);
 	setResizable(false, false);
+	setAlwaysOnTop(true);
 }
 
 void PianoRoomWindow::closeButtonPressed()
