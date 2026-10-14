@@ -612,8 +612,10 @@ void VoiceComponent::updateEnabledControls()
 {
 	for (Component* co : getChildren())
 	{
-		// with playback via a MIDI device the keyboard voices of the piano are not used
-		co->setEnabled(pianoController.IsConnected() && !pianoController.IsMidiDevicePlayback());
+		// The keyboard parts are the piano's: they can be set while it is connected, also
+		// when the songs are played via a MIDI device (as the accompaniment). Live Play goes
+		// to the MIDI device then, but the piano's own keys play these voices.
+		co->setEnabled(pianoController.IsConnected());
 	}
 }
 

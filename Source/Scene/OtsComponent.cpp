@@ -411,9 +411,9 @@ void OtsComponent::showVoiceMenu(int partIndex)
 void OtsComponent::update()
 {
 	const bool connected = pianoController.IsConnected();
-	// with playback via a MIDI device the keyboard voices of the piano are not used (as on
-	// the Voice tab)
-	const bool usable = connected && !pianoController.IsMidiDevicePlayback();
+	// The keyboard parts are the piano's: they can be set while it is connected, also when
+	// the songs are played via a MIDI device (as the accompaniment).
+	const bool usable = connected;
 	const String style = ots.GetStyle();
 	const bool hasStyle = usable && style.isNotEmpty();
 
@@ -461,7 +461,7 @@ void OtsComponent::update()
 
 void OtsComponent::updateParts()
 {
-	const bool usable = pianoController.IsConnected() && !pianoController.IsMidiDevicePlayback();
+	const bool usable = pianoController.IsConnected();
 	for (int i = 0; i < OneTouchSettings::NumParts; i++)
 	{
 		PartControls& part = parts[i];
