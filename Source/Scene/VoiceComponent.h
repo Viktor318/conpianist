@@ -55,6 +55,8 @@ public:
     void scrollToVoice(const String& preset);
 	void updateEnabledControls();
 	void showMenu(Button* button, PianoController::Channel channel);
+	// the Piano Room button: opens the Piano Room window (owned by the main window)
+	std::function<void()> onShowPianoRoom;
     //[/UserMethods]
 
     void paint (Graphics& g) override;

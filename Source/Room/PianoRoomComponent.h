@@ -46,7 +46,6 @@ public:
 
     //==============================================================================
     //[UserMethods]     -- You can add your own custom methods in this section.
-	static void showDialog(Settings& settings, PianoController& pianoController);
     //[/UserMethods]
 
     void paint (Graphics& g) override;
@@ -73,5 +72,20 @@ private:
 };
 
 //[EndFile] You can add extra defines here...
+// The Piano Room window: not modal, like the Balance window, but not always on top (it is
+// large and would cover the main window). Closing only hides it.
+class PianoRoomWindow : public DocumentWindow
+{
+public:
+	PianoRoomWindow(Settings& settings, PianoController& pianoController);
+	void closeButtonPressed() override;
+	void moved() override;
+	// Moves the window where it was the last time; false if that is not known (or not
+	// on a screen any more).
+	bool RestorePosition();
+
+private:
+	Settings& settings;
+};
 //[/EndFile]
 

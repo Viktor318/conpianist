@@ -458,7 +458,10 @@ void VoiceComponent::buttonClicked (Button* buttonThatWasClicked)
     else if (buttonThatWasClicked == roomButton.get())
     {
         //[UserButtonCode_roomButton] -- add your button handler code here..
-        PianoRoomComponent::showDialog(settings, pianoController);
+        if (onShowPianoRoom)
+        {
+            onShowPianoRoom();
+        }
         //[/UserButtonCode_roomButton]
     }
 

@@ -79,6 +79,7 @@ public:
 	Point<int> otsWindowPos{NoWindowPos, NoWindowPos};
 	Point<int> styleMixerWindowPos{NoWindowPos, NoWindowPos};
 	Point<int> balanceWindowPos{NoWindowPos, NoWindowPos};
+	Point<int> pianoRoomWindowPos{NoWindowPos, NoWindowPos};
 	// the Song Selector window can be resized: its position and size
 	Rectangle<int> songSelectorWindowBounds{NoWindowPos, NoWindowPos, 0, 0};
 	// true if a window of this size at this (saved) position can be reached on a screen

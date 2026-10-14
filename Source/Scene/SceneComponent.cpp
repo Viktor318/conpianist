@@ -231,6 +231,7 @@ SceneComponent::SceneComponent (Settings& settings)
 	keyboardPanel->addAndMakeVisible(keyboardComponent.get());
 
 	voiceComponent.reset(new VoiceComponent(settings, pianoController));
+	voiceComponent->onShowPianoRoom = [this]() { showPianoRoom(); };
 	scoreComponent.reset(ScoreComponent::Create(settings, pianoController));
 	mixerComponent.reset(new MixerComponent(settings, pianoController));
 	largeContentPanel->addChildComponent(voiceComponent.get());
@@ -332,6 +333,7 @@ SceneComponent::~SceneComponent()
     accompanimentWindow = nullptr;
     styleMixerWindow = nullptr;
     balanceWindow = nullptr;
+    pianoRoomWindow = nullptr;
     songSelectorWindow = nullptr;
     styleMixerButton = nullptr;
     accompanimentButton = nullptr;
@@ -1699,6 +1701,23 @@ void SceneComponent::showStyleMixer()
 	styleMixerWindow->setVisible(true);
 	styleMixerWindow->setMinimised(false); // opened again while it is minimised
 	styleMixerWindow->toFront(true);
+}
+
+// The Piano Room window is not modal and not always on top: it can stay open while
+// playing, and it is brought to the front by its button on the Voice tab.
+void SceneComponent::showPianoRoom()
+{
+	if (!pianoRoomWindow)
+	{
+		pianoRoomWindow = std::make_unique<PianoRoomWindow>(settings, pianoController);
+		if (!pianoRoomWindow->RestorePosition())
+		{
+			pianoRoomWindow->centreAroundComponent(this, pianoRoomWindow->getWidth(), pianoRoomWindow->getHeight());
+		}
+	}
+	pianoRoomWindow->setVisible(true);
+	pianoRoomWindow->setMinimised(false); // opened again while it is minimised
+	pianoRoomWindow->toFront(true);
 }
 
 void SceneComponent::showBalance()

@@ -135,10 +135,6 @@ void PianoRoomComponent::AddComponent(PrBaseComponent* comp)
     contentPanel->addAndMakeVisible(comp);
 }
 
-void PianoRoomComponent::showDialog(Settings& settings, PianoController& pianoController)
-{
-	GuiHelper::ShowDialogAsync(new PianoRoomComponent(settings, pianoController), TRANS("Piano Room"));
-}
 //[/MiscUserCode]
 
 
@@ -173,5 +169,41 @@ END_JUCER_METADATA
 
 
 //[EndFile] You can add extra defines here...
+PianoRoomWindow::PianoRoomWindow(Settings& settings, PianoController& pianoController) :
+	DocumentWindow(TRANS("Piano Room"), Colour(0xff323e44),
+		DocumentWindow::minimiseButton | DocumentWindow::closeButton),
+	settings(settings)
+{
+	const bool usingNativeTitleBar = (SystemStats::getOperatingSystemType() & SystemStats::Windows) ||
+		(SystemStats::getOperatingSystemType() & SystemStats::MacOSX);
+	setUsingNativeTitleBar(usingNativeTitleBar);
+	setContentOwned(new PianoRoomComponent(settings, pianoController), true);
+	setResizable(false, false);
+}
+
+void PianoRoomWindow::closeButtonPressed()
+{
+	setVisible(false);
+}
+
+// The position is remembered (saved with the settings when the program exits).
+void PianoRoomWindow::moved()
+{
+	DocumentWindow::moved();
+	if (isShowing() && !isMinimised() && getX() > -10000 && getY() > -10000)
+	{
+		settings.pianoRoomWindowPos = getPosition();
+	}
+}
+
+bool PianoRoomWindow::RestorePosition()
+{
+	if (!Settings::IsWindowPosUsable(settings.pianoRoomWindowPos, getWidth()))
+	{
+		return false;
+	}
+	setTopLeftPosition(settings.pianoRoomWindowPos);
+	return true;
+}
 //[/EndFile]
 
