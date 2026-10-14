@@ -62,7 +62,8 @@ public:
 	static String styleTitle(const String& path);
 	static String styleListName(const Style& style);
 
-	// Opens the OTS window (the own One Touch Settings of the style of the piano).
+	// Opens the OTS window (the own One Touch Settings of the style of the piano), or
+	// brings it back if it is minimised.
 	void ShowOts();
 
 private:
@@ -73,7 +74,11 @@ private:
 	// opened). The OTS icon is shown after the name of the styles that have them.
 	OneTouchSettings ots;
 	std::unique_ptr<OtsWindow> otsWindow;
-	TextButton otsButton;
+	TextButton otsButton; // orange while the OTS window is open
+	// The OTS button and the O key: open the window, or close it if it is shown (a
+	// minimised window is brought back).
+	void toggleOts();
+	void updateOtsButton();
 	void changeListenerCallback(ChangeBroadcaster*) override;
 
 	// The style list with the OTS icon after the styles that have own settings: in the

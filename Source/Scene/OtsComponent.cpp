@@ -141,9 +141,9 @@ OtsComponent::OtsComponent(Settings& settings, PianoController& pianoController,
 	{
 		PartControls& part = parts[i];
 		const PianoController::Channel ch = PartChannels[i];
-		// the names of the parts as on the Voice tab of the piano (not translated)
+		// the names of the parts as on the Voice tab
 		const char* name = ch == PianoController::chLeft ? "Left" : ch == PianoController::chMain ? "Main" : "Layer";
-		initButton(part.onButton, name);
+		initButton(part.onButton, TRANS(name));
 		part.onButton.getProperties().set("toggle", true); // drawn by the look and feel: orange when on
 		part.onButton.setTooltip(TRANS("Switches the part on and off"));
 		part.onButton.onClick = [this, ch]()
@@ -507,6 +507,15 @@ OtsWindow::OtsWindow(Settings& settings, PianoController& pianoController, OneTo
 void OtsWindow::closeButtonPressed()
 {
 	setVisible(false);
+}
+
+void OtsWindow::visibilityChanged()
+{
+	DocumentWindow::visibilityChanged();
+	if (onVisibilityChanged)
+	{
+		onVisibilityChanged();
+	}
 }
 
 // The position is remembered (saved with the settings when the program exits).

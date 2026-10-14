@@ -385,9 +385,9 @@ countries: hu
 // --- OTS (saját One Touch Setting) ---
 "OTS..." = "OTS…"
 "OTS (own settings of the style)" = "OTS (saját beállítások a stílushoz)"
-"Own One Touch Settings of the style (O)" = "Saját OTS-ek a stílushoz (O)"
+"Opens and closes the window of the own One Touch Settings of the style (O)" = "A stílus saját OTS-einek ablaka: megnyitás és bezárás (O)"
 "Own OTS 1 - 8" = "1 – 8. saját OTS"
-"OTS window" = "OTS ablak"
+"OTS window on / off" = "OTS ablak megnyitása / bezárása"
 "Own OTS" = "Saját OTS"
 "Store" = "Tárolás"
 "Press it, then an own button: the voice settings are stored there. Press it again (or Esc) to cancel. Shift+click on a button stores at once." = "Nyomja meg, majd egy saját gombot: oda kerülnek a hangszín-beállítások. Megszakítás: újra ez a gomb (vagy Esc). Shift+kattintás egy gombon: azonnali tárolás."

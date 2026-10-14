@@ -310,7 +310,7 @@ AccompanimentComponent::AccompanimentComponent(Settings& settings, PianoControll
 	initButton(breakButton, TRANS("Break"));
 	breakButton.setTooltip(TRANS("One measure of break (G)"));
 	initButton(otsButton, "OTS");
-	otsButton.setTooltip(TRANS("Own One Touch Settings of the style (O)"));
+	otsButton.setTooltip(TRANS("Opens and closes the window of the own One Touch Settings of the style (O)"));
 
 	initLabel(volumeLabel, TRANS("Accompaniment volume"));
 	volumeSlider.setSliderStyle(Slider::LinearHorizontal);
@@ -363,6 +363,10 @@ AccompanimentComponent::~AccompanimentComponent()
 {
 	stopTimer();
 	pianoController.RemoveListener(this);
+	if (otsWindow)
+	{
+		otsWindow->onVisibilityChanged = nullptr;
+	}
 	otsWindow = nullptr; // before the settings it shows
 	ots.removeChangeListener(this);
 	styleCombo.setLookAndFeel(nullptr);
@@ -380,6 +384,7 @@ void AccompanimentComponent::ShowOts()
 	if (!otsWindow)
 	{
 		otsWindow = std::make_unique<OtsWindow>(settings, pianoController, ots);
+		otsWindow->onVisibilityChanged = [this]() { updateOtsButton(); };
 		if (!otsWindow->RestorePosition())
 		{
 			// next to the Accompaniment window if there is room, otherwise in its middle
@@ -405,6 +410,26 @@ void AccompanimentComponent::ShowOts()
 	{
 		content->grabKeyboardFocus();
 	}
+	updateOtsButton();
+}
+
+void AccompanimentComponent::toggleOts()
+{
+	if (otsWindow && otsWindow->isVisible() && !otsWindow->isMinimised())
+	{
+		otsWindow->setVisible(false);
+		updateOtsButton();
+	}
+	else
+	{
+		ShowOts();
+	}
+}
+
+// Orange (as a button that is on) while the OTS window is open, minimised too.
+void AccompanimentComponent::updateOtsButton()
+{
+	markButton(otsButton, otsWindow && otsWindow->isVisible(), false);
 }
 
 // vertical positions of the lines between the groups of the controls
@@ -552,7 +577,7 @@ void AccompanimentComponent::buttonClicked(Button* button)
 	}
 	else if (button == &otsButton)
 	{
-		ShowOts();
+		toggleOts();
 	}
 	else if (button == &autoFillButton)
 	{
@@ -738,7 +763,7 @@ void AccompanimentComponent::showShortcuts()
 		<< "Enter" << dash << TRANS("Apply: loads the chosen style") << "\n"
 		<< "F1 " << dash.trim() << " F8" << dash << TRANS("Registration memory 1 - 8") << "\n"
 		<< "Shift+F1 " << dash.trim() << " F8" << dash << TRANS("Own OTS 1 - 8") << "\n"
-		<< "O" << dash << TRANS("OTS window") << "\n"
+		<< "O" << dash << TRANS("OTS window on / off") << "\n"
 		<< "H" << dash << TRANS("This list") << "\n\n"
 		<< TRANS("The keys work while the Accompaniment window is the active window.");
 	AlertWindow::showAsync(MessageBoxOptions()
@@ -826,7 +851,7 @@ bool AccompanimentComponent::keyPressed(const KeyPress& key)
 	}
 	if (character == 'o')
 	{
-		ShowOts();
+		toggleOts();
 		return true;
 	}
 	if (key == KeyPress::escapeKey && (memoryArmed || splitLearning))
@@ -1171,6 +1196,7 @@ void AccompanimentComponent::update()
 
 	shortcutsButton.setEnabled(true); // the list can be read without the piano too
 	otsButton.setEnabled(true);       // the window opens without the piano too
+	updateOtsButton();
 	if (!connected && memoryArmed)
 	{
 		setMemoryArmed(false);

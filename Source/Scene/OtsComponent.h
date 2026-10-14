@@ -114,6 +114,9 @@ class OtsWindow : public DocumentWindow
 public:
 	OtsWindow(Settings& settings, PianoController& pianoController, OneTouchSettings& ots);
 	void closeButtonPressed() override;
+	void visibilityChanged() override;
+	// called when the window is shown or hidden (also by its close button)
+	std::function<void()> onVisibilityChanged;
 	void moved() override;
 	// Moves the window where it was the last time; false if that is not known (or not
 	// on a screen any more).

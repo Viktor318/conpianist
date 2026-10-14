@@ -342,7 +342,8 @@ String OneTouchSettings::Describe(int index) const
 	for (int i = 0; i < NumParts; i++)
 	{
 		const Part& part = m_settings[index].parts[i];
-		text << (text.isEmpty() ? "" : "\n") << PartNames[i] << ": " << Presets::VoiceTitle(part.voice);
+		// the names of the parts as on the Voice tab
+		text << (text.isEmpty() ? "" : "\n") << TRANS(PartNames[i]) << ": " << Presets::VoiceTitle(part.voice);
 		if (!part.active)
 		{
 			text << " (" << TRANS("off") << ")";
