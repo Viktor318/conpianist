@@ -23,6 +23,10 @@
 #include "PianoController.h"
 #include "Presets.h"
 #include "Settings.h"
+#include "OneTouchSettings.h"
+#include "LookAndFeel.h"
+
+class OtsWindow;
 
 // The content of the Accompaniment window: controls the accompaniment (style) of the
 // piano: start and stop, sections (intro, main, fill in, break, ending), tempo, volume.
@@ -30,6 +34,7 @@
 class AccompanimentComponent : public Component,
                                public Button::Listener,
                                public PianoController::Listener,
+                               private ChangeListener,
                                private Timer
 {
 public:
@@ -37,6 +42,7 @@ public:
 	~AccompanimentComponent() override;
 
 	void paint(Graphics& g) override;
+	void paintOverChildren(Graphics& g) override;
 	void resized() override;
 	void buttonClicked(Button* button) override;
 	bool keyPressed(const KeyPress& key) override;
@@ -56,9 +62,30 @@ public:
 	static String styleTitle(const String& path);
 	static String styleListName(const Style& style);
 
+	// Opens the OTS window (the own One Touch Settings of the style of the piano).
+	void ShowOts();
+
 private:
 	Settings& settings;
 	PianoController& pianoController;
+
+	// The own One Touch Settings of the styles and their window (created when first
+	// opened). The OTS icon is shown after the name of the styles that have them.
+	OneTouchSettings ots;
+	std::unique_ptr<OtsWindow> otsWindow;
+	TextButton otsButton;
+	void changeListenerCallback(ChangeBroadcaster*) override;
+
+	// The style list with the OTS icon after the styles that have own settings: in the
+	// list (drawn by its look and feel) and in the box itself.
+	class StyleListLookAndFeel;
+	std::unique_ptr<StyleListLookAndFeel> styleListLookAndFeel;
+	class StyleComboBox : public ComboBox
+	{
+	public:
+		std::function<bool()> showIcon;
+		void paintOverChildren(Graphics& g) override;
+	};
 
 	// The styles of the piano: the list built into the program.
 	const std::vector<Style>& styles = Presets::Styles();
@@ -70,7 +97,7 @@ private:
 	Label styleLabel;
 	ComboBox categoryCombo; // item id: index in categories + 1
 	ComboBox groupCombo;    // groups of the category; item id: index in groups + 1
-	ComboBox styleCombo;    // styles of the group; item id: index in styles + 1
+	StyleComboBox styleCombo; // styles of the group; item id: index in styles + 1
 	TextButton applyButton;
 	Label currentLabel;
 	Label currentNameLabel; // the style of the piano

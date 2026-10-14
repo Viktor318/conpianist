@@ -76,6 +76,7 @@ public:
 	static const int NoWindowPos = -100000;
 	Point<int> recorderWindowPos{NoWindowPos, NoWindowPos};
 	Point<int> accompanimentWindowPos{NoWindowPos, NoWindowPos};
+	Point<int> otsWindowPos{NoWindowPos, NoWindowPos};
 	Point<int> styleMixerWindowPos{NoWindowPos, NoWindowPos};
 	Point<int> balanceWindowPos{NoWindowPos, NoWindowPos};
 	// the Song Selector window can be resized: its position and size

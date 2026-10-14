@@ -257,22 +257,29 @@ SceneComponent::SceneComponent (Settings& settings)
 	addAndMakeVisible(songSelectorButton.get());
 	songSelectorButton->setTooltip(TRANS("Song Selector"));
 	songSelectorButton->onClick = [this]() { showSongSelector(); };
-	songSelectorButton->setBounds(getWidth() - 290 - 32, 8, 32, 28);
+	songSelectorButton->setBounds(getWidth() - 325 - 32, 8, 32, 28);
 	recorderButton.reset(new TopBarButton("Recorder Button", TopBarButton::iconRecord));
 	addAndMakeVisible(recorderButton.get());
 	recorderButton->setTooltip(TRANS("Recording"));
 	recorderButton->onClick = [this]() { showRecorder(); };
-	recorderButton->setBounds(getWidth() - 255 - 32, 8, 32, 28);
+	recorderButton->setBounds(getWidth() - 290 - 32, 8, 32, 28);
 	accompanimentButton.reset(new TopBarButton("Accompaniment Button", TopBarButton::iconAccompaniment));
 	addAndMakeVisible(accompanimentButton.get());
 	accompanimentButton->setTooltip(TRANS("Accompaniment"));
 	accompanimentButton->onClick = [this]() { showAccompaniment(); };
-	accompanimentButton->setBounds(getWidth() - 220 - 32, 8, 32, 28);
+	accompanimentButton->setBounds(getWidth() - 255 - 32, 8, 32, 28);
+	otsButton.reset(new TopBarButton("OTS Button", TopBarButton::iconOts));
+	addAndMakeVisible(otsButton.get());
+	otsButton->setTooltip(TRANS("OTS (own settings of the style)"));
+	otsButton->onClick = [this]() { showOts(); };
+	otsButton->setBounds(getWidth() - 220 - 32, 8, 32, 28);
 	styleMixerButton.reset(new TopBarButton("Style Mixer Button", TopBarButton::iconStyleMixer));
 	addAndMakeVisible(styleMixerButton.get());
 	styleMixerButton->setTooltip(TRANS("Accompaniment mixer"));
 	styleMixerButton->onClick = [this]() { showStyleMixer(); };
-	styleMixerButton->setBounds(getWidth() - 150 - 32, 8, 32, 28);
+	styleMixerButton->setBounds(getWidth() - 185 - 32, 8, 32, 28);
+	// the folders of the own OTS files of the styles (see OneTouchSettings)
+	OneTouchSettings::CreateFolders(settings.GetLastStateFile().getSiblingFile("OTS"));
 	pianoConnector.startThread();
     pianoController.SetPianoConnector(&pianoConnector);
     pianoController.AddListener(this);
@@ -328,6 +335,7 @@ SceneComponent::~SceneComponent()
     songSelectorWindow = nullptr;
     styleMixerButton = nullptr;
     accompanimentButton = nullptr;
+    otsButton = nullptr;
     recorderButton = nullptr;
     songSelectorButton = nullptr;
     saveLastState(); // restored at the next start
@@ -431,18 +439,19 @@ void SceneComponent::resized()
     zoomOutButton->setBounds (getWidth() - 45 - 32, 8, 32, 28);
     keyboardPanel->setBounds (0, getHeight() - 67, getWidth() - 0, 67);
     keyboardButton->setBounds (getWidth() - 115 - 32, 8, 32, 28);
-    balanceButton->setBounds (getWidth() - 185 - 32, 8, 32, 28);
+    balanceButton->setBounds (getWidth() - 150 - 32, 8, 32, 28);
     voiceButton->setBounds (0 + 378, (-8) + 18, 80, 34);
     scoreButton->setBounds (0 + 298, (-8) + 18, 80, 34);
     mixerButton->setBounds (0 + 458, (-8) + 18, 80, 34);
     //[UserResized] Add your own custom resize handling here..
     if (styleMixerButton) // created after the first layout
     {
-        // Song Selector, Recording, Accompaniment, (Balance), Accompaniment mixer, (keyboard, ...)
-        songSelectorButton->setBounds(getWidth() - 290 - 32, 8, 32, 28);
-        recorderButton->setBounds(getWidth() - 255 - 32, 8, 32, 28);
-        accompanimentButton->setBounds(getWidth() - 220 - 32, 8, 32, 28);
-        styleMixerButton->setBounds(getWidth() - 150 - 32, 8, 32, 28);
+        // Song Selector, Recording, Accompaniment, OTS, Accompaniment mixer, (Balance, keyboard, ...)
+        songSelectorButton->setBounds(getWidth() - 325 - 32, 8, 32, 28);
+        recorderButton->setBounds(getWidth() - 290 - 32, 8, 32, 28);
+        accompanimentButton->setBounds(getWidth() - 255 - 32, 8, 32, 28);
+        otsButton->setBounds(getWidth() - 220 - 32, 8, 32, 28);
+        styleMixerButton->setBounds(getWidth() - 185 - 32, 8, 32, 28);
     }
     // the height of the virtual keyboard can be changed by the user
     const int keyboardHeight = getKeyboardHeight();
@@ -621,6 +630,7 @@ void SceneComponent::showMenu()
 	menu.addSectionHeader(TRANS("LIVE PLAY"));
 	menu.addItem(301, TRANS("Recording..."));
 	menu.addItem(302, TRANS("Accompaniment..."));
+	menu.addItem(303, TRANS("OTS..."));
 	menu.addSectionHeader(TRANS("LANGUAGE"));
 	// language names are intentionally not translated: each is shown in its own language
 	menu.addItem(201, "English", true, settings.GetEffectiveLanguage() == "en");
@@ -663,6 +673,9 @@ void SceneComponent::showMenu()
 					break;
 				case 302:
 					showAccompaniment();
+					break;
+				case 303:
+					showOts();
 					break;
 				case 997:
 					showAbout();
@@ -1630,6 +1643,24 @@ void SceneComponent::showAccompaniment()
 	}
 }
 
+// The OTS window belongs to the Accompaniment window (it shows the own settings of its
+// style): that one is created first if needed, but it is not shown.
+void SceneComponent::showOts()
+{
+	if (!accompanimentWindow)
+	{
+		accompanimentWindow = std::make_unique<AccompanimentWindow>(settings, pianoController);
+		if (!accompanimentWindow->RestorePosition())
+		{
+			accompanimentWindow->centreAroundComponent(this, accompanimentWindow->getWidth(), accompanimentWindow->getHeight());
+		}
+	}
+	if (auto* content = dynamic_cast<AccompanimentComponent*>(accompanimentWindow->getContentComponent()))
+	{
+		content->ShowOts();
+	}
+}
+
 // The Song Selector stays open after a song is loaded; it can be minimised to see the score.
 void SceneComponent::showSongSelector()
 {
@@ -1863,7 +1894,7 @@ BEGIN_JUCER_METADATA
                colourNormal="0" resourceOver="" opacityOver="0.75" colourOver="0"
                resourceDown="" opacityDown="1.0" colourDown="0"/>
   <IMAGEBUTTON name="Balance Button" id="b26d1a0a73e9171c" memberName="balanceButton"
-               virtualName="" explicitFocusOrder="0" pos="185Rr 8 32 28" tooltip="Balance"
+               virtualName="" explicitFocusOrder="0" pos="150Rr 8 32 28" tooltip="Balance"
                buttonText="Balance" connectedEdges="0" needsCallback="1" radioGroupId="0"
                keepProportions="1" resourceNormal="BinaryData::buttonbalance_png"
                opacityNormal="1.0" colourNormal="0" resourceOver="" opacityOver="0.75"

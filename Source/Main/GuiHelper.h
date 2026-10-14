@@ -23,6 +23,8 @@
 
 #include "../JuceLibraryCode/JuceHeader.h"
 
+struct Voice;
+
 class GuiHelper
 {
 public:
@@ -44,6 +46,15 @@ public:
 	// Runs the function later on the message thread, but only if the component
 	// still exists then (it may be deleted before the call is delivered).
 	static void CallAsync(Component* component, std::function<void()> function);
+
+	// A menu with all voices of the panel, grouped by category like the voice tree of the
+	// Voice tab; the current voice (may be nullptr) is ticked. Item ids: idBase + index in
+	// Presets::Voices().
+	static PopupMenu BuildVoicesMenu(Voice* currentVoice, int idBase);
+
+	// The icon of the One Touch Settings (OTS): four buttons in a square, the top left one
+	// lit, drawn in the current colour into a square area. The lines are lineWidth thick.
+	static void DrawOtsIcon(Graphics& g, Rectangle<float> area, float lineWidth);
 
 	static void Final();
 	

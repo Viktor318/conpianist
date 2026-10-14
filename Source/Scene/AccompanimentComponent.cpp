@@ -18,13 +18,82 @@
  */
 
 #include "AccompanimentComponent.h"
+#include "OtsComponent.h"
 #include "GuiHelper.h"
 #include "Presets.h"
 
 #include <set>
 
+// The size of the OTS icon after the names of the styles that have own settings.
+static const float StyleIconSize = 12.0f;
+
+static void drawStyleIcon(Graphics& g, float x, float centreY, Colour colour)
+{
+	g.setColour(colour);
+	GuiHelper::DrawOtsIcon(g, Rectangle<float>(x, centreY - StyleIconSize / 2, StyleIconSize, StyleIconSize), 1.0f);
+}
+
+// The look and feel of the style list: the OTS icon after the name of the styles that
+// have own settings.
+class AccompanimentComponent::StyleListLookAndFeel : public ::LookAndFeel
+{
+public:
+	std::function<bool(int itemId)> hasIcon;
+
+	void drawPopupMenuItemWithOptions(Graphics& g, const Rectangle<int>& area, bool isHighlighted,
+		const PopupMenu::Item& item, const PopupMenu::Options& options) override
+	{
+		::LookAndFeel::drawPopupMenuItemWithOptions(g, area, isHighlighted, item, options);
+		if (item.isSeparator || !hasIcon || !hasIcon(item.itemID))
+		{
+			return;
+		}
+		// where the text is drawn (as LookAndFeel_V4::drawPopupMenuItem places it)
+		Rectangle<int> r = area.reduced(1);
+		r.reduce(jmin(5, area.getWidth() / 20), 0);
+		Font font = getPopupMenuFont();
+		const float maxFontHeight = (float)r.getHeight() / 1.3f;
+		if (font.getHeight() > maxFontHeight)
+		{
+			font.setHeight(maxFontHeight);
+		}
+		r.removeFromLeft(roundToInt(maxFontHeight));
+		const float textWidth = GlyphArrangement::getStringWidth(font, item.text);
+		const float x = jmin((float)r.getX() + textWidth + 6.0f, (float)r.getRight() - StyleIconSize);
+		drawStyleIcon(g, x, (float)area.getCentreY(), findColour(isHighlighted && item.isEnabled ?
+			PopupMenu::highlightedTextColourId : PopupMenu::textColourId));
+	}
+
+	// room for the icon
+	void getIdealPopupMenuItemSize(const String& text, bool isSeparator, int standardMenuItemHeight,
+		int& idealWidth, int& idealHeight) override
+	{
+		::LookAndFeel::getIdealPopupMenuItemSize(text, isSeparator, standardMenuItemHeight, idealWidth, idealHeight);
+		if (!isSeparator)
+		{
+			idealWidth += (int)StyleIconSize + 8;
+		}
+	}
+};
+
+// The chosen style in the box: the icon after its name (as the label of the box shows it).
+void AccompanimentComponent::StyleComboBox::paintOverChildren(Graphics& g)
+{
+	if (!showIcon || !showIcon())
+	{
+		return;
+	}
+	const Font font = getLookAndFeel().getComboBoxFont(*this);
+	const float textWidth = GlyphArrangement::getStringWidth(font, getText());
+	// the label of the box starts at 1, its text 5 pixels further; the arrow is in the
+	// last 30 pixels
+	const float x = jmin(6.0f + textWidth + 6.0f, (float)getWidth() - 30.0f - StyleIconSize);
+	drawStyleIcon(g, x, getHeight() / 2.0f, Colours::white.withMultipliedAlpha(isEnabled() ? 1.0f : 0.5f));
+}
+
 AccompanimentComponent::AccompanimentComponent(Settings& settings, PianoController& pianoController) :
-	settings(settings), pianoController(pianoController)
+	settings(settings), pianoController(pianoController),
+	ots(settings.GetLastStateFile().getSiblingFile("OTS"), pianoController)
 {
 	auto initLabel = [this](Label& label, const String& text)
 		{
@@ -58,6 +127,16 @@ AccompanimentComponent::AccompanimentComponent(Settings& settings, PianoControll
 
 	styleCombo.setWantsKeyboardFocus(false);
 	styleCombo.onChange = [this]() { update(); };
+	styleListLookAndFeel = std::make_unique<StyleListLookAndFeel>();
+	styleListLookAndFeel->hasIcon = [this](int itemId)
+		{
+			return itemId >= 1 && itemId <= (int)styles.size() && ots.HasSettings(styles[itemId - 1].path);
+		};
+	styleCombo.setLookAndFeel(styleListLookAndFeel.get());
+	styleCombo.showIcon = [this]()
+		{
+			return styleListLookAndFeel->hasIcon(styleCombo.getSelectedId());
+		};
 	addAndMakeVisible(styleCombo);
 
 	initButton(applyButton, TRANS("Apply"));
@@ -230,6 +309,8 @@ AccompanimentComponent::AccompanimentComponent(Settings& settings, PianoControll
 	fillInButton.setTooltip(TRANS("One measure of fill in, staying in the same main section (F)"));
 	initButton(breakButton, TRANS("Break"));
 	breakButton.setTooltip(TRANS("One measure of break (G)"));
+	initButton(otsButton, "OTS");
+	otsButton.setTooltip(TRANS("Own One Touch Settings of the style (O)"));
 
 	initLabel(volumeLabel, TRANS("Accompaniment volume"));
 	volumeSlider.setSliderStyle(Slider::LinearHorizontal);
@@ -273,6 +354,7 @@ AccompanimentComponent::AccompanimentComponent(Settings& settings, PianoControll
 	setWantsKeyboardFocus(true);
 	setSize(440, 710);
 
+	ots.addChangeListener(this);
 	pianoController.AddListener(this);
 	update();
 }
@@ -281,6 +363,48 @@ AccompanimentComponent::~AccompanimentComponent()
 {
 	stopTimer();
 	pianoController.RemoveListener(this);
+	otsWindow = nullptr; // before the settings it shows
+	ots.removeChangeListener(this);
+	styleCombo.setLookAndFeel(nullptr);
+}
+
+// The settings of the style changed (or the style): the icons are drawn again.
+void AccompanimentComponent::changeListenerCallback(ChangeBroadcaster*)
+{
+	repaint();
+	styleCombo.repaint();
+}
+
+void AccompanimentComponent::ShowOts()
+{
+	if (!otsWindow)
+	{
+		otsWindow = std::make_unique<OtsWindow>(settings, pianoController, ots);
+		if (!otsWindow->RestorePosition())
+		{
+			// next to the Accompaniment window if there is room, otherwise in its middle
+			Component* window = getTopLevelComponent();
+			const Displays::Display* display = Desktop::getInstance().getDisplays()
+				.getDisplayForRect(window->getScreenBounds());
+			const Rectangle<int> screen = display ? display->userBounds.toNearestInt() : Rectangle<int>();
+			const int x = window->getRight() + 8;
+			if (display && x + otsWindow->getWidth() <= screen.getRight())
+			{
+				otsWindow->setTopLeftPosition(x, jmax(screen.getY(), window->getY()));
+			}
+			else
+			{
+				otsWindow->centreAroundComponent(window, otsWindow->getWidth(), otsWindow->getHeight());
+			}
+		}
+	}
+	otsWindow->setVisible(true);
+	otsWindow->setMinimised(false); // opened again while it is minimised
+	otsWindow->toFront(true);
+	if (Component* content = otsWindow->getContentComponent())
+	{
+		content->grabKeyboardFocus();
+	}
 }
 
 // vertical positions of the lines between the groups of the controls
@@ -298,6 +422,21 @@ void AccompanimentComponent::paint(Graphics& g)
 	g.setColour(Colours::white.withAlpha(0.7f));
 	g.drawRoundedRectangle(currentNameLabel.getBounds().expanded(0, 3).toFloat().reduced(0.75f), 5.0f, 1.5f);
 	g.drawRoundedRectangle(chordFrame.toFloat().reduced(0.75f), 5.0f, 1.5f);
+}
+
+// The OTS icon after the name of the style of the piano, if it has own settings.
+void AccompanimentComponent::paintOverChildren(Graphics& g)
+{
+	if (!pianoController.IsConnected() || !ots.HasSettings(pianoController.GetStyleName()))
+	{
+		return;
+	}
+	const Rectangle<int> bounds = currentNameLabel.getBounds();
+	const float textWidth = jmin(GlyphArrangement::getStringWidth(currentNameLabel.getFont(), currentNameLabel.getText()),
+		(float)currentNameLabel.getBorderSize().subtractedFrom(currentNameLabel.getLocalBounds()).getWidth());
+	const float x = jmin(bounds.getX() + currentNameLabel.getBorderSize().getLeft() + textWidth + 8.0f,
+		(float)bounds.getRight() - StyleIconSize - 4.0f);
+	drawStyleIcon(g, x, (float)bounds.getCentreY(), currentNameLabel.findColour(Label::textColourId));
 }
 
 void AccompanimentComponent::resized()
@@ -372,6 +511,7 @@ void AccompanimentComponent::resized()
 	autoFillButton.setBounds(290, 402, 134, 32);
 	fillInButton.setBounds(290, 442, 64, 32);
 	breakButton.setBounds(360, 442, 64, 32);
+	otsButton.setBounds(290, 482, 134, 32);
 	// volume
 	volumeLabel.setBounds(16, 534, 170, 24);
 	volumeSlider.setBounds(186, 534, 238, 24);
@@ -409,6 +549,10 @@ void AccompanimentComponent::buttonClicked(Button* button)
 	else if (button == &breakButton)
 	{
 		pianoController.PlayStyleSection(PianoController::ssBreak);
+	}
+	else if (button == &otsButton)
+	{
+		ShowOts();
 	}
 	else if (button == &autoFillButton)
 	{
@@ -593,6 +737,8 @@ void AccompanimentComponent::showShortcuts()
 		<< "R" << dash << TRANS("Default tempo of the style (Reset)") << "\n"
 		<< "Enter" << dash << TRANS("Apply: loads the chosen style") << "\n"
 		<< "F1 " << dash.trim() << " F8" << dash << TRANS("Registration memory 1 - 8") << "\n"
+		<< "Shift+F1 " << dash.trim() << " F8" << dash << TRANS("Own OTS 1 - 8") << "\n"
+		<< "O" << dash << TRANS("OTS window") << "\n"
 		<< "H" << dash << TRANS("This list") << "\n\n"
 		<< TRANS("The keys work while the Accompaniment window is the active window.");
 	AlertWindow::showAsync(MessageBoxOptions()
@@ -661,6 +807,13 @@ bool AccompanimentComponent::keyPressed(const KeyPress& key)
 			PianoController::ssIntro1 + number : PianoController::ssEnding1 + number);
 		return true;
 	}
+	// Shift+F1..F8: the own OTS of the style
+	if (mods.isShiftDown() && !mods.isCtrlDown() && !mods.isCommandDown() && !mods.isAltDown() &&
+		keyCode >= KeyPress::F1Key && keyCode < KeyPress::F1Key + OneTouchSettings::NumSettings)
+	{
+		ots.Recall(keyCode - KeyPress::F1Key);
+		return true;
+	}
 	if (mods.isAnyModifierKeyDown())
 	{
 		return false;
@@ -669,6 +822,11 @@ bool AccompanimentComponent::keyPressed(const KeyPress& key)
 	if (character == 'h')
 	{
 		showShortcuts();
+		return true;
+	}
+	if (character == 'o')
+	{
+		ShowOts();
 		return true;
 	}
 	if (key == KeyPress::escapeKey && (memoryArmed || splitLearning))
@@ -761,6 +919,15 @@ void AccompanimentComponent::PianoStateChanged(PianoController::Aspect aspect, P
 	{
 		GuiHelper::CallAsync(this, [this]() { update(); });
 	}
+	// the voices of the keyboard parts: is the active own OTS modified
+	if (((aspect == PianoController::apVoice || aspect == PianoController::apActive ||
+		  aspect == PianoController::apVolume || aspect == PianoController::apOctave) &&
+		 (channel == PianoController::chMain || channel == PianoController::chLayer ||
+		  channel == PianoController::chLeft)) ||
+		aspect == PianoController::apPlaybackSource)
+	{
+		GuiHelper::CallAsync(this, [this]() { ots.Update(); });
+	}
 }
 
 // Called from any thread. While learning, the first key played (on the piano or on the
@@ -852,6 +1019,9 @@ void AccompanimentComponent::markButton(TextButton& button, bool current, bool n
 
 void AccompanimentComponent::update()
 {
+	// the own OTS follow the style of the piano and the connection
+	ots.Update();
+
 	const bool connected = pianoController.IsConnected();
 	const bool playing = connected && pianoController.GetStylePlaying();
 
@@ -1000,6 +1170,7 @@ void AccompanimentComponent::update()
 	splitNameLabel.setText(connected && splitPoint > 0 ? noteName(splitPoint) : String("-"), dontSendNotification);
 
 	shortcutsButton.setEnabled(true); // the list can be read without the piano too
+	otsButton.setEnabled(true);       // the window opens without the piano too
 	if (!connected && memoryArmed)
 	{
 		setMemoryArmed(false);

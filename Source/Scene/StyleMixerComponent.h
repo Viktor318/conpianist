@@ -96,7 +96,8 @@ public:
 		iconRecord,        // Recording window: a dot in a ring
 		iconAccompaniment, // Accompaniment window: a drum with two sticks
 		iconStyleMixer,    // Accompaniment mixer window: a drum below three faders
-		iconSongs          // Song Selector window: a list with a note
+		iconSongs,         // Song Selector window: a list with a note
+		iconOts            // OTS window: four buttons, one of them lit
 	};
 
 	TopBarButton(const String& name, Icon icon) : Button(name), m_icon(icon) {}

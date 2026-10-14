@@ -392,5 +392,9 @@ void TopBarButton::paintButton(Graphics& g, bool shouldDrawButtonAsHighlighted, 
 			g.fillPath(flag);
 			break;
 		}
+
+		case iconOts:
+			GuiHelper::DrawOtsIcon(g, area, 1.5f);
+			break;
 	}
 }

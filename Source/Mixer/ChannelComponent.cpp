@@ -500,56 +500,6 @@ void ChannelComponent::mouseUp(const MouseEvent& event)
 // Menu item ids of the "Change Voice" submenu: VoiceMenuBase + index in Presets::Voices()
 static const int VoiceMenuBase = 1000;
 
-// Builds a submenu with all voices, grouped by category like the voice tree.
-static PopupMenu buildVoicesMenu(Voice* currentVoice)
-{
-	PopupMenu voicesMenu;
-	PopupMenu category1Menu;
-	PopupMenu category2Menu;
-	String category1;
-	String category2;
-
-	auto flushCategory2 = [&]()
-	{
-		if (category2Menu.getNumItems() > 0)
-		{
-			category1Menu.addSubMenu(category2, category2Menu);
-		}
-		category2Menu.clear();
-	};
-
-	auto flushCategory1 = [&]()
-	{
-		flushCategory2();
-		if (category1Menu.getNumItems() > 0)
-		{
-			voicesMenu.addSubMenu(category1, category1Menu);
-		}
-		category1Menu.clear();
-	};
-
-	VoiceList& voices = Presets::Voices();
-	for (int i = 0; i < (int)voices.size(); i++)
-	{
-		Voice& vc = voices[i];
-		if (vc.category1 != category1)
-		{
-			flushCategory1();
-			category1 = vc.category1;
-			category2 = vc.category2;
-		}
-		else if (vc.category2 != category2)
-		{
-			flushCategory2();
-			category2 = vc.category2;
-		}
-		category2Menu.addItem(VoiceMenuBase + i, vc.title, true, &vc == currentVoice);
-	}
-	flushCategory1();
-
-	return voicesMenu;
-}
-
 // The drum channel (10) plays drum kits only: a submenu with the drum kits of the piano
 // (bank MSB 127). The percussion and SFX kits (MSB 126) cannot be used there: the piano
 // replaces their bank with 127 and plays another kit.
@@ -767,7 +717,7 @@ void ChannelComponent::showMenu(Button* button)
 		// voice that is the nearest to it
 		Voice* currentVoice = Presets::FindExtraVoice(currentNum) ? nullptr : Presets::FindVoice(voice);
 		const bool drums = channel == PianoController::chMidi10;
-		PopupMenu voicesMenu = drums ? buildDrumKitsMenu(currentVoice) : buildVoicesMenu(currentVoice);
+		PopupMenu voicesMenu = drums ? buildDrumKitsMenu(currentVoice) : GuiHelper::BuildVoicesMenu(currentVoice, VoiceMenuBase);
 		if (!drums)
 		{
 			// On the drum channel the piano replaces the bank of the GM2 and GS kits (MSB 120,

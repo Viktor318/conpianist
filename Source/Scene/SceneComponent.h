@@ -79,6 +79,7 @@ public:
 	void showAbout();
 	void showRecorder();
 	void showAccompaniment();
+	void showOts();
 	void showStyleMixer();
 	void showBalance();
 	void showSongSelector();
@@ -143,6 +144,7 @@ private:
     std::unique_ptr<TopBarButton> songSelectorButton;
     std::unique_ptr<TopBarButton> recorderButton;
     std::unique_ptr<TopBarButton> accompanimentButton;
+    std::unique_ptr<TopBarButton> otsButton;
     std::unique_ptr<TopBarButton> styleMixerButton;
 	std::unique_ptr<LocalMidiConnector> localMidiConnector;
 	std::unique_ptr<RtpMidiConnector> rtpMidiConnector;

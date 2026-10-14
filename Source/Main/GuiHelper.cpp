@@ -20,6 +20,7 @@
  */
 
 #include "GuiHelper.h"
+#include "Presets.h"
 
 std::unique_ptr<FileChooser> GuiHelper::m_fileChooser;
 
@@ -137,4 +138,76 @@ void GuiHelper::ShowMenuAsync(PopupMenu& menu, Component* comp,
 		.withTargetComponent(comp)
 		.withStandardItemHeight(35),
 		callback);
+}
+
+PopupMenu GuiHelper::BuildVoicesMenu(Voice* currentVoice, int idBase)
+{
+	PopupMenu voicesMenu;
+	PopupMenu category1Menu;
+	PopupMenu category2Menu;
+	String category1;
+	String category2;
+
+	auto flushCategory2 = [&]()
+	{
+		if (category2Menu.getNumItems() > 0)
+		{
+			category1Menu.addSubMenu(category2, category2Menu);
+		}
+		category2Menu.clear();
+	};
+
+	auto flushCategory1 = [&]()
+	{
+		flushCategory2();
+		if (category1Menu.getNumItems() > 0)
+		{
+			voicesMenu.addSubMenu(category1, category1Menu);
+		}
+		category1Menu.clear();
+	};
+
+	VoiceList& voices = Presets::Voices();
+	for (int i = 0; i < (int)voices.size(); i++)
+	{
+		Voice& vc = voices[i];
+		if (vc.category1 != category1)
+		{
+			flushCategory1();
+			category1 = vc.category1;
+			category2 = vc.category2;
+		}
+		else if (vc.category2 != category2)
+		{
+			flushCategory2();
+			category2 = vc.category2;
+		}
+		category2Menu.addItem(idBase + i, vc.title, true, &vc == currentVoice);
+	}
+	flushCategory1();
+
+	return voicesMenu;
+}
+
+void GuiHelper::DrawOtsIcon(Graphics& g, Rectangle<float> area, float lineWidth)
+{
+	// drawn on a 22 x 22 grid, like the icons of the top bar
+	const float scale = jmin(area.getWidth(), area.getHeight()) / 22.0f;
+	const float x0 = area.getCentreX() - 11.0f * scale;
+	const float y0 = area.getCentreY() - 11.0f * scale;
+	const float size = 8.5f * scale;
+	const float corner = 1.5f * scale;
+	const float positions[4][2] = { { 1.5f, 1.5f }, { 12.0f, 1.5f }, { 1.5f, 12.0f }, { 12.0f, 12.0f } };
+	for (int i = 0; i < 4; i++)
+	{
+		const Rectangle<float> r(x0 + positions[i][0] * scale, y0 + positions[i][1] * scale, size, size);
+		if (i == 0)
+		{
+			g.fillRoundedRectangle(r, corner);
+		}
+		else
+		{
+			g.drawRoundedRectangle(r.reduced(lineWidth / 2), corner, lineWidth);
+		}
+	}
 }

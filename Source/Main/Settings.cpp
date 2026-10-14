@@ -90,6 +90,8 @@ void Settings::Save()
 	prop.setValue("Recorder.Window.Y", recorderWindowPos.y);
 	prop.setValue("Accompaniment.Window.X", accompanimentWindowPos.x);
 	prop.setValue("Accompaniment.Window.Y", accompanimentWindowPos.y);
+	prop.setValue("Ots.Window.X", otsWindowPos.x);
+	prop.setValue("Ots.Window.Y", otsWindowPos.y);
 	prop.setValue("StyleMixer.Window.X", styleMixerWindowPos.x);
 	prop.setValue("StyleMixer.Window.Y", styleMixerWindowPos.y);
 	prop.setValue("Balance.Window.X", balanceWindowPos.x);
@@ -175,6 +177,8 @@ void Settings::Load()
 	recorderWindowPos.y = prop.getIntValue("Recorder.Window.Y", recorderWindowPos.y);
 	accompanimentWindowPos.x = prop.getIntValue("Accompaniment.Window.X", accompanimentWindowPos.x);
 	accompanimentWindowPos.y = prop.getIntValue("Accompaniment.Window.Y", accompanimentWindowPos.y);
+	otsWindowPos.x = prop.getIntValue("Ots.Window.X", otsWindowPos.x);
+	otsWindowPos.y = prop.getIntValue("Ots.Window.Y", otsWindowPos.y);
 	styleMixerWindowPos.x = prop.getIntValue("StyleMixer.Window.X", styleMixerWindowPos.x);
 	styleMixerWindowPos.y = prop.getIntValue("StyleMixer.Window.Y", styleMixerWindowPos.y);
 	balanceWindowPos.x = prop.getIntValue("Balance.Window.X", balanceWindowPos.x);
