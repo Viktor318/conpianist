@@ -231,7 +231,6 @@ SceneComponent::SceneComponent (Settings& settings)
 	keyboardPanel->addAndMakeVisible(keyboardComponent.get());
 
 	voiceComponent.reset(new VoiceComponent(settings, pianoController));
-	voiceComponent->onShowPianoRoom = [this]() { showPianoRoom(); };
 	scoreComponent.reset(ScoreComponent::Create(settings, pianoController));
 	mixerComponent.reset(new MixerComponent(settings, pianoController));
 	largeContentPanel->addChildComponent(voiceComponent.get());
@@ -279,7 +278,7 @@ SceneComponent::SceneComponent (Settings& settings)
 	styleMixerButton->setTooltip(TRANS("Accompaniment mixer"));
 	styleMixerButton->onClick = [this]() { showStyleMixer(); };
 	styleMixerButton->setBounds(getWidth() - 220 - 32, 8, 32, 28);
-	// right of the Balance button, with the image of the Piano Room button of the Voice tab
+	// right of the Balance button (a tuning fork)
 	pianoRoomButton.reset(new ImageButton("Piano Room Button"));
 	addAndMakeVisible(pianoRoomButton.get());
 	pianoRoomButton->setTooltip(TRANS("Piano Room"));
@@ -1720,7 +1719,7 @@ void SceneComponent::showStyleMixer()
 }
 
 // The Piano Room window is not modal: it can stay open while playing. It is opened by
-// its button in the top bar and on the Voice tab.
+// its button in the top bar.
 void SceneComponent::showPianoRoom()
 {
 	if (!pianoRoomWindow)

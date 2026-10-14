@@ -18,7 +18,6 @@
 */
 
 //[Headers] You can add your own extra header files here...
-#include "PianoRoomComponent.h"
 #include "GuiHelper.h"
 //[/Headers]
 
@@ -252,17 +251,6 @@ VoiceComponent::VoiceComponent (Settings& settings, PianoController& pianoContro
                                ImageCache::getFromMemory (BinaryData::buttoncontextmenu_png, BinaryData::buttoncontextmenu_pngSize), 1.000f, Colour (0x00000000),
                                Image(), 0.750f, Colour (0x00000000),
                                Image(), 1.000f, Colour (0x00000000));
-    roomButton.reset (new ImageButton (String()));
-    addAndMakeVisible (roomButton.get());
-    roomButton->setTooltip (TRANS("Piano Room"));
-    roomButton->setButtonText (TRANS("Piano Room"));
-    roomButton->addListener (this);
-
-    roomButton->setImages (false, true, true,
-                           ImageCache::getFromMemory (BinaryData::buttontune_png, BinaryData::buttontune_pngSize), 1.000f, Colour (0x00000000),
-                           Image(), 0.750f, Colour (0x00000000),
-                           Image(), 1.000f, Colour (0x00000000));
-
     //[UserPreSize]
     targetGroup->setColour(GroupComponent::outlineColourId, Colours::transparentBlack);
     targetGroup->setText("");
@@ -316,7 +304,6 @@ VoiceComponent::~VoiceComponent()
     leftMenuButton = nullptr;
     mainMenuButton2 = nullptr;
     mainMenuButton = nullptr;
-    roomButton = nullptr;
 
 
     //[Destructor]. You can add your own custom destruction code here..
@@ -332,15 +319,6 @@ void VoiceComponent::paint (Graphics& g)
 
     g.fillAll (Colour (0xff323e44));
 
-    {
-        int x = getWidth() - 46, y = 8, width = 1, height = 70;
-        Colour fillColour = Colour (0xff4e5b62);
-        //[UserPaintCustomArguments] Customize the painting arguments here..
-        //[/UserPaintCustomArguments]
-        g.setColour (fillColour);
-        g.fillRect (x, y, width, height);
-    }
-
     //[UserPaint] Add your own custom painting code here..
     //[/UserPaint]
 }
@@ -350,27 +328,26 @@ void VoiceComponent::resized()
     //[UserPreResize] Add your own custom resize code here..
     //[/UserPreResize]
 
-    targetGroup->setBounds (0, -8, getWidth() - 46, 104);
+    targetGroup->setBounds (0, -8, getWidth() - 0, 104);
     voicesTree->setBounds (8, (-8) + 104, getWidth() - 14, getHeight() - 98);
-    leftVoiceButton->setBounds (0 + 16, (-8) + 55, roundToInt ((getWidth() - 46) * 0.3024f), 28);
-    mainVoiceButton->setBounds (0 + (getWidth() - 46) / 2 - ((roundToInt ((getWidth() - 46) * 0.3024f)) / 2), (-8) + 55, roundToInt ((getWidth() - 46) * 0.3024f), 28);
-    layerVoiceButton->setBounds (0 + (getWidth() - 46) - 16 - (roundToInt ((getWidth() - 46) * 0.3024f)), (-8) + 55, roundToInt ((getWidth() - 46) * 0.3024f), 28);
-    mainTitleButton->setBounds ((0 + (getWidth() - 46) / 2 - ((roundToInt ((getWidth() - 46) * 0.3024f)) / 2)) + (roundToInt ((getWidth() - 46) * 0.3024f)) / 2 - (80 / 2), (-8) + 16, 80, 28);
-    leftTitleButton->setBounds ((0 + 16) + (roundToInt ((getWidth() - 46) * 0.3024f)) / 2 - (80 / 2), (-8) + 16, 80, 28);
-    layerTitleButton->setBounds ((0 + (getWidth() - 46) - 16 - (roundToInt ((getWidth() - 46) * 0.3024f))) + (roundToInt ((getWidth() - 46) * 0.3024f)) / 2 - (80 / 2), (-8) + 16, 80, 28);
-    leftIndicatorLabel->setBounds (0 + 16, (-8) + 90, roundToInt ((getWidth() - 46) * 0.3024f), 3);
-    mainIndicatorLabel->setBounds (0 + (getWidth() - 46) / 2 - ((roundToInt ((getWidth() - 46) * 0.3024f)) / 2), (-8) + 90, roundToInt ((getWidth() - 46) * 0.3024f), 3);
-    layerIndicatorLabel->setBounds (0 + (getWidth() - 46) - 16 - (roundToInt ((getWidth() - 46) * 0.3024f)), (-8) + 90, roundToInt ((getWidth() - 46) * 0.3024f), 3);
-    layerOctaveLabel->setBounds ((0 + (getWidth() - 46) - 16 - (roundToInt ((getWidth() - 46) * 0.3024f))) + 23, 8, 26, 28);
+    leftVoiceButton->setBounds (0 + 16, (-8) + 55, roundToInt ((getWidth() - 0) * 0.3024f), 28);
+    mainVoiceButton->setBounds (0 + (getWidth() - 0) / 2 - ((roundToInt ((getWidth() - 0) * 0.3024f)) / 2), (-8) + 55, roundToInt ((getWidth() - 0) * 0.3024f), 28);
+    layerVoiceButton->setBounds (0 + (getWidth() - 0) - 16 - (roundToInt ((getWidth() - 0) * 0.3024f)), (-8) + 55, roundToInt ((getWidth() - 0) * 0.3024f), 28);
+    mainTitleButton->setBounds ((0 + (getWidth() - 0) / 2 - ((roundToInt ((getWidth() - 0) * 0.3024f)) / 2)) + (roundToInt ((getWidth() - 0) * 0.3024f)) / 2 - (80 / 2), (-8) + 16, 80, 28);
+    leftTitleButton->setBounds ((0 + 16) + (roundToInt ((getWidth() - 0) * 0.3024f)) / 2 - (80 / 2), (-8) + 16, 80, 28);
+    layerTitleButton->setBounds ((0 + (getWidth() - 0) - 16 - (roundToInt ((getWidth() - 0) * 0.3024f))) + (roundToInt ((getWidth() - 0) * 0.3024f)) / 2 - (80 / 2), (-8) + 16, 80, 28);
+    leftIndicatorLabel->setBounds (0 + 16, (-8) + 90, roundToInt ((getWidth() - 0) * 0.3024f), 3);
+    mainIndicatorLabel->setBounds (0 + (getWidth() - 0) / 2 - ((roundToInt ((getWidth() - 0) * 0.3024f)) / 2), (-8) + 90, roundToInt ((getWidth() - 0) * 0.3024f), 3);
+    layerIndicatorLabel->setBounds (0 + (getWidth() - 0) - 16 - (roundToInt ((getWidth() - 0) * 0.3024f)), (-8) + 90, roundToInt ((getWidth() - 0) * 0.3024f), 3);
+    layerOctaveLabel->setBounds ((0 + (getWidth() - 0) - 16 - (roundToInt ((getWidth() - 0) * 0.3024f))) + 23, 8, 26, 28);
     leftOctaveLabel->setBounds ((0 + 16) + 23, 8, 26, 28);
-    mainOctaveLabel->setBounds ((0 + (getWidth() - 46) / 2 - ((roundToInt ((getWidth() - 46) * 0.3024f)) / 2)) + 23, 8, 26, 28);
+    mainOctaveLabel->setBounds ((0 + (getWidth() - 0) / 2 - ((roundToInt ((getWidth() - 0) * 0.3024f)) / 2)) + 23, 8, 26, 28);
     leftMenuButton2->setBounds ((0 + 16) + 24, 8, 28, 28);
-    layerMenuButton2->setBounds ((0 + (getWidth() - 46) - 16 - (roundToInt ((getWidth() - 46) * 0.3024f))) + 24, 8, 28, 28);
-    layerMenuButton->setBounds ((0 + (getWidth() - 46) - 16 - (roundToInt ((getWidth() - 46) * 0.3024f))) + 0, 8, 28, 28);
+    layerMenuButton2->setBounds ((0 + (getWidth() - 0) - 16 - (roundToInt ((getWidth() - 0) * 0.3024f))) + 24, 8, 28, 28);
+    layerMenuButton->setBounds ((0 + (getWidth() - 0) - 16 - (roundToInt ((getWidth() - 0) * 0.3024f))) + 0, 8, 28, 28);
     leftMenuButton->setBounds ((0 + 16) + 0, 8, 28, 28);
-    mainMenuButton2->setBounds ((0 + (getWidth() - 46) / 2 - ((roundToInt ((getWidth() - 46) * 0.3024f)) / 2)) + 24, 8, 28, 28);
-    mainMenuButton->setBounds ((0 + (getWidth() - 46) / 2 - ((roundToInt ((getWidth() - 46) * 0.3024f)) / 2)) + 0, 8, 28, 28);
-    roomButton->setBounds (getWidth() - 8 - 28, 10, 28, 28);
+    mainMenuButton2->setBounds ((0 + (getWidth() - 0) / 2 - ((roundToInt ((getWidth() - 0) * 0.3024f)) / 2)) + 24, 8, 28, 28);
+    mainMenuButton->setBounds ((0 + (getWidth() - 0) / 2 - ((roundToInt ((getWidth() - 0) * 0.3024f)) / 2)) + 0, 8, 28, 28);
     //[UserResized] Add your own custom resize handling here..
     //[/UserResized]
 }
@@ -454,15 +431,6 @@ void VoiceComponent::buttonClicked (Button* buttonThatWasClicked)
         //[UserButtonCode_mainMenuButton] -- add your button handler code here..
         showMenu(mainMenuButton.get(), PianoController::chMain);
         //[/UserButtonCode_mainMenuButton]
-    }
-    else if (buttonThatWasClicked == roomButton.get())
-    {
-        //[UserButtonCode_roomButton] -- add your button handler code here..
-        if (onShowPianoRoom)
-        {
-            onShowPianoRoom();
-        }
-        //[/UserButtonCode_roomButton]
     }
 
     //[UserbuttonClicked_Post]
@@ -661,11 +629,9 @@ BEGIN_JUCER_METADATA
                  variableInitialisers="settings(settings), pianoController(pianoController)"
                  snapPixels="8" snapActive="1" snapShown="1" overlayOpacity="0.330"
                  fixedSize="0" initialWidth="600" initialHeight="400">
-  <BACKGROUND backgroundColour="ff323e44">
-    <RECT pos="46R 8 1 70" fill="solid: ff4e5b62" hasStroke="0"/>
-  </BACKGROUND>
+  <BACKGROUND backgroundColour="ff323e44"/>
   <GROUPCOMPONENT name="Target Group" id="56427593ca278ddd" memberName="targetGroup"
-                  virtualName="" explicitFocusOrder="0" pos="0 -8 46M 104" title="Target"
+                  virtualName="" explicitFocusOrder="0" pos="0 -8 0M 104" title="Target"
                   textpos="36"/>
   <TREEVIEW name="Voices TreeView" id="5c337882807de41a" memberName="voicesTree"
             virtualName="" explicitFocusOrder="0" pos="8 0R 14M 98M" posRelativeY="56427593ca278ddd"
@@ -778,12 +744,6 @@ BEGIN_JUCER_METADATA
                resourceNormal="BinaryData::buttoncontextmenu_png" opacityNormal="1.0"
                colourNormal="0" resourceOver="" opacityOver="0.75" colourOver="0"
                resourceDown="" opacityDown="1.0" colourDown="0"/>
-  <IMAGEBUTTON name="" id="f23c4d5277574957" memberName="roomButton" virtualName=""
-               explicitFocusOrder="0" pos="8Rr 10 28 28" posRelativeY="c7b94b60aa96c6e2"
-               tooltip="Piano Room" buttonText="Piano Room" connectedEdges="0"
-               needsCallback="1" radioGroupId="0" keepProportions="1" resourceNormal="BinaryData::buttontune_png"
-               opacityNormal="1.0" colourNormal="0" resourceOver="" opacityOver="0.75"
-               colourOver="0" resourceDown="" opacityDown="1.0" colourDown="0"/>
 </JUCER_COMPONENT>
 
 END_JUCER_METADATA
