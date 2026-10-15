@@ -57,6 +57,7 @@ Ez a fájl a ConPianist változásait dokumentálja. Az 1.0–3.0 verziók az er
 
 ### Egyéb
 - **JUCE 9.0.4.** A program a JUCE 9.0.4-gyel készül. A Visual Studio fordító a szabványos lambdakezelővel fut (`/Zc:lambda`): a JUCE 9.0.4 MIDI-kimenetének új kódját a régi lambdakezelő a Lomse fejléceinek `using namespace std;` sora mellett rosszul értelmezte, és a `ScoreComponent.cpp` nem fordult le.
+- **Kilépéskor a kikapcsolt zongora MIDI-portja azonnal lezárul.** Ha a zongorát a program futása közben kikapcsolták, a Windows eddig kb. 10 másodperc alatt zárta le az USB MIDI-portját kilépéskor (ezt a program a háttérben végezte, hogy az ablak ne maradjon látható). A JUCE 9.0.4 javította a már eltűnt MIDI-eszközök lezárását: a teszt szerint (október 15.) a teljes kilépés kikapcsolt zongorával 34 ms. A háttérben futó lezárás biztonsági tartaléknak megmarad.
 
 ## 4.8 (fork) – 2026. október 10.
 
