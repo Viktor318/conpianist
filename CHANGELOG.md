@@ -55,6 +55,9 @@ Ez a fájl a ConPianist változásait dokumentálja. Az 1.0–3.0 verziók az er
 - **Kilépéskor a zongora leállítja a dalt.** Hálózati lejátszásnál a dalt a zongora saját lejátszója játssza, és a program bezárása után is tovább szólt. Most ha kilépéskor a zongora éppen játssza a dalt, a program leállítja a lejátszást, és megvárja (legfeljebb 2 másodpercig), amíg a zongora ezt visszaigazolja. USB-s és MIDI-eszközös lejátszásnál a program saját lejátszója eddig is leállt.
 - **A kézzel áthúzott ujjrend is azon az oldalon marad, ahol a MuseScore mutatja.** Ha egyszerre több hang szól (akkord, vagy a két szólam hangjai), a MuseScore az ujjrendet az összes hangon és a többi hang ujjrendjén túlra teszi, de a kottába csak a saját hangjához mért helyet írja. A program eddig ebből döntötte el az oldalt, ezért egy feljebbről lehúzott ujjrend a hang alá került, holott a MuseScore-ban még fölötte van (például az Air On the G String 29. ütemében a „3”). Most a program figyelembe veszi az egyszerre szóló hangokat és a fölöttük (alattuk) lévő ujjrendeket, és csak akkor teszi át az ujjrendet a másik oldalra, ha az eltolás az egész hangcsoporton túlviszi. A kottafájl nem változik.
 
+### Egyéb
+- **JUCE 9.0.4.** A program a JUCE 9.0.4-gyel készül. A Visual Studio fordító a szabványos lambdakezelővel fut (`/Zc:lambda`): a JUCE 9.0.4 MIDI-kimenetének új kódját a régi lambdakezelő a Lomse fejléceinek `using namespace std;` sora mellett rosszul értelmezte, és a `ScoreComponent.cpp` nem fordult le.
+
 ## 4.8 (fork) – 2026. október 10.
 
 ### Új
