@@ -92,7 +92,7 @@ Viktor ötlete (október 13.), döntés: az 5.0-ba, az OTS után. A végleges te
 
 Viktor ötlete (október 16.), döntés: az 5.0-ba. **Állapot: elkészült, tesztelésre vár** (október 16.).
 
-- **Kinézet** (A változat, skicc: `Keverő_szintjelző_skicc_2.png`, csak a beszélgetésben): 50 × 10 px-es sáv az 1–16. csatornán, a Visszhang tekerő és a Hangerő értéke között. Kék színátmenet: balról sötétkék, a teli sáv vége világoskék; elnémított csatornán szürke.
+- **Kinézet** (A változat, skicc: `Keverő_szintjelző_skicc_2.png`, csak a beszélgetésben): 50 × 10 px-es sáv az 1–16. csatornán, a Visszhang tekerő és a Hangerő értéke között. Kék színátmenet: balról sötétkék, a teli sáv vége világoskék; szürke, ha a csatorna nem hallatszik (a Keverőben, a Master gombbal vagy a Szólam gombokkal elnémítva; a Szólam gombok esetét Viktor kérdése nyomán október 16-án javítva).
 - **Működés:** a hangindítás erőssége (velocity) szerint felugrik, majd kb. 300 ms alatt egyenletesen lecseng; egy halkabb hang nem vágja le egy még lecsengő erősebbét. Tevékenységjelző, nem hangerőmérő: a hang elengedését nem figyeli.
 - **Forrás:** a saját lejátszó (USB, MIDI-eszköz; az elnémított csatornák hangjai is) és az Élő játék a Keverő csatornáin (virtuális billentyűzet, MIDI In 2). A hálózati lejátszás hangjait a program nem kapja meg, ott csak az Élő játék jelez.
 - **Teljesítmény:** a lejátszó szála hangonként csak egy számot ír, várakozás nélkül; a Keverő egy kb. 30 Hz-es időzítővel csak a változott sávokat rajzolja újra, és csak akkor, ha a Keverő látszik.

@@ -468,8 +468,16 @@ void ChannelComponent::updateActivity()
 		return;
 	}
 	const int width = roundToInt(pianoController.GetNoteActivity(channel) * (activityMeter->getWidth() - 2));
-	// the notes of a muted channel are not heard: shown in grey
-	const bool muted = !pianoController.GetActive(channel) && !isLiveOnlyChannel();
+	// the song's notes are not heard (shown in grey) if the song (Master), the channel or
+	// its part (Right, Left or Backing: the Part buttons) is switched off, as the own
+	// player mutes them (PianoController::UpdateLocalMutes)
+	const PianoController::Part part =
+		pianoController.GetPartChannel(PianoController::paRight) == channel ? PianoController::paRight :
+		pianoController.GetPartChannel(PianoController::paLeft) == channel ? PianoController::paLeft :
+		PianoController::paBacking;
+	const bool audible = pianoController.GetActive(PianoController::chMidiMaster) &&
+		pianoController.GetActive(channel) && pianoController.GetPart(part);
+	const bool muted = !audible && !isLiveOnlyChannel();
 	if (width != activityMeter->width || muted != activityMeter->muted)
 	{
 		activityMeter->width = width;
