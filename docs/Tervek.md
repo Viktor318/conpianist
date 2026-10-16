@@ -80,7 +80,7 @@ A stílushoz tartozó hangszín-beállítások egy gombnyomással behívhatók, 
 
 ### 3. Lejátszás/dal felvétele a Felvétel ablakban
 
-Viktor ötlete (október 13.), döntés: az 5.0-ba, az OTS után. A végleges terv október 16-án készült (a név, a rétegenkénti felvétel, a Felvétel betöltése, az új elrendezés). **Állapot: elkészült, tesztelésre vár** (október 16.).
+Viktor ötlete (október 13.), döntés: az 5.0-ba, az OTS után. A végleges terv október 16-án készült (a név, a rétegenkénti felvétel, a Felvétel betöltése, az új elrendezés). **Állapot: elkészült, tesztelve** (október 16.).
 
 - **Kezelés:** új „Lejátszás/dal felvétele” jelölőnégyzet a „Kíséret felvétele” mellett (a köz akkora, mint a „Szünetek kitöltése” előtt); az állapota a beállításokban megmarad, alapértelmezésben ki van kapcsolva. Csak USB-s és MIDI-eszközös lejátszásnál kapcsolható be, hálózaton szürke (hálózati változat nem lesz, döntés: október 16.). A „Kíséret felvétele” opcióval kölcsönösen kikapcsolják egymást: egyiket sem, a kíséretet, vagy a lejátszást/dalt vesszük fel.
 - **Felvétel:** a saját lejátszó hangjai, vezérlőüzenetei és hangszínváltásai a Keverő csatornáinak sávjaiba kerülnek (ha élőben ugyanazon a csatornán is játszol, egy sávba); az kerül a fájlba, ami megszól (transzponálva, a némított csatorna hangjai nélkül). Ugráskor és leálláskor a hangok kikapcsolása is bekerül. A felvétel a dal ütemmutatójával indul, a dal közbeni ütemváltások is bekerülnek. Automatikus felvételnél a lejátszás első hangja indítja, és a hangjai életben tartják.
@@ -90,7 +90,7 @@ Viktor ötlete (október 13.), döntés: az 5.0-ba, az OTS után. A végleges te
 
 ### 4. Szintjelző a Keverő csatornáin
 
-Viktor ötlete (október 16.), döntés: az 5.0-ba. **Állapot: elkészült, tesztelésre vár** (október 16.).
+Viktor ötlete (október 16.), döntés: az 5.0-ba. **Állapot: elkészült, tesztelve** (október 16.).
 
 - **Kinézet** (A változat, skicc: `Keverő_szintjelző_skicc_2.png`, csak a beszélgetésben): 50 × 10 px-es sáv az 1–16. csatornán, a Visszhang tekerő és a Hangerő értéke között. Kék színátmenet: balról sötétkék, a teli sáv vége világoskék; szürke, ha a csatorna nem hallatszik (a Keverőben, a Master gombbal vagy a Szólam gombokkal elnémítva; a Szólam gombok esetét Viktor kérdése nyomán október 16-án javítva).
 - **Működés:** a hangindítás erőssége (velocity) szerint felugrik, majd kb. 300 ms alatt egyenletesen lecseng; egy halkabb hang nem vágja le egy még lecsengő erősebbét. Tevékenységjelző, nem hangerőmérő: a hang elengedését nem figyeli.
