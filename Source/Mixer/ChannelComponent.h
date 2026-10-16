@@ -63,6 +63,19 @@ public:
 	void toggleLiveChannel();
 	bool isMidiChannel() const;
 	bool isLiveOnlyChannel() const;
+	// Mixer channels 1..16: the meter follows the activity of the channel (called by the
+	// Mixer's timer; repaints only if the meter has changed)
+	void updateActivity();
+
+	// The activity meter of a Mixer channel: a bar of blue gradient, its length the level
+	// (see PianoController::GetNoteActivity); grey if the channel is muted.
+	class ActivityMeter : public Component
+	{
+	public:
+		int width = 0; // of the bar, in pixels
+		bool muted = false;
+		void paint(Graphics& g) override;
+	};
     //[/UserMethods]
 
     void paint (Graphics& g) override;
@@ -85,6 +98,7 @@ private:
     std::unique_ptr<Label> octaveLabel; // Live Play octave, beside the keyboard icon
     int inPanChange = 0;
     int inReverbChange = 0;
+    std::unique_ptr<ActivityMeter> activityMeter; // Mixer channels 1..16 only
     //[/UserVariables]
 
     //==============================================================================

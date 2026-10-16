@@ -22,7 +22,7 @@ Ide bármikor beírható egy új ötlet, egy sorban, akár félkészen is. A kö
 
 ## 5.0 – a következő kiadás
 
-A 4.8 kiadva (október 10., `v4.8`). Döntés (október 11.): az 5.0-ig három dolog készül el (október 13-án negyedikként a Dal felvétele is bekerült, október 16-tól Lejátszás/dal felvétele), minden más terv az 5.0 utáni verziókba került. A kiadás előtt a szokásos kódátnézés (lásd Alapelvek). Az október 10-i átnézésben a keret elfogyása miatt három rész mélyebb, fájlonkénti hibakeresése elmaradt; ebből kettő október 13-án elkészült (vezérlő és kapcsolatok: PianoController, Connector; kotta és dalok: ScoreComponent, Dalválasztó, VoiceComponent, Keverő; a találatok lent). A kiadás előtti átnézésben még külön sorra kell venni a harmadikat, az ablakokat (SceneComponent, Playback, Recorder, Kíséret, Kíséret keverő, Connection, Settings, Main, GuiHelper, LookAndFeel), mert az OTS ezeket módosítja.
+A 4.8 kiadva (október 10., `v4.8`). Döntés (október 11.): az 5.0-ig három dolog készül el (október 13-án negyedikként a Dal felvétele is bekerült, október 16-tól Lejátszás/dal felvétele; október 16-án ötödikként a Keverő szintjelzője), minden más terv az 5.0 utáni verziókba került. A kiadás előtt a szokásos kódátnézés (lásd Alapelvek). Az október 10-i átnézésben a keret elfogyása miatt három rész mélyebb, fájlonkénti hibakeresése elmaradt; ebből kettő október 13-án elkészült (vezérlő és kapcsolatok: PianoController, Connector; kotta és dalok: ScoreComponent, Dalválasztó, VoiceComponent, Keverő; a találatok lent). A kiadás előtti átnézésben még külön sorra kell venni a harmadikat, az ablakokat (SceneComponent, Playback, Recorder, Kíséret, Kíséret keverő, Connection, Settings, Main, GuiHelper, LookAndFeel), mert az OTS ezeket módosítja.
 
 ### 1. Hibajavítások
 
@@ -88,7 +88,17 @@ Viktor ötlete (október 13.), döntés: az 5.0-ba, az OTS után. A végleges te
 - **Felvétel ablak, új elrendezés** (skicc: `Felvetel_ablak_skicc_4.png`, csak a beszélgetésben): a Fájlnév szövegdoboza a jobb szélig ér; alatta „Mappa megnyitása” (az eddigi Mappa gomb) és „Felvétel betöltése” (egy korábbi felvételt vagy bármilyen MIDI-fájlt tölt a lejátszóba; csak USB-n és MIDI-eszközön, felvétel közben szürke); elválasztó vonal; Felvétel/Leállítás egy gombon (piros pont és piros keret, élesítve villog, felvétel közben piros kitöltés, „A” változat), Mentés, Elvetés (a mentetlen felvételt rákérdezés után elveti); alatta az üzenetsor („Elmentve:”, „Betöltve:”, a felvétel állapota); Lejátszás/Megállítás gomb (az eddigi Visszahallgatás) az ütemkijelzéssel; Pozíció csúszka. A Lejátszás mindig azt játssza, ami utoljára került a lejátszóba (a betöltött vagy az új felvételt).
 - **Kézikönyv:** a Felvétel fejezetben.
 
-### 4. Kézikönyv
+### 4. Szintjelző a Keverő csatornáin
+
+Viktor ötlete (október 16.), döntés: az 5.0-ba. **Állapot: elkészült, tesztelésre vár** (október 16.).
+
+- **Kinézet** (A változat, skicc: `Keverő_szintjelző_skicc_2.png`, csak a beszélgetésben): 50 × 10 px-es sáv az 1–16. csatornán, a Visszhang tekerő és a Hangerő értéke között. Kék színátmenet: balról sötétkék, a teli sáv vége világoskék; elnémított csatornán szürke.
+- **Működés:** a hangindítás erőssége (velocity) szerint felugrik, majd kb. 300 ms alatt egyenletesen lecseng; egy halkabb hang nem vágja le egy még lecsengő erősebbét. Tevékenységjelző, nem hangerőmérő: a hang elengedését nem figyeli.
+- **Forrás:** a saját lejátszó (USB, MIDI-eszköz; az elnémított csatornák hangjai is) és az Élő játék a Keverő csatornáin (virtuális billentyűzet, MIDI In 2). A hálózati lejátszás hangjait a program nem kapja meg, ott csak az Élő játék jelez.
+- **Teljesítmény:** a lejátszó szála hangonként csak egy számot ír, várakozás nélkül; a Keverő egy kb. 30 Hz-es időzítővel csak a változott sávokat rajzolja újra, és csak akkor, ha a Keverő látszik.
+- **Kézikönyv:** a Keverő fejezetben.
+
+### 5. Kézikönyv
 
 Egyetlen tömör magyar PDF kézikönyv (kb. 24 oldal, képernyőképekkel, kattintható tartalomjegyzékkel), amely minden funkcióra kitér, túlzott részletesség nélkül; Markdown forrásból (`docs` mappa). Munka: Kö. Az 5.0 állapotát írja le, az OTS-szel és az 5.0 újdonságaival együtt (például az A–B jelek egérrel mozgatása), ezért a funkciók elkészülte után véglegesedik.
 

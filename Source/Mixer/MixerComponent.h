@@ -38,6 +38,7 @@
 */
 class MixerComponent  : public Component,
                         public PianoController::Listener,
+                        private Timer,
                         public ComboBox::Listener
 {
 public:
@@ -52,6 +53,9 @@ public:
 			ap == PianoController::apPlaybackSource)
 			GuiHelper::CallAsync(this, [=](){updateReverbEffectState();}); }
 	void updateReverbEffectState();
+	// the activity meters of the channels move only while the Mixer is visible
+	void visibilityChanged() override;
+	void timerCallback() override;
     //[/UserMethods]
 
     void paint (Graphics& g) override;

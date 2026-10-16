@@ -421,6 +421,15 @@ public:
 	// Manual recording with a count-in: starts on the downbeat after the given number
 	// of measures (counted by the metronome or the playing song).
 	void StartRecordingWithCountIn(int measures);
+	// The activity of the Mixer channels 1..16, for their meters: a started note raises
+	// the level of its channel to its velocity (0..1), from where it falls to 0 in
+	// NoteActivityDecayMs. The notes come from the program's own player (also of a muted
+	// channel) and from Live Play on the Mixer channels; the songs the piano plays itself
+	// are not seen. Thread safe, without waiting.
+	static const int NoteActivityDecayMs = 300;
+	void AddNoteActivity(int midiChannel, int velocity); // midiChannel: 1..16
+	float GetNoteActivity(Channel ch) const;             // 0 if not a Mixer channel 1..16
+
 	// The playback of the program's own player (USB, MIDI device: a song, or a recording
 	// listened back) is recorded too, on the tracks of the Mixer channels; the recording
 	// gets the time signature of the song. Thread safe.
@@ -694,6 +703,9 @@ private:
 	void SendLive(int channel, const MidiMessage& message);
 	LiveRecorder m_recorder;
 	std::atomic<bool> m_recordPlayback{false}; // see SetRecordPlayback
+	// see AddNoteActivity: the level (0..1000) in the low 16 bits, the time of the last
+	// raise (Time::getMillisecondCounter) above them
+	std::atomic<uint64> m_noteActivity[16] = {};
 	int m_recordedTempo = DefaultTempo;   // tempo and time signature when the recording started
 	int m_recordedNumerator = 4;
 	int m_recordedDenominator = 4;

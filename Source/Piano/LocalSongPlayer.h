@@ -60,6 +60,10 @@ public:
 	// The time signature of the song has changed at the playback position (while playing,
 	// also after a jump or in a loop). Called from the playback thread.
 	std::function<void(int numerator, int denominator)> onTimeSignature;
+	// A note is started on a channel (1..16) with this velocity, also on a muted channel,
+	// whose notes are not sent: for the activity meters of the Mixer. Called from the
+	// playback thread.
+	std::function<void(int channel, int velocity)> onNoteActivity;
 	static const int NoChord = 0x7f7f7f7f;
 
 	// Reads a MIDI file like MidiFile::readFrom, but also accepts the files of Yamaha with

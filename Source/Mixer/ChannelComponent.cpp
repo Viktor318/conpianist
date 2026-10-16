@@ -187,6 +187,14 @@ ChannelComponent::ChannelComponent (Settings& settings, PianoController& pianoCo
     octaveLabel->setInterceptsMouseClicks(false, false);
     octaveLabel->setTooltip(TRANS("Live Play Octave"));
     octaveLabel->setBounds(49, 95, 20, 18);
+    if (isMidiChannel())
+    {
+        // between the Reverb knob and the value of the Volume
+        activityMeter.reset(new ActivityMeter());
+        addAndMakeVisible(activityMeter.get());
+        activityMeter->setInterceptsMouseClicks(false, false);
+        activityMeter->setBounds(10, 315, 50, 10);
+    }
     titleLabel->setText(title.startsWith("Ch. ") ? TRANS("Ch.") + title.substring(3) : TRANS(title),
         NotificationType::dontSendNotification);
 	panLabel->setVisible(showLabels);
@@ -242,6 +250,7 @@ ChannelComponent::~ChannelComponent()
     //[/Destructor_pre]
 
     octaveLabel = nullptr;
+    activityMeter = nullptr;
     keyboardButton = nullptr;
     menuButton = nullptr;
     partLabel = nullptr;
@@ -450,6 +459,48 @@ bool ChannelComponent::isLiveOnlyChannel() const
 {
 	return isMidiChannel() && !pianoController.GetEnabled(channel) &&
 		settings.IsKeyboardChannel(channel - PianoController::chMidi0);
+}
+
+void ChannelComponent::updateActivity()
+{
+	if (activityMeter == nullptr)
+	{
+		return;
+	}
+	const int width = roundToInt(pianoController.GetNoteActivity(channel) * (activityMeter->getWidth() - 2));
+	// the notes of a muted channel are not heard: shown in grey
+	const bool muted = !pianoController.GetActive(channel) && !isLiveOnlyChannel();
+	if (width != activityMeter->width || muted != activityMeter->muted)
+	{
+		activityMeter->width = width;
+		activityMeter->muted = muted;
+		activityMeter->repaint();
+	}
+}
+
+void ChannelComponent::ActivityMeter::paint(Graphics& g)
+{
+	const Rectangle<float> area = getLocalBounds().toFloat();
+	g.setColour(Colour(0xff242d31));
+	g.fillRect(area);
+	g.setColour(Colour(0xff4e5b62));
+	g.drawRect(area, 1.0f);
+	if (width <= 0)
+	{
+		return;
+	}
+	const Rectangle<float> inner = area.reduced(1.0f);
+	if (muted)
+	{
+		g.setColour(Colour(0xff8a9395));
+	}
+	else
+	{
+		// dark blue on the left, light blue at the end of a full bar
+		g.setGradientFill(ColourGradient(Colour(0xff1f5f8a), inner.getX(), 0.0f,
+			Colour(0xff6fd0f5), inner.getRight(), 0.0f, false));
+	}
+	g.fillRect(inner.withWidth((float)width));
 }
 
 // Switches the channel on or off for Live Play; the last Live Play channel stays on.

@@ -782,6 +782,10 @@ void LocalSongPlayer::SendEvent(const MidiMessage& message)
 
 	if (message.isNoteOn())
 	{
+		if (onNoteActivity)
+		{
+			onNoteActivity(ch + 1, message.getVelocity());
+		}
 		if (m_muted[ch])
 		{
 			return;

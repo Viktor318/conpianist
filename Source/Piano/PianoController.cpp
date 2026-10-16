@@ -84,6 +84,11 @@ void PianoController::CreateLocalPlayer()
 			NotifyChanged(apStyle);
 		};
 	// the time signature of the song goes into a recording of the playback
+	// the notes of the song move the activity meters of the Mixer
+	m_localPlayer->onNoteActivity = [this](int channel, int velocity)
+		{
+			AddNoteActivity(channel, velocity);
+		};
 	m_localPlayer->onTimeSignature = [this](int numerator, int denominator)
 		{
 			if (m_recordPlayback)
@@ -2367,6 +2372,10 @@ void PianoController::SendLive(int channel, const MidiMessage& message)
 		return;
 	}
 	m_recorder.Add(LiveRecorder::srcMixer1 + (channel - 1), message);
+	if (message.isNoteOn())
+	{
+		AddNoteActivity(channel, message.getVelocity());
+	}
 	copy.setChannel(channel);
 	if (m_liveSendNow && !m_genericDevice)
 	{
@@ -3566,6 +3575,47 @@ void PianoController::SetPlaybackSource(PlaybackSource source, bool automatic)
 }
 
 // Called for every message sent by the local player (with the player's lock held).
+// The level of a channel's activity (see AddNoteActivity) at the time now.
+static float NoteActivityLevelAt(uint64 packed, uint32 now)
+{
+	const uint32 elapsed = now - (uint32)(packed >> 16);
+	if (elapsed >= (uint32)PianoController::NoteActivityDecayMs)
+	{
+		return 0.0f;
+	}
+	const float level = (float)(packed & 0xffff) / 1000.0f;
+	return level * (1.0f - (float)elapsed / (float)PianoController::NoteActivityDecayMs);
+}
+
+void PianoController::AddNoteActivity(int midiChannel, int velocity)
+{
+	if (midiChannel < 1 || midiChannel > 16 || velocity <= 0)
+	{
+		return;
+	}
+	const uint32 now = Time::getMillisecondCounter();
+	std::atomic<uint64>& activity = m_noteActivity[midiChannel - 1];
+	uint64 previous = activity.load(std::memory_order_relaxed);
+	uint64 next;
+	do
+	{
+		// a softer note does not lower the level of a louder one still falling
+		const float level = jmax(NoteActivityLevelAt(previous, now), jmin(velocity, 127) / 127.0f);
+		next = ((uint64)now << 16) | (uint64)roundToInt(level * 1000.0f);
+	}
+	while (!activity.compare_exchange_weak(previous, next, std::memory_order_relaxed));
+}
+
+float PianoController::GetNoteActivity(Channel ch) const
+{
+	if (ch < chMidi1 || ch > chMidi16)
+	{
+		return 0.0f;
+	}
+	return NoteActivityLevelAt(m_noteActivity[ch - chMidi1].load(std::memory_order_relaxed),
+		Time::getMillisecondCounter());
+}
+
 void PianoController::OnLocalMessage(const MidiMessage& message)
 {
 	ShowLocalNote(message);

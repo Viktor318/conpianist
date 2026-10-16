@@ -159,6 +159,31 @@ void MixerComponent::comboBoxChanged (ComboBox* comboBoxThatHasChanged)
 
 
 //[MiscUserCode] You can add your own definitions of your custom methods or any other code here...
+void MixerComponent::visibilityChanged()
+{
+	if (isVisible())
+	{
+		startTimerHz(30);
+		timerCallback();
+	}
+	else
+	{
+		stopTimer();
+	}
+}
+
+void MixerComponent::timerCallback()
+{
+	if (!isShowing())
+	{
+		return; // e.g. the window is minimised
+	}
+	for (auto& channel : channels)
+	{
+		channel->updateActivity();
+	}
+}
+
 void MixerComponent::updateReverbEffectState()
 {
 	// the reverb type belongs to the piano; not used with playback via a MIDI device
@@ -182,7 +207,7 @@ void MixerComponent::updateReverbEffectState()
 BEGIN_JUCER_METADATA
 
 <JUCER_COMPONENT documentType="Component" className="MixerComponent" componentName=""
-                 parentClasses="public Component, public PianoController::Listener"
+                 parentClasses="public Component, public PianoController::Listener, private Timer"
                  constructorParams="Settings&amp; settings, PianoController&amp; pianoController"
                  variableInitialisers="pianoController(pianoController)" snapPixels="8"
                  snapActive="1" snapShown="1" overlayOpacity="0.330" fixedSize="0"
