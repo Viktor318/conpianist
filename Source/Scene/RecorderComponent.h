@@ -24,8 +24,10 @@
 #include "Settings.h"
 
 // The content of the Recording window: records what is played live (see LiveRecorder)
-// and saves it into a MIDI file in the songs folder. The recording can be listened back:
-// it is loaded into the player as a song (from the saved file, or from a temporary one).
+// and saves it into a MIDI file in the songs folder. The recording can be played back:
+// it is loaded into the player as a song (from a temporary file). An earlier recording
+// (any MIDI file) can be loaded into the player too, and with "Record playback/song" a new
+// layer can be recorded while it is playing.
 class RecorderComponent : public Component,
                           public Button::Listener,
                           public Timer,
@@ -61,6 +63,7 @@ private:
 	Slider metronomeVolumeSlider;
 	ComboBox countInCombo;
 	ToggleButton styleButton;
+	ToggleButton playbackButton; // the playback of the own player is recorded (not with styleButton)
 	ToggleButton quantizeButton;
 	ComboBox quantizeCombo;      // the grid; the item ids are ticks
 	ComboBox tripletCombo;       // the triplet grid; the item ids are ticks, NoTripletId: none
@@ -69,13 +72,26 @@ private:
 	Label nameLabel;
 	TextEditor nameEditor;
 	Label statusLabel;
-	TextButton recordButton;
-	TextButton stopButton;
-	TextButton listenButton;
+
+	// The Record button, the main function of the window, stands out: a red dot and a red
+	// frame; it blinks while a recording waits for its start (armed, count-in); while
+	// recording it is filled red, with a white square, and it stops the recording.
+	class RecordButton : public TextButton
+	{
+	public:
+		enum class Look { idle, waiting, recording };
+		Look look = Look::idle;
+		bool blinkOn = true;
+		void paintButton(Graphics& g, bool highlighted, bool down) override;
+	};
+	RecordButton recordButton;
+	TextButton discardButton;    // drops the recording that has not been saved
+	TextButton listenButton;     // Play / Stop: the recording, or the loaded one
 	Label positionLabel;     // time and measure of the listening back
 	Slider positionSlider;   // position in the recording while it is listened back (measures)
 	TextButton saveButton;
 	TextButton folderButton; // opens the folder of the recordings
+	TextButton loadButton;   // loads an earlier recording into the player
 	Label positionCaption;   // the label of the position slider
 	File lastSavedFile;      // selected in the folder, if it still exists
 	// (the tooltips are shown by the tooltip window of the application, see Main.cpp)
@@ -83,8 +99,14 @@ private:
 	LiveRecorder::State lastState = LiveRecorder::stIdle;
 	bool saved = false;      // the recording in the recorder has been saved
 	String savedName;        // ... under this name
-	std::atomic<bool> playPending{false}; // the recording is being loaded for listening back
-	std::atomic<bool> listenLoaded{false}; // the song in the player is the recording
+	// What is being loaded into the player (see the Pending values), and what is in it: a
+	// recording (listenLoaded) or a loaded file (listenLoaded and fileLoaded).
+	enum Pending { pendingNone = 0, pendingRecording = 1, pendingFile = 2, pendingFilePlay = 3 };
+	std::atomic<int> playPending{pendingNone};
+	std::atomic<bool> listenLoaded{false}; // the song in the player is ours
+	std::atomic<bool> fileLoaded{false};   // ... and it is the loaded file
+	File loadedFile;            // loaded with "Load recording"
+	bool recordingNewest = false; // the recording is newer than the loaded file: Play plays it
 	bool lastListening = false;
 	String listenSettings;   // how the recording in the player was written (see listenKey)
 	String message;          // shown until the next recording (e.g. an error)
@@ -94,6 +116,12 @@ private:
 	void stopRecording();
 	void save();
 	void listen();
+	void playLoadedFile();
+	void chooseFile();
+	void loadFile(const File& file, bool play);
+	void askDiscard();
+	// the playback can be recorded now (USB or MIDI device: the own player plays)
+	bool canRecordPlayback() const;
 	String listenKey() const; // the settings that change what is listened back
 	void applyKeySignature();
 	static const int NoTripletId = 1;

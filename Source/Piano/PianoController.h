@@ -421,6 +421,11 @@ public:
 	// Manual recording with a count-in: starts on the downbeat after the given number
 	// of measures (counted by the metronome or the playing song).
 	void StartRecordingWithCountIn(int measures);
+	// The playback of the program's own player (USB, MIDI device: a song, or a recording
+	// listened back) is recorded too, on the tracks of the Mixer channels; the recording
+	// gets the time signature of the song. Thread safe.
+	void SetRecordPlayback(bool record) { m_recordPlayback = record; }
+	bool GetRecordPlayback() const { return m_recordPlayback; }
 
 	// Metronome: the piano's own metronome; ConPianist's own clicks on the MIDI device
 	// (drum channel) when the piano is not used for playing.
@@ -688,6 +693,7 @@ private:
 	void PressLivePedal(int channelMask);
 	void SendLive(int channel, const MidiMessage& message);
 	LiveRecorder m_recorder;
+	std::atomic<bool> m_recordPlayback{false}; // see SetRecordPlayback
 	int m_recordedTempo = DefaultTempo;   // tempo and time signature when the recording started
 	int m_recordedNumerator = 4;
 	int m_recordedDenominator = 4;

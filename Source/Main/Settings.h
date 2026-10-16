@@ -121,6 +121,7 @@ public:
 	static const int DefaultRecorderSilence = 5;
 	int recorderSilence = DefaultRecorderSilence;
 	bool recorderStyle = true;
+	bool recorderPlayback = false; // the playback of the own player is recorded too
 	int recorderCountIn = 1; // count-in measures of a manual recording (0: none)
 	// quantization of the saved recording: the grid in ticks (480 per quarter note), the
 	// triplet grid recognized too (ticks, 0: none), and whether the ends of the notes are

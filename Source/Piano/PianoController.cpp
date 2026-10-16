@@ -83,6 +83,14 @@ void PianoController::CreateLocalPlayer()
 			m_styleChord = chord;
 			NotifyChanged(apStyle);
 		};
+	// the time signature of the song goes into a recording of the playback
+	m_localPlayer->onTimeSignature = [this](int numerator, int denominator)
+		{
+			if (m_recordPlayback)
+			{
+				m_recorder.AddTimeSignature(numerator, denominator);
+			}
+		};
 	m_localPlayer->onChanged = [this](bool positionChanged, bool playingChanged)
 		{
 			if (positionChanged)
@@ -2449,6 +2457,14 @@ void PianoController::UpdateRecorderSetups()
 	m_recordedTempo = jlimit((int)MinTempo, (int)MaxTempo, CurrentTempo());
 	m_recordedNumerator = m_metronomeNumerator;
 	m_recordedDenominator = m_metronomeDenominator;
+	// a recorded song gives the time signature (its measures are the measures of the file)
+	int songNumerator = 0;
+	int songDenominator = 0;
+	if (m_recordPlayback && IsLocalSongLoaded() && m_localPlayer->GetTimeSignature(songNumerator, songDenominator))
+	{
+		m_recordedNumerator = songNumerator;
+		m_recordedDenominator = songDenominator;
+	}
 
 	for (int i = 0; i < 16; i++)
 	{
@@ -3553,6 +3569,13 @@ void PianoController::SetPlaybackSource(PlaybackSource source, bool automatic)
 void PianoController::OnLocalMessage(const MidiMessage& message)
 {
 	ShowLocalNote(message);
+
+	// recorded on the track of its Mixer channel, as it sounds (transposed; the notes of a
+	// muted channel are not sent at all), with the note-offs of a jump or a stop too
+	if (m_recordPlayback && message.getChannel() >= 1 && message.getChannel() <= 16)
+	{
+		m_recorder.Add(LiveRecorder::srcMixer1 + (message.getChannel() - 1), message);
+	}
 
 	if (m_genericDevice && (message.isProgramChange() ||
 		(message.isController() && (message.getControllerNumber() == 0 || message.getControllerNumber() == 32))))

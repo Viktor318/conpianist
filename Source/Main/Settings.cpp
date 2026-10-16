@@ -77,6 +77,7 @@ void Settings::Save()
 	prop.setValue("Recorder.Automatic", recorderAutomatic);
 	prop.setValue("Recorder.Silence", recorderSilence);
 	prop.setValue("Recorder.Style", recorderStyle);
+	prop.setValue("Recorder.Playback", recorderPlayback);
 	prop.setValue("Recorder.CountIn", recorderCountIn);
 	prop.setValue("Recorder.Quantize", recorderQuantize);
 	prop.setValue("Recorder.QuantizeTicks", recorderQuantizeTicks);
@@ -166,6 +167,11 @@ void Settings::Load()
 	recorderAutomatic = prop.getBoolValue("Recorder.Automatic", recorderAutomatic);
 	recorderSilence = jlimit(MinRecorderSilence, MaxRecorderSilence, prop.getIntValue("Recorder.Silence", recorderSilence));
 	recorderStyle = prop.getBoolValue("Recorder.Style", recorderStyle);
+	recorderPlayback = prop.getBoolValue("Recorder.Playback", recorderPlayback);
+	if (recorderPlayback)
+	{
+		recorderStyle = false; // only one of them (a saved file may have both)
+	}
 	recorderCountIn = jlimit(0, 2, prop.getIntValue("Recorder.CountIn", recorderCountIn));
 	recorderQuantize = prop.getBoolValue("Recorder.Quantize", recorderQuantize);
 	recorderQuantizeTicks = jlimit(1, 1920, prop.getIntValue("Recorder.QuantizeTicks", recorderQuantizeTicks));

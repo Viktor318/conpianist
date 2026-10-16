@@ -115,6 +115,7 @@ bool LocalSongPlayer::Load(const File& file)
 	m_events.clear();
 	m_chords.clear();
 	m_reportedChord = NoChord;
+	m_reportedSignature = -1;
 	m_endTick = 0;
 
 	struct Meta { int tick; double secondsPerQuarter; int numerator; int denominator; };
@@ -449,6 +450,19 @@ void LocalSongPlayer::SetPosition(Position position)
 	Notify(positionChanged, false);
 }
 
+bool LocalSongPlayer::GetTimeSignature(int& numerator, int& denominator) const
+{
+	const ScopedLock lock(m_lock);
+	if (!m_loaded || m_timeSignatures.empty())
+	{
+		return false;
+	}
+	const TimeSignaturePoint& point = TimeSignatureAt(std::max(0, roundToInt(SecondsToTick(m_songSeconds))));
+	numerator = point.numerator;
+	denominator = std::max(1, m_ticksPerQuarter * 4 / std::max(1, point.ticksPerBeat));
+	return true;
+}
+
 int LocalSongPlayer::GetBaseTempo() const
 {
 	const ScopedLock lock(m_lock);
@@ -647,6 +661,9 @@ void LocalSongPlayer::hiResTimerCallback()
 	bool playingChanged = false;
 	bool chordChanged = false;
 	int chord = NoChord;
+	bool signatureChanged = false;
+	int numerator = 4;
+	int denominator = 4;
 	{
 		const ScopedLock lock(m_lock);
 		if (!m_loaded || !m_playing)
@@ -696,11 +713,33 @@ void LocalSongPlayer::hiResTimerCallback()
 			chordChanged = chord != m_reportedChord;
 			m_reportedChord = chord;
 		}
+
+		// the time signature at the position
+		if (m_playing && !m_timeSignatures.empty())
+		{
+			const int tick = std::max(0, roundToInt(SecondsToTick(m_songSeconds)));
+			auto next = std::upper_bound(m_timeSignatures.begin(), m_timeSignatures.end(), tick,
+				[](int t, const TimeSignaturePoint& point) { return t < point.tick; });
+			const int index = (int)(next - m_timeSignatures.begin()) - 1;
+			if (index != m_reportedSignature)
+			{
+				const bool first = m_reportedSignature < 0;
+				m_reportedSignature = index;
+				const TimeSignaturePoint& point = m_timeSignatures[(size_t)index];
+				numerator = point.numerator;
+				denominator = std::max(1, m_ticksPerQuarter * 4 / std::max(1, point.ticksPerBeat));
+				signatureChanged = !first || index > 0;
+			}
+		}
 	}
 	Notify(positionChanged, playingChanged);
 	if (chordChanged && onChord)
 	{
 		onChord(chord);
+	}
+	if (signatureChanged && onTimeSignature)
+	{
+		onTimeSignature(numerator, denominator);
 	}
 }
 

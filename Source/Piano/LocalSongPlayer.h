@@ -57,6 +57,9 @@ public:
 	// the file in Yamaha's XF format): root, type, bass root, bass type in one number
 	// (0xRRTTBBbb), NoChord if there is none. Called from the playback thread.
 	std::function<void(int chord)> onChord;
+	// The time signature of the song has changed at the playback position (while playing,
+	// also after a jump or in a loop). Called from the playback thread.
+	std::function<void(int numerator, int denominator)> onTimeSignature;
 	static const int NoChord = 0x7f7f7f7f;
 
 	// Reads a MIDI file like MidiFile::readFrom, but also accepts the files of Yamaha with
@@ -81,6 +84,8 @@ public:
 	void SetPosition(Position position);
 
 	int GetBaseTempo() const; // tempo at the start of the file, in BPM
+	// The time signature of the song at the playback position; false if no song is loaded.
+	bool GetTimeSignature(int& numerator, int& denominator) const;
 	// The tempo of the file at the current position (BPM, without the speed); the file
 	// may change its tempo many times (e.g. the piano's Classics songs).
 	double GetFileTempo() const;
@@ -159,6 +164,7 @@ private:
 	std::vector<Event> m_events;
 	std::vector<TempoPoint> m_tempoMap;
 	std::vector<TimeSignaturePoint> m_timeSignatures;
+	int m_reportedSignature = -1; // index in m_timeSignatures, see onTimeSignature
 	int m_ticksPerQuarter = 480;
 	int m_endTick = 0;
 	double m_endSeconds = 0.0;
