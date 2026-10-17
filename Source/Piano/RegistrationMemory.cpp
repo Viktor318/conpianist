@@ -457,7 +457,7 @@ void RegistrationMemory::LoadStyle()
 	{
 		state.hasMixer = true;
 		state.volume = jlimit(0, 127, mixerElem->getIntAttribute("volume", PianoController::DefaultVolume));
-		state.pan = jlimit(-64, 63, mixerElem->getIntAttribute("pan", PianoController::DefaultPan));
+		state.pan = jlimit((int)PianoController::MinPan, (int)PianoController::MaxPan, mixerElem->getIntAttribute("pan", PianoController::DefaultPan));
 		state.reverb = jlimit(0, 127, mixerElem->getIntAttribute("reverb", PianoController::DefaultReverb));
 		for (XmlElement* partElem : mixerElem->getChildWithTagNameIterator("Part"))
 		{
@@ -465,7 +465,7 @@ void RegistrationMemory::LoadStyle()
 			if (i < 0 || i >= PianoController::NumStyleParts) continue;
 			state.parts[i].active = !partElem->getStringAttribute("active", "yes").equalsIgnoreCase("no");
 			state.parts[i].volume = jlimit(0, 127, partElem->getIntAttribute("volume", PianoController::DefaultVolume));
-			state.parts[i].pan = jlimit(-64, 63, partElem->getIntAttribute("pan", PianoController::DefaultPan));
+			state.parts[i].pan = jlimit((int)PianoController::MinPan, (int)PianoController::MaxPan, partElem->getIntAttribute("pan", PianoController::DefaultPan));
 			state.parts[i].reverb = jlimit(0, 127, partElem->getIntAttribute("reverb", PianoController::DefaultReverb));
 		}
 	}
@@ -838,7 +838,7 @@ void RegistrationMemory::LoadLiveChannels()
 			state.voice = chElem->getIntAttribute("voice");
 			state.gmVoice = chElem->getStringAttribute("set").equalsIgnoreCase("gm");
 			state.volume = jlimit(0, 127, chElem->getIntAttribute("volume", PianoController::DefaultVolume));
-			state.pan = jlimit(-64, 63, chElem->getIntAttribute("pan", PianoController::DefaultPan));
+			state.pan = jlimit((int)PianoController::MinPan, (int)PianoController::MaxPan, chElem->getIntAttribute("pan", PianoController::DefaultPan));
 			state.reverb = jlimit(0, 127, chElem->getIntAttribute("reverb", PianoController::DefaultReverb));
 			pianoController.SetLiveChannelState(PianoController::Channel(PianoController::chMidi0 + number), state);
 		}

@@ -170,7 +170,9 @@ public:
 	static const int MaxTranspose = +12;
 	static const int DefaultTranspose = 0;
 	static const int TransposeBase = 0x40;
-	static const int MinPan = -64;
+	// -64 (value 0) is not the far left: the piano takes it as the random pan of XG and
+	// plays the part in the middle; the far left is -63 (value 1)
+	static const int MinPan = -63;
 	static const int MaxPan = +63;
 	static const int DefaultPan = 0;
 	static const int PanBase = 0x40;

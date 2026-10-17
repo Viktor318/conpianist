@@ -105,7 +105,7 @@ ChannelComponent::ChannelComponent (Settings& settings, PianoController& pianoCo
 
     panSlider.reset (new Slider ("Pan Slider"));
     addAndMakeVisible (panSlider.get());
-    panSlider->setRange (-64, 63, 1);
+    panSlider->setRange (-63, 63, 1); // -64 is the random pan of XG (the middle)
     panSlider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     panSlider->setTextBoxStyle (Slider::TextBoxAbove, false, 50, 20);
     panSlider->setColour (Slider::textBoxHighlightColourId, Colour (0x6642a2c8));
@@ -1034,7 +1034,7 @@ BEGIN_JUCER_METADATA
           needsCallback="1"/>
   <SLIDER name="Pan Slider" id="6dc8f196b2d9dabf" memberName="panSlider"
           virtualName="" explicitFocusOrder="0" pos="0 122 70 76" textboxhighlight="6642a2c8"
-          textboxoutline="80939d9f" min="-64.0" max="63.0" int="1.0" style="RotaryHorizontalVerticalDrag"
+          textboxoutline="80939d9f" min="-63.0" max="63.0" int="1.0" style="RotaryHorizontalVerticalDrag"
           textBoxPos="TextBoxAbove" textBoxEditable="1" textBoxWidth="50"
           textBoxHeight="20" skewFactor="1.0" needsCallback="1"/>
   <LABEL name="Reverb Label" id="5ba2a16ed7ba194a" memberName="reverbLabel"
