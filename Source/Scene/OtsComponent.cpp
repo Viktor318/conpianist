@@ -46,7 +46,7 @@ static const int FactorySlotsY = 252;
 static const int CopyY = 286;
 static const int Separator2Y = 326;
 static const int PartsY = 338;
-static const int PartHeight = 104; // a part with the space after it
+static const int PartHeight = 132; // a part with the space after it
 static const int LabelWidth = 70;
 
 const PianoController::Channel OtsComponent::PartChannels[OneTouchSettings::NumParts] = {
@@ -248,6 +248,7 @@ OtsComponent::OtsComponent(Settings& settings, PianoController& pianoController,
 			};
 		initLabel(part.octaveValueLabel, "");
 		part.octaveValueLabel.setJustificationType(Justification::centred);
+		part.octaveValueLabel.setColour(Label::outlineColourId, Colours::white.withAlpha(0.5f)); // as a value
 		initButton(part.octaveUpButton, "+");
 		part.octaveUpButton.setTooltip(TRANS("One octave higher"));
 		part.octaveUpButton.onClick = [this, ch]()
@@ -258,6 +259,48 @@ OtsComponent::OtsComponent(Settings& settings, PianoController& pianoController,
 					this->pianoController.SetOctave(ch, octave + 1);
 				}
 			};
+
+		// pan, reverb and chorus: sliders like the volume (the pan as in the Mixer)
+		auto initSlider = [this](Slider& slider, int minimum, int maximum, int defaultValue,
+			const String& tooltip, std::function<void(int)> set)
+			{
+				slider.setSliderStyle(Slider::LinearHorizontal);
+				slider.setTextBoxStyle(Slider::TextBoxRight, false, 40, 24);
+				slider.setRange(minimum, maximum, 1);
+				slider.setDoubleClickReturnValue(true, defaultValue);
+				slider.setWantsKeyboardFocus(false);
+				slider.setTooltip(tooltip);
+				slider.onValueChange = [&slider, set]() { set(roundToInt(slider.getValue())); };
+				addAndMakeVisible(slider);
+			};
+		initLabel(part.panLabel, TRANS("Pan"));
+		initSlider(part.panSlider, PianoController::MinPan, PianoController::MaxPan, PianoController::DefaultPan,
+			TRANS("The pan of the part (double click: centre)"), [this, ch](int pan)
+			{
+				if (pan != this->pianoController.GetPan(ch))
+				{
+					this->pianoController.SetPan(ch, pan);
+				}
+			});
+		initLabel(part.reverbLabel, TRANS("Rev."));
+		part.reverbLabel.setTooltip(TRANS("Reverb"));
+		initSlider(part.reverbSlider, PianoController::MinReverb, PianoController::MaxReverb, PianoController::DefaultReverb,
+			TRANS("Reverb"), [this, ch](int reverb)
+			{
+				if (reverb != this->pianoController.GetReverb(ch))
+				{
+					this->pianoController.SetReverb(ch, reverb);
+				}
+			});
+		initLabel(part.chorusLabel, TRANS("Chorus"));
+		initSlider(part.chorusSlider, PianoController::MinChorus, PianoController::MaxChorus, PianoController::DefaultChorus,
+			TRANS("Chorus (usable if the piano reports it)"), [this, ch](int chorus)
+			{
+				if (chorus != this->pianoController.GetChorus(ch))
+				{
+					this->pianoController.SetChorus(ch, chorus);
+				}
+			});
 	}
 
 	setWantsKeyboardFocus(true);
@@ -330,10 +373,21 @@ void OtsComponent::resized()
 		part.changeButton.setBounds(changeX, y, changeWidth, 28);
 		part.volumeLabel.setBounds(Margin, y + 32, LabelWidth, 24);
 		part.volumeSlider.setBounds(voiceX, y + 32, right - voiceX, 24);
-		part.octaveLabel.setBounds(Margin, y + 60, LabelWidth, 28);
-		part.octaveDownButton.setBounds(voiceX, y + 60, 30, 28);
-		part.octaveValueLabel.setBounds(voiceX + 30 + Gap, y + 60, 40, 28);
-		part.octaveUpButton.setBounds(voiceX + 30 + Gap + 40 + Gap, y + 60, 30, 28);
+		// Octave - value + | Pan; Reverb (short label) | Chorus (sketch 8)
+		const int shortLabelWidth = 50; // with the inner margin of the labels
+		const int rowX = Margin + shortLabelWidth + Gap;      // 70
+		const int rightLabelX = 200;
+		const int rightSliderX = 258;
+		part.octaveLabel.setBounds(Margin, y + 60, shortLabelWidth, 28);
+		part.octaveDownButton.setBounds(rowX, y + 60, 24, 28);
+		part.octaveValueLabel.setBounds(rowX + 24 + Gap, y + 62, 34, 24);
+		part.octaveUpButton.setBounds(rowX + 24 + Gap + 34 + Gap, y + 60, 24, 28);
+		part.panLabel.setBounds(rightLabelX, y + 62, rightSliderX - Gap - rightLabelX, 24);
+		part.panSlider.setBounds(rightSliderX, y + 62, right - rightSliderX, 24);
+		part.reverbLabel.setBounds(Margin, y + 92, shortLabelWidth, 24);
+		part.reverbSlider.setBounds(rowX, y + 92, rightLabelX - 6 - rowX, 24);
+		part.chorusLabel.setBounds(rightLabelX, y + 92, rightSliderX - Gap - rightLabelX, 24);
+		part.chorusSlider.setBounds(rightSliderX, y + 92, right - rightSliderX, 24);
 	}
 }
 
@@ -369,7 +423,9 @@ void OtsComponent::PianoStateChanged(PianoController::Aspect aspect, PianoContro
 		channel == PianoController::chLeft;
 	if (aspect == PianoController::apConnection || aspect == PianoController::apPlaybackSource ||
 		((aspect == PianoController::apVoice || aspect == PianoController::apActive ||
-		  aspect == PianoController::apVolume || aspect == PianoController::apOctave) && partChannel))
+		  aspect == PianoController::apVolume || aspect == PianoController::apOctave ||
+		  aspect == PianoController::apPan || aspect == PianoController::apReverb ||
+		  aspect == PianoController::apChorus) && partChannel))
 	{
 		GuiHelper::CallAsync(this, [this]() { update(); });
 	}
@@ -655,13 +711,28 @@ void OtsComponent::updateParts()
 		}
 		const int octave = pianoController.GetOctave(ch);
 		part.octaveValueLabel.setText(usable ? (octave > 0 ? "+" : "") + String(octave) : String(), dontSendNotification);
+		const auto follow = [](Slider& slider, int value)
+			{
+				if (!slider.isMouseButtonDown(true))
+				{
+					slider.setValue(value, dontSendNotification);
+				}
+			};
+		follow(part.panSlider, pianoController.GetPan(ch));
+		follow(part.reverbSlider, pianoController.GetReverb(ch));
+		follow(part.chorusSlider, pianoController.GetChorus(ch));
 
 		for (Component* control : { (Component*)&part.onButton, (Component*)&part.voiceLabel,
 			(Component*)&part.changeButton, (Component*)&part.volumeLabel, (Component*)&part.volumeSlider,
-			(Component*)&part.octaveLabel, (Component*)&part.octaveValueLabel })
+			(Component*)&part.octaveLabel, (Component*)&part.octaveValueLabel,
+			(Component*)&part.panLabel, (Component*)&part.panSlider,
+			(Component*)&part.reverbLabel, (Component*)&part.reverbSlider })
 		{
 			control->setEnabled(usable);
 		}
+		const bool chorus = usable && pianoController.IsChorusKnown(ch);
+		part.chorusLabel.setEnabled(chorus);
+		part.chorusSlider.setEnabled(chorus);
 		part.octaveDownButton.setEnabled(usable && octave > PianoController::MinOctave);
 		part.octaveUpButton.setEnabled(usable && octave < PianoController::MaxOctave);
 	}

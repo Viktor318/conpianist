@@ -154,6 +154,7 @@ void PianoController::InitEvents()
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Events, Property::Volume));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Events, Property::Pan));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Events, Property::Reverb));
+	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Events, Property::Chorus));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Events, Property::Octave));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Events, Property::Tempo));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Events, Property::Transpose));
@@ -218,6 +219,10 @@ void PianoController::ResyncStateFromPiano()
 		}
 
 		m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::Volume, ch, 0));
+	}
+	for (Channel ch : { chMain, chLayer, chLeft })
+	{
+		m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::Chorus, ch, 0));
 	}
 
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::Guide));
@@ -753,6 +758,41 @@ void PianoController::SetReverb(Channel ch, int reverb)
 	}
 
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::Reverb, ch, reverb));
+}
+
+void PianoController::SetChorus(Channel ch, int chorus)
+{
+	if (ch != chMain && ch != chLayer && ch != chLeft)
+	{
+		return;
+	}
+	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::Chorus, ch,
+		jlimit((int)MinChorus, (int)MaxChorus, chorus)));
+}
+
+void PianoController::SilenceKeyboardParts()
+{
+	{
+		const ScopedLock lock(m_liveLock);
+		// the notes held by Live Play on the keyboard parts (17); the pedal stays as it is
+		const int bit = 1 << (17 - 1);
+		for (int note = 0; note < 128; note++)
+		{
+			if (m_liveNoteChannels[note] & bit)
+			{
+				const int sounding = note + m_liveNoteTranspose[note] + LiveOctaveShift(17);
+				if (sounding >= 0 && sounding <= 127)
+				{
+					SendLive(17, MidiMessage::noteOff(1, sounding));
+				}
+				m_liveNoteChannels[note] &= ~bit;
+			}
+		}
+	}
+	if (sendToPianoKeyboard && m_liveKeyboardAvailable)
+	{
+		sendToPianoKeyboard(MidiMessage::allSoundOff(1));
+	}
 }
 
 void PianoController::ResetReverb(Channel ch)
@@ -1463,6 +1503,19 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 		m_channels[ch].reverb = intValue;
 		NoteStyleDefault(ch, 2, intValue);
 		NotifyChanged(apReverb, ch);
+	}
+	else if (property == Property::Chorus)
+	{
+		if (ch == chMain || ch == chLayer || ch == chLeft)
+		{
+			if (!m_channels[ch].chorusKnown)
+			{
+				Logger::writeToLog("Chorus: the piano reports it (channel " + String((int)ch) + ")");
+			}
+			m_channels[ch].chorus = intValue;
+			m_channels[ch].chorusKnown = true;
+			NotifyChanged(apChorus, ch);
+		}
 	}
 	else if (property == Property::Octave)
 	{

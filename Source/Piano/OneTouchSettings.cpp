@@ -31,7 +31,8 @@ static const char* const FactoryFolderName = "Yamaha"; // in the OTS folder
 bool OneTouchSettings::Part::operator==(const Part& other) const
 {
 	return voice == other.voice && active == other.active &&
-		volume == other.volume && octave == other.octave;
+		volume == other.volume && octave == other.octave &&
+		pan == other.pan && reverb == other.reverb && chorus == other.chorus;
 }
 
 OneTouchSettings::OneTouchSettings(const File& folder, PianoController& pianoController) :
@@ -359,6 +360,9 @@ void OneTouchSettings::LogNotTaken(int index, const Setting& target)
 		check(sent.activeSet && sent.active != now.active, "on", String((int)sent.active), String((int)now.active));
 		check(sent.valuesSet && sent.volume != now.volume, "volume", String(sent.volume), String(now.volume));
 		check(sent.valuesSet && sent.octave != now.octave, "octave", String(sent.octave), String(now.octave));
+		check(sent.effectsSet && sent.pan != now.pan, "pan", String(sent.pan), String(now.pan));
+		check(sent.effectsSet && sent.reverb != now.reverb, "reverb", String(sent.reverb), String(now.reverb));
+		check(sent.chorusSet && sent.chorus != now.chorus, "chorus", String(sent.chorus), String(now.chorus));
 	}
 }
 
@@ -383,6 +387,15 @@ OneTouchSettings::Setting OneTouchSettings::Follow(const Setting& setting) const
 			part.volume = now.volume;
 			part.octave = now.octave;
 		}
+		if (part.effectsSet)
+		{
+			part.pan = now.pan;
+			part.reverb = now.reverb;
+		}
+		if (part.chorusSet && m_pianoController.IsChorusKnown(PartChannels[i]))
+		{
+			part.chorus = now.chorus;
+		}
 	}
 	return result;
 }
@@ -402,8 +415,11 @@ bool OneTouchSettings::Same(const Setting& a, const Setting& b)
 		const Part& x = a.parts[i];
 		const Part& y = b.parts[i];
 		if (x.voice != y.voice || x.activeSet != y.activeSet || x.valuesSet != y.valuesSet ||
+			x.effectsSet != y.effectsSet || x.chorusSet != y.chorusSet ||
 			(x.activeSet && x.active != y.active) ||
-			(x.valuesSet && (x.volume != y.volume || x.octave != y.octave)))
+			(x.valuesSet && (x.volume != y.volume || x.octave != y.octave)) ||
+			(x.effectsSet && (x.pan != y.pan || x.reverb != y.reverb)) ||
+			(x.chorusSet && x.chorus != y.chorus))
 		{
 			return false;
 		}
@@ -429,6 +445,10 @@ OneTouchSettings::Setting OneTouchSettings::Capture() const
 		part.active = m_pianoController.GetActive(ch);
 		part.volume = m_pianoController.GetVolume(ch);
 		part.octave = m_pianoController.GetOctave(ch);
+		part.pan = m_pianoController.GetPan(ch);
+		part.reverb = m_pianoController.GetReverb(ch);
+		part.chorusSet = m_pianoController.IsChorusKnown(ch);
+		part.chorus = m_pianoController.GetChorus(ch);
 	}
 	return setting;
 }
@@ -454,6 +474,15 @@ bool OneTouchSettings::Matches(const Setting& setting) const
 			stored.volume = current.parts[i].volume;
 			stored.octave = current.parts[i].octave;
 		}
+		if (!stored.effectsSet)
+		{
+			stored.pan = current.parts[i].pan;
+			stored.reverb = current.parts[i].reverb;
+		}
+		if (!stored.chorusSet || !current.parts[i].chorusSet)
+		{
+			stored.chorus = current.parts[i].chorus;
+		}
 		if (!(stored == current.parts[i]))
 		{
 			return false;
@@ -468,6 +497,23 @@ bool OneTouchSettings::Matches(const Setting& setting) const
 // the ones before a previous recall.
 void OneTouchSettings::Apply(const Setting& setting)
 {
+	// a voice or an octave changes: the notes still sounding are silenced first (a sudden
+	// change of the voice under them sounds strange); the accompaniment goes on
+	bool changes = false;
+	for (int i = 0; i < NumParts; i++)
+	{
+		const PianoController::Channel ch = PartChannels[i];
+		const Part& part = setting.parts[i];
+		changes = changes ||
+			(part.voice.isNotEmpty() && part.voice != VoicePath(m_pianoController.GetTargetVoice(ch))) ||
+			(part.valuesSet && part.octave != m_pianoController.GetOctave(ch));
+	}
+	if (changes)
+	{
+		m_pianoController.SilenceKeyboardParts();
+		Thread::sleep(10); // the piano silences them before the new voice comes
+	}
+
 	for (int i = 0; i < NumParts; i++)
 	{
 		const PianoController::Channel ch = PartChannels[i];
@@ -480,6 +526,15 @@ void OneTouchSettings::Apply(const Setting& setting)
 		{
 			m_pianoController.SetOctave(ch, jlimit(PianoController::MinOctave, PianoController::MaxOctave, part.octave));
 			m_pianoController.SetVolume(ch, jlimit(PianoController::MinVolume, PianoController::MaxVolume, part.volume));
+		}
+		if (part.effectsSet)
+		{
+			m_pianoController.SetPan(ch, jlimit(PianoController::MinPan, PianoController::MaxPan, part.pan));
+			m_pianoController.SetReverb(ch, jlimit(PianoController::MinReverb, PianoController::MaxReverb, part.reverb));
+		}
+		if (part.chorusSet && m_pianoController.IsChorusKnown(ch))
+		{
+			m_pianoController.SetChorus(ch, part.chorus);
 		}
 		if (part.activeSet)
 		{
@@ -734,6 +789,15 @@ bool OneTouchSettings::ReadFile(const File& file, const String& stylePath, Setti
 						partElement->getIntAttribute("volume", PianoController::DefaultVolume));
 					part.octave = jlimit(PianoController::MinOctave, PianoController::MaxOctave,
 						partElement->getIntAttribute("octave", PianoController::DefaultOctave));
+					// (not in the files of earlier versions: not changed then)
+					part.effectsSet = partElement->hasAttribute("pan");
+					part.pan = jlimit(PianoController::MinPan, PianoController::MaxPan,
+						partElement->getIntAttribute("pan", PianoController::DefaultPan));
+					part.reverb = jlimit(PianoController::MinReverb, PianoController::MaxReverb,
+						partElement->getIntAttribute("reverb", PianoController::DefaultReverb));
+					part.chorusSet = partElement->hasAttribute("chorus");
+					part.chorus = jlimit(PianoController::MinChorus, PianoController::MaxChorus,
+						partElement->getIntAttribute("chorus", PianoController::DefaultChorus));
 				}
 			}
 		}
@@ -770,6 +834,15 @@ bool OneTouchSettings::WriteFile(const File& file, const String& stylePath, cons
 			{
 				partElement->setAttribute("volume", part.volume);
 				partElement->setAttribute("octave", part.octave);
+			}
+			if (part.effectsSet)
+			{
+				partElement->setAttribute("pan", part.pan);
+				partElement->setAttribute("reverb", part.reverb);
+			}
+			if (part.chorusSet)
+			{
+				partElement->setAttribute("chorus", part.chorus);
 			}
 		}
 	}

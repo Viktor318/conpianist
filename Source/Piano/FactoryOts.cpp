@@ -203,6 +203,7 @@ namespace
 	{
 		int msb = -1, lsb = -1, program = -1, volume = -1;
 		int on = -1, octave = -1, partVolume = -1;
+		int pan = -1, reverb = -1, chorus = -1; // Control Change 10, 91, 93
 		int Voice() const { return program < 0 ? -1 : (jmax(0, msb) << 16) | (jmax(0, lsb) << 8) | program; }
 	};
 
@@ -279,6 +280,9 @@ namespace
 				if (controller == 0) ch.msb = value;
 				else if (controller == 32) ch.lsb = value;
 				else if (controller == 7) ch.volume = value;
+				else if (controller == 10) ch.pan = value;
+				else if (controller == 91) ch.reverb = value;
+				else if (controller == 93) ch.chorus = value;
 			}
 			else if (type == 0xc0)
 			{
@@ -336,10 +340,21 @@ bool FactoryOts::ReadStyleFile(const File& file, OneTouchSettings::Setting* sett
 				volume >= 0 ? volume : PianoController::DefaultVolume);
 			part.octave = jlimit(PianoController::MinOctave, PianoController::MaxOctave,
 				ch.octave >= 0 ? ch.octave - 0x40 : PianoController::DefaultOctave);
+			// pan (64: centre), reverb and chorus, if the file has them
+			part.effectsSet = ch.pan >= 0 && ch.reverb >= 0;
+			part.pan = jlimit(PianoController::MinPan, PianoController::MaxPan,
+				ch.pan >= 0 ? ch.pan - PianoController::PanBase : PianoController::DefaultPan);
+			part.reverb = jlimit(PianoController::MinReverb, PianoController::MaxReverb,
+				ch.reverb >= 0 ? ch.reverb : PianoController::DefaultReverb);
+			part.chorusSet = ch.chorus >= 0;
+			part.chorus = jlimit(PianoController::MinChorus, PianoController::MaxChorus,
+				ch.chorus >= 0 ? ch.chorus : PianoController::DefaultChorus);
 			if (part.voice.isEmpty())
 			{
 				// not changed by the setting
 				part.valuesSet = false;
+				part.effectsSet = false;
+				part.chorusSet = false;
 				const bool needed = i == 0 || (i == 1 && part.active);
 				if (needed)
 				{

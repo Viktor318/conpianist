@@ -26,8 +26,10 @@
 
 // The own One Touch Settings (OTS) of the styles: up to eight voice settings for each
 // style, recalled with one press, as on Yamaha arranger keyboards. A setting holds the
-// voice, the on / off state, the volume and the octave of the Main, Layer and Left parts
-// (not the split point, nor the tempo or the volume of the accompaniment).
+// voice, the on / off state, the volume, the octave, the pan, the reverb and the chorus of
+// the Main, Layer and Left parts (not the split point, nor the tempo or the volume of the
+// accompaniment). Before a recall that changes a voice or an octave, the notes of the
+// keyboard parts are silenced (PianoController::SilenceKeyboardParts).
 //
 // The settings of a style are kept in a file of their own in the data folder of the
 // program: OTS/<category>/<subcategory>/<style name>.ots (XML). The file is deleted when
@@ -65,6 +67,12 @@ public:
 		int volume = PianoController::DefaultVolume;
 		int octave = PianoController::DefaultOctave;
 		bool valuesSet = true;  // false: the volume and the octave are not changed
+		int pan = PianoController::DefaultPan;       // -64..+63
+		int reverb = PianoController::DefaultReverb; // 0..127
+		bool effectsSet = true; // false: the pan and the reverb are not changed
+		int chorus = PianoController::DefaultChorus; // 0..127
+		bool chorusSet = true;  // false: the chorus is not changed (also while the piano
+		                        // has not reported its chorus: then it cannot be set)
 		bool operator==(const Part& other) const;
 	};
 

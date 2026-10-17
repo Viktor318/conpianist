@@ -31,7 +31,8 @@
 // A style file is a MIDI file with Yamaha chunks after it; the OTSc chunk holds the four
 // OTS as tracks of MIDI messages: channel 1 Right 1, 2 Right 2, 3 Right 3, 4 Left (bank
 // select and program change for the voice, Yamaha messages F0 43 73 01 50 08 cc pp vv F7
-// for part pp of channel cc: 00 on / off, 03 octave (40H: 0), 04 volume). Right 1 is the
+// for part pp of channel cc: 00 on / off, 03 octave (40H: 0), 04 volume; Control Change
+// 10 pan, 91 reverb, 93 chorus). Right 1 is the
 // Main part, Right 2 the Layer, Left the Left part; Right 3 is not used (the PSR-SX600 and
 // the PSR-S970 have no Right 3). The on / off state of the Left part is not taken.
 //

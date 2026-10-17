@@ -108,6 +108,12 @@ private:
 		FilledButton octaveDownButton;
 		Label octaveValueLabel;
 		FilledButton octaveUpButton;
+		Label panLabel;
+		Slider panSlider;
+		Label reverbLabel;
+		Slider reverbSlider;
+		Label chorusLabel;
+		Slider chorusSlider; // usable once the piano has reported the chorus of the part
 	};
 	// in the order of the window: Left, Main, Layer
 	PartControls parts[OneTouchSettings::NumParts];

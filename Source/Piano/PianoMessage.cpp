@@ -115,6 +115,9 @@ const Property Property::Pan = Property("0c 00 03 01", 1, 100);
 // Index: Channel; Value: 0..127
 const Property Property::Reverb = Property("0c 00 04 01", 1, 100);
 
+// Index: Channel (Main, Layer, Left); Value: 0..127 (see the header)
+const Property Property::Chorus = Property("0c 00 05 01", 1, 100);
+
 // Index: Channel; Value: -2..+2 (Base 0x40)
 const Property Property::Octave = Property("0c 00 12 01", 1, 200);
 
@@ -205,7 +208,7 @@ const Property Property::MetronomeBeat = Property("07 00 04 01", 2, 200);
 
 const std::vector<Property> Property::AllProperties = {
 	PianoModel, FirmwareVersion, Guide, GuideType, Position, Length, StreamLights,
-	StreamSpeed, Play, Part, PartChannel, PartAuto, SongName, Volume, Pan, Reverb,
+	StreamSpeed, Play, Part, PartChannel, PartAuto, SongName, Volume, Pan, Reverb, Chorus,
 	Octave, Tempo, Transpose, ReverbEffect, Loop, VoicePreset, VoiceMidi, Active,
 	Present, SongReset, SplitPoint, LidPosition, Environment, Brightness, TouchCurve,
 	FixedCurve, FixedVelocity, MasterTune, Vrm, DamperResonance, StringResonance,
