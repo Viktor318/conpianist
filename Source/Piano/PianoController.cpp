@@ -1264,8 +1264,93 @@ void PianoController::IncomingMidiMessage(const MidiMessage& message)
 		else if (channel >= 9 && channel <= 16)
 		{
 			m_recorder.AddStyle(message);
+			CaptureStyleSetup(message);
 		}
 	}
+}
+
+// A style was reported: the values the piano sends in a moment are the initial values of
+// its parts. The ones known so far are kept until a new burst comes (a style that is only
+// reported, not loaded again, sends none).
+void PianoController::StartStyleSetupCapture()
+{
+	m_styleSetupBurst = 0;
+	m_styleSetupFrom = jmax((uint32)1, Time::getMillisecondCounter());
+}
+
+// Called on the MIDI thread for the messages of channel 9..16 from the piano.
+void PianoController::CaptureStyleSetup(const MidiMessage& message)
+{
+	const uint32 from = m_styleSetupFrom;
+	if (from == 0)
+	{
+		return;
+	}
+	const uint32 now = Time::getMillisecondCounter();
+	const uint32 burst = m_styleSetupBurst;
+	if ((burst == 0 && now - from > (uint32)StyleSetupWaitMs) ||
+		(burst != 0 && now - burst > (uint32)StyleSetupBurstMs))
+	{
+		m_styleSetupFrom = 0; // over: the values of the playing style are not taken
+		return;
+	}
+	const bool program = message.isProgramChange();
+	const bool controller = message.isController();
+	if (!program && !controller)
+	{
+		return;
+	}
+	const int number = controller ? message.getControllerNumber() : -1;
+	const ScopedLock lock(m_styleSetupLock);
+	if (burst == 0)
+	{
+		if (number != 0)
+		{
+			return; // still the playing style: the burst begins with a bank select
+		}
+		m_styleSetupBurst = jmax((uint32)1, now);
+		m_styleSetup.clear();
+	}
+	if (number == 7 || number == 10 || number == 91)
+	{
+		return; // the mixer: volume, pan, reverb
+	}
+	for (const MidiMessage& known : m_styleSetup)
+	{
+		if (known.getChannel() == message.getChannel() && known.isProgramChange() == program &&
+			(program || known.getControllerNumber() == number))
+		{
+			return; // the first value is the initial one (the style may change it at once)
+		}
+	}
+	m_styleSetup.push_back(message);
+}
+
+// Sends the initial values of the accompaniment parts to the keyboard port of the piano
+// (message thread).
+void PianoController::SendStyleSetup(const String& reason)
+{
+	std::vector<MidiMessage> setup;
+	{
+		const ScopedLock lock(m_styleSetupLock);
+		setup = m_styleSetup;
+	}
+	if (setup.empty() || !m_connected)
+	{
+		return;
+	}
+	if (!sendToPianoKeyboard || !m_liveKeyboardAvailable)
+	{
+		Logger::writeToLog("Style controllers not sent (" + reason + "): no keyboard port");
+		return;
+	}
+	for (const MidiMessage& message : setup)
+	{
+		sendToPianoKeyboard(message);
+	}
+	m_styleSetupSentMs = Time::getMillisecondCounter();
+	Logger::writeToLog("Style controllers sent to the keyboard port (" + reason + "): " +
+		String((int)setup.size()) + " values");
 }
 
 void PianoController::IncomingPianoMessage(const PianoMessage& message)
@@ -1588,6 +1673,7 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 		}
 		utf8[raw.length()] = 0;
 		bool changed = false;
+		StartStyleSetupCapture();
 		{
 			const ScopedLock lock(m_styleLock);
 			const String name = String::fromUTF8(utf8.data());
@@ -1657,6 +1743,18 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 		{
 			// not reported by the piano when it is changed elsewhere
 			m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::StyleLeftSound));
+		}
+		if (playChanged && boolValue && Time::getMillisecondCounter() - m_styleSetupSentMs > 1500)
+		{
+			// started on the piano (from the program: sent before the start, see SetStylePlaying)
+			std::weak_ptr<bool> alive = m_alive;
+			MessageManager::callAsync([this, alive]()
+				{
+					if (alive.lock())
+					{
+						SendStyleSetup("started on the piano");
+					}
+				});
 		}
 		if (stopped && m_styleSyncWanted && !m_styleSyncSuspended)
 		{
@@ -1917,6 +2015,21 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 		NotifyChanged(apSongName);
 		if (name.isNotEmpty() && !m_localPlayback)
 		{
+			if (m_stylePlaying)
+			{
+				// the song has set its own values on the parts of the accompaniment that plays
+				std::weak_ptr<bool> alive = m_alive;
+				MessageManager::callAsync([this, alive]()
+					{
+						Timer::callAfterDelay(300, [this, alive]()
+							{
+								if (alive.lock() && m_stylePlaying)
+								{
+									SendStyleSetup("song loaded");
+								}
+							});
+					});
+			}
 			// the piano's player has loaded a song: its tempo reports are the song's for a
 			// while, and the song's tempo reported just before the name is its own tempo
 			// (see the Tempo report)
@@ -3062,6 +3175,10 @@ void PianoController::SetStylePlaying(bool playing)
 {
 	if (m_connected)
 	{
+		if (playing && !m_stylePlaying)
+		{
+			SendStyleSetup("start");
+		}
 		m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::StylePlay, 0, playing ? 1 : 0));
 	}
 }

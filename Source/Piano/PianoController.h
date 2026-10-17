@@ -733,6 +733,26 @@ private:
 	std::unique_ptr<HighResolutionTimer> m_softMetronome;
 	int m_softBeat = 0;
 	std::atomic<bool> m_stylePlaying{false};
+	// The initial values of the accompaniment parts (channel 9..16: bank select, program
+	// change, controllers but the ones of the mixer - 7, 10, 91), as the piano sends them
+	// right after a style is loaded. A song loaded into the piano's player sets its own
+	// values on the same parts (e.g. the expression, controller 11, that the mixer does not
+	// show), so they are sent back to the keyboard port of the piano (its second MIDI port)
+	// when the accompaniment starts, or at once when a song is loaded while it plays.
+	void StartStyleSetupCapture();
+	void CaptureStyleSetup(const MidiMessage& message);
+	void SendStyleSetup(const String& reason);
+	CriticalSection m_styleSetupLock;
+	std::vector<MidiMessage> m_styleSetup;        // the last value of each, in the order received
+	std::atomic<uint32> m_styleSetupFrom{0};      // when the style was reported (ms); 0: not now
+	std::atomic<uint32> m_styleSetupBurst{0};     // when the values began to come (ms); 0: not yet
+	std::atomic<uint32> m_styleSetupSentMs{0};
+	// The values begin with a bank select within a few seconds (a style chosen while the
+	// accompaniment plays changes at the next measure), and come within a second and a half
+	// (some parts may come half a second later than the others); of each, the first value
+	// is taken (later ones may belong to the playing style).
+	static const int StyleSetupWaitMs = 6000;
+	static const int StyleSetupBurstMs = 1500;
 	std::atomic<bool> m_styleSyncStart{false};
 	std::atomic<bool> m_styleSyncWanted{false}; // switched on again when the style stops
 	std::atomic<bool> m_styleSyncSuspended{false}; // switched off while a song is loaded or played
