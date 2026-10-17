@@ -32,7 +32,7 @@ bool OneTouchSettings::Part::operator==(const Part& other) const
 {
 	return voice == other.voice && active == other.active &&
 		volume == other.volume && octave == other.octave &&
-		pan == other.pan && reverb == other.reverb && chorus == other.chorus;
+		pan == other.pan && reverb == other.reverb; // (the chorus is not used)
 }
 
 OneTouchSettings::OneTouchSettings(const File& folder, PianoController& pianoController) :
@@ -362,7 +362,6 @@ void OneTouchSettings::LogNotTaken(int index, const Setting& target)
 		check(sent.valuesSet && sent.octave != now.octave, "octave", String(sent.octave), String(now.octave));
 		check(sent.effectsSet && sent.pan != now.pan, "pan", String(sent.pan), String(now.pan));
 		check(sent.effectsSet && sent.reverb != now.reverb, "reverb", String(sent.reverb), String(now.reverb));
-		check(sent.chorusSet && sent.chorus != now.chorus, "chorus", String(sent.chorus), String(now.chorus));
 	}
 }
 
@@ -391,10 +390,6 @@ OneTouchSettings::Setting OneTouchSettings::Follow(const Setting& setting) const
 		{
 			part.pan = now.pan;
 			part.reverb = now.reverb;
-		}
-		if (part.chorusSet && m_pianoController.IsChorusKnown(PartChannels[i]))
-		{
-			part.chorus = now.chorus;
 		}
 	}
 	return result;
@@ -447,8 +442,6 @@ OneTouchSettings::Setting OneTouchSettings::Capture() const
 		part.octave = m_pianoController.GetOctave(ch);
 		part.pan = m_pianoController.GetPan(ch);
 		part.reverb = m_pianoController.GetReverb(ch);
-		part.chorusSet = m_pianoController.IsChorusKnown(ch);
-		part.chorus = m_pianoController.GetChorus(ch);
 	}
 	return setting;
 }
@@ -478,10 +471,6 @@ bool OneTouchSettings::Matches(const Setting& setting) const
 		{
 			stored.pan = current.parts[i].pan;
 			stored.reverb = current.parts[i].reverb;
-		}
-		if (!stored.chorusSet || !current.parts[i].chorusSet)
-		{
-			stored.chorus = current.parts[i].chorus;
 		}
 		if (!(stored == current.parts[i]))
 		{
@@ -531,10 +520,6 @@ void OneTouchSettings::Apply(const Setting& setting)
 		{
 			m_pianoController.SetPan(ch, jlimit(PianoController::MinPan, PianoController::MaxPan, part.pan));
 			m_pianoController.SetReverb(ch, jlimit(PianoController::MinReverb, PianoController::MaxReverb, part.reverb));
-		}
-		if (part.chorusSet && m_pianoController.IsChorusKnown(ch))
-		{
-			m_pianoController.SetChorus(ch, part.chorus);
 		}
 		if (part.activeSet)
 		{
@@ -622,6 +607,34 @@ void OneTouchSettings::RecallFactory(int index)
 	m_recallTime = Time::getMillisecondCounter();
 	startTimer(RecallSettleMs + 100); // decides then if the piano has not taken every value
 	Changed();
+}
+
+int OneTouchSettings::StoredValue(PianoController::Channel ch, Value which) const
+{
+	const Setting* setting = m_factoryActive >= 0 ? &m_factory[m_factoryActive] :
+		m_active >= 0 ? &m_settings[m_active] : nullptr;
+	for (int i = 0; i < NumParts; i++)
+	{
+		if (PartChannels[i] != ch || setting == nullptr || !setting->used)
+		{
+			continue;
+		}
+		const Part& part = setting->parts[i];
+		if (which == Value::volume && part.valuesSet)
+		{
+			return part.volume;
+		}
+		if (which == Value::pan && part.effectsSet)
+		{
+			return part.pan;
+		}
+		if (which == Value::reverb && part.effectsSet)
+		{
+			return part.reverb;
+		}
+	}
+	return which == Value::volume ? (int)PianoController::DefaultVolume :
+		which == Value::pan ? (int)PianoController::DefaultPan : (int)PianoController::DefaultReverb;
 }
 
 const OneTouchSettings::Setting& OneTouchSettings::GetFactory(int index) const
@@ -796,8 +809,7 @@ bool OneTouchSettings::ReadFile(const File& file, const String& stylePath, Setti
 					part.reverb = jlimit(PianoController::MinReverb, PianoController::MaxReverb,
 						partElement->getIntAttribute("reverb", PianoController::DefaultReverb));
 					part.chorusSet = partElement->hasAttribute("chorus");
-					part.chorus = jlimit(PianoController::MinChorus, PianoController::MaxChorus,
-						partElement->getIntAttribute("chorus", PianoController::DefaultChorus));
+					part.chorus = jlimit(0, 127, partElement->getIntAttribute("chorus", 0));
 				}
 			}
 		}

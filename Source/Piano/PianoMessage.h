@@ -123,10 +123,6 @@ struct Property
 	// Index: Channel; Value: 0..127
 	const static Property Reverb;
 
-	// Index: Channel (Main, Layer, Left); Value: 0..127. Not documented: assumed from the
-	// order of the voice settings (0c 00 00 volume, 01 on / off, 03 pan, 04 reverb, 05 chorus)
-	const static Property Chorus;
-
 	// Index: Channel; Value: -2..+2 (Base 0x40)
 	const static Property Octave;
 

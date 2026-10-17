@@ -1005,8 +1005,7 @@ void AccompanimentComponent::PianoStateChanged(PianoController::Aspect aspect, P
 	// the voices of the keyboard parts: is the active own OTS modified
 	if (((aspect == PianoController::apVoice || aspect == PianoController::apActive ||
 		  aspect == PianoController::apVolume || aspect == PianoController::apOctave ||
-		  aspect == PianoController::apPan || aspect == PianoController::apReverb ||
-		  aspect == PianoController::apChorus) &&
+		  aspect == PianoController::apPan || aspect == PianoController::apReverb) &&
 		 (channel == PianoController::chMain || channel == PianoController::chLayer ||
 		  channel == PianoController::chLeft)) ||
 		aspect == PianoController::apPlaybackSource)

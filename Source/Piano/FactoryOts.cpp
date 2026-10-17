@@ -347,8 +347,7 @@ bool FactoryOts::ReadStyleFile(const File& file, OneTouchSettings::Setting* sett
 			part.reverb = jlimit(PianoController::MinReverb, PianoController::MaxReverb,
 				ch.reverb >= 0 ? ch.reverb : PianoController::DefaultReverb);
 			part.chorusSet = ch.chorus >= 0;
-			part.chorus = jlimit(PianoController::MinChorus, PianoController::MaxChorus,
-				ch.chorus >= 0 ? ch.chorus : PianoController::DefaultChorus);
+			part.chorus = jlimit(0, 127, ch.chorus >= 0 ? ch.chorus : 0); // kept, not used
 			if (part.voice.isEmpty())
 			{
 				// not changed by the setting

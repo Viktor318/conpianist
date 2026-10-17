@@ -423,10 +423,9 @@ countries: hu
 "Saves the changed voice settings into the active factory OTS (the original factory data is lost)" = "A módosított hangszín-beállításokat az aktív gyári OTS-be menti (az eredeti gyári adat elvész)"
 "Discards the changes: the original factory OTS is recalled again" = "Elveti a módosításokat: újra az eredeti gyári OTS töltődik be"
 "The original factory data is lost. Continue?" = "Az eredeti gyári adat elvész. Folytatja?"
-"Rev." = "Zeng."
-"Chorus" = "Kórus"
-"The pan of the part (double click: centre)" = "A rész térbeli helye (dupla kattintás: középre)"
-"Chorus (usable if the piano reports it)" = "Kórus (akkor állítható, ha a zongora jelzi az értékét)"
+"The volume of the part (double click: the value of the active OTS)" = "A rész hangereje (dupla kattintás: az aktív OTS értéke)"
+"The pan of the part (double click: the value of the active OTS)" = "A rész térbeli helye (dupla kattintás: az aktív OTS értéke)"
+"The reverb of the part (double click: the value of the active OTS)" = "A rész zengetése (dupla kattintás: az aktív OTS értéke)"
 
 // --- Felvétel ablak: Lejátszás/dal felvétele, betöltés, elvetés ---
 "Record playback/song" = "Lejátszás/dal felvétele"

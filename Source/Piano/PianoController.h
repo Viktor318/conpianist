@@ -74,8 +74,6 @@ public:
 		int volume = DefaultVolume; // 0..127
 		int pan = DefaultPan; // 0..127
 		int reverb = DefaultReverb; // 0..127
-		int chorus = DefaultChorus; // 0..127 (the keyboard parts only)
-		bool chorusKnown = false;   // the piano has reported it (see Property::Chorus)
 		int octave = DefaultOctave; // -2..+2
 		String voice;
 		// a voice sent to the piano (SetVoice) and not reported back yet; empty: none
@@ -152,8 +150,7 @@ public:
 		apKeyOffSampling,
 		apMetronome,
 		apPlaybackSource,
-		apStyle,
-		apChorus
+		apStyle
 	};
 
 	static const int MinVolume = 0;
@@ -179,9 +176,6 @@ public:
 	static const int MinReverb = 0;
 	static const int MaxReverb = 127;
 	static const int DefaultReverb = 0;
-	static const int MinChorus = 0;
-	static const int MaxChorus = 127;
-	static const int DefaultChorus = 0;
 	static const int GenericDefaultReverb = 40; // General MIDI default of CC91
 	static const int DefaultReverbEffect = 0x0118; // Recital Hall
 	static const int MinOctave = -2;
@@ -537,11 +531,6 @@ public:
 	int GetReverb(Channel ch) { return m_channels[ch].reverb; }
 	void SetReverb(Channel ch, int reverb);
 	void ResetReverb(Channel ch);
-	// The chorus of the keyboard parts (Main, Layer, Left); known once the piano has
-	// reported it (it may not answer: then it cannot be set).
-	int GetChorus(Channel ch) { return m_channels[ch].chorus; }
-	bool IsChorusKnown(Channel ch) { return m_channels[ch].chorusKnown; }
-	void SetChorus(Channel ch, int chorus);
 	int GetOctave(Channel ch) { return m_channels[ch].octave; }
 	void SetOctave(Channel ch, int octave);
 	// Before the voices of the keyboard parts change (OTS): the notes they sound are

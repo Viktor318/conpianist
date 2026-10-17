@@ -26,8 +26,8 @@
 
 // The own One Touch Settings (OTS) of the styles: up to eight voice settings for each
 // style, recalled with one press, as on Yamaha arranger keyboards. A setting holds the
-// voice, the on / off state, the volume, the octave, the pan, the reverb and the chorus of
-// the Main, Layer and Left parts (not the split point, nor the tempo or the volume of the
+// voice, the on / off state, the volume, the octave, the pan and the reverb of the Main,
+// Layer and Left parts (not the split point, nor the tempo or the volume of the
 // accompaniment). Before a recall that changes a voice or an octave, the notes of the
 // keyboard parts are silenced (PianoController::SilenceKeyboardParts).
 //
@@ -70,9 +70,11 @@ public:
 		int pan = PianoController::DefaultPan;       // -64..+63
 		int reverb = PianoController::DefaultReverb; // 0..127
 		bool effectsSet = true; // false: the pan and the reverb are not changed
-		int chorus = PianoController::DefaultChorus; // 0..127
-		bool chorusSet = true;  // false: the chorus is not changed (also while the piano
-		                        // has not reported its chorus: then it cannot be set)
+		// the chorus of the style files (and of the factory settings read from them): kept,
+		// but not used - the CSP-170 takes the chorus of its keyboard parts only for all
+		// three together (Control Change 93 on its second port), and does not report it
+		int chorus = 0;         // 0..127
+		bool chorusSet = false;
 		bool operator==(const Part& other) const;
 	};
 
@@ -126,6 +128,11 @@ public:
 	// first..first + 3 (an empty factory setting leaves its place as it is).
 	void CopyFactory(int first);
 	String DescribeFactory(int index) const;
+	// The value the active setting gives a part (a factory setting: its original value),
+	// for a double click on the slider; the default value if no setting is active or it
+	// does not set the value.
+	enum class Value { volume, pan, reverb };
+	int StoredValue(PianoController::Channel ch, Value which) const;
 	// OTS Link: see above.
 	void SetLink(bool link) { m_link = link; }
 	bool GetLink() const { return m_link; }

@@ -97,23 +97,36 @@ private:
 	FilledButton saveButton;
 	FilledButton discardButton;
 
+	// A slider of a part: a double click sets it to the value of the active OTS (its
+	// stored value; see OneTouchSettings::StoredValue), not to a fixed value.
+	class PartSlider : public Slider
+	{
+	public:
+		std::function<void()> onDoubleClick;
+		void mouseDoubleClick(const MouseEvent&) override
+		{
+			if (onDoubleClick && isEnabled())
+			{
+				onDoubleClick();
+			}
+		}
+	};
+
 	struct PartControls
 	{
 		TextButton onButton;  // the name of the part, on / off
 		Label voiceLabel;
 		FilledButton changeButton;
 		Label volumeLabel;
-		Slider volumeSlider;
+		PartSlider volumeSlider;
 		Label octaveLabel;
 		FilledButton octaveDownButton;
 		Label octaveValueLabel;
 		FilledButton octaveUpButton;
 		Label panLabel;
-		Slider panSlider;
+		PartSlider panSlider;
 		Label reverbLabel;
-		Slider reverbSlider;
-		Label chorusLabel;
-		Slider chorusSlider; // usable once the piano has reported the chorus of the part
+		PartSlider reverbSlider;
 	};
 	// in the order of the window: Left, Main, Layer
 	PartControls parts[OneTouchSettings::NumParts];
