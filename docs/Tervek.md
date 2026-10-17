@@ -155,6 +155,8 @@ A kíséret előre megírt akkordokkal és átmenetekkel szól, a zongora beép�
 | Közös kotta-visszaállítás és DOM-alapú előkészítés | Egy `ResetScoreState()` a `Cleanup`, a `LoadScore` és a `LoadSong` számára (megjelenítő, kép, jelek törléssel, húzás állapota, lejátszási sorrend, kotta vége) és egy közös `catch (...)` a betöltés–előkészítés–rajzolás körül; a szövegfeldolgozás egy pugixml-DOM-on (megjegyzések, CDATA, önzáró elemek egy helyen). | Kö | Átírás. |
 | Lassú műveletek a fő szálon | A `ScanSongs` minden megjelenítéskor több ezer fájllétezés- és méretellenőrzést végez: háttérben vagy gyorsítótárral; a `FingeringSides` minden kézzel mozgatott ujjrendet minden hanggal összevet: index (ütem, sor, idő) szerint. | K–Kö | Átírás. |
 
+**Ötlet (5.1, még nincs eldöntve, hogy megvalósítjuk-e; Viktor, október 17.): gyári OTS a Keverő csatornáira is.** A gyári OTS ne csak a zongora három szólamára (Fő, Réteg, Bal), hanem a Keverő csatornáinak hangszíneire is kerülhessen, így ott a Right 3 is helyet kaphat. Tudnivalók: valódi Right 3 adat csak az SX700/SX900 és a Genos stílusfájljaiban van (az SX600-on és az S970-en nincs Right 3, a fájljaik OTS-ében a 3. hely mindig ki van kapcsolva); a Keverő csatornái nem a zongora billentyűiről szólnak, hanem az Élő játékból (virtuális billentyűzet, MIDI In 2) és a dal lejátszásából. Még átgondolandó: melyik szólam melyik csatornára kerül, a Bal szólam osztáspontja az Élő játékban, és mi legyen, ha közben dal szól (ugyanazok a csatornák). További ötletek jöhetnek hozzá.
+
 ### 5.2 – MIDI áthangszerelő
 
 Egyetlen funkció, amely a korábban külön tervezett „betöltött MIDI-fájl szerkesztése” és a két MIDI-segédprogram helyébe lép. Csak a fájl **kezdeti** beállításairól szól: a hangjegyekhez nem nyúl.
