@@ -189,6 +189,16 @@ Egyetlen funkció, amely a korábban külön tervezett „betöltött MIDI-fájl
 | Kotta transzponálása | A kotta a dallal együtt transzponálódik (csak megjelenítés). | Kö | |
 | Kotta megjelenítési hibái Dorico-exportnál | A 4.8-ból áthozva (október 10.), az 5.0-ból áthelyezve (október 16., nem sürgős, a Lomse mélyebb módosítását kívánja): a le nem zárt pedálvonalak torlódása, a többszörös kapcsos zárójel és az egymásra csúszó tempófeliratok javítása. | Kö | A „folytatódik” típusú jelölések (pedál, oktávjel) kezelése hiányzik a Lomse-ból. A kotta és néhány képernyőkép kell hozzá. |
 
+### 5.4 – Gyári OTS forrásválasztás
+
+**Ötlet (Viktor, október 17.; elfogadva, a részletek később):** az OTS ablakban stílusonként választható legyen, melyik Yamaha hangszer gyári OTS-ei legyenek a Gyári OTS 1–4 gombokon.
+- **Beolvasás:** a Gyári OTS beolvasása minden stílusnál mind az 5 hangszer azonos nevű stílusfájljából beolvassa a 4 OTS-t, és külön tárolja őket (pl. `OTS\Yamaha\<hangszer>\<kategória>\<csoport>\<stílus>.ots`). Az alapértelmezett forrás a mostani elemzés szerinti (`docs/Gyari_OTS_hangszinelemzes_pontos_Genos_SX900_SX700_SX600_S970.xlsx`), így elsőre minden úgy működik, mint az 5.0-ban.
+- **Választás:** az OTS ablak Gyári OTS része fölött 5 választógomb egy sorban: Genos, SX900, SX700, SX600, S970. Fehér: van adat az aktuális stílushoz; szürke és nem kattintható: nincs; a kiválasztott az aktív színnel. A választás stílusonként megmarad.
+- **Használat:** az OTS Link, a Ctrl+F1–F4 és a Másolás 1–4-re / 5–8-ra mindig a kiválasztott forrás OTS-eit használja.
+- **Eldöntendő:** mi legyen egy forrás olyan OTS-ével, amelynek valamelyik hangszíne nincs meg a CSP-170-en (üres gomb vagy jelzés); a gyári Mentés forrásonként külön ment; a többi forrás OTS-eiben előkerülő új, még el nem döntött hangszínek.
+- Kiváltja a hangszínelemzés Döntés – stílusok lapját: a forrás játék közben, belehallgatva választható.
+- Munka: Kö (kb. 2 nap).
+
 ## Később (elfogadott, nincs ütemezve)
 
 - **Lejátszás és gyakorlás:** Segéd mód és billentyűfények a saját lejátszóval; a kotta aktuális akkordjának kijelzése lejátszás közben (például a Kíséret ablak akkordkijelzőjében); tempóemelés ismétléses gyakorláshoz; setlist; legutóbbi dalok; további gyorsbillentyűk.
