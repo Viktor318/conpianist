@@ -115,6 +115,10 @@ Egyetlen tömör magyar PDF kézikönyv (kb. 24 oldal, képernyőképekkel, katt
 
 Fejezetek: bevezetés és első indítás; főablak; Dalválasztó és saját dalok; kotta; hangszínek és Piano Room; Keverő és élő játék; Hangerőegyensúly; Kíséret (OTS-szel); Kíséret keverő; regisztrációs memória; Felvétel; mentés, beállítások, alaphelyzet; gyorsbillentyűk és hibaelhárítás. Döntés (október 10.): külön rövid útmutató és részletes kézikönyv helyett csak ez az egy készül, verzióemeléskor a változott fejezetek frissülnek. A képernyőképeket Viktor készíti lista alapján. A Dalválasztó fejezetbe: a zongora dalaiból mentett MIDI-fájlok üres első (beállító) ütemét a fájlból (`Tools/elso_utem_torlese.py`) és a kottából is törölni kell. A kotta fejezetbe: az A–B jelek húzása és a Ctrl+kattintás, a felütéses dalok.
 
+### 6. Kiadáskor
+
+- **README.md frissítése** (Viktor kérése, október 17.): az 5.0 kiadásakor a README.md-t az 5.0 állapotára kell frissíteni.
+
 ## Az 5.0 utáni verziók (javaslat)
 
 ### 5.1 – Akkordmenet-lejátszó
