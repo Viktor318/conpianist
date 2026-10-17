@@ -1699,6 +1699,19 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 			m_styleSyncWanted = true;
 		}
 		NotifyChanged(apStyle);
+		if (boolValue && !m_stylePlaying && m_styleNeedsReload)
+		{
+			// the first key will start the accompaniment: the style is loaded again now,
+			// after a song of the piano was loaded (see m_styleNeedsReload)
+			std::weak_ptr<bool> alive = m_alive;
+			MessageManager::callAsync([this, alive]()
+				{
+					if (alive.lock() && m_styleNeedsReload && m_styleSyncStart && !m_stylePlaying)
+					{
+						ReloadStyle(false, "sync start");
+					}
+				});
+		}
 	}
 	else if (property == Property::StyleSection)
 	{
@@ -1932,16 +1945,17 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 		{
 			// the song has set its own values on the parts of the accompaniment
 			m_styleNeedsReload = true;
-			if (m_stylePlaying)
+			if (m_stylePlaying || m_styleSyncStart)
 			{
+				// it plays, or the first key will start it (Sync Start is on)
 				std::weak_ptr<bool> alive = m_alive;
 				MessageManager::callAsync([this, alive]()
 					{
 						Timer::callAfterDelay(300, [this, alive]()
 							{
-								if (alive.lock() && m_stylePlaying && m_styleNeedsReload)
+								if (alive.lock() && m_styleNeedsReload && (m_stylePlaying || m_styleSyncStart))
 								{
-									ReloadStyle(false, "song loaded");
+									ReloadStyle(false, m_stylePlaying ? "song loaded" : "sync start");
 								}
 							});
 					});
@@ -2830,9 +2844,27 @@ void PianoController::StyleRestoreFinish()
 	m_styleRestoreReload = false;
 	const bool start = m_styleReloadStart;
 	m_styleReloadStart = false;
+	const bool sync = m_styleReloadSync;
+	m_styleReloadSync = false;
 	if (!m_connected)
 	{
 		return;
+	}
+	if (sync)
+	{
+		// in case the piano has switched it off when it loaded the style again
+		std::weak_ptr<bool> alive = m_alive;
+		MessageManager::callAsync([this, alive]()
+			{
+				Timer::callAfterDelay(300, [this, alive]()
+					{
+						if (alive.lock() && m_connected && m_styleSyncWanted && !m_styleSyncSuspended &&
+							!m_stylePlaying && !m_styleSyncStart)
+						{
+							m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::StyleSyncStart, 0, 1));
+						}
+					});
+			});
 	}
 	if (start)
 	{
@@ -3120,6 +3152,7 @@ void PianoController::ReloadStyle(bool start, const String& reason)
 	StyleState state = GetStyleState();
 	state.tempo = 0; // the tempo stays as it is
 	m_styleReloadStart = start;
+	m_styleReloadSync = m_styleSyncStart;
 	RestoreStyleState(state, true);
 }
 

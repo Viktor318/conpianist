@@ -792,9 +792,12 @@ private:
 	// show), and only loading the style again sets the style's values back. So after such
 	// a song the style is loaded again (its mixer, chord area, left sound and split point
 	// sent back, not its tempo): when the accompaniment starts (from the program: before it
-	// starts), or at once when the song is loaded while the accompaniment plays.
+	// starts), at once when the song is loaded while the accompaniment plays, and when Sync
+	// Start is switched on (also by the program after the song was loaded), so that the
+	// first key starts the accompaniment with its own values.
 	std::atomic<bool> m_styleNeedsReload{false};
 	bool m_styleReloadStart = false;    // the accompaniment starts when it is loaded again
+	bool m_styleReloadSync = false;     // Sync Start is switched on again when it is loaded again
 	void ReloadStyle(bool start, const String& reason);
 	void StyleRestoreAfter(int ms, int stage);
 	void StyleRestoreSendStyle();
