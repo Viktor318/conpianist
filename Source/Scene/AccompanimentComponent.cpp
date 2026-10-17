@@ -26,6 +26,9 @@
 
 // The size of the OTS icon after the names of the styles that have own settings.
 static const float StyleIconSize = 12.0f;
+// The colour of the icon of the own settings: the lemon yellow of the active own setting
+// in the OTS window (the icon of the factory settings will be orange, as their button).
+static const Colour OwnIconColour(0xfffaee46);
 
 static void drawStyleIcon(Graphics& g, float x, float centreY, Colour colour)
 {
@@ -60,8 +63,7 @@ public:
 		r.removeFromLeft(roundToInt(maxFontHeight));
 		const float textWidth = GlyphArrangement::getStringWidth(font, item.text);
 		const float x = jmin((float)r.getX() + textWidth + 6.0f, (float)r.getRight() - StyleIconSize);
-		drawStyleIcon(g, x, (float)area.getCentreY(), findColour(isHighlighted && item.isEnabled ?
-			PopupMenu::highlightedTextColourId : PopupMenu::textColourId));
+		drawStyleIcon(g, x, (float)area.getCentreY(), OwnIconColour.withMultipliedAlpha(item.isEnabled ? 1.0f : 0.5f));
 	}
 
 	// room for the icon
@@ -88,7 +90,7 @@ void AccompanimentComponent::StyleComboBox::paintOverChildren(Graphics& g)
 	// the label of the box starts at 1, its text 5 pixels further; the arrow is in the
 	// last 30 pixels
 	const float x = jmin(6.0f + textWidth + 6.0f, (float)getWidth() - 30.0f - StyleIconSize);
-	drawStyleIcon(g, x, getHeight() / 2.0f, Colours::white.withMultipliedAlpha(isEnabled() ? 1.0f : 0.5f));
+	drawStyleIcon(g, x, getHeight() / 2.0f, OwnIconColour.withMultipliedAlpha(isEnabled() ? 1.0f : 0.5f));
 }
 
 AccompanimentComponent::AccompanimentComponent(Settings& settings, PianoController& pianoController) :
@@ -461,7 +463,7 @@ void AccompanimentComponent::paintOverChildren(Graphics& g)
 		(float)currentNameLabel.getBorderSize().subtractedFrom(currentNameLabel.getLocalBounds()).getWidth());
 	const float x = jmin(bounds.getX() + currentNameLabel.getBorderSize().getLeft() + textWidth + 8.0f,
 		(float)bounds.getRight() - StyleIconSize - 4.0f);
-	drawStyleIcon(g, x, (float)bounds.getCentreY(), currentNameLabel.findColour(Label::textColourId));
+	drawStyleIcon(g, x, (float)bounds.getCentreY(), OwnIconColour.withMultipliedAlpha(currentNameLabel.isEnabled() ? 1.0f : 0.5f));
 }
 
 void AccompanimentComponent::resized()
