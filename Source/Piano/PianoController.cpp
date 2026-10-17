@@ -154,7 +154,6 @@ void PianoController::InitEvents()
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Events, Property::Volume));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Events, Property::Pan));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Events, Property::Reverb));
-	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Events, Property::Chorus));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Events, Property::Octave));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Events, Property::Tempo));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Events, Property::Transpose));
@@ -220,10 +219,7 @@ void PianoController::ResyncStateFromPiano()
 
 		m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::Volume, ch, 0));
 	}
-	for (Channel ch : { chMain, chLayer, chLeft })
-	{
-		m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::Chorus, ch, 0));
-	}
+	// (the chorus is not asked for: the piano does not accept 0c 00 05, see SetChorus)
 
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::Guide));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::GuideType));
@@ -760,14 +756,12 @@ void PianoController::SetReverb(Channel ch, int reverb)
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::Reverb, ch, reverb));
 }
 
-void PianoController::SetChorus(Channel ch, int chorus)
+// The message of the chorus is not known yet: the CSP-170 does not accept 0c 00 05 (it
+// answers the request of its events with 00, and the queue waited for a confirmation
+// for ever, October 17, 2026). Nothing is sent until the right message is found (e.g.
+// from the traffic of Smart Pianist); until then the chorus is never known.
+void PianoController::SetChorus(Channel, int)
 {
-	if (ch != chMain && ch != chLayer && ch != chLeft)
-	{
-		return;
-	}
-	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Set, Property::Chorus, ch,
-		jlimit((int)MinChorus, (int)MaxChorus, chorus)));
 }
 
 void PianoController::SilenceKeyboardParts()
