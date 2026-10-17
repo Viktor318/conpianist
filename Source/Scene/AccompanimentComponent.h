@@ -68,6 +68,13 @@ public:
 	// The own and factory OTS of the styles (the factory ones are read in again by the
 	// main menu, Tools).
 	OneTouchSettings& GetOts() { return ots; }
+	// The keyboard shortcuts of the window, from any window of the program (SceneComponent
+	// adds a key listener to them), also while this window is hidden. Not while typing in
+	// a text box, and Space / Return not on a button that has the keyboard focus (they
+	// press that button).
+	bool HandleShortcut(const KeyPress& key);
+	// The key listener of the shortcuts: added to the OTS window when it is created.
+	void SetWindowShortcuts(KeyListener* listener) { windowShortcuts = listener; }
 
 private:
 	Settings& settings;
@@ -77,6 +84,7 @@ private:
 	// opened). The OTS icon is shown after the name of the styles that have them.
 	OneTouchSettings ots;
 	std::unique_ptr<OtsWindow> otsWindow;
+	KeyListener* windowShortcuts = nullptr; // see SetWindowShortcuts
 	TextButton otsButton; // orange while the OTS window is open
 	// The OTS button and the O key: open the window, or close it if it is shown (a
 	// minimised window is brought back).

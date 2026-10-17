@@ -64,12 +64,14 @@ public:
 	};
 
 	// A place of a factory setting: orange when active, a white frame when it holds a
-	// setting (it is never modified).
+	// setting, a red frame when it is modified (active or not: the changed versions are
+	// kept until another style is loaded).
 	class FactorySlotButton : public TextButton
 	{
 	public:
 		bool active = false;
 		bool used = false;
+		bool modified = false;
 		void paintButton(Graphics& g, bool highlighted, bool down) override;
 	};
 
@@ -80,6 +82,8 @@ private:
 
 	Label factoryLabel;
 	TextButton linkButton; // OTS Link, orange when on
+	FilledButton factorySaveButton;    // the active factory setting: Save (after asking)
+	FilledButton factoryDiscardButton; // and Discard
 	FactorySlotButton factoryButtons[OneTouchSettings::NumFactorySettings];
 	FilledButton copyFirstButton;  // to the own 1-4
 	FilledButton copySecondButton; // to the own 5-8
@@ -120,6 +124,9 @@ private:
 	// copies the factory settings to the own places first..first + 3, after asking if
 	// any of them holds a setting
 	void askCopy(int first);
+	// writes the changed version of the active factory setting into its file, after asking
+	// (the original is lost)
+	void askSaveFactory();
 	void showVoiceMenu(int part);
 	void update();
 	void updateParts();

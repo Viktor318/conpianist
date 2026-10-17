@@ -287,6 +287,11 @@ void OneTouchSettings::Update()
 		return;
 	}
 
+	if (m_factoryActive >= 0)
+	{
+		UpdateFactoryModified();
+		return;
+	}
 	if (m_active < 0)
 	{
 		return;
@@ -302,6 +307,82 @@ void OneTouchSettings::Update()
 		m_modified = modified;
 		Changed();
 	}
+}
+
+// The active factory setting: when the piano differs from it (after a recall has settled),
+// the values of the piano become its changed version; when they are the original ones
+// again, it is not modified any more.
+void OneTouchSettings::UpdateFactoryModified()
+{
+	const int index = m_factoryActive;
+	const bool matches = Matches(GetFactory(index));
+	if (m_recallPending && (matches || Time::getMillisecondCounter() - m_recallTime >= (uint32)RecallSettleMs))
+	{
+		m_recallPending = false;
+	}
+	if (m_recallPending || matches)
+	{
+		return;
+	}
+	Setting changed = Follow(GetFactory(index));
+	if (Same(changed, m_factory[index]))
+	{
+		changed = Setting();
+	}
+	if (!Same(changed, m_factoryChanged[index]))
+	{
+		m_factoryChanged[index] = changed;
+		Changed();
+	}
+}
+
+OneTouchSettings::Setting OneTouchSettings::Follow(const Setting& setting) const
+{
+	const Setting current = Capture();
+	Setting result = setting;
+	for (int i = 0; i < NumParts; i++)
+	{
+		Part& part = result.parts[i];
+		const Part& now = current.parts[i];
+		if (part.voice.isNotEmpty() && now.voice.isNotEmpty())
+		{
+			part.voice = now.voice;
+		}
+		if (part.activeSet)
+		{
+			part.active = now.active;
+		}
+		if (part.valuesSet)
+		{
+			part.volume = now.volume;
+			part.octave = now.octave;
+		}
+	}
+	return result;
+}
+
+bool OneTouchSettings::Same(const Setting& a, const Setting& b)
+{
+	if (a.used != b.used)
+	{
+		return false;
+	}
+	if (!a.used)
+	{
+		return true;
+	}
+	for (int i = 0; i < NumParts; i++)
+	{
+		const Part& x = a.parts[i];
+		const Part& y = b.parts[i];
+		if (x.voice != y.voice || x.activeSet != y.activeSet || x.valuesSet != y.valuesSet ||
+			(x.activeSet && x.active != y.active) ||
+			(x.valuesSet && (x.volume != y.volume || x.octave != y.octave)))
+		{
+			return false;
+		}
+	}
+	return true;
 }
 
 void OneTouchSettings::timerCallback()
@@ -452,12 +533,52 @@ void OneTouchSettings::RecallFactory(int index)
 	{
 		return;
 	}
-	Apply(m_factory[index]);
+	Apply(GetFactory(index));
 	m_factoryActive = index;
 	m_active = -1;
 	m_modified = false;
-	m_recallPending = false; // a factory setting is not followed (it is never "modified")
+	m_recallPending = true;
+	m_recallTime = Time::getMillisecondCounter();
+	startTimer(RecallSettleMs + 100); // decides then if the piano has not taken every value
 	Changed();
+}
+
+const OneTouchSettings::Setting& OneTouchSettings::GetFactory(int index) const
+{
+	return m_factoryChanged[index].used ? m_factoryChanged[index] : m_factory[index];
+}
+
+bool OneTouchSettings::IsFactoryModified(int index) const
+{
+	return index >= 0 && index < NumFactorySettings && m_factoryChanged[index].used;
+}
+
+void OneTouchSettings::SaveActiveFactory()
+{
+	const int index = m_factoryActive;
+	if (!IsFactoryModified(index) || m_style.isEmpty())
+	{
+		return;
+	}
+	m_factory[index] = m_factoryChanged[index];
+	m_factoryChanged[index] = Setting();
+	// only the original settings go into the file (the other changed versions stay changed)
+	if (WriteFile(FileIn(m_factoryFolder, m_style), m_style, m_factory, NumFactorySettings))
+	{
+		m_stylesWithFactory.insert(m_style);
+	}
+	Changed();
+}
+
+void OneTouchSettings::DiscardActiveFactory()
+{
+	const int index = m_factoryActive;
+	if (!IsFactoryModified(index))
+	{
+		return;
+	}
+	m_factoryChanged[index] = Setting();
+	RecallFactory(index);
 }
 
 void OneTouchSettings::CopyFactory(int first)
@@ -471,7 +592,7 @@ void OneTouchSettings::CopyFactory(int first)
 	{
 		if (m_factory[i].used)
 		{
-			m_settings[first + i] = m_factory[i];
+			m_settings[first + i] = GetFactory(i);
 			if (m_active == first + i)
 			{
 				m_active = -1; // its content has changed
@@ -494,7 +615,7 @@ String OneTouchSettings::Describe(int index) const
 
 String OneTouchSettings::DescribeFactory(int index) const
 {
-	return IsFactoryUsed(index) ? DescribeSetting(m_factory[index]) : String();
+	return IsFactoryUsed(index) ? DescribeSetting(GetFactory(index)) : String();
 }
 
 String OneTouchSettings::DescribeSetting(const Setting& setting)
@@ -528,9 +649,10 @@ void OneTouchSettings::Load()
 
 void OneTouchSettings::LoadFactory()
 {
-	for (Setting& setting : m_factory)
+	for (int i = 0; i < NumFactorySettings; i++)
 	{
-		setting = Setting();
+		m_factory[i] = Setting();
+		m_factoryChanged[i] = Setting(); // the changed versions are kept only for the style
 	}
 	if (m_style.isNotEmpty() && HasFactorySettings(m_style))
 	{

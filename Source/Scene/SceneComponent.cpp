@@ -291,8 +291,26 @@ SceneComponent::SceneComponent (Settings& settings)
 	pianoRoomButton->setBounds(getWidth() - 150 - 32, 8, 32, 28);
 	// the folders of the own OTS files of the styles (see OneTouchSettings)
 	OneTouchSettings::CreateFolders(settings.GetLastStateFile().getSiblingFile("OTS"));
-	// the Accompaniment window (not shown) holds the OTS: OTS Link works from the start
-	GuiHelper::CallAsync(this, [this]() { accompaniment(); });
+	// the keyboard shortcuts of the Accompaniment window work in every window (see
+	// AccompanimentComponent::HandleShortcut)
+	shortcutKeys.handler = [this](const KeyPress& key)
+		{
+			AccompanimentComponent* content = accompanimentWindow ?
+				dynamic_cast<AccompanimentComponent*>(accompanimentWindow->getContentComponent()) : nullptr;
+			return content != nullptr && content->HandleShortcut(key);
+		};
+	// the Accompaniment window (not shown) holds the OTS: OTS Link works from the start.
+	// By then this component is in the main window: the shortcuts are added to that too.
+	GuiHelper::CallAsync(this, [this]()
+		{
+			accompaniment();
+			Component* mainWindow = getTopLevelComponent();
+			if (mainWindow != this && shortcutMainWindow == nullptr)
+			{
+				addShortcutKeys(*mainWindow);
+				shortcutMainWindow = mainWindow;
+			}
+		});
 	pianoConnector.startThread();
     pianoController.SetPianoConnector(&pianoConnector);
     pianoController.AddListener(this);
@@ -322,6 +340,10 @@ SceneComponent::~SceneComponent()
 {
     //[Destructor_pre]. You can add your own custom destruction code here..
     pianoController.RemoveListener(this); // no more notifications while it is destroyed
+    if (shortcutMainWindow != nullptr)
+    {
+        shortcutMainWindow->removeKeyListener(&shortcutKeys);
+    }
     // the steps of the exit are logged with their time, to find a slow one
     const uint32 exitStart = Time::getMillisecondCounter();
     const auto logStep = [exitStart](const char* step)
@@ -1625,6 +1647,7 @@ void SceneComponent::showRecorder()
 	if (!recorderWindow)
 	{
 		recorderWindow = std::make_unique<RecorderWindow>(settings, pianoController);
+		addShortcutKeys(*recorderWindow);
 		if (!recorderWindow->RestorePosition())
 		{
 			recorderWindow->centreAroundComponent(this, recorderWindow->getWidth(), recorderWindow->getHeight());
@@ -1635,13 +1658,18 @@ void SceneComponent::showRecorder()
 	recorderWindow->toFront(true);
 }
 
-// The Accompaniment window is not modal either; its keyboard shortcuts work while it is
-// the active window.
+// The Accompaniment window is not modal either; its keyboard shortcuts work in every
+// window of the program, also while it is hidden.
 AccompanimentComponent* SceneComponent::accompaniment()
 {
 	if (!accompanimentWindow)
 	{
 		accompanimentWindow = std::make_unique<AccompanimentWindow>(settings, pianoController);
+		addShortcutKeys(*accompanimentWindow);
+		if (AccompanimentComponent* content = dynamic_cast<AccompanimentComponent*>(accompanimentWindow->getContentComponent()))
+		{
+			content->SetWindowShortcuts(&shortcutKeys); // for its OTS window
+		}
 		if (!accompanimentWindow->RestorePosition())
 		{
 			accompanimentWindow->centreAroundComponent(this, accompanimentWindow->getWidth(), accompanimentWindow->getHeight());
@@ -1690,6 +1718,40 @@ void SceneComponent::importFactoryOts()
 		});
 }
 
+// The import runs on its own thread; meanwhile a small window shows how much is done
+// (it is modal: nothing else can be changed until it is ready).
+class FactoryOtsImportTask : public ThreadWithProgressWindow
+{
+public:
+	FactoryOtsImportTask(const File& stylesFolder, const File& factoryFolder, Component* centre,
+		std::function<void(const FactoryOts::Result&)> onDone) :
+		ThreadWithProgressWindow(TRANS("Import factory OTS"), true, false, 10000, String(), centre),
+		stylesFolder(stylesFolder), factoryFolder(factoryFolder), onDone(std::move(onDone))
+	{
+		setStatusMessage(TRANS("Reading factory OTS data"));
+	}
+
+	void run() override
+	{
+		result = FactoryOts::Import(stylesFolder, factoryFolder, [this](double done) { setProgress(done); });
+	}
+
+	void threadComplete(bool) override
+	{
+		if (onDone)
+		{
+			onDone(result);
+		}
+		delete this;
+	}
+
+private:
+	const File stylesFolder;
+	const File factoryFolder;
+	std::function<void(const FactoryOts::Result&)> onDone;
+	FactoryOts::Result result;
+};
+
 void SceneComponent::runFactoryOtsImport()
 {
 	AccompanimentComponent* content = accompaniment();
@@ -1697,13 +1759,20 @@ void SceneComponent::runFactoryOtsImport()
 	{
 		return;
 	}
-	OneTouchSettings& ots = content->GetOts();
 	const File stylesFolder = settings.GetLastStateFile().getSiblingFile("Styles");
+	auto* task = new FactoryOtsImportTask(stylesFolder, content->GetOts().GetFactoryFolder(), this,
+		[this, stylesFolder, self = Component::SafePointer<Component>(this)](const FactoryOts::Result& result)
+		{
+			if (self != nullptr)
+			{
+				factoryOtsImported(result, stylesFolder);
+			}
+		});
+	task->launchThread();
+}
 
-	MouseCursor::showWaitCursor();
-	const FactoryOts::Result result = FactoryOts::Import(stylesFolder, ots.GetFactoryFolder());
-	MouseCursor::hideWaitCursor();
-
+void SceneComponent::factoryOtsImported(const FactoryOts::Result& result, const File& stylesFolder)
+{
 	String message;
 	if (!result.sourcesFound)
 	{
@@ -1720,7 +1789,10 @@ void SceneComponent::runFactoryOtsImport()
 		{
 			Logger::writeToLog("Factory OTS: " + line);
 		}
-		ots.ReloadFactory();
+		if (AccompanimentComponent* content = accompaniment())
+		{
+			content->GetOts().ReloadFactory();
+		}
 		message = TRANS("Read: STYLES styles, SETTINGS factory OTS.").replace("STYLES", String(result.styles))
 				.replace("SETTINGS", String(result.settings));
 		if (result.skipped > 0)
@@ -1745,6 +1817,7 @@ void SceneComponent::showSongSelector()
 	if (!songSelectorWindow)
 	{
 		songSelectorWindow = std::make_unique<SongSelectorWindow>(settings, pianoController);
+		addShortcutKeys(*songSelectorWindow);
 		if (!songSelectorWindow->RestoreBounds())
 		{
 			songSelectorWindow->centreAroundComponent(this, songSelectorWindow->getWidth(), songSelectorWindow->getHeight());
@@ -1769,6 +1842,7 @@ void SceneComponent::showStyleMixer()
 	if (!styleMixerWindow)
 	{
 		styleMixerWindow = std::make_unique<StyleMixerWindow>(settings, pianoController);
+		addShortcutKeys(*styleMixerWindow);
 		if (!styleMixerWindow->RestorePosition())
 		{
 			styleMixerWindow->centreAroundComponent(this, styleMixerWindow->getWidth(), styleMixerWindow->getHeight());
@@ -1786,6 +1860,7 @@ void SceneComponent::showPianoRoom()
 	if (!pianoRoomWindow)
 	{
 		pianoRoomWindow = std::make_unique<PianoRoomWindow>(settings, pianoController);
+		addShortcutKeys(*pianoRoomWindow);
 		if (!pianoRoomWindow->RestorePosition())
 		{
 			pianoRoomWindow->centreAroundComponent(this, pianoRoomWindow->getWidth(), pianoRoomWindow->getHeight());
@@ -1801,6 +1876,7 @@ void SceneComponent::showBalance()
 	if (!balanceWindow)
 	{
 		balanceWindow = std::make_unique<BalanceWindow>(settings, pianoController);
+		addShortcutKeys(*balanceWindow);
 		if (!balanceWindow->RestorePosition())
 		{
 			balanceWindow->centreAroundComponent(this, balanceWindow->getWidth(), balanceWindow->getHeight());

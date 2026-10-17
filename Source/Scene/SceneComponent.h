@@ -37,6 +37,7 @@
 #include "BalanceComponent.h"
 #include "PianoRoomComponent.h"
 #include "SongSelectorComponent.h"
+#include "FactoryOts.h"
 //[/Headers]
 
 
@@ -87,6 +88,7 @@ public:
 	// Main menu, Tools: the factory OTS are read from the style files (after asking).
 	void importFactoryOts();
 	void runFactoryOtsImport();
+	void factoryOtsImported(const FactoryOts::Result& result, const File& stylesFolder);
 	void showStyleMixer();
 	void showBalance();
 	void showPianoRoom();
@@ -142,6 +144,16 @@ private:
     std::unique_ptr<ScoreComponent> scoreComponent;
     std::unique_ptr<MixerComponent> mixerComponent;
     std::unique_ptr<KeyboardComponent> keyboardComponent;
+    // The keyboard shortcuts of the Accompaniment window in every window of the program
+    // (added to each window; declared before the windows, so it is deleted after them)
+    struct ShortcutKeys : public KeyListener
+    {
+        std::function<bool(const KeyPress&)> handler;
+        bool keyPressed(const KeyPress& key, Component*) override { return handler && handler(key); }
+    };
+    ShortcutKeys shortcutKeys;
+    Component::SafePointer<Component> shortcutMainWindow; // the main window it was added to
+    void addShortcutKeys(Component& window) { window.addKeyListener(&shortcutKeys); }
     std::unique_ptr<RecorderWindow> recorderWindow; // Recording window, created when first opened
     std::unique_ptr<AccompanimentWindow> accompanimentWindow; // likewise
     std::unique_ptr<StyleMixerWindow> styleMixerWindow; // Accompaniment mixer window, likewise

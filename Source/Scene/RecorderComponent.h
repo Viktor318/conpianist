@@ -134,6 +134,7 @@ private:
 	void updateControls();
 	void updateMetronome();
 	void updateStatus();
+	int recordingMeasures(); // the length of the recording in measures
 	static String formatTime(double seconds);
 };
 

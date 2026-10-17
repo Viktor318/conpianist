@@ -58,7 +58,9 @@ public:
 
 	// Reads every style, then replaces the content of factoryFolder (see
 	// OneTouchSettings::FileIn). Nothing is deleted if no folder of the style files is there.
-	static Result Import(const File& stylesFolder, const File& factoryFolder);
+	// progress (if given) gets how much is done (0..1): reading up to 0.9, then writing.
+	static Result Import(const File& stylesFolder, const File& factoryFolder,
+		const std::function<void(double)>& progress = nullptr);
 
 	// The four OTS of a style file; false if it has none. Every left out setting is counted
 	// in skipped and explained in log.

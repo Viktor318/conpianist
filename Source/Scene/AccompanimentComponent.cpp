@@ -409,6 +409,10 @@ void AccompanimentComponent::ShowOts()
 	{
 		otsWindow = std::make_unique<OtsWindow>(settings, pianoController, ots);
 		otsWindow->onVisibilityChanged = [this]() { updateOtsButton(); };
+		if (windowShortcuts)
+		{
+			otsWindow->addKeyListener(windowShortcuts);
+		}
 		if (!otsWindow->RestorePosition())
 		{
 			// next to the Accompaniment window if there is room, otherwise in its middle
@@ -797,16 +801,16 @@ void AccompanimentComponent::showShortcuts()
 		<< "Ctrl+F1 " << dash.trim() << " F4" << dash << TRANS("Factory OTS 1 - 4") << "\n"
 		<< "O" << dash << TRANS("OTS window on / off") << "\n"
 		<< "H" << dash << TRANS("This list") << "\n\n"
-		<< TRANS("The keys work while the Accompaniment window is the active window.");
+		<< TRANS("The keys work in every window of the program, also while the Accompaniment window is closed (but not while typing in a text box).");
 	AlertWindow::showAsync(MessageBoxOptions()
 			.withIconType(MessageBoxIconType::NoIcon)
 			.withTitle(TRANS("Keyboard shortcuts"))
 			.withMessage(text)
 			.withButton(TRANS("OK"))
-			.withAssociatedComponent(this),
+			.withAssociatedComponent(isShowing() ? this : nullptr), // H in another window
 		[self = Component::SafePointer<Component>(this)](int)
 		{
-			if (self != nullptr)
+			if (self != nullptr && self->isShowing())
 			{
 				self->grabKeyboardFocus(); // the shortcuts work again at once
 			}
@@ -844,8 +848,23 @@ void AccompanimentComponent::toggleAutoFill()
 	update();
 }
 
-// Shortcuts while the window is active: Space - start and stop, 1..4 - Main A..D,
-// Shift+1..3 - Intro 1..3, Ctrl+1..3 - Ending 1..3, F - fill in, G - break (see showShortcuts).
+bool AccompanimentComponent::HandleShortcut(const KeyPress& key)
+{
+	Component* focused = Component::getCurrentlyFocusedComponent();
+	if (dynamic_cast<TextEditor*>(focused) != nullptr)
+	{
+		return false;
+	}
+	if (dynamic_cast<Button*>(focused) != nullptr &&
+		(key == KeyPress::spaceKey || key == KeyPress::returnKey))
+	{
+		return false;
+	}
+	return keyPressed(key);
+}
+
+// Shortcuts in every window of the program (see HandleShortcut): Space - start and stop,
+// 1..4 - Main A..D, Shift+1..3 - Intro 1..3, Ctrl+1..3 - Ending 1..3, F - fill in, G - break (see showShortcuts).
 bool AccompanimentComponent::keyPressed(const KeyPress& key)
 {
 	// Shift or Ctrl with a number key (its key code: with Shift the character depends on

@@ -224,7 +224,7 @@ countries: hu
 "Enter a file name." = "Adj meg egy fájlnevet."
 "A file with this name already exists. Overwrite it?" = "Ilyen nevű fájl már van. Felülírod?"
 "The file could not be saved." = "A fájlt nem sikerült elmenteni."
-"NUMBER notes" = "NUMBER hang"
+"NUMBER measures" = "NUMBER ütem"
 "Waiting for the first note..." = "Várakozás az első hangra…"
 "Recording:" = "Felvétel:"
 "Press Record to start a recording." = "A felvétel a Felvétel gombbal indul."
@@ -324,7 +324,7 @@ countries: hu
 "Default tempo of the style (Reset)" = "A stílus alapértelmezett tempója (Reset)"
 "Apply: loads the chosen style" = "Alkalmaz: betölti a kiválasztott stílust"
 "This list" = "Ez a lista"
-"The keys work while the Accompaniment window is the active window." = "A billentyűk akkor működnek, amikor a Kíséret ablak van elöl."
+"The keys work in every window of the program, also while the Accompaniment window is closed (but not while typing in a text box)." = "A billentyűk a program minden ablakában működnek, akkor is, ha a Kíséret ablak zárva van (de szöveg beírása közben nem)."
 "The piano is not connected." = "A zongora nincs csatlakoztatva."
 "OK" = "OK"
 "Memory" = "Memória"
@@ -419,6 +419,10 @@ countries: hu
 "Read: STYLES styles, SETTINGS factory OTS." = "Beolvasva: STYLES stílus, SETTINGS gyári OTS."
 "Left for a later version: NUMBER OTS (a voice is not on the CSP-170)." = "Egy későbbi verzióra marad: NUMBER OTS (a hangszín nincs meg a CSP-170-en)."
 "The details are in the log file." = "A részletek a naplófájlban vannak."
+"Reading factory OTS data" = "Gyári OTS adatok beolvasása"
+"Saves the changed voice settings into the active factory OTS (the original factory data is lost)" = "A módosított hangszín-beállításokat az aktív gyári OTS-be menti (az eredeti gyári adat elvész)"
+"Discards the changes: the original factory OTS is recalled again" = "Elveti a módosításokat: újra az eredeti gyári OTS töltődik be"
+"The original factory data is lost. Continue?" = "Az eredeti gyári adat elvész. Folytatja?"
 
 // --- Felvétel ablak: Lejátszás/dal felvétele, betöltés, elvetés ---
 "Record playback/song" = "Lejátszás/dal felvétele"

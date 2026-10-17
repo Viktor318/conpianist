@@ -102,7 +102,7 @@ void OtsComponent::FactorySlotButton::paintButton(Graphics& g, bool highlighted,
 	if (used)
 	{
 		const float width = 3.0f;
-		g.setColour(Colours::white.withMultipliedAlpha(isEnabled() ? 1.0f : 0.5f));
+		g.setColour((modified ? ModifiedColour : Colours::white).withMultipliedAlpha(isEnabled() ? 1.0f : 0.5f));
 		g.drawRoundedRectangle(getLocalBounds().toFloat().reduced(width / 2), 5.0f, width);
 	}
 	DrawText(g, *this, lit ? Colours::black : Colours::white);
@@ -167,6 +167,17 @@ OtsComponent::OtsComponent(Settings& settings, PianoController& pianoController,
 			this->settings.otsLink = !this->settings.otsLink;
 			this->ots.SetLink(this->settings.otsLink);
 			update();
+			grabKeyboardFocus();
+		};
+	initButton(factorySaveButton, TRANS("Save"));
+	factorySaveButton.setTooltip(TRANS("Saves the changed voice settings into the active factory OTS (the original factory data is lost)"));
+	factorySaveButton.onClick = [this]() { setMode(Mode::none); askSaveFactory(); };
+	initButton(factoryDiscardButton, TRANS("Discard"));
+	factoryDiscardButton.setTooltip(TRANS("Discards the changes: the original factory OTS is recalled again"));
+	factoryDiscardButton.onClick = [this]()
+		{
+			setMode(Mode::none);
+			this->ots.DiscardActiveFactory();
 			grabKeyboardFocus();
 		};
 	for (int i = 0; i < OneTouchSettings::NumFactorySettings; i++)
@@ -294,6 +305,12 @@ void OtsComponent::resized()
 
 	factoryLabel.setBounds(Margin, FactoryLabelY, 200, 24);
 	linkButton.setBounds(Margin, LinkY, LinkWidth, 28);
+	// Save and Discard of the factory settings: 1.25 buttons wide each, to the right edge
+	const int factorySaveX = Margin + LinkWidth + Gap;
+	const int factorySaveWidth = SlotWidth * 5 / 4; // 117
+	factorySaveButton.setBounds(factorySaveX, LinkY, factorySaveWidth, 28);
+	const int factoryDiscardX = factorySaveX + factorySaveWidth + Gap;
+	factoryDiscardButton.setBounds(factoryDiscardX, LinkY, right - factoryDiscardX, 28);
 	for (int i = 0; i < OneTouchSettings::NumFactorySettings; i++)
 	{
 		factoryButtons[i].setBounds(Margin + i * (SlotWidth + Gap), FactorySlotsY, SlotWidth, SlotHeight);
@@ -450,6 +467,33 @@ void OtsComponent::askDelete(int index)
 		});
 }
 
+void OtsComponent::askSaveFactory()
+{
+	if (!ots.IsActiveFactoryModified())
+	{
+		return;
+	}
+	AlertWindow::showAsync(MessageBoxOptions()
+			.withIconType(MessageBoxIconType::QuestionIcon)
+			.withTitle("ConPianist")
+			.withMessage(TRANS("The original factory data is lost. Continue?"))
+			.withButton(TRANS("Yes"))
+			.withButton(TRANS("Cancel"))
+			.withAssociatedComponent(this),
+		[this, self = Component::SafePointer<Component>(this)](int button)
+		{
+			if (self == nullptr)
+			{
+				return;
+			}
+			if (button == 1)
+			{
+				ots.SaveActiveFactory();
+			}
+			self->grabKeyboardFocus(); // the shortcuts work again at once
+		});
+}
+
 void OtsComponent::askCopy(int first)
 {
 	if (!ots.HasAnyFactory())
@@ -562,6 +606,7 @@ void OtsComponent::update()
 		FactorySlotButton& button = factoryButtons[i];
 		button.used = ots.IsFactoryUsed(i);
 		button.active = ots.GetFactoryActive() == i;
+		button.modified = ots.IsFactoryModified(i);
 		button.setEnabled(hasStyle);
 		String tooltip = ots.DescribeFactory(i);
 		tooltip << (tooltip.isEmpty() ? "" : "\n\n")
@@ -574,6 +619,8 @@ void OtsComponent::update()
 		linkButton.setToggleState(ots.GetLink(), dontSendNotification);
 	}
 	const bool anyFactory = hasStyle && ots.HasAnyFactory();
+	factorySaveButton.setEnabled(hasStyle && ots.IsActiveFactoryModified());
+	factoryDiscardButton.setEnabled(hasStyle && ots.IsActiveFactoryModified());
 	copyFirstButton.setEnabled(anyFactory);
 	copySecondButton.setEnabled(anyFactory);
 

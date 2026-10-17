@@ -363,9 +363,18 @@ bool FactoryOts::ReadStyleFile(const File& file, OneTouchSettings::Setting* sett
 	return index > 0;
 }
 
-FactoryOts::Result FactoryOts::Import(const File& stylesFolder, const File& factoryFolder)
+FactoryOts::Result FactoryOts::Import(const File& stylesFolder, const File& factoryFolder,
+	const std::function<void(double)>& progress)
 {
 	Result result;
+	const auto report = [&progress](double done)
+		{
+			if (progress)
+			{
+				progress(jlimit(0.0, 1.0, done));
+			}
+		};
+	report(0.0);
 
 	// the style files by their names (the first one of a name)
 	std::map<String, File> files[2];
@@ -416,8 +425,11 @@ FactoryOts::Result FactoryOts::Import(const File& stylesFolder, const File& fact
 		OneTouchSettings::Setting settings[OneTouchSettings::NumFactorySettings];
 	};
 	std::vector<Item> items;
+	const int styleCount = (int)Presets::Styles().size();
+	int styleIndex = 0;
 	for (const Style& style : Presets::Styles())
 	{
+		report(0.9 * styleIndex++ / jmax(1, styleCount));
 		if (style.type == "Pianist")
 		{
 			continue; // only on the Clavinova
@@ -463,11 +475,15 @@ FactoryOts::Result FactoryOts::Import(const File& stylesFolder, const File& fact
 		}
 	}
 
+	report(0.9);
 	factoryFolder.deleteRecursively();
+	int written = 0;
 	for (const Item& item : items)
 	{
 		OneTouchSettings::WriteFile(OneTouchSettings::FileIn(factoryFolder, item.style), item.style,
 			item.settings, OneTouchSettings::NumFactorySettings);
+		report(0.9 + 0.1 * ++written / jmax(1, (int)items.size()));
 	}
+	report(1.0);
 	return result;
 }

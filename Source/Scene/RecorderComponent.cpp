@@ -1054,12 +1054,30 @@ String RecorderComponent::formatTime(double seconds)
 	return String(total / 60) + ":" + String(total % 60).paddedLeft('0', 2);
 }
 
+// The length of the recording in measures: of the recording in the player while it is
+// played back, otherwise from its length in seconds, with its tempo and time signature
+// (as the position is counted in updatePosition).
+int RecorderComponent::recordingMeasures()
+{
+	if (isListening() && !fileLoaded)
+	{
+		const int measures = pianoController.GetLength().measure;
+		if (measures > 0)
+		{
+			return measures;
+		}
+	}
+	const double measureSeconds = jmax(1, pianoController.GetRecordedNumerator()) * 4.0 /
+		jmax(1, pianoController.GetRecordedDenominator()) * 60.0 / jmax(1, pianoController.GetRecordedTempo());
+	return jmax(1, (int)std::ceil(pianoController.GetRecorder().GetLengthSeconds() / measureSeconds - 0.001));
+}
+
 void RecorderComponent::updateStatus()
 {
 	LiveRecorder& recorder = pianoController.GetRecorder();
 	const String bullet = " " + String(CharPointer_UTF8("\xe2\x80\xa2")) + " ";
 	const String info = formatTime(recorder.GetLengthSeconds()) + bullet +
-		TRANS("NUMBER notes").replace("NUMBER", String(recorder.GetNoteCount()));
+		TRANS("NUMBER measures").replace("NUMBER", String(recordingMeasures()));
 	String text;
 	Colour colour = Colours::white;
 

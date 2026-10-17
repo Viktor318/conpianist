@@ -38,7 +38,10 @@
 //
 // The factory settings: the four OTS of the style files of Yamaha arranger keyboards, read
 // by FactoryOts into OTS/Yamaha/<category>/<subcategory>/<style name>.ots (the same
-// format). They cannot be changed here; one of them or an own setting is active. With
+// format). One of them or an own setting is active. A factory setting changed while it
+// is active is "modified": the changed version is kept (and recalled, also by OTS Link)
+// until another style is loaded, unless it is discarded, or saved into the factory file
+// (the original is lost then; importing the style files again brings it back). With
 // OTS Link on, the factory setting of the Main section (A-D: 1-4) is recalled when the
 // style or its Main section changes (not while PianoController suspends it, e.g. while a
 // registration memory is loaded).
@@ -97,13 +100,22 @@ public:
 
 	// The factory settings of the style of the piano.
 	bool IsFactoryUsed(int index) const;
-	const Setting& GetFactory(int index) const { return m_factory[index]; }
+	// the factory setting as it is used: its changed version if it is modified
+	const Setting& GetFactory(int index) const;
 	int GetFactoryActive() const { return m_factoryActive; }
 	bool HasAnyFactory() const;
-	// The factory setting to the piano (it becomes the active one).
+	// The factory setting (its changed version, if modified) to the piano (it becomes the
+	// active one).
 	void RecallFactory(int index);
-	// The four factory settings into the own places first..first + 3 (an empty factory
-	// setting leaves its place as it is).
+	// A factory setting has a changed version (not saved).
+	bool IsFactoryModified(int index) const;
+	bool IsActiveFactoryModified() const { return IsFactoryModified(m_factoryActive); }
+	// The active factory setting: its changed version is written into the factory file
+	// (Save; the original is lost), or dropped and the original goes to the piano (Discard).
+	void SaveActiveFactory();
+	void DiscardActiveFactory();
+	// The four factory settings (their changed versions, if modified) into the own places
+	// first..first + 3 (an empty factory setting leaves its place as it is).
 	void CopyFactory(int first);
 	String DescribeFactory(int index) const;
 	// OTS Link: see above.
@@ -151,6 +163,7 @@ private:
 	std::set<String> m_stylesWithSettings; // preset paths
 	File m_factoryFolder;
 	Setting m_factory[NumFactorySettings];
+	Setting m_factoryChanged[NumFactorySettings]; // the changed versions (used: modified)
 	int m_factoryActive = -1;
 	std::set<String> m_stylesWithFactory; // preset paths
 	bool m_link = true;
@@ -160,6 +173,11 @@ private:
 	void ScanFactoryFolder();
 
 	Setting Capture() const;
+	// A setting with the values of the piano in place of the ones it sets (not the ones
+	// it leaves unchanged).
+	Setting Follow(const Setting& setting) const;
+	static bool Same(const Setting& a, const Setting& b);
+	void UpdateFactoryModified();
 	bool Matches(const Setting& setting) const;
 	void Apply(const Setting& setting);
 	void Load();
