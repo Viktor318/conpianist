@@ -81,6 +81,12 @@ public:
 	void showRecorder();
 	void showAccompaniment();
 	void showOts();
+	// The Accompaniment window, created (not shown) if it does not exist yet: it holds the
+	// OTS of the styles, and OTS Link works while it exists.
+	class AccompanimentComponent* accompaniment();
+	// Main menu, Tools: the factory OTS are read from the style files (after asking).
+	void importFactoryOts();
+	void runFactoryOtsImport();
 	void showStyleMixer();
 	void showBalance();
 	void showPianoRoom();

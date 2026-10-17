@@ -77,6 +77,7 @@ public:
 	Point<int> recorderWindowPos{NoWindowPos, NoWindowPos};
 	Point<int> accompanimentWindowPos{NoWindowPos, NoWindowPos};
 	Point<int> otsWindowPos{NoWindowPos, NoWindowPos};
+	bool otsLink = true; // OTS Link of the factory OTS (see OneTouchSettings)
 	Point<int> styleMixerWindowPos{NoWindowPos, NoWindowPos};
 	Point<int> balanceWindowPos{NoWindowPos, NoWindowPos};
 	Point<int> pianoRoomWindowPos{NoWindowPos, NoWindowPos};

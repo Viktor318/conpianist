@@ -119,12 +119,17 @@ String RegistrationMemory::GetSongName(const File& file)
 	return el ? el->getAllSubText().trim() : String();
 }
 
+// The piano reports the loaded style a moment later.
+static const int OtsLinkSuspendMs = 5000;
+
 void RegistrationMemory::Load()
 {
 	std::unique_ptr<XmlElement> savedState = XmlDocument::parse(file);
 	if (!savedState) return;
 
 	root = savedState.get();
+	// the style and the voices of the memory are not overwritten by OTS Link
+	pianoController.SuspendOtsLink(OtsLinkSuspendMs);
 
 	if (options.settings)
 	{

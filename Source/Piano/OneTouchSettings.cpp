@@ -26,6 +26,7 @@ const char* const OneTouchSettings::PartNames[NumParts] = {"Main", "Layer", "Lef
 
 static const char* const RootTag = "OneTouchSettings";
 static const char* const FileExtension = ".ots";
+static const char* const FactoryFolderName = "Yamaha"; // in the OTS folder
 
 bool OneTouchSettings::Part::operator==(const Part& other) const
 {
@@ -34,9 +35,11 @@ bool OneTouchSettings::Part::operator==(const Part& other) const
 }
 
 OneTouchSettings::OneTouchSettings(const File& folder, PianoController& pianoController) :
-	m_folder(folder), m_pianoController(pianoController)
+	m_folder(folder), m_pianoController(pianoController),
+	m_factoryFolder(folder.getChildFile(FactoryFolderName))
 {
 	ScanFolder();
+	ScanFactoryFolder();
 }
 
 OneTouchSettings::~OneTouchSettings()
@@ -89,9 +92,14 @@ static String StyleOfFile(const File& file)
 
 File OneTouchSettings::FileOf(const String& stylePath) const
 {
+	return FileIn(m_folder, stylePath);
+}
+
+File OneTouchSettings::FileIn(const File& baseFolder, const String& stylePath)
+{
 	String category, group, name;
 	StyleNames(stylePath, category, group, name);
-	File folder = m_folder;
+	File folder = baseFolder;
 	if (category.isNotEmpty())
 	{
 		folder = folder.getChildFile(LegalName(category));
@@ -128,13 +136,18 @@ void OneTouchSettings::CreateFolders(const File& otsFolder)
 	}
 }
 
-// The styles that have settings: the style of every file in the folder.
+// The styles that have settings: the style of every file in the folder (not in the
+// folder of the factory settings).
 void OneTouchSettings::ScanFolder()
 {
 	m_stylesWithSettings.clear();
 	for (const DirectoryEntry& entry : RangedDirectoryIterator(m_folder, true,
 		String("*") + FileExtension, File::findFiles))
 	{
+		if (entry.getFile().isAChildOf(m_factoryFolder))
+		{
+			continue;
+		}
 		const String style = StyleOfFile(entry.getFile());
 		if (style.isNotEmpty())
 		{
@@ -146,6 +159,68 @@ void OneTouchSettings::ScanFolder()
 bool OneTouchSettings::HasSettings(const String& stylePath) const
 {
 	return m_stylesWithSettings.count(stylePath) > 0;
+}
+
+void OneTouchSettings::ScanFactoryFolder()
+{
+	m_stylesWithFactory.clear();
+	if (!m_factoryFolder.isDirectory())
+	{
+		return;
+	}
+	for (const DirectoryEntry& entry : RangedDirectoryIterator(m_factoryFolder, true,
+		String("*") + FileExtension, File::findFiles))
+	{
+		const String style = StyleOfFile(entry.getFile());
+		if (style.isNotEmpty())
+		{
+			m_stylesWithFactory.insert(style);
+		}
+	}
+}
+
+bool OneTouchSettings::HasFactorySettings(const String& stylePath) const
+{
+	return m_stylesWithFactory.count(stylePath) > 0;
+}
+
+bool OneTouchSettings::IsFactoryUsed(int index) const
+{
+	return index >= 0 && index < NumFactorySettings && m_factory[index].used;
+}
+
+bool OneTouchSettings::HasAnyFactory() const
+{
+	for (const Setting& setting : m_factory)
+	{
+		if (setting.used)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+void OneTouchSettings::ReloadFactory()
+{
+	ScanFactoryFolder();
+	m_factoryActive = -1;
+	LoadFactory();
+	Changed();
+}
+
+// The Main section of the accompaniment (0..3: A..D): the one playing, or the one that
+// comes after a fill in; -1 if none is known.
+int OneTouchSettings::CurrentMain() const
+{
+	for (const int section : { m_pianoController.GetStyleSection(), m_pianoController.GetStyleNextSection() })
+	{
+		if (section >= PianoController::ssMainA && section < PianoController::ssMainA + NumFactorySettings)
+		{
+			return section - PianoController::ssMainA;
+		}
+	}
+	return -1;
 }
 
 bool OneTouchSettings::IsUsed(int index) const
@@ -169,9 +244,10 @@ void OneTouchSettings::Update()
 	if (!m_pianoController.IsConnected())
 	{
 		// the voices of the piano are not known: nothing is active
-		if (m_active >= 0)
+		if (m_active >= 0 || m_factoryActive >= 0)
 		{
 			m_active = -1;
+			m_factoryActive = -1;
 			m_recallPending = false;
 			Changed();
 		}
@@ -179,14 +255,34 @@ void OneTouchSettings::Update()
 	}
 
 	const String style = m_pianoController.GetStyleName();
-	if (style != m_style)
+	const String previousStyle = m_style;
+	const bool styleChanged = style != m_style;
+	if (styleChanged)
 	{
 		// another style: its own settings; the active setting belonged to the previous one
 		m_style = style;
 		m_active = -1;
+		m_factoryActive = -1;
 		m_modified = false;
 		m_recallPending = false;
 		Load();
+		LoadFactory();
+	}
+
+	// OTS Link: the factory setting of the Main section, when the style or the section
+	// changes (not when they become known, e.g. after connecting)
+	const int main = CurrentMain();
+	const int previousMain = m_main;
+	m_main = main;
+	const bool linked = styleChanged ? previousStyle.isNotEmpty() && style.isNotEmpty() :
+		main != previousMain && previousMain >= 0;
+	if (m_link && linked && main >= 0 && !m_pianoController.IsOtsLinkSuspended() && IsFactoryUsed(main))
+	{
+		RecallFactory(main);
+		return;
+	}
+	if (styleChanged)
+	{
 		Changed();
 		return;
 	}
@@ -235,11 +331,21 @@ bool OneTouchSettings::Matches(const Setting& setting) const
 	const Setting current = Capture();
 	for (int i = 0; i < NumParts; i++)
 	{
-		// a setting without a voice (not known when it was stored) does not change it
+		// a setting without a voice (not known when it was stored) does not change it, nor
+		// the values it does not set
 		Part stored = setting.parts[i];
 		if (stored.voice.isEmpty())
 		{
 			stored.voice = current.parts[i].voice;
+		}
+		if (!stored.activeSet)
+		{
+			stored.active = current.parts[i].active;
+		}
+		if (!stored.valuesSet)
+		{
+			stored.volume = current.parts[i].volume;
+			stored.octave = current.parts[i].octave;
 		}
 		if (!(stored == current.parts[i]))
 		{
@@ -263,9 +369,15 @@ void OneTouchSettings::Apply(const Setting& setting)
 		{
 			m_pianoController.SetVoice(ch, part.voice);
 		}
-		m_pianoController.SetOctave(ch, jlimit(PianoController::MinOctave, PianoController::MaxOctave, part.octave));
-		m_pianoController.SetVolume(ch, jlimit(PianoController::MinVolume, PianoController::MaxVolume, part.volume));
-		m_pianoController.SetActive(ch, part.active);
+		if (part.valuesSet)
+		{
+			m_pianoController.SetOctave(ch, jlimit(PianoController::MinOctave, PianoController::MaxOctave, part.octave));
+			m_pianoController.SetVolume(ch, jlimit(PianoController::MinVolume, PianoController::MaxVolume, part.volume));
+		}
+		if (part.activeSet)
+		{
+			m_pianoController.SetActive(ch, part.active);
+		}
 	}
 }
 
@@ -277,6 +389,7 @@ void OneTouchSettings::Store(int index)
 	}
 	m_settings[index] = Capture();
 	m_active = index;
+	m_factoryActive = -1;
 	m_modified = false;
 	m_recallPending = false;
 	Save();
@@ -291,6 +404,7 @@ void OneTouchSettings::Recall(int index)
 	}
 	Apply(m_settings[index]);
 	m_active = index;
+	m_factoryActive = -1;
 	m_modified = false;
 	m_recallPending = true;
 	m_recallTime = Time::getMillisecondCounter();
@@ -332,19 +446,67 @@ void OneTouchSettings::DiscardActive()
 	}
 }
 
+void OneTouchSettings::RecallFactory(int index)
+{
+	if (!IsFactoryUsed(index) || !m_pianoController.IsConnected())
+	{
+		return;
+	}
+	Apply(m_factory[index]);
+	m_factoryActive = index;
+	m_active = -1;
+	m_modified = false;
+	m_recallPending = false; // a factory setting is not followed (it is never "modified")
+	Changed();
+}
+
+void OneTouchSettings::CopyFactory(int first)
+{
+	if (first < 0 || first + NumFactorySettings > NumSettings || m_style.isEmpty())
+	{
+		return;
+	}
+	bool any = false;
+	for (int i = 0; i < NumFactorySettings; i++)
+	{
+		if (m_factory[i].used)
+		{
+			m_settings[first + i] = m_factory[i];
+			if (m_active == first + i)
+			{
+				m_active = -1; // its content has changed
+				m_modified = false;
+			}
+			any = true;
+		}
+	}
+	if (any)
+	{
+		Save();
+		Changed();
+	}
+}
+
 String OneTouchSettings::Describe(int index) const
 {
-	if (!IsUsed(index))
-	{
-		return {};
-	}
+	return IsUsed(index) ? DescribeSetting(m_settings[index]) : String();
+}
+
+String OneTouchSettings::DescribeFactory(int index) const
+{
+	return IsFactoryUsed(index) ? DescribeSetting(m_factory[index]) : String();
+}
+
+String OneTouchSettings::DescribeSetting(const Setting& setting)
+{
 	String text;
 	for (int i = 0; i < NumParts; i++)
 	{
-		const Part& part = m_settings[index].parts[i];
+		const Part& part = setting.parts[i];
 		// the names of the parts as on the Voice tab
-		text << (text.isEmpty() ? "" : "\n") << TRANS(PartNames[i]) << ": " << Presets::VoiceTitle(part.voice);
-		if (!part.active)
+		text << (text.isEmpty() ? "" : "\n") << TRANS(PartNames[i]) << ": "
+			<< (part.voice.isEmpty() ? TRANS("unchanged") : Presets::VoiceTitle(part.voice));
+		if (part.activeSet && !part.active)
 		{
 			text << " (" << TRANS("off") << ")";
 		}
@@ -358,40 +520,21 @@ void OneTouchSettings::Load()
 	{
 		setting = Setting();
 	}
-	if (m_style.isEmpty())
+	if (m_style.isNotEmpty())
 	{
-		return;
+		ReadFile(FileOf(m_style), m_style, m_settings, NumSettings);
 	}
-	std::unique_ptr<XmlElement> root = XmlDocument::parse(FileOf(m_style));
-	if (!root || !root->hasTagName(RootTag) || root->getStringAttribute("style") != m_style)
+}
+
+void OneTouchSettings::LoadFactory()
+{
+	for (Setting& setting : m_factory)
 	{
-		return;
+		setting = Setting();
 	}
-	for (XmlElement* element : root->getChildWithTagNameIterator("Setting"))
+	if (m_style.isNotEmpty() && HasFactorySettings(m_style))
 	{
-		const int index = element->getIntAttribute("number") - 1;
-		if (index < 0 || index >= NumSettings)
-		{
-			continue;
-		}
-		Setting& setting = m_settings[index];
-		setting.used = true;
-		for (XmlElement* partElement : element->getChildWithTagNameIterator("Part"))
-		{
-			for (int i = 0; i < NumParts; i++)
-			{
-				if (partElement->getStringAttribute("name") == PartNames[i])
-				{
-					Part& part = setting.parts[i];
-					part.voice = partElement->getStringAttribute("voice");
-					part.active = partElement->getBoolAttribute("active", true);
-					part.volume = jlimit(PianoController::MinVolume, PianoController::MaxVolume,
-						partElement->getIntAttribute("volume", PianoController::DefaultVolume));
-					part.octave = jlimit(PianoController::MinOctave, PianoController::MaxOctave,
-						partElement->getIntAttribute("octave", PianoController::DefaultOctave));
-				}
-			}
-		}
+		ReadFile(FileIn(m_factoryFolder, m_style), m_style, m_factory, NumFactorySettings);
 	}
 }
 
@@ -401,13 +544,63 @@ void OneTouchSettings::Save()
 	{
 		return;
 	}
-	const File file = FileOf(m_style);
+	if (WriteFile(FileOf(m_style), m_style, m_settings, NumSettings))
+	{
+		m_stylesWithSettings.insert(m_style);
+	}
+	else
+	{
+		m_stylesWithSettings.erase(m_style);
+	}
+}
+
+bool OneTouchSettings::ReadFile(const File& file, const String& stylePath, Setting* settings, int count)
+{
+	std::unique_ptr<XmlElement> root = XmlDocument::parse(file);
+	if (!root || !root->hasTagName(RootTag) || root->getStringAttribute("style") != stylePath)
+	{
+		return false;
+	}
+	for (XmlElement* element : root->getChildWithTagNameIterator("Setting"))
+	{
+		const int index = element->getIntAttribute("number") - 1;
+		if (index < 0 || index >= count)
+		{
+			continue;
+		}
+		Setting& setting = settings[index];
+		setting.used = true;
+		for (XmlElement* partElement : element->getChildWithTagNameIterator("Part"))
+		{
+			for (int i = 0; i < NumParts; i++)
+			{
+				if (partElement->getStringAttribute("name") == PartNames[i])
+				{
+					Part& part = setting.parts[i];
+					part.voice = partElement->getStringAttribute("voice");
+					// a missing value is not changed by the setting
+					part.activeSet = partElement->hasAttribute("active");
+					part.active = partElement->getBoolAttribute("active", true);
+					part.valuesSet = partElement->hasAttribute("volume");
+					part.volume = jlimit(PianoController::MinVolume, PianoController::MaxVolume,
+						partElement->getIntAttribute("volume", PianoController::DefaultVolume));
+					part.octave = jlimit(PianoController::MinOctave, PianoController::MaxOctave,
+						partElement->getIntAttribute("octave", PianoController::DefaultOctave));
+				}
+			}
+		}
+	}
+	return true;
+}
+
+bool OneTouchSettings::WriteFile(const File& file, const String& stylePath, const Setting* settings, int count)
+{
 	bool any = false;
 	XmlElement root(RootTag);
-	root.setAttribute("style", m_style);
-	for (int index = 0; index < NumSettings; index++)
+	root.setAttribute("style", stylePath);
+	for (int index = 0; index < count; index++)
 	{
-		const Setting& setting = m_settings[index];
+		const Setting& setting = settings[index];
 		if (!setting.used)
 		{
 			continue;
@@ -421,21 +614,23 @@ void OneTouchSettings::Save()
 			XmlElement* partElement = element->createNewChildElement("Part");
 			partElement->setAttribute("name", PartNames[i]);
 			partElement->setAttribute("voice", part.voice);
-			partElement->setAttribute("active", part.active ? 1 : 0);
-			partElement->setAttribute("volume", part.volume);
-			partElement->setAttribute("octave", part.octave);
+			if (part.activeSet)
+			{
+				partElement->setAttribute("active", part.active ? 1 : 0);
+			}
+			if (part.valuesSet)
+			{
+				partElement->setAttribute("volume", part.volume);
+				partElement->setAttribute("octave", part.octave);
+			}
 		}
 	}
 
 	if (!any)
 	{
 		file.deleteFile();
-		m_stylesWithSettings.erase(m_style);
-		return;
+		return false;
 	}
 	file.getParentDirectory().createDirectory();
-	if (root.writeTo(file))
-	{
-		m_stylesWithSettings.insert(m_style);
-	}
+	return root.writeTo(file);
 }

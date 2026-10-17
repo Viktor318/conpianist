@@ -204,8 +204,6 @@ countries: hu
 "About ConPianist..." = "A programról…"
 
 // Felvétel ablak
-"LIVE PLAY" = "ÉLŐ JÁTÉK"
-"Recording..." = "Felvétel…"
 "Recording" = "Felvétel"
 "Start and stop" = "Indítás és leállítás"
 "Automatic" = "Automatikus"
@@ -271,7 +269,6 @@ countries: hu
 "A note lasts until the next note if it was held for at least half of the time between them (no short rests in the score); notes played short stay short" = "A hang a következő hangig tart, ha a kettő közti idő legalább feléig ki volt tartva (nem lesznek apró szünetek a kottában); a rövidre játszott hangok rövidek maradnak"
 
 // Kíséret ablak
-"Accompaniment..." = "Kíséret…"
 "Accompaniment" = "Kíséret"
 "Style:" = "Stílus:"
 "Tempo:" = "Tempó:"
@@ -382,7 +379,6 @@ countries: hu
 "Chord detection" = "Akkordfelismerés"
 
 // --- OTS (saját One Touch Setting) ---
-"OTS..." = "OTS…"
 "OTS (own settings of the style)" = "OTS (saját beállítások a stílushoz)"
 "Opens and closes the window of the own One Touch Settings of the style (O)" = "A stílus saját OTS-einek ablaka: megnyitás és bezárás (O)"
 "Own OTS 1 - 8" = "1 – 8. saját OTS"
@@ -402,6 +398,27 @@ countries: hu
 "Delete own OTS NUMBER?" = "Törli a NUMBER. saját OTS-t?"
 "Click: recall (Shift+FNUMBER), Shift+click: store, Ctrl+Shift+click: delete" = "Kattintás: behívás (Shift+FNUMBER), Shift+kattintás: tárolás, Ctrl+Shift+kattintás: törlés"
 "off" = "ki"
+
+// --- Gyári OTS (a stílusfájlokból), OTS Link, Eszközök menü ---
+"Factory OTS" = "Gyári OTS"
+"OTS Link: Main A-D recall the factory OTS 1-4, also when the style is changed" = "OTS Link: a Main A–D a gyári OTS 1–4-et hívja be, stílusváltáskor is"
+"Copy to 1-4" = "Másolás 1–4-re"
+"Copy to 5-8" = "Másolás 5–8-ra"
+"Copies the factory OTS to the own buttons 1-4 (to change them there)" = "A gyári OTS-eket a saját 1–4. gombra másolja (ott módosíthatók)"
+"Copies the factory OTS to the own buttons 5-8 (to change them there)" = "A gyári OTS-eket a saját 5–8. gombra másolja (ott módosíthatók)"
+"The factory OTS 1-4 go to the own buttons FIRST-LAST." = "A gyári OTS 1–4 a saját FIRST–LAST. gombra kerül."
+"The content of these own buttons is replaced: LIST." = "Ezeknek a saját gomboknak a tartalma felülíródik: LIST."
+"Continue?" = "Folytatja?"
+"Click: recall the factory OTS (Ctrl+FNUMBER)" = "Kattintás: a gyári OTS behívása (Ctrl+FNUMBER)"
+"unchanged" = "változatlan"
+"Factory OTS 1 - 4" = "1 – 4. gyári OTS"
+"TOOLS" = "ESZKÖZÖK"
+"Import factory OTS" = "Gyári OTS beolvasása"
+"The factory OTS are read again from the style files. The previous factory OTS are replaced, the own OTS do not change. Continue?" = "A gyári OTS-adatok újra beolvasódnak a stílusfájlokból. A korábbi gyári adatok felülíródnak, a saját OTS-ek nem változnak. Folytatja?"
+"No style files were found. Copy them into the folders PSR-SX600 and PSR-S970 of this folder: FOLDER" = "Nem találhatók stílusfájlok. Másolja őket ennek a mappának a PSR-SX600 és a PSR-S970 almappájába: FOLDER"
+"Read: STYLES styles, SETTINGS factory OTS." = "Beolvasva: STYLES stílus, SETTINGS gyári OTS."
+"Left for a later version: NUMBER OTS (a voice is not on the CSP-170)." = "Egy későbbi verzióra marad: NUMBER OTS (a hangszín nincs meg a CSP-170-en)."
+"The details are in the log file." = "A részletek a naplófájlban vannak."
 
 // --- Felvétel ablak: Lejátszás/dal felvétele, betöltés, elvetés ---
 "Record playback/song" = "Lejátszás/dal felvétele"

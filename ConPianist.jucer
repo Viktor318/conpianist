@@ -120,6 +120,9 @@
               file="Source/Piano/RegistrationMemory.cpp"/>
         <FILE id="Fggl56" name="RegistrationMemory.h" compile="0" resource="0"
               file="Source/Piano/RegistrationMemory.h"/>
+        <FILE id="Fo8RtA" name="FactoryOts.cpp" compile="1" resource="0"
+              file="Source/Piano/FactoryOts.cpp"/>
+        <FILE id="Fo4LmQ" name="FactoryOts.h" compile="0" resource="0" file="Source/Piano/FactoryOts.h"/>
         <FILE id="Ot7KpQ" name="OneTouchSettings.cpp" compile="1" resource="0"
               file="Source/Piano/OneTouchSettings.cpp"/>
         <FILE id="Ot3VnZ" name="OneTouchSettings.h" compile="0" resource="0"

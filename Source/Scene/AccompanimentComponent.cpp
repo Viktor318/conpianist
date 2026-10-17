@@ -26,28 +26,48 @@
 
 // The size of the OTS icon after the names of the styles that have own settings.
 static const float StyleIconSize = 12.0f;
-// The colour of the icon of the own settings: the lemon yellow of the active own setting
-// in the OTS window (the icon of the factory settings will be orange, as their button).
+// The colours of the icons: the lemon yellow of the active own setting and the orange of
+// the active factory setting in the OTS window.
 static const Colour OwnIconColour(0xfffaee46);
+static const Colour FactoryIconColour(0xffee6c0a);
+static const float StyleIconGap = 4.0f;
+// which icons a style has (bits)
+enum StyleIcons { iconOwn = 1, iconFactory = 2 };
 
-static void drawStyleIcon(Graphics& g, float x, float centreY, Colour colour)
+static float styleIconsWidth(int icons)
 {
-	g.setColour(colour);
-	GuiHelper::DrawOtsIcon(g, Rectangle<float>(x, centreY - StyleIconSize / 2, StyleIconSize, StyleIconSize), 1.0f);
+	const int count = ((icons & iconOwn) ? 1 : 0) + ((icons & iconFactory) ? 1 : 0);
+	return count == 0 ? 0.0f : count * StyleIconSize + (count - 1) * StyleIconGap;
 }
 
-// The look and feel of the style list: the OTS icon after the name of the styles that
-// have own settings.
+// The icons from x: first the own one, then the factory one.
+static void drawStyleIcons(Graphics& g, float x, float centreY, int icons, float alpha)
+{
+	for (const int icon : { (int)iconOwn, (int)iconFactory })
+	{
+		if ((icons & icon) == 0)
+		{
+			continue;
+		}
+		g.setColour((icon == iconOwn ? OwnIconColour : FactoryIconColour).withMultipliedAlpha(alpha));
+		GuiHelper::DrawOtsIcon(g, Rectangle<float>(x, centreY - StyleIconSize / 2, StyleIconSize, StyleIconSize), 1.0f);
+		x += StyleIconSize + StyleIconGap;
+	}
+}
+
+// The look and feel of the style list: the OTS icons after the name of the styles that
+// have own or factory settings.
 class AccompanimentComponent::StyleListLookAndFeel : public ::LookAndFeel
 {
 public:
-	std::function<bool(int itemId)> hasIcon;
+	std::function<int(int itemId)> iconsOf; // StyleIcons
 
 	void drawPopupMenuItemWithOptions(Graphics& g, const Rectangle<int>& area, bool isHighlighted,
 		const PopupMenu::Item& item, const PopupMenu::Options& options) override
 	{
 		::LookAndFeel::drawPopupMenuItemWithOptions(g, area, isHighlighted, item, options);
-		if (item.isSeparator || !hasIcon || !hasIcon(item.itemID))
+		const int icons = item.isSeparator || !iconsOf ? 0 : iconsOf(item.itemID);
+		if (icons == 0)
 		{
 			return;
 		}
@@ -62,26 +82,27 @@ public:
 		}
 		r.removeFromLeft(roundToInt(maxFontHeight));
 		const float textWidth = GlyphArrangement::getStringWidth(font, item.text);
-		const float x = jmin((float)r.getX() + textWidth + 6.0f, (float)r.getRight() - StyleIconSize);
-		drawStyleIcon(g, x, (float)area.getCentreY(), OwnIconColour.withMultipliedAlpha(item.isEnabled ? 1.0f : 0.5f));
+		const float x = jmin((float)r.getX() + textWidth + 6.0f, (float)r.getRight() - styleIconsWidth(icons));
+		drawStyleIcons(g, x, (float)area.getCentreY(), icons, item.isEnabled ? 1.0f : 0.5f);
 	}
 
-	// room for the icon
+	// room for the icons
 	void getIdealPopupMenuItemSize(const String& text, bool isSeparator, int standardMenuItemHeight,
 		int& idealWidth, int& idealHeight) override
 	{
 		::LookAndFeel::getIdealPopupMenuItemSize(text, isSeparator, standardMenuItemHeight, idealWidth, idealHeight);
 		if (!isSeparator)
 		{
-			idealWidth += (int)StyleIconSize + 8;
+			idealWidth += (int)styleIconsWidth(iconOwn | iconFactory) + 8;
 		}
 	}
 };
 
-// The chosen style in the box: the icon after its name (as the label of the box shows it).
+// The chosen style in the box: the icons after its name (as the label of the box shows it).
 void AccompanimentComponent::StyleComboBox::paintOverChildren(Graphics& g)
 {
-	if (!showIcon || !showIcon())
+	const int icons = iconsOf ? iconsOf() : 0;
+	if (icons == 0)
 	{
 		return;
 	}
@@ -89,8 +110,8 @@ void AccompanimentComponent::StyleComboBox::paintOverChildren(Graphics& g)
 	const float textWidth = GlyphArrangement::getStringWidth(font, getText());
 	// the label of the box starts at 1, its text 5 pixels further; the arrow is in the
 	// last 30 pixels
-	const float x = jmin(6.0f + textWidth + 6.0f, (float)getWidth() - 30.0f - StyleIconSize);
-	drawStyleIcon(g, x, getHeight() / 2.0f, OwnIconColour.withMultipliedAlpha(isEnabled() ? 1.0f : 0.5f));
+	const float x = jmin(6.0f + textWidth + 6.0f, (float)getWidth() - 30.0f - styleIconsWidth(icons));
+	drawStyleIcons(g, x, getHeight() / 2.0f, icons, isEnabled() ? 1.0f : 0.5f);
 }
 
 AccompanimentComponent::AccompanimentComponent(Settings& settings, PianoController& pianoController) :
@@ -130,14 +151,14 @@ AccompanimentComponent::AccompanimentComponent(Settings& settings, PianoControll
 	styleCombo.setWantsKeyboardFocus(false);
 	styleCombo.onChange = [this]() { update(); };
 	styleListLookAndFeel = std::make_unique<StyleListLookAndFeel>();
-	styleListLookAndFeel->hasIcon = [this](int itemId)
+	styleListLookAndFeel->iconsOf = [this](int itemId)
 		{
-			return itemId >= 1 && itemId <= (int)styles.size() && ots.HasSettings(styles[itemId - 1].path);
+			return itemId >= 1 && itemId <= (int)styles.size() ? styleIcons(styles[itemId - 1].path) : 0;
 		};
 	styleCombo.setLookAndFeel(styleListLookAndFeel.get());
-	styleCombo.showIcon = [this]()
+	styleCombo.iconsOf = [this]()
 		{
-			return styleListLookAndFeel->hasIcon(styleCombo.getSelectedId());
+			return styleListLookAndFeel->iconsOf(styleCombo.getSelectedId());
 		};
 	addAndMakeVisible(styleCombo);
 
@@ -356,6 +377,7 @@ AccompanimentComponent::AccompanimentComponent(Settings& settings, PianoControll
 	setWantsKeyboardFocus(true);
 	setSize(440, 710);
 
+	ots.SetLink(settings.otsLink);
 	ots.addChangeListener(this);
 	pianoController.AddListener(this);
 	update();
@@ -451,10 +473,17 @@ void AccompanimentComponent::paint(Graphics& g)
 	g.drawRoundedRectangle(chordFrame.toFloat().reduced(0.75f), 5.0f, 1.5f);
 }
 
-// The OTS icon after the name of the style of the piano, if it has own settings.
+// The icons of a style (StyleIcons): it has own or factory settings.
+int AccompanimentComponent::styleIcons(const String& stylePath) const
+{
+	return (ots.HasSettings(stylePath) ? iconOwn : 0) | (ots.HasFactorySettings(stylePath) ? iconFactory : 0);
+}
+
+// The OTS icons after the name of the style of the piano, if it has own or factory settings.
 void AccompanimentComponent::paintOverChildren(Graphics& g)
 {
-	if (!pianoController.IsConnected() || !ots.HasSettings(pianoController.GetStyleName()))
+	const int icons = pianoController.IsConnected() ? styleIcons(pianoController.GetStyleName()) : 0;
+	if (icons == 0)
 	{
 		return;
 	}
@@ -462,8 +491,8 @@ void AccompanimentComponent::paintOverChildren(Graphics& g)
 	const float textWidth = jmin(GlyphArrangement::getStringWidth(currentNameLabel.getFont(), currentNameLabel.getText()),
 		(float)currentNameLabel.getBorderSize().subtractedFrom(currentNameLabel.getLocalBounds()).getWidth());
 	const float x = jmin(bounds.getX() + currentNameLabel.getBorderSize().getLeft() + textWidth + 8.0f,
-		(float)bounds.getRight() - StyleIconSize - 4.0f);
-	drawStyleIcon(g, x, (float)bounds.getCentreY(), OwnIconColour.withMultipliedAlpha(currentNameLabel.isEnabled() ? 1.0f : 0.5f));
+		(float)bounds.getRight() - styleIconsWidth(icons) - 4.0f);
+	drawStyleIcons(g, x, (float)bounds.getCentreY(), icons, currentNameLabel.isEnabled() ? 1.0f : 0.5f);
 }
 
 void AccompanimentComponent::resized()
@@ -765,6 +794,7 @@ void AccompanimentComponent::showShortcuts()
 		<< "Enter" << dash << TRANS("Apply: loads the chosen style") << "\n"
 		<< "F1 " << dash.trim() << " F8" << dash << TRANS("Registration memory 1 - 8") << "\n"
 		<< "Shift+F1 " << dash.trim() << " F8" << dash << TRANS("Own OTS 1 - 8") << "\n"
+		<< "Ctrl+F1 " << dash.trim() << " F4" << dash << TRANS("Factory OTS 1 - 4") << "\n"
 		<< "O" << dash << TRANS("OTS window on / off") << "\n"
 		<< "H" << dash << TRANS("This list") << "\n\n"
 		<< TRANS("The keys work while the Accompaniment window is the active window.");
@@ -839,6 +869,13 @@ bool AccompanimentComponent::keyPressed(const KeyPress& key)
 		keyCode >= KeyPress::F1Key && keyCode < KeyPress::F1Key + OneTouchSettings::NumSettings)
 	{
 		ots.Recall(keyCode - KeyPress::F1Key);
+		return true;
+	}
+	// Ctrl+F1..F4: the factory OTS of the style
+	if ((mods.isCtrlDown() || mods.isCommandDown()) && !mods.isShiftDown() && !mods.isAltDown() &&
+		keyCode >= KeyPress::F1Key && keyCode < KeyPress::F1Key + OneTouchSettings::NumFactorySettings)
+	{
+		ots.RecallFactory(keyCode - KeyPress::F1Key);
 		return true;
 	}
 	if (mods.isAnyModifierKeyDown())
@@ -1685,6 +1722,9 @@ void AccompanimentComponent::recallRegistration(int index)
 	{
 		return;
 	}
+	// its style and voices are not overwritten by OTS Link (the piano reports the style a
+	// moment later)
+	pianoController.SuspendOtsLink(5000);
 
 	for (int i = 0; i < 3; i++)
 	{

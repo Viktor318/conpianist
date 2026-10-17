@@ -465,6 +465,10 @@ public:
 	std::function<void(const MidiMessage&)> sendToPianoKeyboard;
 	// True once after the song was loaded again because the player was switched: the
 	// settings are then restored from before the switch, not from the registration memory.
+	// OTS Link (OneTouchSettings) does not recall factory settings for a while: e.g. while
+	// a registration memory is loaded, whose voices must stay.
+	void SuspendOtsLink(int milliseconds) { m_otsLinkSuspendedUntil = Time::getMillisecondCounter() + (uint32)milliseconds; }
+	bool IsOtsLinkSuspended() const { return (int32)(m_otsLinkSuspendedUntil - Time::getMillisecondCounter()) > 0; }
 	bool TakeSkipRegistrationMemory() { const bool skip = m_skipRegistrationMemory; m_skipRegistrationMemory = false; return skip; }
 	// Called (on the message thread) when the piano could not be reached over the
 	// network and playback switched to ConPianist's own player.
@@ -829,6 +833,7 @@ private:
 	int m_lastPlayedMeasure = 0;
 	bool m_stopRequested = false; // stopped or paused by the user (not the end of the song)
 	bool m_skipRegistrationMemory = false;
+	uint32 m_otsLinkSuspendedUntil = 0; // see SuspendOtsLink
 	void CreateLocalPlayer();
 	MixSnapshot TakeSnapshot();
 	void ApplySnapshot(const MixSnapshot& snapshot);

@@ -38,7 +38,14 @@ static const int ContentWidth = 420;
 static const int SlotWidth = (ContentWidth - 2 * Margin - 3 * Gap) / 4; // 94
 static const int SlotHeight = 30;
 static const int SeparatorY = 182;
-static const int PartsY = 194;
+// the factory settings
+static const int FactoryLabelY = 190;
+static const int LinkY = 218;
+static const int LinkWidth = 145;      // 3/4 of two buttons
+static const int FactorySlotsY = 252;
+static const int CopyY = 286;
+static const int Separator2Y = 326;
+static const int PartsY = 338;
 static const int PartHeight = 104; // a part with the space after it
 static const int LabelWidth = 70;
 
@@ -83,6 +90,19 @@ void OtsComponent::SlotButton::paintButton(Graphics& g, bool highlighted, bool d
 		const float width = 3.0f;
 		g.setColour((active && modified ? ModifiedColour : Colours::white)
 			.withMultipliedAlpha(isEnabled() ? 1.0f : 0.5f));
+		g.drawRoundedRectangle(getLocalBounds().toFloat().reduced(width / 2), 5.0f, width);
+	}
+	DrawText(g, *this, lit ? Colours::black : Colours::white);
+}
+
+void OtsComponent::FactorySlotButton::paintButton(Graphics& g, bool highlighted, bool down)
+{
+	const bool lit = active && isEnabled();
+	FillButton(g, *this, lit ? (down ? OrangeColour.darker(0.2f) : OrangeColour) : GreyOf(*this, highlighted, down));
+	if (used)
+	{
+		const float width = 3.0f;
+		g.setColour(Colours::white.withMultipliedAlpha(isEnabled() ? 1.0f : 0.5f));
 		g.drawRoundedRectangle(getLocalBounds().toFloat().reduced(width / 2), 5.0f, width);
 	}
 	DrawText(g, *this, lit ? Colours::black : Colours::white);
@@ -136,6 +156,35 @@ OtsComponent::OtsComponent(Settings& settings, PianoController& pianoController,
 	initButton(discardButton, TRANS("Discard"));
 	discardButton.setTooltip(TRANS("Discards the changes: the active OTS is recalled again"));
 	discardButton.onClick = [this]() { setMode(Mode::none); this->ots.DiscardActive(); };
+
+	initLabel(factoryLabel, TRANS("Factory OTS"));
+	factoryLabel.setFont(Font(FontOptions(15.00f, Font::bold)));
+	initButton(linkButton, "OTS Link");
+	linkButton.getProperties().set("toggle", true); // drawn by the look and feel: orange when on
+	linkButton.setTooltip(TRANS("OTS Link: Main A-D recall the factory OTS 1-4, also when the style is changed"));
+	linkButton.onClick = [this]()
+		{
+			this->settings.otsLink = !this->settings.otsLink;
+			this->ots.SetLink(this->settings.otsLink);
+			update();
+			grabKeyboardFocus();
+		};
+	for (int i = 0; i < OneTouchSettings::NumFactorySettings; i++)
+	{
+		initButton(factoryButtons[i], String(i + 1));
+		factoryButtons[i].onClick = [this, i]()
+			{
+				setMode(Mode::none);
+				this->ots.RecallFactory(i);
+				grabKeyboardFocus();
+			};
+	}
+	initButton(copyFirstButton, TRANS("Copy to 1-4"));
+	copyFirstButton.setTooltip(TRANS("Copies the factory OTS to the own buttons 1-4 (to change them there)"));
+	copyFirstButton.onClick = [this]() { setMode(Mode::none); askCopy(0); };
+	initButton(copySecondButton, TRANS("Copy to 5-8"));
+	copySecondButton.setTooltip(TRANS("Copies the factory OTS to the own buttons 5-8 (to change them there)"));
+	copySecondButton.onClick = [this]() { setMode(Mode::none); askCopy(4); };
 
 	for (int i = 0; i < OneTouchSettings::NumParts; i++)
 	{
@@ -221,6 +270,7 @@ void OtsComponent::paint(Graphics& g)
 	g.fillAll(BackgroundColour);
 	g.setColour(Colours::white.withAlpha(0.25f));
 	g.fillRect(12, SeparatorY, getWidth() - 24, 1);
+	g.fillRect(12, Separator2Y, getWidth() - 24, 1);
 }
 
 void OtsComponent::resized()
@@ -242,6 +292,15 @@ void OtsComponent::resized()
 		functions[i]->setBounds(Margin + i * (SlotWidth + Gap), 74 + 2 * (SlotHeight + Gap), SlotWidth, 28);
 	}
 
+	factoryLabel.setBounds(Margin, FactoryLabelY, 200, 24);
+	linkButton.setBounds(Margin, LinkY, LinkWidth, 28);
+	for (int i = 0; i < OneTouchSettings::NumFactorySettings; i++)
+	{
+		factoryButtons[i].setBounds(Margin + i * (SlotWidth + Gap), FactorySlotsY, SlotWidth, SlotHeight);
+	}
+	copyFirstButton.setBounds(Margin, CopyY, 2 * SlotWidth + Gap, 28);
+	copySecondButton.setBounds(Margin + 2 * (SlotWidth + Gap), CopyY, 2 * SlotWidth + Gap, 28);
+
 	const int voiceX = Margin + LabelWidth + Gap;      // 90
 	const int changeWidth = 110;
 	const int changeX = right - changeWidth;           // 294
@@ -261,7 +320,7 @@ void OtsComponent::resized()
 	}
 }
 
-// Shift+F1..F8: recall; Esc: cancels Store or Delete.
+// Shift+F1..F8: recall; Ctrl+F1..F4: recall a factory setting; Esc: cancels Store or Delete.
 bool OtsComponent::keyPressed(const KeyPress& key)
 {
 	if (key == KeyPress::escapeKey && mode != Mode::none)
@@ -275,6 +334,13 @@ bool OtsComponent::keyPressed(const KeyPress& key)
 		keyCode >= KeyPress::F1Key && keyCode < KeyPress::F1Key + OneTouchSettings::NumSettings)
 	{
 		ots.Recall(keyCode - KeyPress::F1Key);
+		return true;
+	}
+	// Ctrl+F1..F4: the factory settings
+	if ((mods.isCtrlDown() || mods.isCommandDown()) && !mods.isShiftDown() && !mods.isAltDown() &&
+		keyCode >= KeyPress::F1Key && keyCode < KeyPress::F1Key + OneTouchSettings::NumFactorySettings)
+	{
+		ots.RecallFactory(keyCode - KeyPress::F1Key);
 		return true;
 	}
 	return false;
@@ -384,6 +450,50 @@ void OtsComponent::askDelete(int index)
 		});
 }
 
+void OtsComponent::askCopy(int first)
+{
+	if (!ots.HasAnyFactory())
+	{
+		return;
+	}
+	StringArray overwritten;
+	for (int i = 0; i < OneTouchSettings::NumFactorySettings; i++)
+	{
+		if (ots.IsFactoryUsed(i) && ots.IsUsed(first + i))
+		{
+			overwritten.add(String(first + i + 1));
+		}
+	}
+	if (overwritten.isEmpty())
+	{
+		ots.CopyFactory(first);
+		return;
+	}
+	const String message = TRANS("The factory OTS 1-4 go to the own buttons FIRST-LAST.")
+			.replace("FIRST", String(first + 1)).replace("LAST", String(first + OneTouchSettings::NumFactorySettings))
+		+ " " + TRANS("The content of these own buttons is replaced: LIST.").replace("LIST", overwritten.joinIntoString(", "))
+		+ " " + TRANS("Continue?");
+	AlertWindow::showAsync(MessageBoxOptions()
+			.withIconType(MessageBoxIconType::QuestionIcon)
+			.withTitle("ConPianist")
+			.withMessage(message)
+			.withButton(TRANS("Yes"))
+			.withButton(TRANS("Cancel"))
+			.withAssociatedComponent(this),
+		[this, first, self = Component::SafePointer<Component>(this)](int button)
+		{
+			if (self == nullptr)
+			{
+				return;
+			}
+			if (button == 1)
+			{
+				ots.CopyFactory(first);
+			}
+			self->grabKeyboardFocus();
+		});
+}
+
 // The voices of the panel in a menu, as in the Mixer ("Change Voice").
 void OtsComponent::showVoiceMenu(int partIndex)
 {
@@ -447,6 +557,26 @@ void OtsComponent::update()
 		mode = Mode::none;
 		stopTimer();
 	}
+	for (int i = 0; i < OneTouchSettings::NumFactorySettings; i++)
+	{
+		FactorySlotButton& button = factoryButtons[i];
+		button.used = ots.IsFactoryUsed(i);
+		button.active = ots.GetFactoryActive() == i;
+		button.setEnabled(hasStyle);
+		String tooltip = ots.DescribeFactory(i);
+		tooltip << (tooltip.isEmpty() ? "" : "\n\n")
+			<< TRANS("Click: recall the factory OTS (Ctrl+FNUMBER)").replace("NUMBER", String(i + 1));
+		button.setTooltip(tooltip);
+		button.repaint();
+	}
+	if (linkButton.getToggleState() != ots.GetLink())
+	{
+		linkButton.setToggleState(ots.GetLink(), dontSendNotification);
+	}
+	const bool anyFactory = hasStyle && ots.HasAnyFactory();
+	copyFirstButton.setEnabled(anyFactory);
+	copySecondButton.setEnabled(anyFactory);
+
 	storeButton.setEnabled(hasStyle);
 	deleteButton.setEnabled(hasStyle && anyUsed);
 	saveButton.setEnabled(hasStyle && ots.IsModified());

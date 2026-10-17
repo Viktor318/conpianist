@@ -22,6 +22,7 @@
 #include "BalanceComponent.h"
 #include "RegistrationMemory.h"
 #include "GuiHelper.h"
+#include "FactoryOts.h"
 //[/Headers]
 
 #include "SceneComponent.h"
@@ -290,6 +291,8 @@ SceneComponent::SceneComponent (Settings& settings)
 	pianoRoomButton->setBounds(getWidth() - 150 - 32, 8, 32, 28);
 	// the folders of the own OTS files of the styles (see OneTouchSettings)
 	OneTouchSettings::CreateFolders(settings.GetLastStateFile().getSiblingFile("OTS"));
+	// the Accompaniment window (not shown) holds the OTS: OTS Link works from the start
+	GuiHelper::CallAsync(this, [this]() { accompaniment(); });
 	pianoConnector.startThread();
     pianoController.SetPianoConnector(&pianoConnector);
     pianoController.AddListener(this);
@@ -644,10 +647,9 @@ void SceneComponent::showMenu()
 	menu.addSectionHeader(TRANS("REGISTRATION MEMORY"));
 	menu.addItem(101, TRANS("Load Piano State"));
 	menu.addItem(102, TRANS("Save Piano State"));
-	menu.addSectionHeader(TRANS("LIVE PLAY"));
-	menu.addItem(301, TRANS("Recording..."));
-	menu.addItem(302, TRANS("Accompaniment..."));
-	menu.addItem(303, TRANS("OTS..."));
+	// (the Recording, Accompaniment and OTS windows are opened by the icons of the top bar)
+	menu.addSectionHeader(TRANS("TOOLS"));
+	menu.addItem(401, TRANS("Import factory OTS"));
 	menu.addSectionHeader(TRANS("LANGUAGE"));
 	// language names are intentionally not translated: each is shown in its own language
 	menu.addItem(201, "English", true, settings.GetEffectiveLanguage() == "en");
@@ -685,14 +687,8 @@ void SceneComponent::showMenu()
 				case 202:
 					changeLanguage(result == 202 ? "hu" : "en");
 					break;
-				case 301:
-					showRecorder();
-					break;
-				case 302:
-					showAccompaniment();
-					break;
-				case 303:
-					showOts();
+				case 401:
+					importFactoryOts();
 					break;
 				case 997:
 					showAbout();
@@ -1641,7 +1637,7 @@ void SceneComponent::showRecorder()
 
 // The Accompaniment window is not modal either; its keyboard shortcuts work while it is
 // the active window.
-void SceneComponent::showAccompaniment()
+AccompanimentComponent* SceneComponent::accompaniment()
 {
 	if (!accompanimentWindow)
 	{
@@ -1651,6 +1647,12 @@ void SceneComponent::showAccompaniment()
 			accompanimentWindow->centreAroundComponent(this, accompanimentWindow->getWidth(), accompanimentWindow->getHeight());
 		}
 	}
+	return dynamic_cast<AccompanimentComponent*>(accompanimentWindow->getContentComponent());
+}
+
+void SceneComponent::showAccompaniment()
+{
+	accompaniment();
 	accompanimentWindow->setVisible(true);
 	accompanimentWindow->setMinimised(false); // opened from the menu while it is minimised
 	accompanimentWindow->toFront(true);
@@ -1664,18 +1666,77 @@ void SceneComponent::showAccompaniment()
 // style): that one is created first if needed, but it is not shown.
 void SceneComponent::showOts()
 {
-	if (!accompanimentWindow)
-	{
-		accompanimentWindow = std::make_unique<AccompanimentWindow>(settings, pianoController);
-		if (!accompanimentWindow->RestorePosition())
-		{
-			accompanimentWindow->centreAroundComponent(this, accompanimentWindow->getWidth(), accompanimentWindow->getHeight());
-		}
-	}
-	if (auto* content = dynamic_cast<AccompanimentComponent*>(accompanimentWindow->getContentComponent()))
+	if (AccompanimentComponent* content = accompaniment())
 	{
 		content->ShowOts();
 	}
+}
+
+void SceneComponent::importFactoryOts()
+{
+	AlertWindow::showAsync(MessageBoxOptions()
+			.withIconType(MessageBoxIconType::QuestionIcon)
+			.withTitle(TRANS("Import factory OTS"))
+			.withMessage(TRANS("The factory OTS are read again from the style files. The previous factory OTS are replaced, the own OTS do not change. Continue?"))
+			.withButton(TRANS("Yes"))
+			.withButton(TRANS("Cancel"))
+			.withAssociatedComponent(this),
+		[this, self = Component::SafePointer<Component>(this)](int button)
+		{
+			if (self != nullptr && button == 1)
+			{
+				runFactoryOtsImport();
+			}
+		});
+}
+
+void SceneComponent::runFactoryOtsImport()
+{
+	AccompanimentComponent* content = accompaniment();
+	if (content == nullptr)
+	{
+		return;
+	}
+	OneTouchSettings& ots = content->GetOts();
+	const File stylesFolder = settings.GetLastStateFile().getSiblingFile("Styles");
+
+	MouseCursor::showWaitCursor();
+	const FactoryOts::Result result = FactoryOts::Import(stylesFolder, ots.GetFactoryFolder());
+	MouseCursor::hideWaitCursor();
+
+	String message;
+	if (!result.sourcesFound)
+	{
+		Logger::writeToLog("Factory OTS: no style files in " + stylesFolder.getFullPathName());
+		message = TRANS("No style files were found. Copy them into the folders PSR-SX600 and PSR-S970 of this folder: FOLDER")
+			.replace("FOLDER", stylesFolder.getFullPathName());
+	}
+	else
+	{
+		Logger::writeToLog("Factory OTS: " + String(result.styles) + " styles, " + String(result.settings) +
+			" settings read, " + String(result.skipped) + " left out, " + String(result.missing) +
+			" styles without a style file of the same name");
+		for (const String& line : result.details)
+		{
+			Logger::writeToLog("Factory OTS: " + line);
+		}
+		ots.ReloadFactory();
+		message = TRANS("Read: STYLES styles, SETTINGS factory OTS.").replace("STYLES", String(result.styles))
+				.replace("SETTINGS", String(result.settings));
+		if (result.skipped > 0)
+		{
+			message << "\n" << TRANS("Left for a later version: NUMBER OTS (a voice is not on the CSP-170).")
+				.replace("NUMBER", String(result.skipped));
+		}
+		message << "\n" << TRANS("The details are in the log file.");
+	}
+	AlertWindow::showAsync(MessageBoxOptions()
+			.withIconType(MessageBoxIconType::InfoIcon)
+			.withTitle(TRANS("Import factory OTS"))
+			.withMessage(message)
+			.withButton("OK")
+			.withAssociatedComponent(this),
+		nullptr);
 }
 
 // The Song Selector stays open after a song is loaded; it can be minimised to see the score.

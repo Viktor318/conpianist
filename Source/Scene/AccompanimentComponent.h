@@ -65,6 +65,9 @@ public:
 	// Opens the OTS window (the own One Touch Settings of the style of the piano), or
 	// brings it back if it is minimised.
 	void ShowOts();
+	// The own and factory OTS of the styles (the factory ones are read in again by the
+	// main menu, Tools).
+	OneTouchSettings& GetOts() { return ots; }
 
 private:
 	Settings& settings;
@@ -81,14 +84,15 @@ private:
 	void updateOtsButton();
 	void changeListenerCallback(ChangeBroadcaster*) override;
 
-	// The style list with the OTS icon after the styles that have own settings: in the
-	// list (drawn by its look and feel) and in the box itself.
+	// The style list with the OTS icons after the styles that have own (lemon yellow) or
+	// factory (orange) settings: in the list (drawn by its look and feel) and in the box.
+	int styleIcons(const String& stylePath) const;
 	class StyleListLookAndFeel;
 	std::unique_ptr<StyleListLookAndFeel> styleListLookAndFeel;
 	class StyleComboBox : public ComboBox
 	{
 	public:
-		std::function<bool()> showIcon;
+		std::function<int()> iconsOf; // the icons of the chosen style (StyleIcons)
 		void paintOverChildren(Graphics& g) override;
 	};
 

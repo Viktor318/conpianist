@@ -25,7 +25,8 @@
 #include "Settings.h"
 
 // The content of the OTS window: the eight own One Touch Settings of the style of the
-// piano, the buttons that store, delete, save and discard them, and the voice settings
+// piano, the buttons that store, delete, save and discard them; the four factory settings
+// with OTS Link and the buttons that copy them to the own ones; and the voice settings
 // of the Main, Layer and Left parts (the same ones as on the Voice tab and in the
 // Balance window, which it follows).
 class OtsComponent : public Component,
@@ -62,10 +63,26 @@ public:
 		void paintButton(Graphics& g, bool highlighted, bool down) override;
 	};
 
+	// A place of a factory setting: orange when active, a white frame when it holds a
+	// setting (it is never modified).
+	class FactorySlotButton : public TextButton
+	{
+	public:
+		bool active = false;
+		bool used = false;
+		void paintButton(Graphics& g, bool highlighted, bool down) override;
+	};
+
 private:
 	Settings& settings;
 	PianoController& pianoController;
 	OneTouchSettings& ots;
+
+	Label factoryLabel;
+	TextButton linkButton; // OTS Link, orange when on
+	FactorySlotButton factoryButtons[OneTouchSettings::NumFactorySettings];
+	FilledButton copyFirstButton;  // to the own 1-4
+	FilledButton copySecondButton; // to the own 5-8
 
 	Label styleLabel;
 	Label styleNameLabel;
@@ -100,6 +117,9 @@ private:
 
 	void slotClicked(int index);
 	void askDelete(int index);
+	// copies the factory settings to the own places first..first + 3, after asking if
+	// any of them holds a setting
+	void askCopy(int first);
 	void showVoiceMenu(int part);
 	void update();
 	void updateParts();

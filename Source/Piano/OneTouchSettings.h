@@ -36,22 +36,32 @@
 // Only one setting is active at a time: the one recalled or stored last, while the
 // style is on the piano. It is "modified" while the voices of the piano differ from it.
 //
+// The factory settings: the four OTS of the style files of Yamaha arranger keyboards, read
+// by FactoryOts into OTS/Yamaha/<category>/<subcategory>/<style name>.ots (the same
+// format). They cannot be changed here; one of them or an own setting is active. With
+// OTS Link on, the factory setting of the Main section (A-D: 1-4) is recalled when the
+// style or its Main section changes (not while PianoController suspends it, e.g. while a
+// registration memory is loaded).
+//
 // Used on the message thread only. The listeners are told of every change of the
 // shown state (synchronously).
 class OneTouchSettings : public ChangeBroadcaster, private Timer
 {
 public:
 	static const int NumSettings = 8;
+	static const int NumFactorySettings = 4;
 	static const int NumParts = 3; // Main, Layer, Left
 	static const PianoController::Channel PartChannels[NumParts];
 	static const char* const PartNames[NumParts];
 
 	struct Part
 	{
-		String voice;   // preset path of the voice
+		String voice;   // preset path of the voice; empty: the voice is not changed
 		bool active = true;
+		bool activeSet = true;  // false: the on / off state is not changed
 		int volume = PianoController::DefaultVolume;
 		int octave = PianoController::DefaultOctave;
+		bool valuesSet = true;  // false: the volume and the octave are not changed
 		bool operator==(const Part& other) const;
 	};
 
@@ -82,6 +92,32 @@ public:
 	bool IsModified() const { return m_active >= 0 && m_modified; }
 	// whether a style (its preset path) has own settings, for the icon in the style lists
 	bool HasSettings(const String& stylePath) const;
+	// the same for the factory settings
+	bool HasFactorySettings(const String& stylePath) const;
+
+	// The factory settings of the style of the piano.
+	bool IsFactoryUsed(int index) const;
+	const Setting& GetFactory(int index) const { return m_factory[index]; }
+	int GetFactoryActive() const { return m_factoryActive; }
+	bool HasAnyFactory() const;
+	// The factory setting to the piano (it becomes the active one).
+	void RecallFactory(int index);
+	// The four factory settings into the own places first..first + 3 (an empty factory
+	// setting leaves its place as it is).
+	void CopyFactory(int first);
+	String DescribeFactory(int index) const;
+	// OTS Link: see above.
+	void SetLink(bool link) { m_link = link; }
+	bool GetLink() const { return m_link; }
+	// The factory settings were read again (FactoryOts): they are loaded anew.
+	void ReloadFactory();
+	const File& GetFactoryFolder() const { return m_factoryFolder; }
+
+	// The file of the settings of a style in a folder of settings, and its reading and
+	// writing (also used by FactoryOts). Write deletes the file if no place is used.
+	static File FileIn(const File& folder, const String& stylePath);
+	static bool ReadFile(const File& file, const String& stylePath, Setting* settings, int count);
+	static bool WriteFile(const File& file, const String& stylePath, const Setting* settings, int count);
 
 	// The voice settings of the piano into a place (it becomes the active one).
 	void Store(int index);
@@ -98,6 +134,7 @@ public:
 	File FileOf(const String& stylePath) const;
 	// A short description of a place for its tooltip: the voices of its parts.
 	String Describe(int index) const;
+	static String DescribeSetting(const Setting& setting);
 
 private:
 	File m_folder;
@@ -112,6 +149,15 @@ private:
 	uint32 m_recallTime = 0;
 	bool m_recallPending = false;
 	std::set<String> m_stylesWithSettings; // preset paths
+	File m_factoryFolder;
+	Setting m_factory[NumFactorySettings];
+	int m_factoryActive = -1;
+	std::set<String> m_stylesWithFactory; // preset paths
+	bool m_link = true;
+	int m_main = -1; // the Main section of the piano (0..3: A..D), -1 if none
+	int CurrentMain() const;
+	void LoadFactory();
+	void ScanFactoryFolder();
 
 	Setting Capture() const;
 	bool Matches(const Setting& setting) const;
