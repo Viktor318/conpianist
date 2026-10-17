@@ -169,6 +169,15 @@ A kíséret előre megírt akkordokkal és átmenetekkel szól, a zongora beép�
 
 **Ötlet (5.1, még nincs eldöntve, hogy megvalósítjuk-e; Viktor, október 17.): gyári OTS a Keverő csatornáira is.** A gyári OTS ne csak a zongora három szólamára (Fő, Réteg, Bal), hanem a Keverő csatornáinak hangszíneire is kerülhessen, így ott a Right 3 is helyet kaphat. Tudnivalók: valódi Right 3 adat csak az SX700/SX900 és a Genos stílusfájljaiban van (az SX600-on és az S970-en nincs Right 3, a fájljaik OTS-ében a 3. hely mindig ki van kapcsolva); a Keverő csatornái nem a zongora billentyűiről szólnak, hanem az Élő játékból (virtuális billentyűzet, MIDI In 2) és a dal lejátszásából. Még átgondolandó: melyik szólam melyik csatornára kerül, a Bal szólam osztáspontja az Élő játékban, és mi legyen, ha közben dal szól (ugyanazok a csatornák). További ötletek jöhetnek hozzá.
 
+**Ugyancsak az 5.1-ben: gyári OTS forrásválasztás** (Viktor ötlete, október 17.; először az 5.4-be került, ugyanaznap az 5.1-be tette, mert ott az OTS-en úgyis dolgozunk; a részletek később): az OTS ablakban stílusonként választható legyen, melyik Yamaha hangszer gyári OTS-ei legyenek a Gyári OTS 1–4 gombokon.
+- **Beolvasás:** a Gyári OTS beolvasása minden stílusnál mind az 5 hangszer azonos nevű stílusfájljából beolvassa a 4 OTS-t, és külön tárolja őket (pl. `OTS\Yamaha\<hangszer>\<kategória>\<csoport>\<stílus>.ots`). Az alapértelmezett forrás a mostani elemzés szerinti (`docs/Gyari_OTS_hangszinelemzes_pontos_Genos_SX900_SX700_SX600_S970.xlsx`), így elsőre minden úgy működik, mint az 5.0-ban.
+- **Választás:** az OTS ablak Gyári OTS része fölött 5 választógomb egy sorban: Genos, SX900, SX700, SX600, S970. Fehér: van adat az aktuális stílushoz; szürke és nem kattintható: nincs; a kiválasztott az aktív színnel. A választás stílusonként megmarad.
+- **Használat:** az OTS Link, a Ctrl+F1–F4 és a Másolás 1–4-re / 5–8-ra mindig a kiválasztott forrás OTS-eit használja.
+- **Eldöntendő:** mi legyen egy forrás olyan OTS-ével, amelynek valamelyik hangszíne nincs meg a CSP-170-en (üres gomb vagy jelzés); a gyári Mentés forrásonként külön ment; a többi forrás OTS-eiben előkerülő új, még el nem döntött hangszínek.
+- Kiváltja a hangszínelemzés Döntés – stílusok lapját: a forrás játék közben, belehallgatva választható.
+- Skicc: `OTS_forras_skicc_1.png` (csak a beszélgetésben): a sor a Gyári OTS felirat és az OTS Link sor közé kerül, 4 px-es közökkel, a többi gomb magasságával; az ablak 32 px-szel magasabb.
+- Munka: Kö (kb. 2 nap).
+
 ### 5.2 – MIDI áthangszerelő
 
 Egyetlen funkció, amely a korábban külön tervezett „betöltött MIDI-fájl szerkesztése” és a két MIDI-segédprogram helyébe lép. Csak a fájl **kezdeti** beállításairól szól: a hangjegyekhez nem nyúl.
@@ -188,16 +197,6 @@ Egyetlen funkció, amely a korábban külön tervezett „betöltött MIDI-fájl
 |---|---|---|---|
 | Kotta transzponálása | A kotta a dallal együtt transzponálódik (csak megjelenítés). | Kö | |
 | Kotta megjelenítési hibái Dorico-exportnál | A 4.8-ból áthozva (október 10.), az 5.0-ból áthelyezve (október 16., nem sürgős, a Lomse mélyebb módosítását kívánja): a le nem zárt pedálvonalak torlódása, a többszörös kapcsos zárójel és az egymásra csúszó tempófeliratok javítása. | Kö | A „folytatódik” típusú jelölések (pedál, oktávjel) kezelése hiányzik a Lomse-ból. A kotta és néhány képernyőkép kell hozzá. |
-
-### 5.4 – Gyári OTS forrásválasztás
-
-**Ötlet (Viktor, október 17.; elfogadva, a részletek később):** az OTS ablakban stílusonként választható legyen, melyik Yamaha hangszer gyári OTS-ei legyenek a Gyári OTS 1–4 gombokon.
-- **Beolvasás:** a Gyári OTS beolvasása minden stílusnál mind az 5 hangszer azonos nevű stílusfájljából beolvassa a 4 OTS-t, és külön tárolja őket (pl. `OTS\Yamaha\<hangszer>\<kategória>\<csoport>\<stílus>.ots`). Az alapértelmezett forrás a mostani elemzés szerinti (`docs/Gyari_OTS_hangszinelemzes_pontos_Genos_SX900_SX700_SX600_S970.xlsx`), így elsőre minden úgy működik, mint az 5.0-ban.
-- **Választás:** az OTS ablak Gyári OTS része fölött 5 választógomb egy sorban: Genos, SX900, SX700, SX600, S970. Fehér: van adat az aktuális stílushoz; szürke és nem kattintható: nincs; a kiválasztott az aktív színnel. A választás stílusonként megmarad.
-- **Használat:** az OTS Link, a Ctrl+F1–F4 és a Másolás 1–4-re / 5–8-ra mindig a kiválasztott forrás OTS-eit használja.
-- **Eldöntendő:** mi legyen egy forrás olyan OTS-ével, amelynek valamelyik hangszíne nincs meg a CSP-170-en (üres gomb vagy jelzés); a gyári Mentés forrásonként külön ment; a többi forrás OTS-eiben előkerülő új, még el nem döntött hangszínek.
-- Kiváltja a hangszínelemzés Döntés – stílusok lapját: a forrás játék közben, belehallgatva választható.
-- Munka: Kö (kb. 2 nap).
 
 ## Később (elfogadott, nincs ütemezve)
 
