@@ -415,7 +415,7 @@ countries: hu
 "TOOLS" = "ESZKÖZÖK"
 "Import factory OTS" = "Gyári OTS beolvasása"
 "The factory OTS are read again from the style files. The previous factory OTS are replaced, the own OTS do not change. Continue?" = "A gyári OTS-adatok újra beolvasódnak a stílusfájlokból. A korábbi gyári adatok felülíródnak, a saját OTS-ek nem változnak. Folytatja?"
-"No style files were found. Copy them into the folders PSR-SX600 and PSR-S970 of this folder: FOLDER" = "Nem találhatók stílusfájlok. Másolja őket ennek a mappának a PSR-SX600 és a PSR-S970 almappájába: FOLDER"
+"No style files were found. Copy them into the folders Genos, PSR-SX900, PSR-SX700, PSR-SX600 and PSR-S970 of this folder: FOLDER" = "Nem találhatók stílusfájlok. Másolja őket ennek a mappának a Genos, PSR-SX900, PSR-SX700, PSR-SX600 és PSR-S970 almappájába: FOLDER"
 "Read: STYLES styles, SETTINGS factory OTS." = "Beolvasva: STYLES stílus, SETTINGS gyári OTS."
 "Left for a later version: NUMBER OTS (a voice is not on the CSP-170)." = "Egy későbbi verzióra marad: NUMBER OTS (a hangszín nincs meg a CSP-170-en)."
 "The details are in the log file." = "A részletek a naplófájlban vannak."

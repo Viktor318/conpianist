@@ -24,23 +24,28 @@
 
 // Reads the factory One Touch Settings (OTS) of the styles of the CSP-170 from the style
 // files of Yamaha arranger keyboards, copied by the user into the data folder of the
-// program: Styles/PSR-SX600 and Styles/PSR-S970 (with their subfolders). A style of the
-// piano gets the four OTS of the style file of the same name (letters and digits only,
-// "&" as "and"; first PSR-SX600, then PSR-S970; the Pianist styles have none).
+// program: Styles/Genos, Styles/PSR-SX900, Styles/PSR-SX700, Styles/PSR-SX600 and
+// Styles/PSR-S970 (with their subfolders). A style of the piano gets the four OTS of the
+// style file chosen for it in StyleSources (see FactoryOts.cpp); if that file is not there,
+// of the first style file of the same name (letters and digits only, "&" as "and", without
+// the "_G" at the end of the names of the Genos; in the order of Sources). The Pianist
+// styles have none.
 //
 // A style file is a MIDI file with Yamaha chunks after it; the OTSc chunk holds the four
 // OTS as tracks of MIDI messages: channel 1 Right 1, 2 Right 2, 3 Right 3, 4 Left (bank
 // select and program change for the voice, Yamaha messages F0 43 73 01 50 08 cc pp vv F7
 // for part pp of channel cc: 00 on / off, 03 octave (40H: 0), 04 volume; Control Change
-// 10 pan, 91 reverb, 93 chorus). Right 1 is the
-// Main part, Right 2 the Layer, Left the Left part; Right 3 is not used (the PSR-SX600 and
-// the PSR-S970 have no Right 3). The on / off state of the Left part is not taken.
+// 10 pan, 91 reverb, 93 chorus). Right 1 is the Main part, Right 2 the Layer, Left the
+// Left part. Right 3 is not used: in the factory OTS it is only on together with Right 2
+// (it would go to the Layer only if Right 2 were off). The on / off state of the Left part
+// is not taken.
 //
-// A voice is a panel voice of the CSP-170 with the same number, or one of VoiceTable (the
-// same name, a similar name, or chosen by Viktor; see docs/Gyari_OTS_hangszinek.xlsx). An
-// OTS is taken if its Main voice is known, and its Layer voice too or the Layer is off;
-// an unknown Left voice (or Layer voice of a Layer that is off) is not changed by the OTS.
-// The others are left for a later version.
+// A voice is a panel voice of the CSP-170 with the same number, or one of the voice tables
+// (the same name, a similar name, or chosen by Viktor; a few voices of the Genos differ
+// from the voice of the same number of the PSR models). See
+// docs/Gyari_OTS_hangszinelemzes_pontos_Genos_SX900_SX700_SX600_S970.xlsx. An OTS is
+// taken if its Main voice is known, and its Layer voice too or the Layer is off; an unknown
+// Left voice (or Layer voice of a Layer that is off) is not changed by the OTS.
 class FactoryOts
 {
 public:
@@ -50,7 +55,7 @@ public:
 		int styles = 0;            // styles with factory settings
 		int settings = 0;          // factory settings taken
 		int skipped = 0;           // factory settings left out (a voice not on the CSP-170)
-		int missing = 0;           // styles without a style file of the same name
+		int missing = 0;           // styles without a style file
 		StringArray details;       // for the log: what is left out, and why
 	};
 
@@ -65,11 +70,13 @@ public:
 
 	// The four OTS of a style file; false if it has none. Every left out setting is counted
 	// in skipped and explained in log.
-	static bool ReadStyleFile(const File& file, OneTouchSettings::Setting* settings, int& skipped, StringArray& log);
+	// genos: the file is of the Genos (its voices, see CspVoice).
+	static bool ReadStyleFile(const File& file, OneTouchSettings::Setting* settings, int& skipped, StringArray& log,
+		bool genos = false);
 
 	// The panel voice of the CSP-170 (preset path) for a voice of a style file
-	// (0x00MMLLPP, as Voice::num); empty if there is none.
-	static String CspVoice(int yamahaVoice);
+	// (0x00MMLLPP, as Voice::num); empty if there is none. genos: a voice of the Genos.
+	static String CspVoice(int yamahaVoice, bool genos = false);
 
 	// The letters and digits of a name, lower case ("&" as "and"), to find the style file
 	// of a style.
