@@ -643,6 +643,8 @@ static const StyleSource StyleSources[] = {
 	{"Italian Polka", "PSR-SX600", "World/ItalianPolka.T589.prs"},
 	{"6-8 March", "PSR-SX700", "Movie&Show/6-8March.T560.prs"},
 	{"Zither Polka", "PSR-SX900", "World/ZitherPolka.T589.prs"},
+	{"Irish Hymn 1", "PSR-S970", "World/IrishHymn1.S942.prs"},
+	{"Irish Hymn 2", "PSR-S970", "World/IrishHymn2.S942.prs"},
 };
 
 static const char* const StyleExtensions[] = {"prs", "sst", "sty", "fps", "scp"};
@@ -969,10 +971,10 @@ FactoryOts::Result FactoryOts::Import(const File& stylesFolder, const File& fact
 			{
 				continue;
 			}
-			// <name>.T<number>.<extension>
+			// <name>.T<number>.<extension> (some files of the PSR-S970: <name>.S<number>.<extension>)
 			const String name = file.getFileNameWithoutExtension();
 			const String number = name.fromLastOccurrenceOf(".", false, false);
-			if (!name.containsChar('.') || !number.startsWithChar('T') ||
+			if (!name.containsChar('.') || !(number.startsWithChar('T') || number.startsWithChar('S')) ||
 				!number.substring(1).containsOnly("0123456789") || number.length() < 2)
 			{
 				continue;
