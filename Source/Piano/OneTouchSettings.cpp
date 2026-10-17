@@ -309,23 +309,27 @@ void OneTouchSettings::Update()
 	}
 }
 
-// The active factory setting: when the piano differs from it (after a recall has settled),
-// the values of the piano become its changed version; when they are the original ones
-// again, it is not modified any more.
+// The active factory setting. When the recall has settled, the values the piano has not
+// taken are logged (they make it modified too: e.g. the piano did not get the setting).
+// After that, when the piano differs from the original factory setting (in memory, as
+// read from its file with the style), the values of the piano become its changed version;
+// when they are the original ones again, it is not modified any more.
 void OneTouchSettings::UpdateFactoryModified()
 {
 	const int index = m_factoryActive;
-	const bool matches = Matches(GetFactory(index));
-	if (m_recallPending && (matches || Time::getMillisecondCounter() - m_recallTime >= (uint32)RecallSettleMs))
+	const Setting& target = GetFactory(index);
+	if (m_recallPending)
 	{
+		if (!Matches(target) && Time::getMillisecondCounter() - m_recallTime < (uint32)RecallSettleMs)
+		{
+			return;
+		}
 		m_recallPending = false;
+		LogNotTaken(index, target);
 	}
-	if (m_recallPending || matches)
-	{
-		return;
-	}
-	Setting changed = Follow(GetFactory(index));
-	if (Same(changed, m_factory[index]))
+	Setting changed = Follow(target);
+	const Setting& original = m_factory[index];
+	if (Same(changed, original))
 	{
 		changed = Setting();
 	}
@@ -333,6 +337,28 @@ void OneTouchSettings::UpdateFactoryModified()
 	{
 		m_factoryChanged[index] = changed;
 		Changed();
+	}
+}
+
+void OneTouchSettings::LogNotTaken(int index, const Setting& target)
+{
+	const Setting current = Follow(target);
+	for (int i = 0; i < NumParts; i++)
+	{
+		const Part& sent = target.parts[i];
+		const Part& now = current.parts[i];
+		const auto check = [&](bool differs, const char* what, const String& value, const String& pianoValue)
+			{
+				if (differs)
+				{
+					Logger::writeToLog("Factory OTS " + String(index + 1) + ": " + PartNames[i] + " " + what + " " +
+						value + ", the piano has " + pianoValue);
+				}
+			};
+		check(sent.voice != now.voice, "voice", sent.voice, now.voice);
+		check(sent.activeSet && sent.active != now.active, "on", String((int)sent.active), String((int)now.active));
+		check(sent.valuesSet && sent.volume != now.volume, "volume", String(sent.volume), String(now.volume));
+		check(sent.valuesSet && sent.octave != now.octave, "octave", String(sent.octave), String(now.octave));
 	}
 }
 

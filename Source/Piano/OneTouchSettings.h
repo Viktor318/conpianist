@@ -164,6 +164,8 @@ private:
 	File m_factoryFolder;
 	Setting m_factory[NumFactorySettings];
 	Setting m_factoryChanged[NumFactorySettings]; // the changed versions (used: modified)
+	// logs the values of the parts the piano has not taken at a recall
+	void LogNotTaken(int index, const Setting& target);
 	int m_factoryActive = -1;
 	std::set<String> m_stylesWithFactory; // preset paths
 	bool m_link = true;
