@@ -23,13 +23,13 @@
 #include "OneTouchSettings.h"
 
 // Reads the factory One Touch Settings (OTS) of the styles of the CSP-170 from the style
-// files of Yamaha arranger keyboards, copied by the user into the data folder of the
-// program: Styles/Genos, Styles/PSR-SX900, Styles/PSR-SX700, Styles/PSR-SX600 and
-// Styles/PSR-S970 (with their subfolders). A style of the piano gets the four OTS of the
-// style file chosen for it in StyleSources (see FactoryOts.cpp); if that file is not there,
-// of the first style file of the same name (letters and digits only, "&" as "and", without
-// the "_G" at the end of the names of the Genos; in the order of Sources). The Pianist
-// styles have none.
+// files of Yamaha instruments, copied by the user into the data folder of the program:
+// Styles/CVP-809, Styles/CVP-709 (Clavinova), Styles/Genos, Styles/PSR-SX900,
+// Styles/PSR-SX700, Styles/PSR-SX600, Styles/PSR-S970 and Styles/PSR-S950 (with their
+// subfolders). A style of the piano gets the four OTS of the style file chosen for it in
+// StyleSources (see FactoryOts.cpp); if that file is not there, of the first style file of
+// the same name (letters and digits only, "&" as "and", without the "_G" at the end of the
+// names of the Genos; in the order of Sources).
 //
 // A style file is a MIDI file with Yamaha chunks after it; the OTSc chunk holds the four
 // OTS as tracks of MIDI messages: channel 1 Right 1, 2 Right 2, 3 Right 3, 4 Left (bank
@@ -41,9 +41,9 @@
 // The on / off state of the Left part is not taken.
 //
 // A voice is a panel voice of the CSP-170 with the same number, or one of the voice tables
-// (the same name, a similar name, or chosen by Viktor; a few voices of the Genos differ
-// from the voice of the same number of the PSR models). See
-// docs/Gyari_OTS_hangszinelemzes_pontos_Genos_SX900_SX700_SX600_S970.xlsx. An OTS is
+// (the same name, a similar name, or chosen by Viktor; some voices of the CVP-809, CVP-709,
+// Genos and PSR-S950 differ from the voice of the same number of the PSR models). See
+// docs/Gyari_OTS_hangszinelemzes_pontos_CVP809_CVP709_Genos_SX900_SX700_SX600_S970_S950.xlsx. An OTS is
 // taken if its Main voice is known, and its Layer voice too or the Layer is off; an unknown
 // Left voice (or Layer voice of a Layer that is off) is not changed by the OTS.
 class FactoryOts
@@ -70,13 +70,14 @@ public:
 
 	// The four OTS of a style file; false if it has none. Every left out setting is counted
 	// in skipped and explained in log.
-	// genos: the file is of the Genos (its voices, see CspVoice).
+	// source: the folder of the model of the file (its voices, see CspVoice).
 	static bool ReadStyleFile(const File& file, OneTouchSettings::Setting* settings, int& skipped, StringArray& log,
-		bool genos = false);
+		const String& source = {});
 
 	// The panel voice of the CSP-170 (preset path) for a voice of a style file
-	// (0x00MMLLPP, as Voice::num); empty if there is none. genos: a voice of the Genos.
-	static String CspVoice(int yamahaVoice, bool genos = false);
+	// (0x00MMLLPP, as Voice::num); empty if there is none. source: the folder of the model
+	// of the voice (see Sources).
+	static String CspVoice(int yamahaVoice, const String& source = {});
 
 	// The letters and digits of a name, lower case ("&" as "and"), to find the style file
 	// of a style.

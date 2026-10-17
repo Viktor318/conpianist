@@ -1777,7 +1777,7 @@ void SceneComponent::factoryOtsImported(const FactoryOts::Result& result, const 
 	if (!result.sourcesFound)
 	{
 		Logger::writeToLog("Factory OTS: no style files in " + stylesFolder.getFullPathName());
-		message = TRANS("No style files were found. Copy them into the folders Genos, PSR-SX900, PSR-SX700, PSR-SX600 and PSR-S970 of this folder: FOLDER")
+		message = TRANS("No style files were found. Copy them into the folders CVP-809, CVP-709, Genos, PSR-SX900, PSR-SX700, PSR-SX600, PSR-S970 and PSR-S950 of this folder: FOLDER")
 			.replace("FOLDER", stylesFolder.getFullPathName());
 	}
 	else
