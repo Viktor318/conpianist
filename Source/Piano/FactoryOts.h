@@ -34,11 +34,11 @@
 // A style file is a MIDI file with Yamaha chunks after it; the OTSc chunk holds the four
 // OTS as tracks of MIDI messages: channel 1 Right 1, 2 Right 2, 3 Right 3, 4 Left (bank
 // select and program change for the voice, Yamaha messages F0 43 73 01 50 08 cc pp vv F7
-// for part pp of channel cc: 00 on / off, 03 octave (40H: 0), 04 volume; Control Change
-// 10 pan, 91 reverb, 93 chorus). Right 1 is the Main part, Right 2 the Layer, Left the
-// Left part. Right 3 is not used: in the factory OTS it is only on together with Right 2
-// (it would go to the Layer only if Right 2 were off). The on / off state of the Left part
-// is not taken.
+// for part pp of channel cc: 00 on / off, 03 octave (40H: 0), 04 a volume that is not the
+// one of the Mixer; Control Change 7 volume, 10 pan, 91 reverb, 93 chorus). Right 1 is the
+// Main part, Right 2 the Layer, Left the Left part. Right 3 is not used: in the factory OTS
+// it is only on together with Right 2 (it would go to the Layer only if Right 2 were off).
+// The on / off state of the Left part is not taken.
 //
 // A voice is a panel voice of the CSP-170 with the same number, or one of the voice tables
 // (the same name, a similar name, or chosen by Viktor; a few voices of the Genos differ
@@ -82,7 +82,8 @@ public:
 	// of a style.
 	static String NameKey(const String& name);
 
-	// The volume of a part: the value of the Yamaha message (true) or Control Change 7.
-	// To be checked on a PSR-SX700 (October 17, 2026).
-	static const bool VolumeFromPartMessage = true;
+	// The volume of a part: the value of the Yamaha message (true) or Control Change 7 (false;
+	// the other one if a file has no such value). Checked on a PSR-SX700 (October 17, 2026):
+	// its Mixer shows the value of Control Change 7.
+	static const bool VolumeFromPartMessage = false;
 };

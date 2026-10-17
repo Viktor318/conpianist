@@ -893,7 +893,9 @@ bool FactoryOts::ReadStyleFile(const File& file, OneTouchSettings::Setting* sett
 			part.voice = voice < 0 ? String() : CspVoice(voice, genos);
 			part.active = ch.on > 0 || (i == 0 && ch.on < 0); // not set: Main on, the others off
 			part.activeSet = i != 2;  // the on / off state of the Left part is not taken
-			const int volume = VolumeFromPartMessage && ch.partVolume >= 0 ? ch.partVolume : ch.volume;
+			// the volume of the Mixer: Control Change 7 (else the Yamaha message, see VolumeFromPartMessage)
+			const int first = VolumeFromPartMessage ? ch.partVolume : ch.volume;
+			const int volume = first >= 0 ? first : (VolumeFromPartMessage ? ch.volume : ch.partVolume);
 			part.volume = jlimit(PianoController::MinVolume, PianoController::MaxVolume,
 				volume >= 0 ? volume : PianoController::DefaultVolume);
 			part.octave = jlimit(PianoController::MinOctave, PianoController::MaxOctave,
