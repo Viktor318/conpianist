@@ -302,9 +302,12 @@ void SongSelectorComponent::StartPendingPlayback()
 	}
 	playWhenLoaded = false;
 	// a short delay lets the piano finish loading (and the song state be restored)
-	Timer::callAfterDelay(500, [self = Component::SafePointer<SongSelectorComponent>(this)]()
+	// (another song may be loaded meanwhile, e.g. via network, where the piano reports the
+	// songs one after the other: only the asked one is started)
+	Timer::callAfterDelay(500, [self = Component::SafePointer<SongSelectorComponent>(this), entry = playEntry]()
 		{
-			if (self != nullptr && self->pianoController.IsSongLoaded() && !self->pianoController.GetPlaying())
+			if (self != nullptr && self->pianoController.IsSongLoaded() && !self->pianoController.GetPlaying() &&
+				self->IsCurrentSong(entry))
 			{
 				self->pianoController.Play();
 			}
