@@ -2013,6 +2013,17 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 			m_scoreEndMeasure = 0; // the score of the new song sets it again
 			m_scoreEndBeat = 0;
 			NotifyChanged(apSongLoaded);
+			if (!m_localPlayback)
+			{
+				std::weak_ptr<bool> alive = m_alive;
+				MessageManager::callAsync([this, alive]()
+					{
+						if (alive.lock())
+						{
+							StartAutoPlaySong();
+						}
+					});
+			}
 
 			if (m_pendingMeasure > 1 || m_pendingSnapshot.valid)
 			{
@@ -3872,9 +3883,18 @@ bool PianoController::LoadSong(const File& file)
 	// loaded while a song plays: the new song starts at once, as on the piano (the piano's
 	// player does it by itself). A little later, when its registration memory has set its
 	// voices and mixer; not if another song was loaded or it was started meanwhile.
-	const bool wasPlaying = m_localPlayback && GetPlaying();
+	const bool wasPlaying = GetPlaying();
+	const bool wasLocal = m_localPlayback;
+	m_autoPlaySong.clear();
 	const bool ok = LoadSongInternal(file);
-	if (ok && wasPlaying)
+	if (ok && wasPlaying && !m_localPlayback)
+	{
+		// uploaded to the piano: started when the piano reports that it has loaded it
+		// (see StartAutoPlaySong)
+		m_autoPlaySong = file.getFullPathName();
+		m_autoPlayAskedMs = Time::getMillisecondCounter();
+	}
+	else if (ok && wasPlaying && wasLocal)
 	{
 		std::weak_ptr<bool> alive = m_alive;
 		const String song = file.getFullPathName();
@@ -3890,6 +3910,37 @@ bool PianoController::LoadSong(const File& file)
 			});
 	}
 	return ok;
+}
+
+// The piano has loaded a song (network): if it is the file uploaded while a song played,
+// it is started a little later, when its registration memory has set its voices and mixer.
+// Message thread.
+void PianoController::StartAutoPlaySong()
+{
+	if (m_autoPlaySong.isEmpty())
+	{
+		return;
+	}
+	const String song = m_autoPlaySong;
+	const bool recent = Time::getMillisecondCounter() - m_autoPlayAskedMs < 60000;
+	if (!recent || File::createFileWithoutCheckingPath(GetSongName()) != File(song))
+	{
+		if (!recent)
+		{
+			m_autoPlaySong.clear(); // the upload did not finish in time
+		}
+		return; // (another song: e.g. the one before the upload; the uploaded one may come still)
+	}
+	m_autoPlaySong.clear();
+	std::weak_ptr<bool> alive = m_alive;
+	Timer::callAfterDelay(500, [this, alive, song]()
+		{
+			if (alive.lock() && !m_localPlayback && IsSongLoaded() && !GetPlaying() &&
+				File::createFileWithoutCheckingPath(GetSongName()) == File(song))
+			{
+				Play();
+			}
+		});
 }
 
 PianoController::MixSnapshot PianoController::TakeSnapshot()

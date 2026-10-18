@@ -666,6 +666,11 @@ private:
 	String m_songName;
 	bool m_songLoaded = false;
 	bool m_songLoading = false;
+	// a MIDI file uploaded to the piano while a song played: started when the piano has
+	// loaded it (the piano's player does not start an uploaded song by itself). Message thread.
+	String m_autoPlaySong;
+	uint32 m_autoPlayAskedMs = 0;
+	void StartAutoPlaySong();
 	int m_splitPoint = 0;
 	int m_styleSplitPoint = 0;
 	LidPosition m_lidPosition = DefaultLidPosition;
