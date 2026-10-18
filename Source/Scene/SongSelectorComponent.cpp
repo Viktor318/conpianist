@@ -636,6 +636,15 @@ void SongSelectorComponent::cellDoubleClicked(int rowNumber, int, const MouseEve
 {
 	songTable.selectRow(rowNumber);
 	LoadSelected(true);
+	if (playWhenLoaded)
+	{
+		// the song is being loaded and will start: the window is closed (hidden, as with
+		// the Close button), so that the score can be seen; the song is still started
+		if (auto* window = findParentComponentOfClass<SongSelectorWindow>())
+		{
+			window->closeButtonPressed();
+		}
+	}
 }
 
 void SongSelectorComponent::returnKeyPressed(int)
