@@ -1004,8 +1004,10 @@ void RecorderComponent::updateControls()
 	saveButton.setEnabled(hasData);
 	discardButton.setEnabled(hasData && !saved);
 	nameEditor.setEnabled(hasData);
-	// loading replaces the song of the player: not via network, nor during a recording
-	loadButton.setEnabled(idle && canPlayback);
+	// loading replaces the song of the player: not during a recording. Via network it is
+	// only played (the piano's player plays the file): a new layer cannot be recorded to it
+	// (Record playback/song is off then, and Record stops the playback, see startRecording)
+	loadButton.setEnabled(idle);
 	styleButton.setEnabled(idle);
 	playbackButton.setEnabled(idle && canPlayback);
 	countInCombo.setEnabled(idle && manualButton.getToggleState());
