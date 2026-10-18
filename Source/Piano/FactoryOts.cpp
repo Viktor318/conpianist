@@ -351,6 +351,7 @@ static const std::pair<int, int> Cvp709VoiceTable[] = {
 	{0x084149, 0x007539}, // name: Trombone -> Trombone
 	{0x08414a, 0x007249}, // name: Jazz Flute -> Jazz Flute
 	{0x084150, 0x007d42}, // name: Jazz Tenor Sax -> Jazz Tenor Sax
+	{0x084154, 0x007140}, // decision: Ballad Soprano -> Soprano Sax
 	{0x08415c, 0x007047}, // name: Clarinet -> Clarinet
 	{0x084168, 0x007216}, // name: Blues Harp -> Blues Harp
 	{0x084241, 0x007338}, // name: Trumpet -> Trumpet
@@ -536,7 +537,7 @@ namespace
 }
 static const StyleSource StyleSources[] = {
 	{"Contemp Gtr Pop", "PSR-SX700", "Pop&Rock/ContempGtrPop.T547.prs"},
-	{"Standard 8Beat", "CVP-809", "Pop&Rock/Pop/Standard 8Beat.T308.prs"},
+	{"Standard 8Beat", "CVP-709", "Pop&Rock/Pop/Standard 8Beat.T308.prs"},
 	{"West Coast Beat", "CVP-809", "Pop&Rock/Pop/West Coast Beat.T308.prs"},
 	{"Cool 8Beat", "PSR-SX700", "Dance/Cool8Beat.T549.prs"},
 	{"80s American Pop", "CVP-809", "Pop&Rock/Pop/80s American Pop.T308.prs"},
@@ -606,7 +607,7 @@ static const StyleSource StyleSources[] = {
 	{"Standard Piano Bld", "CVP-809", "Pop&Rock/Pop&Rock Ballad/Standard Piano Bld.T311.prs"},
 	{"Smooth Ballad", "CVP-809", "Pop&Rock/Pop&Rock Ballad/Smooth Ballad.T311.prs"},
 	{"70s Piano Pop Bld", "CVP-709", "Pop&Rock/Pop&Rock Ballad/70s Piano Pop Bld.T311.prs"},
-	{"Mod 6-8 Piano Bld", "CVP-809", "Pop&Rock/Pop&Rock Ballad/Mod 6-8 Piano Bld.T311.prs"},
+	{"Mod 6-8 Piano Bld", "CVP-709", "Pop&Rock/Pop&Rock Ballad/Mod 6-8 Piano Bld.T311.prs"},
 	{"Orch Rock Ballad", "PSR-S970", "Pop&Rock/OrchRockBallad.T162.prs"},
 	{"Pop Ballad", "CVP-709", "Pop&Rock/Pop&Rock Ballad/Pop Ballad.T311.prs"},
 	{"Pop Guitar Ballad", "CVP-709", "Pop&Rock/Pop&Rock Ballad/Pop Guitar Ballad.T311.prs"},
@@ -990,7 +991,7 @@ static const StyleSource StyleSources[] = {
 	{"French Musette", "PSR-SX700", "World/FrenchMusette.T589.prs"},
 	{"Bohemian Waltz", "PSR-SX700", "World/BohemianWaltz.T589.prs"},
 	{"Waltz", "CVP-709", "Latin&World/Trad Waltz/Waltz.T316.pst"},
-	{"Piano Slow Waltz", "CVP-809", "Latin&World/Trad Waltz/Piano Slow Waltz.T316.pst"},
+	{"Piano Slow Waltz", "CVP-709", "Latin&World/Trad Waltz/Piano Slow Waltz.T316.pst"},
 	{"US March", "PSR-S970", "World/USMarch.S745.prs"},
 	{"Ober Polka", "PSR-SX600", "World/OberPolka.T589.prs"},
 	{"German March", "PSR-SX700", "World/GermanMarch.T589.prs"},
