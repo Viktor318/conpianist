@@ -106,6 +106,7 @@ static const std::pair<int, int> VoiceTable[] = {
 	{0x0a0700, 0x0a0909}, // name: JazzSquabble -> Jazz Squabble
 	{0x680002, 0x680202}, // name: MIDI Grand -> MIDI Grand
 	{0x680003, 0x6c1c03}, // name: CocktailPiano -> Cocktail Piano
+	{0x680013, 0x007a13}, // decision: ConcertOrganTutti -> Pipe Organ Tutti
 	{0x680036, 0x680133}, // similar: 80sBreathyVoice -> 80s Pad
 	{0x68003d, 0x08203c}, // similar: PopHorns -> Soft Horns
 	{0x680044, 0x082044}, // name: OrchestralOboe -> Orchestral Oboe
@@ -119,16 +120,19 @@ static const std::pair<int, int> VoiceTable[] = {
 	{0x680339, 0x00763c}, // similar: OrchTrombones -> Soft Trombones
 	{0x68033d, 0x006d3d}, // decision: PopHornsAccent -> Accent Brass
 	{0x680400, 0x6c1002}, // name: RockPiano -> Rock Piano
+	{0x680413, 0x007b13}, // decision: Diapason -> Pipe Organ Principal
 	{0x680438, 0x006c3d}, // decision: OrchTrumpetsFast -> Brass f
 	{0x680439, 0x00763c}, // similar: OrchTrombonesFast -> Soft Trombones
 	{0x68043c, 0x68013c}, // decision: OrchHornsFast -> Symphony Horns 1
 	{0x68043d, 0x082038}, // similar: PopHornsShake -> Brass Shake
 	{0x680463, 0x680133}, // similar: 80sHarpvox -> 80s Pad
 	{0x680500, 0x6c1101}, // name: PopGrand -> Pop Grand
+	{0x680513, 0x680147}, // similar: Claribel&Flute -> Clarinet & Flutes
 	{0x68053d, 0x006a3d}, // decision: PopHornsCresc -> Brass Dynamics
 	{0x680554, 0x680154}, // decision: BriteDecay -> Detuned Vintage
 	{0x68063d, 0x00783c}, // similar: BalladBrass -> Small Brass
 	{0x680704, 0x007604}, // similar: SuitcaseSoft -> Suitcase EP
+	{0x680713, 0x007113}, // decision: SoftReeds -> Chapel Organ
 	{0x680804, 0x007404}, // name: VintageEP -> Vintage EP
 	{0x680900, 0x6c1b03}, // name: AmbientPiano -> Ambient Piano
 	{0x680904, 0x007604}, // similar: SuitcaseBallad -> Suitcase EP
@@ -274,6 +278,7 @@ static const std::pair<int, int> Cvp809VoiceTable[] = {
 	{0x680f01, 0x680e01}, // similar: Stage Upright -> Saloon Upright
 	{0x680f3d, 0x68023c}, // similar: Symphony Horns Fast -> Symphony Horns 2
 	{0x681200, 0x6c0000}, // decision: Bösendorfer Grand -> CFX Grand
+	{0x681201, 0x6c0601}, // name: Themic Grand -> Themic Grand
 	{0x681303, 0x6c1b03}, // name: Ambient Piano -> Ambient Piano
 	{0x681305, 0x6c0000}, // similar: CFX Ballad Mix 1 -> CFX Grand
 	{0x681318, 0x007219}, // similar: Mandolin Tremolo -> Mandolin
@@ -314,10 +319,12 @@ static const std::pair<int, int> Cvp709VoiceTable[] = {
 	{0x00745e, 0x68005b}, // similar: Hah Pad -> Breath Pad
 	{0x007a08, 0x007008}, // similar: Concert Celesta -> Celesta
 	{0x007a0c, 0x68012e}, // similar: Orchestral Marimba -> Orchestral Harp
+	{0x007a34, 0x007234}, // similar: Choir -> Hah Choir
 	{0x007a72, 0x007072}, // name: Steel Drums -> Steel Drums
 	{0x007b00, 0x6c1001}, // name: Bright Piano -> Bright Piano
 	{0x007b02, 0x007102}, // similar: CP80 Studio -> CP80 Stage
 	{0x007b03, 0x6c1601}, // name: Grand Piano 1octave -> Grand Piano 1octave
+	{0x007c00, 0x6c1200}, // name: Mellow Piano -> Mellow Piano
 	{0x007c02, 0x6c1002}, // name: Rock Piano -> Rock Piano
 	{0x007c03, 0x6c1701}, // name: Grand Piano 2octaves -> Grand Piano 2octaves
 	{0x08202b, -1}, // none: Real 1st Violins -> none
@@ -359,7 +366,9 @@ static const std::pair<int, int> Cvp709VoiceTable[] = {
 	{0x08425c, 0x680247}, // similar: Romance Clarinet -> German Clarinet
 	{0x084341, 0x082540}, // name: Big Band Trumpet -> Big Band Trumpet
 	{0x68003d, 0x00753e}, // decision: Pop Horns Dynamic -> Pop Brass
+	{0x680213, 0x007313}, // decision: Fonds Et Anches -> Church Organ
 	{0x68023d, 0x68023c}, // similar: Swing Horns Mute -> Symphony Horns 2
+	{0x680313, 0x007013}, // decision: Organo Pleno -> Full Organ
 	{0x680338, 0x006e3d}, // decision: Orchestral Trumpets -> Brass mf
 	{0x680513, 0x007349}, // similar: Claribel 8' & Flute 4' -> Classical Flute
 	{0x680600, 0x6c1101}, // name: Pop Grand -> Pop Grand
@@ -460,7 +469,6 @@ static const std::pair<int, int> GenosVoiceTable[] = {
 	{0x680229, 0x007c31}, // similar: KinoStringsSpicVa -> Disco Strings 2
 	{0x680303, 0x6c0000}, // similar: CFX TwoOctaves -> CFX Grand
 	{0x680417, 0x007815}, // similar: BajanAccordion -> Jazz Accordion
-	{0x680513, 0x680147}, // similar: Claribel&Flute -> Clarinet & Flutes
 	{0x680900, 0x6c0000}, // similar: CFX AmbientGrand -> CFX Grand
 	{0x680a00, 0x6c0000}, // similar: CFX StageGrand -> CFX Grand
 	{0x680a02, 0x007102}, // similar: CP80 ElectricGrand -> CP80 Stage
@@ -701,6 +709,7 @@ static const StyleSource StyleSources[] = {
 	{"Night Walk", "PSR-SX700", "Dance/NightWalk.T551.prs"},
 	{"Chillout Cafe", "PSR-SX700", "Dance/ChilloutCafe.T551.prs"},
 	{"Play 4 Sofa", "PSR-SX700", "Dance/Play4Sofa.T551.prs"},
+	{"Ethereal Synth", "CVP-709", "Pop&Rock/Chill Out/Ethereal Synth.T288.fps"},
 	{"Angel Sun", "PSR-SX900", "Dance/AngelSun.T551.prs"},
 	{"Celtic Trance", "PSR-S950", "Dance/CelticTrance.T152.prs"},
 	{"6-8 Trance", "PSR-SX600", "Dance & R&B/6-8Trance.T551.prs"},
@@ -820,6 +829,7 @@ static const StyleSource StyleSources[] = {
 	{"Movie Soundtrack", "PSR-SX700", "Movie&Show/MovieSoundtrack.T559.prs"},
 	{"Mod Broadway Bld", "CVP-709", "Entertainment/Movie &Show/Mod Broadway Bld.T306.prs"},
 	{"Broadway Ballad", "PSR-SX700", "Movie&Show/BroadwayBallad.T559.prs"},
+	{"On Broadway", "PSR-SX700", "Movie&Show/OnBroadway.T559.fps"},
 	{"Movie Swing 1", "PSR-S970", "Movie&Show/MovieSwing1.T163.prs"},
 	{"Movie Swing 2", "PSR-SX700", "Movie&Show/MovieSwing2.T559.sst"},
 	{"Cartoon Ballad", "CVP-809", "Entertainment/Movie&Show/Cartoon Ballad.T306.prs"},
@@ -967,7 +977,9 @@ static const StyleSource StyleSources[] = {
 	{"Oriental Pop", "PSR-SX600", "World/OrientalPop.T589.prs"},
 	{"Hawaiian", "PSR-S950", "World/Hawaiian.T164.prs"},
 	{"Choral Symphony", "CVP-709", "Latin&World/Classic/Choral Symphony.T289.prs"},
+	{"Ethereal Hymn", "CVP-709", "Latin&World/Classic/Ethereal Hymn.T289.fps"},
 	{"Romantic Ballet", "PSR-S970", "Movie&Show/RomanticBallet.T150.prs"},
+	{"Ethereal Voices", "PSR-SX700", "Movie&Show/EtherealVoices.T559.fps"},
 	{"Green Fantasia", "PSR-SX700", "Movie&Show/GreenFantasia.T560.prs"},
 	{"Baroque Air", "PSR-SX700", "Movie&Show/BaroqueAir.T560.sst"},
 	{"String Adagio", "CVP-709", "Latin&World/Classic/String Adagio.T289.prs"},
