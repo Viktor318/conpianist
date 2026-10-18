@@ -140,7 +140,10 @@ private:
 	// The file the recording is saved to: in the folder of the recordings (or in the
 	// subfolder of its date), with the time (and date) added; a number is added if such a
 	// file exists. An invalid file if no name is given.
-	File targetFile() const;
+	// ofRecording: the date and time of the recording (else of now, for the preview)
+	File targetFile(bool ofRecording = true) const;
+	String saveKey() const;  // what the saved file depends on: the settings and the name
+	String savedKey;         // ... when it was saved last (the same again: Save is greyed)
 	File todayFolder() const; // the folder of the recordings, or today's subfolder if it exists
 	void storeName();         // the name typed is remembered
 	void updatePreview();

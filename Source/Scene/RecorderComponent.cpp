@@ -180,7 +180,7 @@ RecorderComponent::RecorderComponent(Settings& settings, PianoController& pianoC
 	nameEditor.setInputRestrictions(MaxNameLength);
 	nameEditor.setTooltip(TRANS("The name of the recording; the date and the time are added as set below. The name is remembered"));
 	nameEditor.setText(settings.recorderName.isNotEmpty() ? settings.recorderName : TRANS("Recording"), false);
-	nameEditor.onTextChange = [this]() { updatePreview(); };
+	nameEditor.onTextChange = [this]() { updatePreview(); updateControls(); };
 	nameEditor.onReturnKey = [this]() { storeName(); };
 	nameEditor.onFocusLost = [this]() { storeName(); };
 	addAndMakeVisible(nameEditor);
@@ -527,6 +527,7 @@ void RecorderComponent::saveOptions()
 		settings.Save();
 	}
 	updatePreview();
+	updateControls(); // (Save: another file after a change)
 }
 
 void RecorderComponent::startRecording()
@@ -601,7 +602,7 @@ void RecorderComponent::save()
 	updatePreview();
 }
 
-File RecorderComponent::targetFile() const
+File RecorderComponent::targetFile(bool ofRecordingTime) const
 {
 	String name = File::createLegalFileName(nameEditor.getText().trim());
 	if (name.endsWithIgnoreCase(".mid"))
@@ -614,7 +615,8 @@ File RecorderComponent::targetFile() const
 	}
 	// the start of the recording (while it is recorded, or kept to be saved); else: now
 	LiveRecorder& recorder = pianoController.GetRecorder();
-	const bool ofRecording = hasRecordingTime && (recorder.GetState() != LiveRecorder::stIdle || recorder.HasData());
+	const bool ofRecording = ofRecordingTime && hasRecordingTime &&
+		(recorder.GetState() != LiveRecorder::stIdle || recorder.HasData());
 	const Time time = ofRecording ? recordingTime : Time::getCurrentTime();
 	File directory = settings.GetRecordingsDirectory();
 	if (dateFoldersButton.getToggleState())
@@ -660,16 +662,16 @@ void RecorderComponent::storeName()
 void RecorderComponent::updatePreview()
 {
 	previewMs = Time::getMillisecondCounter();
-	const File file = targetFile();
-	if (file == File())
-	{
-		previewText = TRANS("Enter a file name.");
-		previewLabel.setText(previewText, dontSendNotification);
-		previewLabel.setTooltip({});
-		return;
-	}
+	// the folder only (the name with the time would change every second before a recording);
+	// the date of the recording that has not been saved yet, otherwise of today
+	const File file = targetFile(!saved);
 	const File base = settings.GetRecordingsDirectory();
-	const String shown = base.getFileName() + File::getSeparatorString() + file.getRelativePathFrom(base);
+	const File folder = file != File() ? file.getParentDirectory() : base;
+	String shown = base.getFileName();
+	if (folder != base)
+	{
+		shown << File::getSeparatorString() << folder.getRelativePathFrom(base);
+	}
 	const String caption = TRANS("Save to:") + " ";
 	const String text = caption + shown;
 	if (text == previewText && previewLabel.getWidth() > 0)
@@ -677,7 +679,7 @@ void RecorderComponent::updatePreview()
 		return;
 	}
 	previewText = text;
-	previewLabel.setTooltip(file.getFullPathName());
+	previewLabel.setTooltip(folder.getFullPathName());
 	const Font font = previewLabel.getFont();
 	const int width = previewLabel.getWidth() - 8;
 	String result = text;
@@ -717,6 +719,7 @@ void RecorderComponent::writeFile(const File& file)
 		quantizeFillButton.getToggleState()))
 	{
 		saved = true;
+		savedKey = saveKey();
 		savedName = file.getFileName();
 		lastSavedFile = file;
 		message = "";
@@ -901,6 +904,12 @@ void RecorderComponent::askDiscard()
 bool RecorderComponent::canRecordPlayback() const
 {
 	return pianoController.GetPlaybackSource() != PianoController::psPiano;
+}
+
+String RecorderComponent::saveKey() const
+{
+	return listenKey() + "|" + nameEditor.getText().trim() + "|" +
+		String((int)dateFoldersButton.getToggleState()) + String((int)timestampButton.getToggleState());
 }
 
 String RecorderComponent::listenKey() const
@@ -1126,7 +1135,9 @@ void RecorderComponent::updateControls()
 	{
 		positionSlider.setValue(1, dontSendNotification);
 	}
-	saveButton.setEnabled(hasData);
+	// after saving, only when something was changed that gives another file (another
+	// quantization, name, folder): e.g. a plain and a quantized version can be saved
+	saveButton.setEnabled(hasData && (!saved || saveKey() != savedKey));
 	discardButton.setEnabled(hasData && !saved);
 	// (the name can be changed at any time: it is used when the recording is saved)
 	// loading replaces the song of the player: not during a recording. Via network it is
