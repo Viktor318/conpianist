@@ -3869,7 +3869,27 @@ bool PianoController::LoadSong(const File& file)
 	m_pendingSnapshot.valid = false;
 	m_skipRegistrationMemory = false;
 	ClearConvertedVoices();
-	return LoadSongInternal(file);
+	// loaded while a song plays: the new song starts at once, as on the piano (the piano's
+	// player does it by itself). A little later, when its registration memory has set its
+	// voices and mixer; not if another song was loaded or it was started meanwhile.
+	const bool wasPlaying = m_localPlayback && GetPlaying();
+	const bool ok = LoadSongInternal(file);
+	if (ok && wasPlaying)
+	{
+		std::weak_ptr<bool> alive = m_alive;
+		const String song = file.getFullPathName();
+		MessageManager::callAsync([this, alive, song]()
+			{
+				Timer::callAfterDelay(500, [this, alive, song]()
+					{
+						if (alive.lock() && IsLocalSongLoaded() && !GetPlaying() && GetSongName() == song)
+						{
+							Play();
+						}
+					});
+			});
+	}
+	return ok;
 }
 
 PianoController::MixSnapshot PianoController::TakeSnapshot()
