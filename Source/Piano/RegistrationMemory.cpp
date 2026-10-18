@@ -22,10 +22,10 @@
 #include "RegistrationMemory.h"
 #include "Presets.h"
 
-void RegistrationMemory::Save()
+bool RegistrationMemory::Save()
 {
 	std::unique_ptr<XmlElement> state = CreateXml();
-	state->writeTo(file);
+	return state->writeTo(file);
 }
 
 std::unique_ptr<XmlElement> RegistrationMemory::CreateXml()

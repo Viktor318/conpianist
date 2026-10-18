@@ -120,6 +120,7 @@ private:
 	// (only within a few seconds, so a failed load does not start a later song)
 	bool playWhenLoaded = false;
 	Time playRequestTime;
+	Entry playEntry; // the song to be played when it is loaded
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SongSelectorComponent)
 };

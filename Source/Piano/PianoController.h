@@ -357,8 +357,11 @@ public:
 	static Channel StylePartChannel(int part) { return (Channel)(chStylePart1 + part); }
 	static const char* StylePartName(int part);
 	// Asks the piano for the settings of the parts (they change with the style).
-	// defaults: the answers are the values the style came with (see ResetStyleValue)
-	void QueryStyleParts(bool defaults = true);
+	// Which answers are noted as the values the style came with (see ResetStyleValue):
+	// all of them (a style was loaded), only those not known yet (connecting again: the
+	// values may have been changed meanwhile), or none.
+	enum StyleDefaults { sdNone, sdUnknown, sdAll };
+	void QueryStyleParts(StyleDefaults defaults);
 	// The accompaniment as a whole (the channel chStyle) is on while any of its parts is
 	// on. Switching it off switches every part off; switching it on switches on the parts
 	// that were on before (all of them, if that is not known).
@@ -783,6 +786,8 @@ private:
 	};
 	std::atomic<int> m_styleRestoreStage{srNone};
 	std::atomic<bool> m_styleNameKnown{false}; // the piano has reported its style
+	std::atomic<bool> m_styleMixerKnown{false}; // the piano has reported the parts of the accompaniment
+	std::atomic<bool> m_forgetLastMessage{false}; // lastMessage is dropped (the connection was lost)
 	String m_styleRestoreName;  // the style that is being restored
 	StyleState m_styleRestore;  // used on the message thread
 	int m_styleRestoreSerial = 0;

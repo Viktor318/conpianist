@@ -291,11 +291,16 @@ void SongSelectorComponent::StartPendingPlayback()
 	{
 		return;
 	}
-	playWhenLoaded = false;
 	if ((Time::getCurrentTime() - playRequestTime).inSeconds() > 20)
 	{
+		playWhenLoaded = false;
 		return;
 	}
+	if (!IsCurrentSong(playEntry))
+	{
+		return; // another song was loaded meanwhile: it is not started (the asked one may come still)
+	}
+	playWhenLoaded = false;
 	// a short delay lets the piano finish loading (and the song state be restored)
 	Timer::callAfterDelay(500, [self = Component::SafePointer<SongSelectorComponent>(this)]()
 		{
@@ -541,6 +546,7 @@ void SongSelectorComponent::LoadSelected(bool play)
 	}
 	playWhenLoaded = play;
 	playRequestTime = Time::getCurrentTime();
+	playEntry = entry;
 
 	if (entry.song != nullptr && pianoController.GetPlaybackSource() == PianoController::psPiano)
 	{

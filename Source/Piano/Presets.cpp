@@ -3890,12 +3890,13 @@ String Presets::VoiceTitle(String voice)
 		std::map<int,int>::iterator it = voiceMap.find(num);
 		if (it != voiceMap.end())
 		{
-			num = it->second;
-			if (num == -1)
+			if (it->second == -1)
 			{
 				// known num voice but without proper mapping, format as "MSB-LSB-PC"
+				// (its own number, not the -1 of the mapping)
 				return String(num >> 16 & 0x7f) + "-" + String(num >> 8 & 0x7f) + "-" + String(num & 0x7f);
 			}
+			num = it->second;
 			for (Voice& vc : voices)
 			{
 				if (vc.num == num)

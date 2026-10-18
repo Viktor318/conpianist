@@ -1585,7 +1585,12 @@ void SceneComponent::saveState()
 
 				RegistrationMemory::Options opts;
 				RegistrationMemory regmem(pianoController, settings, opts, url.getLocalFile());
-				regmem.Save();
+				if (!regmem.Save())
+				{
+					Logger::writeToLog("Cannot save the registration memory: " + url.getLocalFile().getFullPathName());
+					AlertWindow::showMessageBoxAsync(MessageBoxIconType::WarningIcon, "ConPianist",
+						TRANS("The registration memory could not be saved:") + "\n" + url.getLocalFile().getFullPathName());
+				}
 			});
 		});
 }

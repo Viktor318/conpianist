@@ -133,6 +133,10 @@ bool LocalSongPlayer::Load(const File& file)
 
 			if (msg.isTempoMetaEvent())
 			{
+				if (msg.getTempoSecondsPerQuarterNote() <= 0.0)
+				{
+					continue; // a damaged file: a tempo of 0 cannot be played (division by zero)
+				}
 				tempos.push_back({tick, msg.getTempoSecondsPerQuarterNote(), 0, 0});
 			}
 			else if (msg.isTimeSignatureMetaEvent())

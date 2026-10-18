@@ -573,11 +573,15 @@ const int PianoMessage::GetSize() const
 	return GetSize(LengthOffset());
 }
 
+// The size of the value as the message declares it, but not more than the bytes that
+// have arrived: a truncated message must not make the reading go past the end.
 const int PianoMessage::GetSize(int lengthOffset) const
 {
-	if (lengthOffset > 0)
+	const int total = (int)m_data.getSize();
+	if (lengthOffset > 0 && lengthOffset + 2 <= total)
 	{
-		return (m_data[lengthOffset + 0] << 7) + m_data[lengthOffset + 1];
+		const int declared = (m_data[lengthOffset + 0] << 7) + m_data[lengthOffset + 1];
+		return jmin(declared, total - lengthOffset - 2);
 	}
 	return 0;
 }

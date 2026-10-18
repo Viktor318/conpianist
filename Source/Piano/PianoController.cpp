@@ -233,7 +233,7 @@ void PianoController::ResyncStateFromPiano()
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::StyleSection, 1, 0));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::StyleChordArea));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::StyleLeftSound));
-	QueryStyleParts();
+	QueryStyleParts(sdUnknown);
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::Metronome));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::MetronomeBeat));
 	m_pianoConnector->SendPianoMessage(PianoMessage(Action::Get, Property::MetronomeBell));
@@ -383,11 +383,23 @@ void PianoController::Disconnect()
 			info.requestedVoice.clear();
 		}
 	}
+	// what the piano reported is not known any more (it may change meanwhile, and the
+	// accompaniment does not play without the connection). The style's name is kept
+	// for comparing it with the one reported after connecting again: the same style keeps
+	// its noted default values (see QueryStyleParts).
+	m_styleNameKnown = false;
+	m_styleMixerKnown = false;
+	m_pianoTempoKnown = false;
+	m_stylePlaying = false;
+	m_styleSection = ssNone;
+	m_styleNextSection = ssNone;
+	m_forgetLastMessage = true; // the first message after connecting again is not a repeat
 	if (m_connected)
 	{
 		m_connected = false;
 		NotifyChanged(apConnection);
 	}
+	NotifyChanged(apStyle);
 }
 
 void PianoController::SetLocalControl(bool enabled)
@@ -983,6 +995,14 @@ void PianoController::SetPartAuto(bool enable)
 
 void PianoController::SetLoop(Loop loop)
 {
+	// B before A (e.g. the A–B button pressed the second time after jumping back before A):
+	// the two marks are swapped, the loop is the part between them
+	if (loop.begin.measure > 0 && loop.end.measure > 0 &&
+		(loop.end.measure < loop.begin.measure ||
+			(loop.end.measure == loop.begin.measure && loop.end.beat < loop.begin.beat)))
+	{
+		std::swap(loop.begin, loop.end);
+	}
 	if (m_localPlayback)
 	{
 		if (m_localPlayer) m_localPlayer->SetLoop({loop.begin.measure, loop.begin.beat}, {loop.end.measure, loop.end.beat});
@@ -1272,6 +1292,11 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 {
 	std::unique_ptr<PianoMessage> pm = std::make_unique<PianoMessage>(message);
 
+	if (m_forgetLastMessage.exchange(false))
+	{
+		lastMessage.reset();
+	}
+
 	const Action action = pm->GetAction();
 
 	if ((action != Action::Info && action != Action::Response) ||
@@ -1502,6 +1527,7 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 		NotifyChanged(apActive, ch);
 		if (ch >= chStylePart1 && ch < chStylePart1 + NumStyleParts)
 		{
+			m_styleMixerKnown = true;
 			UpdateStyleOn();
 		}
 	}
@@ -1625,14 +1651,14 @@ void PianoController::IncomingPianoMessage(const PianoMessage& message)
 						{
 							if (alive.lock())
 							{
-								QueryStyleParts(true);
+								QueryStyleParts(sdAll);
 							}
 						});
 					Timer::callAfterDelay(1500, [this, alive]()
 						{
 							if (alive.lock())
 							{
-								QueryStyleParts(false);
+								QueryStyleParts(sdNone);
 							}
 						});
 				});
@@ -2725,7 +2751,9 @@ PianoController::StyleState PianoController::GetStyleState()
 	state.chordArea = m_styleChordArea;
 	state.leftSound = m_styleLeftSound;
 	state.splitPoint = m_styleSplitPoint;
-	state.hasMixer = true;
+	// only what the piano has reported (not connected, or right after connecting: the
+	// parts would all be off)
+	state.hasMixer = m_styleMixerKnown;
 	state.volume = GetVolume(chStyle);
 	state.pan = GetPan(chStyle);
 	state.reverb = GetReverb(chStyle);
@@ -3102,20 +3130,21 @@ const char* PianoController::StylePartName(int part)
 	return part >= 0 && part < NumStyleParts ? names[part] : "";
 }
 
-void PianoController::QueryStyleParts(bool defaults)
+void PianoController::QueryStyleParts(StyleDefaults defaults)
 {
 	if (!m_pianoConnector)
 	{
 		return;
 	}
-	// asked for when connecting and after a style was loaded: the answers are the values
-	// the style came with (the defaults of ResetStyleValue)
-	for (int i = 0; defaults && i <= NumStyleParts; i++)
+	// asked for after a style was loaded: the answers are the values the style came with
+	// (the defaults of ResetStyleValue); when connecting (again), only the values not known
+	// yet are taken so: the known ones may have been changed meanwhile
+	for (int i = 0; defaults != sdNone && i <= NumStyleParts; i++)
 	{
 		for (int which = 0; which < 3; which++)
 		{
 			// the whole accompaniment keeps its settings when the style changes: only once
-			if (i < NumStyleParts || m_styleDefaults[i][which] == NoStyleDefault)
+			if ((defaults == sdAll && i < NumStyleParts) || m_styleDefaults[i][which] == NoStyleDefault)
 			{
 				m_styleDefaultPending[i][which] = true;
 			}

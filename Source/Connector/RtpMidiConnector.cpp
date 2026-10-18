@@ -292,7 +292,12 @@ void RtpMidiConnector::run()
 
 	appleMidi::IPAddress remoteIp(m_remoteIp.getCharPointer());
 
-	ResetMidi();
+	{
+		// SendMessage may already run on another thread: the session is created locked,
+		// like when it is started again below
+		std::lock_guard<std::mutex> guard(g_rtpMutex);
+		ResetMidi();
+	}
 
 	while (!threadShouldExit())
 	{

@@ -75,7 +75,7 @@ void MidiSocket::flush()
 int MidiSocket::parsePacket()
 {
 	juce::String ip;
-	int port;
+	int port = 0;
 
 	if (!m_socket.waitUntilReady(true, 1))
 	{
@@ -92,7 +92,11 @@ int MidiSocket::parsePacket()
 		m_remoteIp = ip.getCharPointer();
 	}
 
-	m_remotePort = port;
+	// after a read error the port is not known: the previous one is kept
+	if (ret > 0)
+	{
+		m_remotePort = (uint16_t)port;
+	}
 
 	return m_inSize;
 }

@@ -259,6 +259,7 @@ LomseScoreComponent::LomseScoreComponent(Settings& settings, PianoController& pi
 LomseScoreComponent::~LomseScoreComponent()
 {
 	m_pianoController.RemoveListener(this); // no more notifications while it is destroyed
+	m_settings.removeChangeListener(this);
 	m_check.reset();
 	Cleanup();
 }
@@ -439,6 +440,46 @@ static String ChordSymbolName(const XmlElement& harmony)
 	return name;
 }
 
+// The parts of a MusicXML text that are not elements: comments (<!-- -->) and CDATA
+// sections (<![CDATA[ ]]>), as (begin, end) positions in order. A tag written in them
+// (e.g. a commented out <harmony>) must not be taken for an element.
+using TextRanges = std::vector<std::pair<size_t, size_t>>;
+static TextRanges IgnoredRanges(const std::string& text)
+{
+	TextRanges ranges;
+	for (size_t start = text.find("<!"); start != std::string::npos; start = text.find("<!", start + 1))
+	{
+		const char* closing = text.compare(start, 4, "<!--") == 0 ? "-->" :
+			text.compare(start, 9, "<![CDATA[") == 0 ? "]]>" : nullptr;
+		if (closing == nullptr)
+		{
+			continue; // e.g. <!DOCTYPE>
+		}
+		const size_t close = text.find(closing, start + 4);
+		const size_t end = close == std::string::npos ? text.size() : close + strlen(closing);
+		ranges.push_back({start, end});
+		start = end - 1;
+	}
+	return ranges;
+}
+
+// The first position of the tag from the given position on that is not in an ignored
+// range (std::string::npos if there is none).
+static size_t FindTag(const std::string& text, const std::string& tag, size_t from, const TextRanges& ignored)
+{
+	for (size_t start = text.find(tag, from); start != std::string::npos; start = text.find(tag, from))
+	{
+		auto it = std::upper_bound(ignored.begin(), ignored.end(), start,
+			[](size_t pos, const std::pair<size_t, size_t>& range) { return pos < range.first; });
+		if (it == ignored.begin() || start >= (it - 1)->second)
+		{
+			return start;
+		}
+		from = (it - 1)->second; // in a comment or CDATA: searched on after it
+	}
+	return std::string::npos;
+}
+
 // The highest voice number used by the notes of a MusicXML text (0 if none).
 static int HighestVoice(const std::string& text)
 {
@@ -452,12 +493,20 @@ static int HighestVoice(const std::string& text)
 }
 
 // The duration (in divisions) of the first note after the given position of a MusicXML
-// text, or 0 if it is a grace note or it has no whole number as duration.
-static int NextNoteDuration(const std::string& text, size_t position)
+// text, or 0 if it is a grace note or it has no whole number as duration. Only a note of
+// the same measure and voice counts: 0 if the measure ends or the time goes back or
+// forward (<backup>, <forward>: another voice follows) before it.
+static int NextNoteDuration(const std::string& text, size_t position, const TextRanges& ignored)
 {
 	static const std::string openTag = "<note";
 	static const std::string closeTag = "</note>";
-	for (size_t start = text.find(openTag, position); start != std::string::npos; start = text.find(openTag, start + 1))
+	size_t limit = std::string::npos;
+	for (const char* stop : {"</measure>", "<backup", "<forward"})
+	{
+		limit = std::min(limit, FindTag(text, stop, position, ignored));
+	}
+	for (size_t start = FindTag(text, openTag, position, ignored); start != std::string::npos && start < limit;
+		start = FindTag(text, openTag, start + 1, ignored))
 	{
 		const char next = start + openTag.size() < text.size() ? text[start + openTag.size()] : '\0';
 		if (next != '>' && !CharacterFunctions::isWhitespace(next))
@@ -496,6 +545,7 @@ static String ChordSymbolsAsWords(const String& content)
 	static const std::string openTag = "<harmony";
 	static const std::string closeTag = "</harmony>";
 	const std::string text = content.toStdString();
+	const TextRanges ignored = IgnoredRanges(text);
 	// the voice for the moved chord symbols (Lomse allows 64 voices in a part)
 	const int highestVoice = HighestVoice(text);
 	const String offsetVoice = highestVoice < 63 ? String(highestVoice + 1) : String();
@@ -536,7 +586,7 @@ static String ChordSymbolsAsWords(const String& content)
 			}
 			// up to the end of the note, with an invisible word at its end (a non-breaking
 			// space): Lomse fills the voice with a rest only up to a following object
-			const int rest = NextNoteDuration(text, position) - time;
+			const int rest = NextNoteDuration(text, position, ignored) - time;
 			if (rest > 0)
 			{
 				chain << "<forward><duration>" << rest << forward << words(CharPointer_UTF8("\xc2\xa0"), movedStaff);
@@ -546,7 +596,8 @@ static String ChordSymbolsAsWords(const String& content)
 			result += chain.toStdString();
 			moved.clear();
 		};
-	for (size_t start = text.find(openTag); start != std::string::npos; start = text.find(openTag, start + 1))
+	for (size_t start = FindTag(text, openTag, 0, ignored); start != std::string::npos;
+		start = FindTag(text, openTag, start + 1, ignored))
 	{
 		const char next = start + openTag.size() < text.size() ? text[start + openTag.size()] : '\0';
 		if (next != '>' && next != '/' && !CharacterFunctions::isWhitespace(next))
@@ -903,10 +954,12 @@ static void RemovePartGroups(String& content)
 	}
 	// (searched in the bytes of the text, see ChordSymbolsAsWords)
 	const std::string text = content.toStdString();
+	const TextRanges ignored = IgnoredRanges(text);
 	std::string result;
 	result.reserve(text.size());
 	size_t position = 0; // the text before this position is in the result
-	for (size_t start = text.find("<part-group"); start != std::string::npos; start = text.find("<part-group", position))
+	for (size_t start = FindTag(text, "<part-group", 0, ignored); start != std::string::npos;
+		start = FindTag(text, "<part-group", position, ignored))
 	{
 		const size_t tagEnd = text.find('>', start);
 		if (tagEnd == std::string::npos)
@@ -1064,6 +1117,11 @@ void LomseScoreComponent::LoadDocument(String content)
 	ConfigureInstruments();
 
 	loop = {{0,0},{0,0}};
+	// the marks of the previous score were deleted with its view (by Lomse), and a mark
+	// being dragged belongs to that score
+	loopStartMark = nullptr;
+	loopEndMark = nullptr;
+	m_dragMark = 0;
 }
 
 void LomseScoreComponent::PrepareImage()
@@ -1671,9 +1729,9 @@ TimeUnits LomseScoreComponent::TimeposAtPoint(SpInteractor& interactor, ImoScore
 bool LomseScoreComponent::BeatAtPoint(const MouseEvent& event, bool wholeMeasure, BeatPoint& point)
 {
 	ImoScore* score = GetScore();
-	if (score == nullptr || score->get_num_instruments() == 0 || getWidth() <= 0 || getHeight() <= 0)
+	if (score == nullptr || !m_image || score->get_num_instruments() == 0 || getWidth() <= 0 || getHeight() <= 0)
 	{
-		return false;
+		return false; // (no image yet: nothing has been drawn where the mouse is)
 	}
 	SpInteractor interactor = m_presenter->get_interactor(0).lock();
 	const int x = event.x * m_image->getWidth() / getWidth();
@@ -2749,7 +2807,9 @@ void LomseScoreComponent::Cleanup()
 		}
 	}
 
-	m_presenter = nullptr; // this destroys the score object
+	m_presenter = nullptr; // this destroys the score object (and the A–B marks of its view)
+	loopStartMark = nullptr;
+	loopEndMark = nullptr;
 }
 
 void LomseScoreComponent::ApplySettings()
