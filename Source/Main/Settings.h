@@ -131,6 +131,12 @@ public:
 	int recorderQuantizeTicks = 120;
 	int recorderQuantizeTripletTicks = 0;
 	bool recorderQuantizeFill = false; // notes are lengthened to the next note
+	// the file name of the recordings (empty: "Recording" in the language of the program);
+	// the date of the recording is the name of a subfolder (recorderDateFolders), and the
+	// time (without subfolders: the date and the time) is added to the name (recorderTimestamp)
+	String recorderName;
+	bool recorderDateFolders = false;
+	bool recorderTimestamp = true;
 	// Accompaniment window: a fill in is played when the main section is changed
 	bool accompanimentAutoFill = false;
 	// the (major) key of the music, for the names of the chords: empty - as the piano

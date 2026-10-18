@@ -22,6 +22,7 @@
 #include "AccompanimentComponent.h"
 
 static const int RecorderTimerMs = 100;
+static const int MaxNameLength = 100; // characters of the file name typed (the path is limited)
 
 RecorderComponent::RecorderComponent(Settings& settings, PianoController& pianoController) :
 	settings(settings), pianoController(pianoController)
@@ -176,7 +177,28 @@ RecorderComponent::RecorderComponent(Settings& settings, PianoController& pianoC
 
 	nameEditor.setMultiLine(false);
 	nameEditor.setSelectAllWhenFocused(true);
+	nameEditor.setInputRestrictions(MaxNameLength);
+	nameEditor.setTooltip(TRANS("The name of the recording; the date and the time are added as set below. The name is remembered"));
+	nameEditor.setText(settings.recorderName.isNotEmpty() ? settings.recorderName : TRANS("Recording"), false);
+	nameEditor.onTextChange = [this]() { updatePreview(); };
+	nameEditor.onReturnKey = [this]() { storeName(); };
+	nameEditor.onFocusLost = [this]() { storeName(); };
 	addAndMakeVisible(nameEditor);
+
+	dateFoldersButton.setButtonText(TRANS("Subfolders by date"));
+	dateFoldersButton.setTooltip(TRANS("The recordings are saved in a subfolder named after the date of the recording (e.g. 2026-10-18)"));
+	dateFoldersButton.addListener(this);
+	addAndMakeVisible(dateFoldersButton);
+
+	timestampButton.setButtonText(TRANS("Time stamp in the file name"));
+	timestampButton.setTooltip(TRANS("The time of the start of the recording is added to the file name (without subfolders by date: the date and the time)"));
+	timestampButton.addListener(this);
+	addAndMakeVisible(timestampButton);
+
+	initLabel(previewLabel, "");
+	previewLabel.setFont(Font(FontOptions(13.00f, Font::plain)));
+	previewLabel.setColour(Label::textColourId, Colours::white.withAlpha(0.55f));
+	previewLabel.setMinimumHorizontalScale(1.0f);
 
 	initLabel(statusLabel, "");
 	statusLabel.setMinimumHorizontalScale(0.7f);
@@ -246,8 +268,10 @@ RecorderComponent::RecorderComponent(Settings& settings, PianoController& pianoC
 	}
 	quantizeEndsButton.setToggleState(settings.recorderQuantizeEnds, dontSendNotification);
 	quantizeFillButton.setToggleState(settings.recorderQuantizeFill, dontSendNotification);
+	dateFoldersButton.setToggleState(settings.recorderDateFolders, dontSendNotification);
+	timestampButton.setToggleState(settings.recorderTimestamp, dontSendNotification);
 
-	setSize(440, 588);
+	setSize(440, 648);
 
 	pianoController.AddListener(this);
 	updateMetronome();
@@ -265,7 +289,7 @@ RecorderComponent::~RecorderComponent()
 }
 
 // vertical positions of the lines between the groups of the controls
-static const int SeparatorY[] = {122, 238, 318, 410};
+static const int SeparatorY[] = {122, 238, 318, 470};
 
 void RecorderComponent::paint(Graphics& g)
 {
@@ -338,20 +362,25 @@ void RecorderComponent::resized()
 		nameLabel.setBounds(16, 328, labelWidth, 24);
 		nameEditor.setBounds(16 + labelWidth, 328, 424 - (16 + labelWidth), 24);
 	}
-	folderButton.setBounds(16, 364, 200, 32);
-	loadButton.setBounds(224, 364, 200, 32);
+	// where the recording goes (like the tick boxes of the quantization), and the preview
+	dateFoldersButton.setBounds(12, 360, 222, 24);
+	timestampButton.setBounds(240, 360, 184, 24);
+	previewLabel.setBounds(16, 390, 408, 20);
+	updatePreview();
+	folderButton.setBounds(16, 424, 200, 32);
+	loadButton.setBounds(224, 424, 200, 32);
 	// recording, saving, discarding; the messages; playing back
-	recordButton.setBounds(16, 422, 128, 32);
-	saveButton.setBounds(156, 422, 128, 32);
-	discardButton.setBounds(296, 422, 128, 32);
-	statusLabel.setBounds(16, 462, 408, 28);
-	listenButton.setBounds(16, 500, 140, 32);
-	positionLabel.setBounds(164, 500, 260, 32);
+	recordButton.setBounds(16, 482, 128, 32);
+	saveButton.setBounds(156, 482, 128, 32);
+	discardButton.setBounds(296, 482, 128, 32);
+	statusLabel.setBounds(16, 522, 408, 28);
+	listenButton.setBounds(16, 560, 140, 32);
+	positionLabel.setBounds(164, 560, 260, 32);
 	positionLabel.setJustificationType(Justification::centredRight);
 	{
 		const int labelWidth = jlimit(40, 120, textWidth(positionCaption.getText()) + 6);
-		positionCaption.setBounds(16, 548, labelWidth, 24);
-		positionSlider.setBounds(16 + labelWidth, 548, 428 - (16 + labelWidth), 24);
+		positionCaption.setBounds(16, 608, labelWidth, 24);
+		positionSlider.setBounds(16 + labelWidth, 608, 428 - (16 + labelWidth), 24);
 	}
 }
 
@@ -433,14 +462,16 @@ void RecorderComponent::buttonClicked(Button* button)
 		}
 		else
 		{
-			const File directory = settings.GetRecordingsDirectory();
+			// with subfolders by date: today's, if there is one
+			const File directory = todayFolder();
 			directory.createDirectory();
 			directory.startAsProcess();
 		}
 	}
 	else if (button == &autoButton || button == &manualButton || button == &styleButton ||
 		button == &playbackButton ||
-		button == &quantizeButton || button == &quantizeEndsButton || button == &quantizeFillButton)
+		button == &quantizeButton || button == &quantizeEndsButton || button == &quantizeFillButton ||
+		button == &dateFoldersButton || button == &timestampButton)
 	{
 		// the accompaniment or the playback is recorded, not both
 		if (button == &styleButton && styleButton.getToggleState())
@@ -471,7 +502,10 @@ void RecorderComponent::saveOptions()
 	const int triplets = tripletTicks();
 	const bool ends = quantizeEndsButton.getToggleState();
 	const bool fill = quantizeFillButton.getToggleState();
-	if (automatic != settings.recorderAutomatic || silence != settings.recorderSilence ||
+	const bool dateFolders = dateFoldersButton.getToggleState();
+	const bool timestamp = timestampButton.getToggleState();
+	if (dateFolders != settings.recorderDateFolders || timestamp != settings.recorderTimestamp ||
+		automatic != settings.recorderAutomatic || silence != settings.recorderSilence ||
 		style != settings.recorderStyle || playback != settings.recorderPlayback ||
 		countIn != settings.recorderCountIn ||
 		quantize != settings.recorderQuantize || ticks != settings.recorderQuantizeTicks ||
@@ -488,8 +522,11 @@ void RecorderComponent::saveOptions()
 		settings.recorderSilence = silence;
 		settings.recorderStyle = style;
 		settings.recorderPlayback = playback;
+		settings.recorderDateFolders = dateFolders;
+		settings.recorderTimestamp = timestamp;
 		settings.Save();
 	}
+	updatePreview();
 }
 
 void RecorderComponent::startRecording()
@@ -508,8 +545,10 @@ void RecorderComponent::startRecording()
 	saved = false;
 	savedName = "";
 	message = "";
-	// automatic file name with the date and time; it can be changed until it is saved
-	nameEditor.setText(TRANS("Recording") + " " + Time::getCurrentTime().formatted("%Y-%m-%d %H-%M-%S"), false);
+	// the date and the time of the start go into the file name (see targetFile)
+	recordingTime = Time::getCurrentTime();
+	hasRecordingTime = true;
+	updatePreview();
 	const int countIn = jlimit(0, 2, countInCombo.getSelectedId() - 1);
 	// a recorded accompaniment starts and keeps the automatic recording going
 	pianoController.GetRecorder().SetStyleCounts(styleButton.getToggleState());
@@ -548,6 +587,22 @@ void RecorderComponent::save()
 		return;
 	}
 
+	storeName();
+	const File file = targetFile();
+	if (file == File())
+	{
+		message = TRANS("Enter a file name.");
+		updateStatus();
+		return;
+	}
+	// (an existing file is not overwritten: targetFile adds a number to the name)
+	file.getParentDirectory().createDirectory();
+	writeFile(file);
+	updatePreview();
+}
+
+File RecorderComponent::targetFile() const
+{
 	String name = File::createLegalFileName(nameEditor.getText().trim());
 	if (name.endsWithIgnoreCase(".mid"))
 	{
@@ -555,36 +610,102 @@ void RecorderComponent::save()
 	}
 	if (name.isEmpty())
 	{
-		message = TRANS("Enter a file name.");
-		updateStatus();
+		return {};
+	}
+	// the start of the recording (while it is recorded, or kept to be saved); else: now
+	LiveRecorder& recorder = pianoController.GetRecorder();
+	const bool ofRecording = hasRecordingTime && (recorder.GetState() != LiveRecorder::stIdle || recorder.HasData());
+	const Time time = ofRecording ? recordingTime : Time::getCurrentTime();
+	File directory = settings.GetRecordingsDirectory();
+	if (dateFoldersButton.getToggleState())
+	{
+		directory = directory.getChildFile(time.formatted("%Y-%m-%d"));
+		if (timestampButton.getToggleState())
+		{
+			name << " " << time.formatted("%H-%M-%S");
+		}
+	}
+	else if (timestampButton.getToggleState())
+	{
+		name << " " << time.formatted("%Y-%m-%d %H-%M-%S");
+	}
+	File file = directory.getChildFile(name + ".mid");
+	for (int number = 2; file.exists() && number < 1000; number++)
+	{
+		file = directory.getChildFile(name + " (" + String(number) + ").mid");
+	}
+	return file;
+}
+
+File RecorderComponent::todayFolder() const
+{
+	const File directory = settings.GetRecordingsDirectory();
+	const File today = directory.getChildFile(Time::getCurrentTime().formatted("%Y-%m-%d"));
+	return dateFoldersButton.getToggleState() && today.isDirectory() ? today : directory;
+}
+
+void RecorderComponent::storeName()
+{
+	const String name = nameEditor.getText().trim();
+	if (name != settings.recorderName)
+	{
+		settings.recorderName = name;
+		settings.Save();
+	}
+}
+
+// The folder and the name of the file the recording is saved to, from the folder of the
+// recordings on; shortened in the middle if it does not fit (the end, with the time, is
+// kept). The whole path is in the tooltip.
+void RecorderComponent::updatePreview()
+{
+	previewMs = Time::getMillisecondCounter();
+	const File file = targetFile();
+	if (file == File())
+	{
+		previewText = TRANS("Enter a file name.");
+		previewLabel.setText(previewText, dontSendNotification);
+		previewLabel.setTooltip({});
 		return;
 	}
-
-	File directory = settings.GetRecordingsDirectory();
-	directory.createDirectory();
-	const File file = directory.getChildFile(name + ".mid");
-
-	if (file.existsAsFile())
+	const File base = settings.GetRecordingsDirectory();
+	const String shown = base.getFileName() + File::getSeparatorString() + file.getRelativePathFrom(base);
+	const String caption = TRANS("Save to:") + " ";
+	const String text = caption + shown;
+	if (text == previewText && previewLabel.getWidth() > 0)
 	{
-		AlertWindow::showAsync(MessageBoxOptions()
-				.withIconType(MessageBoxIconType::QuestionIcon)
-				.withTitle("ConPianist")
-				.withMessage(TRANS("A file with this name already exists. Overwrite it?"))
-				.withButton(TRANS("Yes"))
-				.withButton(TRANS("Cancel"))
-				.withAssociatedComponent(this),
-			[this, file, self = Component::SafePointer<Component>(this)](int result)
+		return;
+	}
+	previewText = text;
+	previewLabel.setTooltip(file.getFullPathName());
+	const Font font = previewLabel.getFont();
+	const int width = previewLabel.getWidth() - 8;
+	String result = text;
+	if (width > 0 && GlyphArrangement::getStringWidthInt(font, text) > width)
+	{
+		// characters are left out in the middle of the path, in the place of an ellipsis
+		const String ellipsis = String(CharPointer_UTF8(" \xe2\x80\xa6 "));
+		int keepStart = shown.length() / 2;
+		int keepEnd = shown.length() - keepStart;
+		while (keepStart > 0 || keepEnd > 0)
+		{
+			if (keepStart >= keepEnd && keepStart > 0)
 			{
-				if (self != nullptr && result == 1)
-				{
-					writeFile(file);
-				}
-			});
+				keepStart--;
+			}
+			else if (keepEnd > 0)
+			{
+				keepEnd--;
+			}
+			result = caption + shown.substring(0, keepStart).trimEnd() + ellipsis +
+				shown.substring(shown.length() - keepEnd).trimStart();
+			if (GlyphArrangement::getStringWidthInt(font, result) <= width)
+			{
+				break;
+			}
+		}
 	}
-	else
-	{
-		writeFile(file);
-	}
+	previewLabel.setText(result, dontSendNotification);
 }
 
 void RecorderComponent::writeFile(const File& file)
@@ -688,7 +809,7 @@ void RecorderComponent::playLoadedFile()
 // Load recording: an earlier recording (any MIDI file) from the folder of the recordings.
 void RecorderComponent::chooseFile()
 {
-	const File directory = settings.GetRecordingsDirectory();
+	const File directory = todayFolder(); // with subfolders by date: today's, if there is one
 	directory.createDirectory();
 	GuiHelper::ShowFileOpenDialogAsync(TRANS("Please select the recording you want to load..."),
 		directory.getFullPathName(), "*.mid;*.midi",
@@ -903,6 +1024,10 @@ void RecorderComponent::timerCallback()
 {
 	LiveRecorder& recorder = pianoController.GetRecorder();
 	const LiveRecorder::State state = recorder.GetState();
+	if (Time::getMillisecondCounter() - previewMs >= 500)
+	{
+		updatePreview(); // (the time shown goes on before a recording)
+	}
 
 	if (state == LiveRecorder::stRecording &&
 		(lastState == LiveRecorder::stArmed || lastState == LiveRecorder::stCountIn))
@@ -1003,7 +1128,7 @@ void RecorderComponent::updateControls()
 	}
 	saveButton.setEnabled(hasData);
 	discardButton.setEnabled(hasData && !saved);
-	nameEditor.setEnabled(hasData);
+	// (the name can be changed at any time: it is used when the recording is saved)
 	// loading replaces the song of the player: not during a recording. Via network it is
 	// only played (the piano's player plays the file): a new layer cannot be recorded to it
 	// (Record playback/song is off then, and Record stops the playback, see startRecording)

@@ -70,7 +70,11 @@ private:
 	ToggleButton quantizeEndsButton;
 	ToggleButton quantizeFillButton;
 	Label nameLabel;
-	TextEditor nameEditor;
+	TextEditor nameEditor;       // the name of the file, without the date and the time
+	ToggleButton dateFoldersButton; // the date of the recording is a subfolder
+	ToggleButton timestampButton;   // the time (and the date) is added to the name
+	Label previewLabel;          // where and under what name the recording is saved
+	String previewText;          // (shown shortened in the middle if it does not fit)
 	Label statusLabel;
 
 	// The Record button, the main function of the window, stands out: a red dot and a red
@@ -111,6 +115,9 @@ private:
 	String listenSettings;   // how the recording in the player was written (see listenKey)
 	String message;          // shown until the next recording (e.g. an error)
 	bool metronomeStarted = false; // the metronome was switched on for the count-in
+	Time recordingTime;      // the start of the recording (its date and time in the file name)
+	bool hasRecordingTime = false;
+	uint32 previewMs = 0;    // when the preview was updated last
 
 	void startRecording();
 	void stopRecording();
@@ -130,6 +137,13 @@ private:
 	void updatePosition();
 	bool isListening() const; // the recording is being played back
 	void writeFile(const File& file);
+	// The file the recording is saved to: in the folder of the recordings (or in the
+	// subfolder of its date), with the time (and date) added; a number is added if such a
+	// file exists. An invalid file if no name is given.
+	File targetFile() const;
+	File todayFolder() const; // the folder of the recordings, or today's subfolder if it exists
+	void storeName();         // the name typed is remembered
+	void updatePreview();
 	void saveOptions();
 	void updateControls();
 	void updateMetronome();
