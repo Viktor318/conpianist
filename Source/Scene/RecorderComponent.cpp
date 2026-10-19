@@ -773,26 +773,39 @@ void RecorderComponent::writeFiles(const File& wholeFile, const File& playingFil
 	const bool playingOk = pianoController.SaveRecording(playingFile, false, error, true,
 		quantizeTicks(), quantizeEndsButton.getToggleState(), tripletTicks(),
 		quantizeFillButton.getToggleState());
+	error.clear();
+	const bool styleOk = pianoController.SaveRecording(styleFile, true, error, true,
+		quantizeTicks(), quantizeEndsButton.getToggleState(), tripletTicks(),
+		quantizeFillButton.getToggleState(), true);
+	const bool noStyle = !styleOk && error == "No accompaniment was recorded";
+	// shortly: "Recording 19-45-02.mid + playing, accompaniment" (the whole name would not fit)
+	StringArray parts;
 	if (playingOk)
 	{
-		savedName << ", " << playingFile.getFileName();
+		parts.add(TRANS("playing"));
 	}
-	error.clear();
-	if (pianoController.SaveRecording(styleFile, true, error, true,
-		quantizeTicks(), quantizeEndsButton.getToggleState(), tripletTicks(),
-		quantizeFillButton.getToggleState(), true))
+	if (styleOk)
 	{
-		savedName << ", " << styleFile.getFileName();
+		parts.add(TRANS("accompaniment"));
 	}
-	if (!playingOk)
+	if (!parts.isEmpty())
 	{
-		message = TRANS("The file could not be saved.");
+		savedName << " + " << parts.joinIntoString(", ");
 	}
-	else if (error == "No accompaniment was recorded")
+	if (noStyle)
 	{
-		message = TRANS("No accompaniment was recorded: only the playing was saved.");
+		savedName << " " << TRANS("(no accompaniment)"); // (shown in the line of the saved files)
 	}
-	else if (error.isNotEmpty())
+	// (the whole recording has been saved: only what is missing is told)
+	if (!playingOk && !styleOk && !noStyle)
+	{
+		message = TRANS("The files of the playing and of the accompaniment could not be saved.");
+	}
+	else if (!playingOk)
+	{
+		message = TRANS("The playing file could not be saved.");
+	}
+	else if (!styleOk && !noStyle)
 	{
 		message = TRANS("The accompaniment file could not be saved.");
 	}
