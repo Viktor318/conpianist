@@ -132,7 +132,9 @@ public:
 	bool Save(const File& file, int tempo, int beatNumerator, int beatDenominator,
 		bool includeStyle, int reverbType, String& error,
 		int quantizeTicks = 0, bool quantizeEnds = false, int tripletTicks = 0,
-		bool fillGaps = false) const;
+		bool fillGaps = false, bool styleOnly = false) const;
+	// (styleOnly: only the accompaniment is written, without the player's parts; e.g. into a
+	// file of its own next to the player's. The times are the same as in the player's file.)
 
 private:
 	struct Event

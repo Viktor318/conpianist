@@ -133,15 +133,24 @@ RecorderComponent::RecorderComponent(Settings& settings, PianoController& pianoC
 	countInCombo.onChange = [this]() { saveOptions(); };
 	addAndMakeVisible(countInCombo);
 
-	styleButton.setButtonText(TRANS("Record accompaniment"));
-	styleButton.setTooltip(TRANS("The accompaniment (style) of the piano is saved into the file too"));
-	styleButton.addListener(this);
-	addAndMakeVisible(styleButton);
-
-	playbackButton.setButtonText(TRANS("Record playback/song"));
+	// what is recorded: one of three (like Automatic / Manual)
+	noneButton.setButtonText(TRANS("Playing without accompaniment"));
+	noneButton.setTooltip(TRANS("Only what you play is saved. (The accompaniment playing meanwhile is kept too: choosing Playing with accompaniment before saving puts it into the file.)"));
+	styleButton.setButtonText(TRANS("Playing with accompaniment"));
+	styleButton.setTooltip(TRANS("What you play and the accompaniment (style) of the piano are saved; with automatic start and stop the accompaniment also starts the recording and keeps it going"));
+	playbackButton.setButtonText(TRANS("Playing over the song/playback"));
 	playbackButton.setTooltip(TRANS("What the program's own player plays (via USB or MIDI device) is recorded too: the loaded song, and a recording played with the Play button too, so a new layer can be recorded to a recording"));
-	playbackButton.addListener(this);
-	addAndMakeVisible(playbackButton);
+	for (ToggleButton* button : {&noneButton, &styleButton, &playbackButton})
+	{
+		button->setRadioGroupId(2);
+		button->setClickingTogglesState(true);
+		button->addListener(this);
+		addAndMakeVisible(*button);
+	}
+	separateButton.setButtonText(TRANS("Playing and accompaniment in separate files"));
+	separateButton.setTooltip(TRANS("Two files are saved with the same name: the playing (... playing) and the accompaniment (... accompaniment), e.g. to practise with the accompaniment alone"));
+	separateButton.addListener(this);
+	addAndMakeVisible(separateButton);
 
 	quantizeButton.setButtonText(TRANS("Quantize"));
 	quantizeButton.setTooltip(TRANS("The notes of the saved (and listened) recording are moved to the nearest beat division; useful for making a score from a recording played with the metronome or with a song"));
@@ -252,7 +261,9 @@ RecorderComponent::RecorderComponent(Settings& settings, PianoController& pianoC
 	manualButton.setToggleState(!settings.recorderAutomatic, dontSendNotification);
 	silenceSlider.setValue(settings.recorderSilence, dontSendNotification);
 	styleButton.setToggleState(settings.recorderStyle, dontSendNotification);
-	playbackButton.setToggleState(settings.recorderPlayback, dontSendNotification);
+	playbackButton.setToggleState(settings.recorderPlayback && !settings.recorderStyle, dontSendNotification);
+	noneButton.setToggleState(!styleButton.getToggleState() && !playbackButton.getToggleState(), dontSendNotification);
+	separateButton.setToggleState(settings.recorderSeparateStyle, dontSendNotification);
 	pianoController.SetRecordPlayback(settings.recorderPlayback);
 	countInCombo.setSelectedId(settings.recorderCountIn + 1, dontSendNotification);
 	quantizeButton.setToggleState(settings.recorderQuantize, dontSendNotification);
@@ -271,7 +282,7 @@ RecorderComponent::RecorderComponent(Settings& settings, PianoController& pianoC
 	dateFoldersButton.setToggleState(settings.recorderDateFolders, dontSendNotification);
 	timestampButton.setToggleState(settings.recorderTimestamp, dontSendNotification);
 
-	setSize(440, 648);
+	setSize(440, 704);
 
 	pianoController.AddListener(this);
 	updateMetronome();
@@ -289,7 +300,7 @@ RecorderComponent::~RecorderComponent()
 }
 
 // vertical positions of the lines between the groups of the controls
-static const int SeparatorY[] = {122, 238, 318, 470};
+static const int SeparatorY[] = {178, 294, 374, 526};
 
 void RecorderComponent::paint(Graphics& g)
 {
@@ -323,64 +334,65 @@ void RecorderComponent::resized()
 		manualButton.setBounds(autoButton.getRight() + 6, 16, 124, 24);
 	}
 	{
-		// the second option right after the text of the first one, as far from it as
-		// "Fill the gaps" from the text of "Align the ends of the notes too" below
-		const int x = jlimit(200, 300, 240 + textWidth(styleButton.getButtonText()) - textWidth(quantizeEndsButton.getButtonText()));
-		styleButton.setBounds(12, 88, x - 12 - 4, 24);
-		playbackButton.setBounds(x, 88, 424 - x, 24);
+		// what is recorded: three rows; the separate files beside the accompaniment
+		noneButton.setBounds(12, 84, 300, 24);
+		const int x = jlimit(180, 240, 12 + textWidth(styleButton.getButtonText()) + 48);
+		styleButton.setBounds(12, 112, x - 12 - 4, 24);
+		separateButton.setBounds(x, 112, 424 - x, 24);
+		playbackButton.setBounds(12, 140, 300, 24);
 	}
 	// metronome
-	metronomeButton.setBounds(12, 132, 120, 24);
-	bellButton.setBounds(136, 132, 100, 24);
-	countInCombo.setBounds(240, 132, 184, 24);
+	metronomeButton.setBounds(12, 188, 120, 24);
+	bellButton.setBounds(136, 188, 100, 24);
+	countInCombo.setBounds(240, 188, 184, 24);
 	{
 		const int labelWidth = jlimit(60, 170, textWidth(tempoLabel.getText()) + 10);
-		tempoLabel.setBounds(16, 168, labelWidth, 24);
-		tempoSlider.setBounds(16 + labelWidth, 168, 120, 24);
-		beatCombo.setBounds(16 + labelWidth + 120 + 8, 168, 110, 24);
+		tempoLabel.setBounds(16, 224, labelWidth, 24);
+		tempoSlider.setBounds(16 + labelWidth, 224, 120, 24);
+		beatCombo.setBounds(16 + labelWidth + 120 + 8, 224, 110, 24);
 	}
 	{
 		// the value box right after the text, the slider to the end of the row
 		const int labelWidth = jlimit(60, 170, textWidth(metronomeVolumeLabel.getText()) + 10);
-		metronomeVolumeLabel.setBounds(16, 204, labelWidth, 24);
-		metronomeVolumeSlider.setBounds(16 + labelWidth, 204, 424 - (16 + labelWidth), 24);
+		metronomeVolumeLabel.setBounds(16, 260, labelWidth, 24);
+		metronomeVolumeSlider.setBounds(16 + labelWidth, 260, 424 - (16 + labelWidth), 24);
 	}
 	// quantization
 	{
 		// the tick box and the text of the button, then the two lists
 		const int buttonWidth = jlimit(70, 140, textWidth(quantizeButton.getButtonText()) + 40);
-		quantizeButton.setBounds(12, 248, buttonWidth, 24);
-		quantizeCombo.setBounds(12 + buttonWidth, 248, 126, 24);
-		tripletCombo.setBounds(12 + buttonWidth + 126 + 8, 248, 150, 24);
+		quantizeButton.setBounds(12, 304, buttonWidth, 24);
+		quantizeCombo.setBounds(12 + buttonWidth, 304, 126, 24);
+		tripletCombo.setBounds(12 + buttonWidth + 126 + 8, 304, 150, 24);
 	}
-	quantizeEndsButton.setBounds(12, 284, 222, 24);
-	quantizeFillButton.setBounds(240, 284, 184, 24);
+	quantizeEndsButton.setBounds(12, 340, 222, 24);
+	quantizeFillButton.setBounds(240, 340, 184, 24);
 	// file and state
 	{
 		// the name right after its label; the Folder button at the end of the row
 		const int labelWidth = jlimit(40, 120, textWidth(nameLabel.getText()) + 10);
-		nameLabel.setBounds(16, 328, labelWidth, 24);
-		nameEditor.setBounds(16 + labelWidth, 328, 424 - (16 + labelWidth), 24);
+		nameLabel.setBounds(16, 384, labelWidth, 24);
+		nameEditor.setBounds(16 + labelWidth, 384, 424 - (16 + labelWidth), 24);
 	}
 	// where the recording goes (like the tick boxes of the quantization), and the preview
-	dateFoldersButton.setBounds(12, 360, 222, 24);
-	timestampButton.setBounds(240, 360, 184, 24);
-	previewLabel.setBounds(16, 390, 408, 20);
+	dateFoldersButton.setBounds(12, 416, 222, 24);
+	timestampButton.setBounds(240, 416, 184, 24);
+	previewLabel.setBounds(16, 446, 408, 20);
 	updatePreview();
-	folderButton.setBounds(16, 424, 200, 32);
-	loadButton.setBounds(224, 424, 200, 32);
+	folderButton.setBounds(16, 480, 200, 32);
+	loadButton.setBounds(224, 480, 200, 32);
 	// recording, saving, discarding; the messages; playing back
-	recordButton.setBounds(16, 482, 128, 32);
-	saveButton.setBounds(156, 482, 128, 32);
-	discardButton.setBounds(296, 482, 128, 32);
-	statusLabel.setBounds(16, 522, 408, 28);
-	listenButton.setBounds(16, 560, 140, 32);
-	positionLabel.setBounds(164, 560, 260, 32);
+	recordButton.setBounds(16, 538, 128, 32);
+	saveButton.setBounds(156, 538, 128, 32);
+	discardButton.setBounds(296, 538, 128, 32);
+	statusLabel.setBounds(16, 578, 408, 28);
+	listenButton.setBounds(16, 616, 140, 32);
+	positionLabel.setBounds(164, 616, 260, 32);
 	positionLabel.setJustificationType(Justification::centredRight);
 	{
 		const int labelWidth = jlimit(40, 120, textWidth(positionCaption.getText()) + 6);
-		positionCaption.setBounds(16, 608, labelWidth, 24);
-		positionSlider.setBounds(16 + labelWidth, 608, 428 - (16 + labelWidth), 24);
+		positionCaption.setBounds(16, 664, labelWidth, 24);
+		positionSlider.setBounds(16 + labelWidth, 664, 428 - (16 + labelWidth), 24);
 	}
 }
 
@@ -468,20 +480,12 @@ void RecorderComponent::buttonClicked(Button* button)
 			directory.startAsProcess();
 		}
 	}
-	else if (button == &autoButton || button == &manualButton || button == &styleButton ||
-		button == &playbackButton ||
+	else if (button == &autoButton || button == &manualButton || button == &noneButton ||
+		button == &styleButton || button == &playbackButton || button == &separateButton ||
 		button == &quantizeButton || button == &quantizeEndsButton || button == &quantizeFillButton ||
 		button == &dateFoldersButton || button == &timestampButton)
 	{
-		// the accompaniment or the playback is recorded, not both
-		if (button == &styleButton && styleButton.getToggleState())
-		{
-			playbackButton.setToggleState(false, dontSendNotification);
-		}
-		else if (button == &playbackButton && playbackButton.getToggleState())
-		{
-			styleButton.setToggleState(false, dontSendNotification);
-		}
+		// (the accompaniment or the playback is recorded, not both: radio buttons)
 		pianoController.SetRecordPlayback(playbackButton.getToggleState());
 		// a recorded accompaniment starts and keeps the automatic recording going
 		pianoController.GetRecorder().SetStyleCounts(styleButton.getToggleState());
@@ -502,9 +506,10 @@ void RecorderComponent::saveOptions()
 	const int triplets = tripletTicks();
 	const bool ends = quantizeEndsButton.getToggleState();
 	const bool fill = quantizeFillButton.getToggleState();
+	const bool separate = separateButton.getToggleState();
 	const bool dateFolders = dateFoldersButton.getToggleState();
 	const bool timestamp = timestampButton.getToggleState();
-	if (dateFolders != settings.recorderDateFolders || timestamp != settings.recorderTimestamp ||
+	if (separate != settings.recorderSeparateStyle || dateFolders != settings.recorderDateFolders || timestamp != settings.recorderTimestamp ||
 		automatic != settings.recorderAutomatic || silence != settings.recorderSilence ||
 		style != settings.recorderStyle || playback != settings.recorderPlayback ||
 		countIn != settings.recorderCountIn ||
@@ -523,6 +528,7 @@ void RecorderComponent::saveOptions()
 		settings.recorderStyle = style;
 		settings.recorderPlayback = playback;
 		settings.recorderDateFolders = dateFolders;
+		settings.recorderSeparateStyle = separate;
 		settings.recorderTimestamp = timestamp;
 		settings.Save();
 	}
@@ -589,27 +595,48 @@ void RecorderComponent::save()
 	}
 
 	storeName();
-	const File file = targetFile();
-	if (file == File())
+	// (an existing file is not overwritten: a number is added to the name)
+	if (styleButton.getToggleState() && separateButton.getToggleState())
 	{
-		message = TRANS("Enter a file name.");
-		updateStatus();
-		return;
+		const Array<File> files = targetFiles(true, {TRANS("playing"), TRANS("accompaniment")});
+		if (files.isEmpty())
+		{
+			message = TRANS("Enter a file name.");
+			updateStatus();
+			return;
+		}
+		files[0].getParentDirectory().createDirectory();
+		writeFiles(files[0], files[1]);
 	}
-	// (an existing file is not overwritten: targetFile adds a number to the name)
-	file.getParentDirectory().createDirectory();
-	writeFile(file);
+	else
+	{
+		const File file = targetFile();
+		if (file == File())
+		{
+			message = TRANS("Enter a file name.");
+			updateStatus();
+			return;
+		}
+		file.getParentDirectory().createDirectory();
+		writeFile(file);
+	}
 	updatePreview();
 }
 
 File RecorderComponent::targetFile(bool ofRecordingTime) const
+{
+	const Array<File> files = targetFiles(ofRecordingTime, {String()});
+	return files.isEmpty() ? File() : files[0];
+}
+
+Array<File> RecorderComponent::targetFiles(bool ofRecordingTime, const StringArray& suffixes) const
 {
 	String name = File::createLegalFileName(nameEditor.getText().trim());
 	if (name.endsWithIgnoreCase(".mid"))
 	{
 		name = name.dropLastCharacters(4).trim();
 	}
-	if (name.isEmpty())
+	if (name.isEmpty() || suffixes.isEmpty())
 	{
 		return {};
 	}
@@ -631,12 +658,33 @@ File RecorderComponent::targetFile(bool ofRecordingTime) const
 	{
 		name << " " << time.formatted("%Y-%m-%d %H-%M-%S");
 	}
-	File file = directory.getChildFile(name + ".mid");
-	for (int number = 2; file.exists() && number < 1000; number++)
+	// the same number for all of them (they belong together)
+	Array<File> files;
+	for (int number = 1; number < 1000; number++)
 	{
-		file = directory.getChildFile(name + " (" + String(number) + ").mid");
+		files.clear();
+		bool free = true;
+		for (const String& suffix : suffixes)
+		{
+			String fileName = name;
+			if (suffix.isNotEmpty())
+			{
+				fileName << " " << suffix;
+			}
+			if (number > 1)
+			{
+				fileName << " (" << number << ")";
+			}
+			const File file = directory.getChildFile(File::createLegalFileName(fileName) + ".mid");
+			free = free && !file.exists();
+			files.add(file);
+		}
+		if (free)
+		{
+			break;
+		}
 	}
-	return file;
+	return files;
 }
 
 File RecorderComponent::todayFolder() const
@@ -708,6 +756,44 @@ void RecorderComponent::updatePreview()
 		}
 	}
 	previewLabel.setText(result, dontSendNotification);
+}
+
+// The playing and the accompaniment into two files (the playing without the accompaniment;
+// the accompaniment alone, with the same times). If no accompaniment was recorded, only the
+// playing is saved, with a message.
+void RecorderComponent::writeFiles(const File& playingFile, const File& styleFile)
+{
+	String error;
+	applyKeySignature();
+	const bool ok = pianoController.SaveRecording(playingFile, false, error, true,
+		quantizeTicks(), quantizeEndsButton.getToggleState(), tripletTicks(),
+		quantizeFillButton.getToggleState());
+	if (!ok)
+	{
+		message = TRANS("The file could not be saved.");
+		updateControls();
+		updateStatus();
+		return;
+	}
+	saved = true;
+	savedKey = saveKey();
+	lastSavedFile = playingFile;
+	message = "";
+	savedName = playingFile.getFileName();
+	if (pianoController.SaveRecording(styleFile, true, error, true,
+		quantizeTicks(), quantizeEndsButton.getToggleState(), tripletTicks(),
+		quantizeFillButton.getToggleState(), true))
+	{
+		savedName << ", " << styleFile.getFileName();
+	}
+	else
+	{
+		message = error == "No accompaniment was recorded" ?
+			TRANS("No accompaniment was recorded: only the playing was saved.") :
+			TRANS("The accompaniment file could not be saved.");
+	}
+	updateControls();
+	updateStatus();
 }
 
 void RecorderComponent::writeFile(const File& file)
@@ -909,7 +995,8 @@ bool RecorderComponent::canRecordPlayback() const
 String RecorderComponent::saveKey() const
 {
 	return listenKey() + "|" + nameEditor.getText().trim() + "|" +
-		String((int)dateFoldersButton.getToggleState()) + String((int)timestampButton.getToggleState());
+		String((int)dateFoldersButton.getToggleState()) + String((int)timestampButton.getToggleState()) +
+		String((int)(styleButton.getToggleState() && separateButton.getToggleState()));
 }
 
 String RecorderComponent::listenKey() const
@@ -1144,8 +1231,10 @@ void RecorderComponent::updateControls()
 	// only played (the piano's player plays the file): a new layer cannot be recorded to it
 	// (Record playback/song is off then, and Record stops the playback, see startRecording)
 	loadButton.setEnabled(idle);
+	noneButton.setEnabled(idle);
 	styleButton.setEnabled(idle);
 	playbackButton.setEnabled(idle && canPlayback);
+	separateButton.setEnabled(styleButton.getToggleState()); // a choice of the saving
 	countInCombo.setEnabled(idle && manualButton.getToggleState());
 	quantizeCombo.setEnabled(quantizeButton.getToggleState());
 	tripletCombo.setEnabled(quantizeButton.getToggleState());

@@ -418,8 +418,10 @@ public:
 	static const int GsBank = 119; // bank MSB of the GS voices
 	// keep: the recording counts as saved (false for the temporary file of listening back)
 	// quantizeTicks, quantizeEnds, tripletTicks, fillGaps: see LiveRecorder::Save
+	// styleOnly: only the accompaniment (see LiveRecorder::Save)
 	bool SaveRecording(const File& file, bool includeStyle, String& error, bool keep = true,
-		int quantizeTicks = 0, bool quantizeEnds = false, int tripletTicks = 0, bool fillGaps = false);
+		int quantizeTicks = 0, bool quantizeEnds = false, int tripletTicks = 0, bool fillGaps = false,
+		bool styleOnly = false);
 	// tempo (quarter notes per minute) and time signature of the recording
 	int GetRecordedTempo() const { return m_recordedTempo; }
 	int GetRecordedNumerator() const { return m_recordedNumerator; }

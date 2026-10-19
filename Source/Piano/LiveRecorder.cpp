@@ -720,7 +720,7 @@ double LiveRecorder::AddQuantized(MidiMessageSequence& track, int source, int ch
 
 bool LiveRecorder::Save(const File& file, int tempo, int beatNumerator, int beatDenominator,
 	bool includeStyle, int reverbType, String& error, int quantizeTicks, bool quantizeEnds,
-	int tripletTicks, bool fillGaps) const
+	int tripletTicks, bool fillGaps, bool styleOnly) const
 {
 	const ScopedLock lock(m_lock);
 	if (m_noteCount == 0)
@@ -731,7 +731,8 @@ bool LiveRecorder::Save(const File& file, int tempo, int beatNumerator, int beat
 
 	const int ticksPerQuarter = TicksPerQuarter;
 	// the end of what is written: the accompaniment may go on after the player's last note
-	const double endTime = (includeStyle ? std::max(m_endMs, m_styleEndMs) : m_endMs) - m_startMs + 1.0;
+	const double endTime = (styleOnly ? m_styleEndMs : includeStyle ? std::max(m_endMs, m_styleEndMs) : m_endMs) -
+		m_startMs + 1.0;
 
 	// The tempo of the beginning: the one when the recording was started, or the last one
 	// set before the music began (while armed or counting in, or before the first note:
@@ -847,11 +848,28 @@ bool LiveRecorder::Save(const File& file, int tempo, int beatNumerator, int beat
 			used[event.source] = true;
 		}
 	}
-	if (!includeStyle)
+	if (!includeStyle && !styleOnly)
 	{
 		for (int source = srcStyle9; source <= NumSources; source++)
 		{
 			used[source] = false;
+		}
+	}
+	if (styleOnly)
+	{
+		bool any = false;
+		for (int source = 0; source <= NumSources; source++)
+		{
+			if (source < srcStyle9)
+			{
+				used[source] = false;
+			}
+			any = any || used[source];
+		}
+		if (!any)
+		{
+			error = "No accompaniment was recorded";
+			return false;
 		}
 	}
 

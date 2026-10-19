@@ -62,8 +62,12 @@ private:
 	Label metronomeVolumeLabel;
 	Slider metronomeVolumeSlider;
 	ComboBox countInCombo;
+	// what is recorded (one of the three): the playing only, with the accompaniment, or over
+	// the playback of the own player (a song, or a recording: a new layer)
+	ToggleButton noneButton;
 	ToggleButton styleButton;
 	ToggleButton playbackButton; // the playback of the own player is recorded (not with styleButton)
+	ToggleButton separateButton; // with the accompaniment: two files, the playing and the accompaniment
 	ToggleButton quantizeButton;
 	ComboBox quantizeCombo;      // the grid; the item ids are ticks
 	ComboBox tripletCombo;       // the triplet grid; the item ids are ticks, NoTripletId: none
@@ -137,11 +141,15 @@ private:
 	void updatePosition();
 	bool isListening() const; // the recording is being played back
 	void writeFile(const File& file);
+	void writeFiles(const File& playingFile, const File& styleFile); // two files: separateButton
 	// The file the recording is saved to: in the folder of the recordings (or in the
 	// subfolder of its date), with the time (and date) added; a number is added if such a
 	// file exists. An invalid file if no name is given.
 	// ofRecording: the date and time of the recording (else of now, for the preview)
 	File targetFile(bool ofRecording = true) const;
+	// The same for several files saved together (e.g. "... playing" and "... accompaniment"):
+	// a suffix is added to the name of each; a number is added to all of them if any exists.
+	Array<File> targetFiles(bool ofRecording, const StringArray& suffixes) const;
 	String saveKey() const;  // what the saved file depends on: the settings and the name
 	String savedKey;         // ... when it was saved last (the same again: Save is greyed)
 	File todayFolder() const; // the folder of the recordings, or today's subfolder if it exists

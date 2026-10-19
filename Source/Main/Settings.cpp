@@ -87,6 +87,7 @@ void Settings::Save()
 	prop.setValue("Recorder.Name", recorderName);
 	prop.setValue("Recorder.DateFolders", recorderDateFolders);
 	prop.setValue("Recorder.Timestamp", recorderTimestamp);
+	prop.setValue("Recorder.SeparateStyle", recorderSeparateStyle);
 	prop.setValue("Accompaniment.AutoFill", accompanimentAutoFill);
 	prop.setValue("Accompaniment.Key", accompanimentKey);
 	prop.setValue("Accompaniment.KeyMinor", accompanimentMinor);
@@ -185,6 +186,7 @@ void Settings::Load()
 	recorderName = prop.getValue("Recorder.Name", recorderName);
 	recorderDateFolders = prop.getBoolValue("Recorder.DateFolders", recorderDateFolders);
 	recorderTimestamp = prop.getBoolValue("Recorder.Timestamp", recorderTimestamp);
+	recorderSeparateStyle = prop.getBoolValue("Recorder.SeparateStyle", recorderSeparateStyle);
 	accompanimentAutoFill = prop.getBoolValue("Accompaniment.AutoFill", accompanimentAutoFill);
 	accompanimentKey = prop.getValue("Accompaniment.Key", accompanimentKey);
 	accompanimentMinor = prop.getBoolValue("Accompaniment.KeyMinor", accompanimentMinor);
