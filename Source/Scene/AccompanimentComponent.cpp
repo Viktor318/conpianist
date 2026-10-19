@@ -26,6 +26,14 @@
 
 // The size of the OTS icon after the names of the styles that have own settings.
 static const float StyleIconSize = 12.0f;
+
+// The text of the slider is being typed: then it is not overwritten. (Its - or + button
+// keeps the keyboard focus after a click: that does not count.)
+static bool isTypingInto(Slider& slider)
+{
+	Component* focused = Component::getCurrentlyFocusedComponent();
+	return focused != nullptr && dynamic_cast<TextEditor*>(focused) != nullptr && slider.isParentOf(focused);
+}
 // The colours of the icons: the lemon yellow of the active own setting and the orange of
 // the active factory setting in the OTS window.
 static const Colour OwnIconColour(0xfffaee46);
@@ -1159,7 +1167,7 @@ void AccompanimentComponent::update()
 		}
 	}
 
-	if (!tempoSlider.hasKeyboardFocus(true) && !tempoSlider.isMouseButtonDown(true))
+	if (!isTypingInto(tempoSlider) && !tempoSlider.isMouseButtonDown(true))
 	{
 		tempoSlider.setValue(pianoController.GetStyleTempo(), dontSendNotification);
 	}

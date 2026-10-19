@@ -24,6 +24,14 @@
 static const int RecorderTimerMs = 100;
 static const int MaxNameLength = 100; // characters of the file name typed (the path is limited)
 
+// The text of the slider is being typed: then it is not overwritten. (Its - or + button
+// keeps the keyboard focus after a click: that does not count.)
+static bool isTypingInto(Slider& slider)
+{
+	Component* focused = Component::getCurrentlyFocusedComponent();
+	return focused != nullptr && dynamic_cast<TextEditor*>(focused) != nullptr && slider.isParentOf(focused);
+}
+
 RecorderComponent::RecorderComponent(Settings& settings, PianoController& pianoController) :
 	settings(settings), pianoController(pianoController)
 {
@@ -1274,7 +1282,7 @@ void RecorderComponent::updateControls()
 // metronome as they are now (they can change on the piano and with the song too).
 void RecorderComponent::updateMetronome()
 {
-	if (!tempoSlider.hasKeyboardFocus(true) && !tempoSlider.isMouseButtonDown(true))
+	if (!isTypingInto(tempoSlider) && !tempoSlider.isMouseButtonDown(true))
 	{
 		tempoSlider.setValue(pianoController.GetStyleTempo(), dontSendNotification);
 	}
