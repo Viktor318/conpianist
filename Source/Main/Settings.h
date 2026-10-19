@@ -40,6 +40,11 @@ public:
 	// The folder of the recordings of the Recording window (User Songs/Recorded Songs in the
 	// songs folder, as in Smart Pianist).
 	File GetRecordingsDirectory() const;
+	// The folder of the temporary files of the program (e.g. the recording listened back in
+	// the Recording window). A song loaded from it is not a song of the user: it is not
+	// saved as the song of a registration memory or of the last state.
+	static File GetTemporaryDirectory();
+	static bool IsTemporaryFile(const String& path);
 	void CreateSongFolders() const;
 	// The score of a song of the piano in the folder of its category: named after the
 	// title of the song (without the characters a file name cannot have), its short name
@@ -71,6 +76,9 @@ public:
 	String midiPort;
 	float zoomUi = 1.0;
 	Rectangle<int> windowPos;
+	// the state of the main window as JUCE saves it (position, size, maximised); when it is
+	// known, it is used instead of windowPos (which is kept for older versions)
+	String windowState;
 	// the position of the Recording and the Accompaniment window (NoWindowPos: not known,
 	// the window is centred on the main window)
 	static const int NoWindowPos = -100000;

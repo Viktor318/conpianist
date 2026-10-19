@@ -165,6 +165,7 @@ OtsComponent::OtsComponent(Settings& settings, PianoController& pianoController,
 	linkButton.onClick = [this]()
 		{
 			this->settings.otsLink = !this->settings.otsLink;
+			this->settings.Save(); // at once (not only when the program exits)
 			this->ots.SetLink(this->settings.otsLink);
 			update();
 			grabKeyboardFocus();

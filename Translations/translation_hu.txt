@@ -46,6 +46,7 @@ countries: hu
 "Please select the name for registration memory file..." = "Adja meg a regisztrációs memória fájl nevét..."
 "Please select the registration memory file to load..." = "Válassza ki a betöltendő regisztrációs memória fájlt..."
 "The registration memory could not be saved:" = "A regisztrációs memória mentése nem sikerült:"
+"The registration memories could not be saved:" = "A Kíséret ablak memóriáinak mentése nem sikerült:"
 
 // --- Kapcsolat beállításai ---
 "Piano IP Address" = "Zongora IP-címe"

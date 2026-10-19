@@ -55,6 +55,7 @@ void Settings::Save()
 	prop.setValue("Window.Y", windowPos.getY());
 	prop.setValue("Window.Width", windowPos.getWidth());
 	prop.setValue("Window.Height", windowPos.getHeight());
+	prop.setValue("Window.State", windowState);
 	prop.setValue("Keyboard.Visible", keyboardVisible);
 	prop.setValue("Keyboard.Channels", keyboardChannels);
 	prop.setValue("Keyboard.Channel", FirstKeyboardChannel()); // for older versions
@@ -123,6 +124,7 @@ void Settings::Load()
 	windowPos.setY(prop.getIntValue("Window.Y", windowPos.getY()));
 	windowPos.setWidth(prop.getIntValue("Window.Width", windowPos.getWidth()));
 	windowPos.setHeight(prop.getIntValue("Window.Height", windowPos.getHeight()));
+	windowState = prop.getValue("Window.State", windowState);
 	zoomUi = prop.getDoubleValue("ZoomUi", zoomUi);
 	keyboardVisible = prop.getIntValue("Keyboard.Visible", keyboardVisible);
 	// older versions stored a single channel
@@ -276,6 +278,16 @@ File Settings::GetSongsDirectory() const
 File Settings::GetRecordingsDirectory() const
 {
 	return GetSongsDirectory().getChildFile("User Songs").getChildFile("Recorded Songs");
+}
+
+File Settings::GetTemporaryDirectory()
+{
+	return File::getSpecialLocation(File::tempDirectory).getChildFile("ConPianist");
+}
+
+bool Settings::IsTemporaryFile(const String& path)
+{
+	return File::isAbsolutePath(path) && File(path).isAChildOf(GetTemporaryDirectory());
 }
 
 void Settings::CreateSongFolders() const

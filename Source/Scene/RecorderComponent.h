@@ -109,8 +109,12 @@ private:
 	String savedName;        // ... under this name
 	// What is being loaded into the player (see the Pending values), and what is in it: a
 	// recording (listenLoaded) or a loaded file (listenLoaded and fileLoaded).
-	enum Pending { pendingNone = 0, pendingRecording = 1, pendingFile = 2, pendingFilePlay = 3 };
+	enum Pending { pendingNone = 0, pendingRecording = 1, pendingFileLoad = 2, pendingFilePlay = 3 };
 	std::atomic<int> playPending{pendingNone};
+	File pendingFile;     // the file being loaded (only that one counts, see songLoaded)
+	uint32 pendingMs = 0; // when it was asked for
+	static const uint32 PendingTimeoutMs = 60000; // an upload to the piano may take a while
+	void songLoaded();
 	std::atomic<bool> listenLoaded{false}; // the song in the player is ours
 	std::atomic<bool> fileLoaded{false};   // ... and it is the loaded file
 	File loadedFile;            // loaded with "Load recording"

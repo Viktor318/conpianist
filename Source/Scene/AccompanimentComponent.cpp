@@ -962,8 +962,9 @@ bool AccompanimentComponent::keyPressed(const KeyPress& key)
 	}
 	if (key == KeyPress::returnKey)
 	{
-		applyStyle();
-		return true;
+		// only another style than the one of the piano (as the Apply button): loading the
+		// same style again would set its mixer, split point etc. back to their defaults
+		return applyStyle();
 	}
 	if (character == 't')
 	{
@@ -1008,7 +1009,17 @@ void AccompanimentComponent::PianoStateChanged(PianoController::Aspect aspect, P
 			 channel < PianoController::chStylePart1 + PianoController::NumStyleParts))) ||
 		(aspect == PianoController::apVolume && channel == PianoController::chStyle))
 	{
-		GuiHelper::CallAsync(this, [this]() { update(); });
+		// The piano reports the position of the accompaniment on every beat (and every
+		// chord): the updates are merged, only one waits at a time (it shows the state as it
+		// is when it runs).
+		if (!updateQueued.exchange(true))
+		{
+			GuiHelper::CallAsync(this, [this]()
+				{
+					updateQueued = false;
+					update();
+				});
+		}
 	}
 	// the voices of the keyboard parts: is the active own OTS modified
 	if (((aspect == PianoController::apVoice || aspect == PianoController::apActive ||
@@ -1084,29 +1095,48 @@ void AccompanimentComponent::setBothSplitPoints(int note)
 
 void AccompanimentComponent::markButton(TextButton& button, bool current, bool next)
 {
-	// drawn by the look and feel of the program: "toggle" - filled when on,
-	// "live" - white outline
-	if (current)
+	setButtonMarks(button, current, next && !current);
+}
+
+// Drawn by the look and feel of the program: "toggle" - filled when on, "live" - white
+// outline. The button is drawn again only if something changed (this runs on every beat
+// while the accompaniment is playing).
+void AccompanimentComponent::setButtonMarks(TextButton& button, bool filled, bool outlined)
+{
+	NamedValueSet& properties = button.getProperties();
+	bool changed = false;
+	if (properties.contains("toggle") != filled)
 	{
-		button.getProperties().set("toggle", true);
+		if (filled)
+		{
+			properties.set("toggle", true);
+		}
+		else
+		{
+			properties.remove("toggle");
+		}
+		changed = true;
 	}
-	else
+	if (properties.contains("live") != outlined)
 	{
-		button.getProperties().remove("toggle");
+		if (outlined)
+		{
+			properties.set("live", true);
+		}
+		else
+		{
+			properties.remove("live");
+		}
+		changed = true;
 	}
-	if (next && !current)
+	if (button.getToggleState() != filled)
 	{
-		button.getProperties().set("live", true);
+		button.setToggleState(filled, dontSendNotification); // (drawn again by itself)
 	}
-	else
+	else if (changed)
 	{
-		button.getProperties().remove("live");
+		button.repaint();
 	}
-	if (button.getToggleState() != current)
-	{
-		button.setToggleState(current, dontSendNotification);
-	}
-	button.repaint();
 }
 
 void AccompanimentComponent::update()
@@ -1359,14 +1389,17 @@ void AccompanimentComponent::showStyleInLists(int index)
 	styleCombo.setSelectedId(index + 1, dontSendNotification);
 }
 
-// Loads the style chosen in the lists on the piano.
-void AccompanimentComponent::applyStyle()
+// Loads the style chosen in the lists on the piano, if it is not the style of the piano
+// already. False if nothing was loaded.
+bool AccompanimentComponent::applyStyle()
 {
 	const int index = styleCombo.getSelectedId() - 1;
-	if (index >= 0 && index < (int)styles.size())
+	if (index < 0 || index >= (int)styles.size() || styles[index].path == pianoController.GetStyleName())
 	{
-		pianoController.SetStyle(styles[index].path);
+		return false;
 	}
+	pianoController.SetStyle(styles[index].path);
+	return true;
 }
 
 // The notes of the key list in the chosen mode (major or minor); the chosen key stays
@@ -1523,6 +1556,7 @@ File AccompanimentComponent::registrationsFile() const
 
 void AccompanimentComponent::loadRegistrations()
 {
+	registrationTooltipsDirty = true; // (the tooltips may have been built before)
 	std::unique_ptr<XmlElement> root = XmlDocument::parse(registrationsFile());
 	if (!root || !root->hasTagName("ConPianistRegistrations"))
 	{
@@ -1582,6 +1616,8 @@ void AccompanimentComponent::loadRegistrations()
 
 void AccompanimentComponent::saveRegistrations()
 {
+	registrationTooltipsDirty = true; // a memory has changed
+
 	XmlElement root("ConPianistRegistrations");
 	for (int index = 0; index < NumRegistrations; index++)
 	{
@@ -1629,7 +1665,13 @@ void AccompanimentComponent::saveRegistrations()
 			partEl->setAttribute("octave", part.octave);
 		}
 	}
-	root.writeTo(registrationsFile());
+	const File file = registrationsFile();
+	if (!root.writeTo(file))
+	{
+		Logger::writeToLog("Cannot save the registration memories: " + file.getFullPathName());
+		AlertWindow::showMessageBoxAsync(MessageBoxIconType::WarningIcon, "ConPianist",
+			TRANS("The registration memories could not be saved:") + "\n" + file.getFullPathName());
+	}
 }
 
 // The settings as they are now.
@@ -1999,7 +2041,8 @@ String AccompanimentComponent::registrationTooltip(int index) const
 		{
 			title = "-";
 		}
-		text << RegistrationPartNames[i] << ": " << title;
+		// the names of the parts as on the Voice tab (Main, Layer, Left in the file)
+		text << TRANS(RegistrationPartNames[i]) << ": " << title;
 		if (!part.active)
 		{
 			text << " (" << TRANS("Off").toLowerCase() << ")";
@@ -2060,15 +2103,15 @@ void AccompanimentComponent::updateRegistrationButtons()
 		MemoryButton& button = registrationButtons[i];
 		button.setEnabled(true);
 		button.setAlpha(registrations[i].used || memoryArmed ? 1.0f : 0.45f);
-		markButton(button, i == currentRegistration && registrations[i].used, false);
-		// a white frame around the memories that are in use (the current one too)
-		if (registrations[i].used)
+		// filled: the current one; a white frame around the memories that are in use (the
+		// current one too)
+		setButtonMarks(button, i == currentRegistration && registrations[i].used, registrations[i].used);
+		if (registrationTooltipsDirty)
 		{
-			button.getProperties().set("live", true);
-			button.repaint();
+			button.setTooltip(registrationTooltip(i));
 		}
-		button.setTooltip(registrationTooltip(i));
 	}
+	registrationTooltipsDirty = false; // (built again only when a memory changes)
 }
 
 //==============================================================================

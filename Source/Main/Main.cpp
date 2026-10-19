@@ -74,9 +74,17 @@ public:
     //==============================================================================
     void systemRequestedQuit() override
     {
-        // This is called when the app is being asked to quit: you can ignore this
-        // request and let the app carry on running, or call quit() to allow the app to close.
-        quit();
+        // This is called when the app is being asked to quit (e.g. Windows is shut down or
+        // the user logs off): it goes the way of the close button, so the program asks
+        // first if a recording has not been saved yet (until then Windows waits).
+        if (mainWindow)
+        {
+            mainWindow->closeButtonPressed();
+        }
+        else
+        {
+            quit();
+        }
     }
 
     void anotherInstanceStarted (const String& commandLine) override
@@ -165,11 +173,17 @@ public:
 			setFullScreen(true);
 #else
 			centreWithSize (getWidth(), getHeight());
-			Rectangle<int> bounds = settings.windowPos;
-			if (bounds.getX() > -100 && bounds.getY() > -100 &&
-				bounds.getWidth() > 200 && bounds.getHeight() > 100)
+			// The state saved by JUCE: maximised too, and moved onto a screen if the screens
+			// have changed since (e.g. a second monitor was disconnected). Without it (saved by
+			// an older version): the position, if its top is on a screen.
+			if (settings.windowState.isEmpty() || !restoreWindowStateFromString(settings.windowState))
 			{
-				setBounds(bounds);
+				Rectangle<int> bounds = settings.windowPos;
+				if (bounds.getWidth() > 200 && bounds.getHeight() > 100 &&
+					Settings::IsWindowPosUsable(bounds.getPosition(), bounds.getWidth()))
+				{
+					setBounds(bounds);
+				}
 			}
 #endif
 
@@ -178,6 +192,10 @@ public:
 
 		~MainWindow()
 		{
+			// an open dialog (e.g. Connection Settings) is closed first: it saves its settings
+			// when it is closed, and it must not outlive the settings and the window
+			GuiHelper::CloseDialogs();
+			settings.windowState = getWindowStateAsString();
 			// the window disappears at once: closing the connections and the MIDI ports
 			// may take some seconds (e.g. after the piano was switched off)
 			setVisible(false);

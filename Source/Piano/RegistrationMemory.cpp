@@ -104,9 +104,11 @@ std::unique_ptr<XmlElement> RegistrationMemory::CreateXml()
 }
 
 // The full path of the loaded song, for information and for restoring the last state.
+// A temporary file of the program (a recording listened back) is not a song of the user.
 void RegistrationMemory::SaveSongName()
 {
-	if (pianoController.IsSongLoaded() && File::isAbsolutePath(pianoController.GetSongName()))
+	if (pianoController.IsSongLoaded() && File::isAbsolutePath(pianoController.GetSongName()) &&
+		!Settings::IsTemporaryFile(pianoController.GetSongName()))
 	{
 		root->createNewChildElement("Song")->addTextElement(pianoController.GetSongName());
 	}

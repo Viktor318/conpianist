@@ -259,6 +259,7 @@ private:
 	String registrationTooltip(int index) const;
 	void setMemoryArmed(bool armed);
 	void updateRegistrationButtons();
+	bool registrationTooltipsDirty = true; // the tooltips of the numbers are built again
 	void timerCallback() override;
 	Label hintLabel;            // a message, e.g. that the piano is not connected
 
@@ -266,7 +267,7 @@ private:
 	void loadStyles();      // the categories that have styles (of the chosen time signature)
 	void fillGroupCombo();  // the groups of the chosen category, the first one chosen
 	void fillStyleCombo();  // the styles of the chosen group, the first one chosen
-	void applyStyle();
+	bool applyStyle(); // false: nothing to load (the style of the piano is chosen)
 	void showStyleInLists(int index);
 	void fillIn();
 	void changeMain(int index);
@@ -278,6 +279,10 @@ private:
 	int defaultTempo() const; // of the style of the piano; 0 if it is not in the list
 	// current: the section is playing; next: it is played after the current one
 	static void markButton(TextButton& button, bool current, bool next);
+	// filled ("toggle") and white outline ("live"); drawn again only if they change
+	static void setButtonMarks(TextButton& button, bool filled, bool outlined);
+	// update() waits on the message thread (the updates from the notifications are merged)
+	std::atomic<bool> updateQueued{false};
 };
 
 // The Accompaniment window: not modal and always on top, like the Recording window.

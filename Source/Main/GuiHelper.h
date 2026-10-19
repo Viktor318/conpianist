@@ -29,6 +29,9 @@ class GuiHelper
 {
 public:
 	static void ShowDialogAsync(Component* content, const String& title);
+	// Closes (deletes) a dialog shown by ShowDialogAsync that is still open, e.g. when the
+	// program exits: its content may save the settings when it is deleted.
+	static void CloseDialogs();
 
 	static void ShowFileOpenDialogAsync(const String& title,
 		const String& initialLocation,
@@ -60,4 +63,5 @@ public:
 	
 private:
 	static std::unique_ptr<FileChooser> m_fileChooser;
+	static Component::SafePointer<Component> m_dialog; // the dialog shown by ShowDialogAsync
 };

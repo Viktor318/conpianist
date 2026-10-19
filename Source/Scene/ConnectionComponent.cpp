@@ -177,7 +177,7 @@ void ConnectionComponent::save()
 	auto oldMidiIn2 = settings.midiIn2;
 	auto oldMidiOut = settings.midiOut;
 
-	settings.pianoIp = pianoIpEdit->getText();
+	settings.pianoIp = pianoIpEdit->getText().trim(); // a pasted address may have spaces
 	// nothing selected (should not happen): the setting is kept, not cleared
 	if (midiPortComboBox->getSelectedId() >= 1)
 	{

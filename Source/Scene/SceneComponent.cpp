@@ -340,6 +340,7 @@ SceneComponent::~SceneComponent()
 {
     //[Destructor_pre]. You can add your own custom destruction code here..
     pianoController.RemoveListener(this); // no more notifications while it is destroyed
+    settings.removeChangeListener(this);
     if (shortcutMainWindow != nullptr)
     {
         shortcutMainWindow->removeKeyListener(&shortcutKeys);
@@ -1437,7 +1438,10 @@ void SceneComponent::saveLastState()
 				keep(*channels, previousChannels, name);
 			}
 		}
-		if (!songStateRestored)
+		// A recording listened back in the Recording window (a temporary file) is not the
+		// song of the last state: the song loaded before it is kept, with its settings.
+		const bool temporarySong = Settings::IsTemporaryFile(pianoController.GetSongName());
+		if (!songStateRestored || temporarySong)
 		{
 			keep(*state, previous.get(), "Song");
 			keep(*state, previous.get(), "Playback");

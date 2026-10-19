@@ -866,7 +866,7 @@ void RecorderComponent::listen()
 		return;
 	}
 
-	const File directory = File::getSpecialLocation(File::tempDirectory).getChildFile("ConPianist");
+	const File directory = Settings::GetTemporaryDirectory();
 	directory.createDirectory();
 	const File file = directory.getChildFile(File::createLegalFileName(TRANS("Recording (listening)")) + ".mid");
 	String error;
@@ -889,6 +889,8 @@ void RecorderComponent::listen()
 	listenLoaded = false;
 	fileLoaded = false;
 	listenSettings = listenKey();
+	pendingFile = file;
+	pendingMs = Time::getMillisecondCounter();
 	playPending = pendingRecording; // played when the player reports that the song is loaded
 	if (!pianoController.LoadSong(file))
 	{
@@ -955,7 +957,9 @@ void RecorderComponent::loadFile(const File& file, bool play)
 	listenLoaded = false;
 	fileLoaded = false;
 	listenSettings = "";
-	playPending = play ? pendingFilePlay : pendingFile;
+	pendingFile = file;
+	pendingMs = Time::getMillisecondCounter();
+	playPending = play ? pendingFilePlay : pendingFileLoad;
 	if (!pianoController.LoadSong(file))
 	{
 		playPending = pendingNone;
@@ -1116,6 +1120,36 @@ void RecorderComponent::updatePosition()
 	}
 }
 
+// The player has loaded a song: the one loaded for playing back (a recording or the loaded
+// file), or another song that replaces it. Only the file asked for counts: via network the
+// piano may report another song first (e.g. the one before the upload), and a load that
+// did not reach the player must not make the next song of the user ours. Message thread.
+void RecorderComponent::songLoaded()
+{
+	const int pending = playPending;
+	bool ours = false;
+	if (pending != pendingNone)
+	{
+		if (File::createFileWithoutCheckingPath(pianoController.GetSongName()) == pendingFile)
+		{
+			ours = true;
+			playPending = pendingNone;
+		}
+		else if (Time::getMillisecondCounter() - pendingMs >= PendingTimeoutMs)
+		{
+			playPending = pendingNone; // it did not arrive in time
+		}
+	}
+	listenLoaded = ours;
+	fileLoaded = ours && (pending == pendingFileLoad || pending == pendingFilePlay);
+	if (ours && (pending == pendingRecording || pending == pendingFilePlay))
+	{
+		pianoController.Play();
+	}
+	updateControls();
+	updateStatus();
+}
+
 bool RecorderComponent::isListening() const
 {
 	return listenLoaded && pianoController.GetPlaying();
@@ -1126,22 +1160,7 @@ void RecorderComponent::PianoStateChanged(PianoController::Aspect aspect, PianoC
 {
 	if (aspect == PianoController::apSongLoaded)
 	{
-		// the song loaded for playing back (a recording or the loaded file), or another
-		// song that replaces it
-		const int pending = playPending.exchange(pendingNone);
-		listenLoaded = pending != pendingNone;
-		fileLoaded = pending == pendingFile || pending == pendingFilePlay;
-		if (pending == pendingRecording || pending == pendingFilePlay)
-		{
-			GuiHelper::CallAsync(this, [this]()
-				{
-					if (listenLoaded)
-					{
-						pianoController.Play();
-					}
-				});
-		}
-		GuiHelper::CallAsync(this, [this]() { updateControls(); updateStatus(); });
+		GuiHelper::CallAsync(this, [this]() { songLoaded(); });
 	}
 	else if (aspect == PianoController::apPlaybackSource || aspect == PianoController::apConnection)
 	{

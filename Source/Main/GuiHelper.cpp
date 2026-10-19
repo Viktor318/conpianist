@@ -23,6 +23,7 @@
 #include "Presets.h"
 
 std::unique_ptr<FileChooser> GuiHelper::m_fileChooser;
+Component::SafePointer<Component> GuiHelper::m_dialog;
 
 class AsyncDialogWindow : public DialogWindow
 {
@@ -57,24 +58,29 @@ public:
 	void FadeIn()
 	{
 		m_topWindow = TopLevelWindow::getActiveTopLevelWindow();
-		m_topWindow->getChildren()[0]->setAlpha(0.3);
+		if (m_topWindow != nullptr && m_topWindow->getNumChildComponents() > 0)
+		{
+			m_topWindow->getChildComponent(0)->setAlpha(0.3);
+		}
 	}
 
 	void FadeOut()
 	{
-		if (m_topWindow)
+		if (m_topWindow != nullptr && m_topWindow->getNumChildComponents() > 0)
 		{
-			m_topWindow->getChildren()[0]->setAlpha(1.0);
+			m_topWindow->getChildComponent(0)->setAlpha(1.0);
 		}
 	}
 
 private:
-	TopLevelWindow* m_topWindow = nullptr;
+	// the window faded while the dialog is open (it may be deleted before the dialog)
+	Component::SafePointer<Component> m_topWindow;
 };
 
 void GuiHelper::Final()
 {
 	m_fileChooser.reset();
+	m_dialog = nullptr;
 }
 
 void GuiHelper::CallAsync(Component* component, std::function<void()> function)
@@ -92,7 +98,18 @@ void GuiHelper::CallAsync(Component* component, std::function<void()> function)
 void GuiHelper::ShowDialogAsync(Component* content, const String& title)
 {
 	AsyncDialogWindow* dialog = new AsyncDialogWindow(content, title);
+	m_dialog = dialog;
 	dialog->Launch();
+}
+
+void GuiHelper::CloseDialogs()
+{
+	// deleted directly: the modal state ends with it (it is not deleted again)
+	if (Component* dialog = m_dialog.getComponent())
+	{
+		m_dialog = nullptr;
+		delete dialog;
+	}
 }
 
 void GuiHelper::ShowFileOpenDialogAsync(const String& title, const String& initialLocation,
