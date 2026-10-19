@@ -133,6 +133,7 @@ private:
 	void askDiscard();
 	// the playback can be recorded now (USB or MIDI device: the own player plays)
 	bool canRecordPlayback() const;
+	bool withStyle() const; // the accompaniment is recorded (chosen, and the piano is there)
 	String listenKey() const; // the settings that change what is listened back
 	void applyKeySignature();
 	static const int NoTripletId = 1;
@@ -141,7 +142,8 @@ private:
 	void updatePosition();
 	bool isListening() const; // the recording is being played back
 	void writeFile(const File& file);
-	void writeFiles(const File& playingFile, const File& styleFile); // two files: separateButton
+	// three files: the whole recording, the playing, the accompaniment (separateButton)
+	void writeFiles(const File& wholeFile, const File& playingFile, const File& styleFile);
 	// The file the recording is saved to: in the folder of the recordings (or in the
 	// subfolder of its date), with the time (and date) added; a number is added if such a
 	// file exists. An invalid file if no name is given.

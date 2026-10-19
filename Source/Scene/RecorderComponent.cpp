@@ -147,8 +147,8 @@ RecorderComponent::RecorderComponent(Settings& settings, PianoController& pianoC
 		button->addListener(this);
 		addAndMakeVisible(*button);
 	}
-	separateButton.setButtonText(TRANS("Playing and accompaniment in separate files"));
-	separateButton.setTooltip(TRANS("Two files are saved with the same name: the playing (... playing) and the accompaniment (... accompaniment), e.g. to practise with the accompaniment alone"));
+	separateButton.setButtonText(TRANS("Playing and accompaniment in separate files too"));
+	separateButton.setTooltip(TRANS("Besides the whole recording, the playing (... playing) and the accompaniment (... accompaniment) are saved into files of their own too, with the same name, e.g. to practise with the accompaniment alone"));
 	separateButton.addListener(this);
 	addAndMakeVisible(separateButton);
 
@@ -488,7 +488,7 @@ void RecorderComponent::buttonClicked(Button* button)
 		// (the accompaniment or the playback is recorded, not both: radio buttons)
 		pianoController.SetRecordPlayback(playbackButton.getToggleState());
 		// a recorded accompaniment starts and keeps the automatic recording going
-		pianoController.GetRecorder().SetStyleCounts(styleButton.getToggleState());
+		pianoController.GetRecorder().SetStyleCounts(withStyle());
 		saveOptions();
 		updateControls();
 	}
@@ -558,7 +558,7 @@ void RecorderComponent::startRecording()
 	updatePreview();
 	const int countIn = jlimit(0, 2, countInCombo.getSelectedId() - 1);
 	// a recorded accompaniment starts and keeps the automatic recording going
-	pianoController.GetRecorder().SetStyleCounts(styleButton.getToggleState());
+	pianoController.GetRecorder().SetStyleCounts(withStyle());
 	if (autoButton.getToggleState())
 	{
 		pianoController.StartRecording(true);
@@ -596,9 +596,10 @@ void RecorderComponent::save()
 
 	storeName();
 	// (an existing file is not overwritten: a number is added to the name)
-	if (styleButton.getToggleState() && separateButton.getToggleState())
+	if (withStyle() && separateButton.getToggleState())
 	{
-		const Array<File> files = targetFiles(true, {TRANS("playing"), TRANS("accompaniment")});
+		// the whole recording, and the playing and the accompaniment in files of their own too
+		const Array<File> files = targetFiles(true, {String(), TRANS("playing"), TRANS("accompaniment")});
 		if (files.isEmpty())
 		{
 			message = TRANS("Enter a file name.");
@@ -606,7 +607,7 @@ void RecorderComponent::save()
 			return;
 		}
 		files[0].getParentDirectory().createDirectory();
-		writeFiles(files[0], files[1]);
+		writeFiles(files[0], files[1], files[2]);
 	}
 	else
 	{
@@ -758,39 +759,42 @@ void RecorderComponent::updatePreview()
 	previewLabel.setText(result, dontSendNotification);
 }
 
-// The playing and the accompaniment into two files (the playing without the accompaniment;
-// the accompaniment alone, with the same times). If no accompaniment was recorded, only the
-// playing is saved, with a message.
-void RecorderComponent::writeFiles(const File& playingFile, const File& styleFile)
+// The whole recording (playing and accompaniment), and the playing and the accompaniment in
+// files of their own too (the accompaniment alone, with the same times). If no
+// accompaniment was recorded, its file is not written, with a message.
+void RecorderComponent::writeFiles(const File& wholeFile, const File& playingFile, const File& styleFile)
 {
+	writeFile(wholeFile);
+	if (!saved || savedName != wholeFile.getFileName())
+	{
+		return; // (could not be saved: the message is shown)
+	}
 	String error;
-	applyKeySignature();
-	const bool ok = pianoController.SaveRecording(playingFile, false, error, true,
+	const bool playingOk = pianoController.SaveRecording(playingFile, false, error, true,
 		quantizeTicks(), quantizeEndsButton.getToggleState(), tripletTicks(),
 		quantizeFillButton.getToggleState());
-	if (!ok)
+	if (playingOk)
 	{
-		message = TRANS("The file could not be saved.");
-		updateControls();
-		updateStatus();
-		return;
+		savedName << ", " << playingFile.getFileName();
 	}
-	saved = true;
-	savedKey = saveKey();
-	lastSavedFile = playingFile;
-	message = "";
-	savedName = playingFile.getFileName();
+	error.clear();
 	if (pianoController.SaveRecording(styleFile, true, error, true,
 		quantizeTicks(), quantizeEndsButton.getToggleState(), tripletTicks(),
 		quantizeFillButton.getToggleState(), true))
 	{
 		savedName << ", " << styleFile.getFileName();
 	}
-	else
+	if (!playingOk)
 	{
-		message = error == "No accompaniment was recorded" ?
-			TRANS("No accompaniment was recorded: only the playing was saved.") :
-			TRANS("The accompaniment file could not be saved.");
+		message = TRANS("The file could not be saved.");
+	}
+	else if (error == "No accompaniment was recorded")
+	{
+		message = TRANS("No accompaniment was recorded: only the playing was saved.");
+	}
+	else if (error.isNotEmpty())
+	{
+		message = TRANS("The accompaniment file could not be saved.");
 	}
 	updateControls();
 	updateStatus();
@@ -800,7 +804,7 @@ void RecorderComponent::writeFile(const File& file)
 {
 	String error;
 	applyKeySignature();
-	if (pianoController.SaveRecording(file, styleButton.getToggleState(), error, true,
+	if (pianoController.SaveRecording(file, withStyle(), error, true,
 		quantizeTicks(), quantizeEndsButton.getToggleState(), tripletTicks(),
 		quantizeFillButton.getToggleState()))
 	{
@@ -846,7 +850,7 @@ void RecorderComponent::listen()
 	const File file = directory.getChildFile(File::createLegalFileName(TRANS("Recording (listening)")) + ".mid");
 	String error;
 	applyKeySignature();
-	if (!pianoController.SaveRecording(file, styleButton.getToggleState(), error, false,
+	if (!pianoController.SaveRecording(file, withStyle(), error, false,
 		quantizeTicks(), quantizeEndsButton.getToggleState(), tripletTicks(),
 		quantizeFillButton.getToggleState()))
 	{
@@ -987,6 +991,14 @@ void RecorderComponent::askDiscard()
 		});
 }
 
+// The accompaniment is recorded: chosen, and the piano is connected (the accompaniment
+// comes from it). A recording made while it was connected keeps its accompaniment.
+bool RecorderComponent::withStyle() const
+{
+	return styleButton.getToggleState() &&
+		(pianoController.IsConnected() || pianoController.GetRecorder().HasData());
+}
+
 bool RecorderComponent::canRecordPlayback() const
 {
 	return pianoController.GetPlaybackSource() != PianoController::psPiano;
@@ -996,14 +1008,14 @@ String RecorderComponent::saveKey() const
 {
 	return listenKey() + "|" + nameEditor.getText().trim() + "|" +
 		String((int)dateFoldersButton.getToggleState()) + String((int)timestampButton.getToggleState()) +
-		String((int)(styleButton.getToggleState() && separateButton.getToggleState()));
+		String((int)(withStyle() && separateButton.getToggleState()));
 }
 
 String RecorderComponent::listenKey() const
 {
 	return String(quantizeTicks()) + "/" + String(tripletTicks()) + "/" +
 		String((int)quantizeEndsButton.getToggleState()) + "/" + String((int)quantizeFillButton.getToggleState()) +
-		"/" + String((int)styleButton.getToggleState()) + "/" + settings.accompanimentKey +
+		"/" + String((int)withStyle()) + "/" + settings.accompanimentKey +
 		(settings.accompanimentMinor ? "m" : "");
 }
 
@@ -1232,9 +1244,11 @@ void RecorderComponent::updateControls()
 	// (Record playback/song is off then, and Record stops the playback, see startRecording)
 	loadButton.setEnabled(idle);
 	noneButton.setEnabled(idle);
-	styleButton.setEnabled(idle);
+	// without the piano there is no accompaniment (greyed; it is valid again when the
+	// piano is connected), like the playback via network
+	styleButton.setEnabled(idle && pianoController.IsConnected());
 	playbackButton.setEnabled(idle && canPlayback);
-	separateButton.setEnabled(styleButton.getToggleState()); // a choice of the saving
+	separateButton.setEnabled(withStyle()); // a choice of the saving
 	countInCombo.setEnabled(idle && manualButton.getToggleState());
 	quantizeCombo.setEnabled(quantizeButton.getToggleState());
 	tripletCombo.setEnabled(quantizeButton.getToggleState());
