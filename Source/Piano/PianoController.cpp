@@ -898,6 +898,16 @@ void PianoController::SendLocalTempo(bool force)
 	if (!m_connected)
 	{
 		m_recorder.AddTempo(m_tempo); // no piano that reports it: recorded from here
+		if (force || (m_localPlayer && m_localPlayer->IsPlaying()))
+		{
+			// the piano would follow the song while it plays (and report its new tempo):
+			// the tempo of the accompaniment and the recording (Recording window) does the same
+			if (m_pianoTempo != m_tempo)
+			{
+				m_pianoTempo = m_tempo;
+				NotifyChanged(apStyle);
+			}
+		}
 		return;
 	}
 	if (!force && !(m_localPlayer && m_localPlayer->IsPlaying()))
