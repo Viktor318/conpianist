@@ -242,14 +242,19 @@ void OneTouchSettings::Changed()
 
 void OneTouchSettings::Update()
 {
-	if (!m_pianoController.IsConnected())
+	if (!m_pianoController.IsConnected() || !m_pianoController.IsStyleKnown())
 	{
-		// the voices of the piano are not known: nothing is active
-		if (m_active >= 0 || m_factoryActive >= 0)
+		// The voices of the piano are not known: nothing is active. The style is forgotten
+		// too: after connecting again (e.g. the piano was switched off and on) the style
+		// the piano reports becomes known, it is not a change of the style, so OTS Link does
+		// not recall a factory setting then.
+		if (m_active >= 0 || m_factoryActive >= 0 || m_style.isNotEmpty())
 		{
 			m_active = -1;
 			m_factoryActive = -1;
 			m_recallPending = false;
+			m_style.clear();
+			m_main = -1;
 			Changed();
 		}
 		return;
@@ -760,14 +765,23 @@ void OneTouchSettings::Save()
 	{
 		return;
 	}
-	if (WriteFile(FileOf(m_style), m_style, m_settings, NumSettings))
+	const File file = FileOf(m_style);
+	if (WriteFile(file, m_style, m_settings, NumSettings))
 	{
 		m_stylesWithSettings.insert(m_style);
+		return;
 	}
-	else
+	const bool any = std::any_of(std::begin(m_settings), std::end(m_settings),
+		[](const Setting& setting) { return setting.used; });
+	if (!any)
 	{
-		m_stylesWithSettings.erase(m_style);
+		m_stylesWithSettings.erase(m_style); // all places empty: the file is deleted
+		return;
 	}
+	// it could not be written (e.g. a read-only folder): kept in memory for this session
+	Logger::writeToLog("Cannot save the OTS: " + file.getFullPathName());
+	AlertWindow::showMessageBoxAsync(MessageBoxIconType::WarningIcon, "ConPianist",
+		TRANS("The OTS could not be saved:") + "\n" + file.getFullPathName());
 }
 
 bool OneTouchSettings::ReadFile(const File& file, const String& stylePath, Setting* settings, int count)

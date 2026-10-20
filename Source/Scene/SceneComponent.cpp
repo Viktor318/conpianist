@@ -82,6 +82,41 @@ public:
 private:
 	int startHeight = 0;
 };
+// The import runs on its own thread; meanwhile a small window shows how much is done
+// (it is modal: nothing else can be changed until it is ready).
+class FactoryOtsImportTask : public ThreadWithProgressWindow
+{
+public:
+	FactoryOtsImportTask(const File& stylesFolder, const File& factoryFolder, Component* centre,
+		std::function<void(const FactoryOts::Result&)> onDone) :
+		ThreadWithProgressWindow(TRANS("Import factory OTS"), true, false, 10000, String(), centre),
+		stylesFolder(stylesFolder), factoryFolder(factoryFolder), onDone(std::move(onDone))
+	{
+		setStatusMessage(TRANS("Reading factory OTS data"));
+	}
+
+	void run() override
+	{
+		result = FactoryOts::Import(stylesFolder, factoryFolder, [this](double done) { setProgress(done); },
+			[this]() { return threadShouldExit(); });
+	}
+
+	void threadComplete(bool) override
+	{
+		if (onDone)
+		{
+			onDone(result);
+		}
+		delete this;
+	}
+
+private:
+	const File stylesFolder;
+	const File factoryFolder;
+	std::function<void(const FactoryOts::Result&)> onDone;
+	FactoryOts::Result result;
+};
+
 //[/MiscUserDefs]
 
 //==============================================================================
@@ -341,6 +376,14 @@ SceneComponent::~SceneComponent()
     //[Destructor_pre]. You can add your own custom destruction code here..
     pianoController.RemoveListener(this); // no more notifications while it is destroyed
     settings.removeChangeListener(this);
+    // an import of the factory OTS still running (the program exits, e.g. Windows is shut
+    // down): it stops before it changes anything, and its window is closed
+    if (importTask != nullptr)
+    {
+        delete importTask;
+        importTask = nullptr;
+        Logger::writeToLog("Exit: the import of the factory OTS was stopped");
+    }
     if (shortcutMainWindow != nullptr)
     {
         shortcutMainWindow->removeKeyListener(&shortcutKeys);
@@ -1727,40 +1770,6 @@ void SceneComponent::importFactoryOts()
 		});
 }
 
-// The import runs on its own thread; meanwhile a small window shows how much is done
-// (it is modal: nothing else can be changed until it is ready).
-class FactoryOtsImportTask : public ThreadWithProgressWindow
-{
-public:
-	FactoryOtsImportTask(const File& stylesFolder, const File& factoryFolder, Component* centre,
-		std::function<void(const FactoryOts::Result&)> onDone) :
-		ThreadWithProgressWindow(TRANS("Import factory OTS"), true, false, 10000, String(), centre),
-		stylesFolder(stylesFolder), factoryFolder(factoryFolder), onDone(std::move(onDone))
-	{
-		setStatusMessage(TRANS("Reading factory OTS data"));
-	}
-
-	void run() override
-	{
-		result = FactoryOts::Import(stylesFolder, factoryFolder, [this](double done) { setProgress(done); });
-	}
-
-	void threadComplete(bool) override
-	{
-		if (onDone)
-		{
-			onDone(result);
-		}
-		delete this;
-	}
-
-private:
-	const File stylesFolder;
-	const File factoryFolder;
-	std::function<void(const FactoryOts::Result&)> onDone;
-	FactoryOts::Result result;
-};
-
 void SceneComponent::runFactoryOtsImport()
 {
 	AccompanimentComponent* content = accompaniment();
@@ -1774,9 +1783,11 @@ void SceneComponent::runFactoryOtsImport()
 		{
 			if (self != nullptr)
 			{
+				importTask = nullptr; // it deletes itself
 				factoryOtsImported(result, stylesFolder);
 			}
 		});
+	importTask = task;
 	task->launchThread();
 }
 
@@ -1793,7 +1804,8 @@ void SceneComponent::factoryOtsImported(const FactoryOts::Result& result, const 
 	{
 		Logger::writeToLog("Factory OTS: " + String(result.styles) + " styles, " + String(result.settings) +
 			" settings read, " + String(result.skipped) + " left out, " + String(result.missing) +
-			" styles without a style file");
+			" styles without a style file, " + String(result.failed) + " not written" +
+			(result.replaced ? "" : ", the previous factory OTS are kept"));
 		for (const String& line : result.details)
 		{
 			Logger::writeToLog("Factory OTS: " + line);
@@ -1802,8 +1814,20 @@ void SceneComponent::factoryOtsImported(const FactoryOts::Result& result, const 
 		{
 			content->GetOts().ReloadFactory();
 		}
-		message = TRANS("Read: STYLES styles, SETTINGS factory OTS.").replace("STYLES", String(result.styles))
-				.replace("SETTINGS", String(result.settings));
+		if (!result.replaced && result.styles == 0)
+		{
+			// nothing read or written (e.g. an empty folder of a model)
+			message = TRANS("No factory OTS could be read or written: the previous ones are kept.");
+		}
+		else if (!result.replaced)
+		{
+			message = TRANS("The factory OTS could not be replaced (a file may be open in another program).");
+		}
+		else
+		{
+			message = TRANS("Read: STYLES styles, SETTINGS factory OTS.").replace("STYLES", String(result.styles))
+					.replace("SETTINGS", String(result.settings));
+		}
 		if (result.skipped > 0)
 		{
 			message << "\n" << TRANS("Left for a later version: NUMBER OTS (a voice is not on the CSP-170).")

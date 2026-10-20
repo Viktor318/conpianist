@@ -341,6 +341,9 @@ public:
 	// and the song's tempo goes to the piano when the song starts. While the song plays,
 	// the two follow each other.
 	int GetStyleTempo() const { return m_pianoTempo; }
+	// The piano has reported its style since it was connected (GetStyleName may be the
+	// style it had before the connection was lost).
+	bool IsStyleKnown() const { return m_styleNameKnown; }
 	void SetStyleTempo(int tempo);
 	// Where the chords of the accompaniment are recognized: below the split point or on
 	// the whole keyboard (caUnknown: the piano has not reported it yet).

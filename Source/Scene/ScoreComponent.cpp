@@ -151,6 +151,10 @@ private:
 	// and the position it is shown at while dragged
 	int m_dragMark = 0;
 	PianoController::Position m_dragPos{0,0};
+	// the A-B loop when the drag began: if it is changed meanwhile (on the piano, or by a
+	// new song), the drag is cancelled
+	PianoController::Loop m_dragLoop{{0,0},{0,0}};
+	PianoController::Position m_dragLoopStart{0,0};
 
 	void LoadDocument(String content);
 	void PrepareImage();
@@ -1441,6 +1445,8 @@ void LomseScoreComponent::mouseDown(const MouseEvent& event)
 	{
 		m_dragPos = m_dragMark == 1 ?
 			(loop.begin.measure > 0 ? loop.begin : loopStart) : loop.end;
+		m_dragLoop = loop;
+		m_dragLoopStart = loopStart;
 		return;
 	}
 
@@ -1459,7 +1465,13 @@ void LomseScoreComponent::mouseUp(const MouseEvent& event)
 		const int mark = m_dragMark;
 		const PianoController::Position pos = m_dragPos;
 		m_dragMark = 0;
-		if (mark == 1 && loop.begin.measure > 0 && !(pos == loop.begin))
+		const bool loopChanged = !(loop.begin == m_dragLoop.begin) || !(loop.end == m_dragLoop.end) ||
+			!(loopStart == m_dragLoopStart);
+		if (loopChanged)
+		{
+			// changed meanwhile: the loop as it is now stays
+		}
+		else if (mark == 1 && loop.begin.measure > 0 && !(pos == loop.begin))
 		{
 			m_pianoController.SetLoop({pos, loop.end});
 		}

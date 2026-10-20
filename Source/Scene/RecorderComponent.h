@@ -138,6 +138,8 @@ private:
 	// the playback can be recorded now (USB or MIDI device: the own player plays)
 	bool canRecordPlayback() const;
 	bool withStyle() const; // the accompaniment is recorded (chosen, and the piano is there)
+	bool recordedWithPiano = false; // the recording in hand was made with the piano connected
+	static const int MaxFileNameLength = 128; // (JUCE cuts longer file names)
 	String listenKey() const; // the settings that change what is listened back
 	void applyKeySignature();
 	static const int NoTripletId = 1;
@@ -145,7 +147,7 @@ private:
 	int tripletTicks() const;  // 0: no triplets
 	void updatePosition();
 	bool isListening() const; // the recording is being played back
-	void writeFile(const File& file);
+	bool writeFile(const File& file); // false: it could not be saved (the message is shown)
 	// three files: the whole recording, the playing, the accompaniment (separateButton)
 	void writeFiles(const File& wholeFile, const File& playingFile, const File& styleFile);
 	// The file the recording is saved to: in the folder of the recordings (or in the

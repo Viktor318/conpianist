@@ -490,7 +490,10 @@ double LiveRecorder::GetLengthSeconds() const
 	{
 		return (NowMs() - m_startMs) / 1000.0;
 	}
-	return m_noteCount > 0 ? (m_endMs - m_startMs) / 1000.0 : 0.0;
+	// with the accompaniment recorded, until its end (e.g. an Ending after the last note),
+	// as it is saved
+	const double endMs = m_styleCounts ? std::max(m_endMs, m_styleEndMs) : m_endMs;
+	return m_noteCount > 0 ? (endMs - m_startMs) / 1000.0 : 0.0;
 }
 
 double LiveRecorder::GetSecondsSinceLastEvent() const

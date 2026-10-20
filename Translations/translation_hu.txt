@@ -47,6 +47,7 @@ countries: hu
 "Please select the registration memory file to load..." = "Válassza ki a betöltendő regisztrációs memória fájlt..."
 "The registration memory could not be saved:" = "A regisztrációs memória mentése nem sikerült:"
 "The registration memories could not be saved:" = "A Kíséret ablak memóriáinak mentése nem sikerült:"
+"The OTS could not be saved:" = "Az OTS mentése nem sikerült:"
 
 // --- Kapcsolat beállításai ---
 "Piano IP Address" = "Zongora IP-címe"
@@ -436,6 +437,8 @@ countries: hu
 "The factory OTS are read again from the style files. The previous factory OTS are replaced, the own OTS do not change. Continue?" = "A gyári OTS-adatok újra beolvasódnak a stílusfájlokból. A korábbi gyári adatok felülíródnak, a saját OTS-ek nem változnak. Folytatja?"
 "No style files were found. Copy them into the folders CVP-809, CVP-709, Genos, PSR-SX900, PSR-SX700, PSR-SX600, PSR-S970 and PSR-S950 of this folder: FOLDER" = "Nem találhatók stílusfájlok. Másolja őket ennek a mappának a CVP-809, CVP-709, Genos, PSR-SX900, PSR-SX700, PSR-SX600, PSR-S970 és PSR-S950 almappájába: FOLDER"
 "Read: STYLES styles, SETTINGS factory OTS." = "Beolvasva: STYLES stílus, SETTINGS gyári OTS."
+"No factory OTS could be read or written: the previous ones are kept." = "Nem sikerült gyári OTS-t beolvasni vagy kiírni: a korábbiak megmaradtak."
+"The factory OTS could not be replaced (a file may be open in another program)." = "A gyári OTS-ek cseréje nem sikerült (lehet, hogy egy fájljuk nyitva van egy másik programban)."
 "Left for a later version: NUMBER OTS (a voice is not on the CSP-170)." = "Egy későbbi verzióra marad: NUMBER OTS (a hangszín nincs meg a CSP-170-en)."
 "The details are in the log file." = "A részletek a naplófájlban vannak."
 "Reading factory OTS data" = "Gyári OTS adatok beolvasása"

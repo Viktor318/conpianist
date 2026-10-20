@@ -387,19 +387,24 @@ void PianoController::Disconnect()
 	// accompaniment does not play without the connection). The style's name is kept
 	// for comparing it with the one reported after connecting again: the same style keeps
 	// its noted default values (see QueryStyleParts).
-	m_styleNameKnown = false;
-	m_styleMixerKnown = false;
-	m_pianoTempoKnown = false;
-	m_stylePlaying = false;
-	m_styleSection = ssNone;
-	m_styleNextSection = ssNone;
+	// (Called again and again while there is no connection: the windows are told only
+	// when something has changed.)
+	bool styleChanged = m_styleNameKnown.exchange(false);
+	styleChanged = m_styleMixerKnown.exchange(false) || styleChanged;
+	styleChanged = m_pianoTempoKnown.exchange(false) || styleChanged;
+	styleChanged = m_stylePlaying.exchange(false) || styleChanged;
+	styleChanged = m_styleSection.exchange(ssNone) != ssNone || styleChanged;
+	styleChanged = m_styleNextSection.exchange(ssNone) != ssNone || styleChanged;
 	m_forgetLastMessage = true; // the first message after connecting again is not a repeat
 	if (m_connected)
 	{
 		m_connected = false;
 		NotifyChanged(apConnection);
 	}
-	NotifyChanged(apStyle);
+	if (styleChanged)
+	{
+		NotifyChanged(apStyle);
+	}
 }
 
 void PianoController::SetLocalControl(bool enabled)
@@ -897,9 +902,12 @@ void PianoController::SendLocalTempo(bool force)
 {
 	if (!m_connected)
 	{
-		m_recorder.AddTempo(m_tempo); // no piano that reports it: recorded from here
 		if (force || (m_localPlayer && m_localPlayer->IsPlaying()))
 		{
+			// no piano that reports it: recorded from here. Only the tempo of the song that
+			// plays: while it does not, the recording has the accompaniment's tempo (the
+			// metronome; see SetStyleTempo).
+			m_recorder.AddTempo(m_tempo);
 			// the piano would follow the song while it plays (and report its new tempo):
 			// the tempo of the accompaniment and the recording (Recording window) does the same
 			if (m_pianoTempo != m_tempo)

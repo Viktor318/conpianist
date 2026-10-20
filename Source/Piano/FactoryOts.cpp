@@ -1104,7 +1104,8 @@ namespace
 			const String tag = String::createStringFromData(data + pos, 4);
 			const int length = (int)(((uint32)data[pos + 4] << 24) | ((uint32)data[pos + 5] << 16) |
 				((uint32)data[pos + 6] << 8) | (uint32)data[pos + 7]);
-			if (length < 0 || pos + 8 + length > size)
+			// (compared without adding to pos: a damaged length near 2 GB would overflow)
+			if (length < 0 || length > size - pos - 8)
 			{
 				break;
 			}
@@ -1230,11 +1231,19 @@ namespace
 }
 
 bool FactoryOts::ReadStyleFile(const File& file, OneTouchSettings::Setting* settings, int& skipped, StringArray& log,
-	const String& source)
+	const String& source, String* error)
 {
+	// a style file is well under 1 MB: a huge file of the same name is not read into memory
+	static const int64 MaxStyleFileSize = 32 * 1024 * 1024;
+	if (file.getSize() > MaxStyleFileSize)
+	{
+		if (error != nullptr) *error = "the file is too large for a style file";
+		return false;
+	}
 	MemoryBlock block;
 	if (!file.loadFileAsData(block))
 	{
+		if (error != nullptr) *error = "the file cannot be read";
 		return false;
 	}
 	const std::vector<Chunk> chunks = ReadChunks((const uint8*)block.getData(), (int)block.getSize());
@@ -1312,8 +1321,9 @@ bool FactoryOts::ReadStyleFile(const File& file, OneTouchSettings::Setting* sett
 }
 
 FactoryOts::Result FactoryOts::Import(const File& stylesFolder, const File& factoryFolder,
-	const std::function<void(double)>& progress)
+	const std::function<void(double)>& progress, const std::function<bool()>& shouldExit)
 {
+	const auto exiting = [&shouldExit]() { return shouldExit != nullptr && shouldExit(); };
 	Result result;
 	const auto report = [&progress](double done)
 		{
@@ -1334,7 +1344,8 @@ FactoryOts::Result FactoryOts::Import(const File& stylesFolder, const File& fact
 			continue;
 		}
 		result.sourcesFound = true;
-		Array<File> found = folder.findChildFiles(File::findFiles, true, "*");
+		// (a link that points back to a folder above is not followed in circles)
+		Array<File> found = folder.findChildFiles(File::findFiles, true, "*", File::FollowSymlinks::noCycles);
 		std::sort(found.begin(), found.end(), [](const File& a, const File& b)
 			{
 				return a.getFullPathName().compareIgnoreCase(b.getFullPathName()) < 0;
@@ -1376,6 +1387,7 @@ FactoryOts::Result FactoryOts::Import(const File& stylesFolder, const File& fact
 	{
 		String style;
 		OneTouchSettings::Setting settings[OneTouchSettings::NumFactorySettings];
+		int used = 0; // the settings taken
 	};
 	std::vector<Item> items;
 	std::map<String, const StyleSource*> sourceOf;
@@ -1387,6 +1399,11 @@ FactoryOts::Result FactoryOts::Import(const File& stylesFolder, const File& fact
 	int styleIndex = 0;
 	for (const Style& style : Presets::Styles())
 	{
+		if (exiting())
+		{
+			result.cancelled = true;
+			return result; // nothing has been changed yet
+		}
 		report(0.9 * styleIndex++ / jmax(1, styleCount));
 		const String key = NameKey(style.title);
 		File file;
@@ -1421,9 +1438,11 @@ FactoryOts::Result FactoryOts::Import(const File& stylesFolder, const File& fact
 		Item item;
 		item.style = style.path;
 		StringArray log;
-		if (!ReadStyleFile(file, item.settings, result.skipped, log, Sources()[fileSource]))
+		String error;
+		if (!ReadStyleFile(file, item.settings, result.skipped, log, Sources()[fileSource], &error))
 		{
-			result.details.add(style.title + " (" + file.getRelativePathFrom(stylesFolder) + "): no OTS in the file");
+			result.details.add(style.title + " (" + file.getRelativePathFrom(stylesFolder) + "): " +
+				(error.isNotEmpty() ? error : String("no OTS in the file")));
 			continue;
 		}
 		for (const String& line : log)
@@ -1437,21 +1456,82 @@ FactoryOts::Result FactoryOts::Import(const File& stylesFolder, const File& fact
 		}
 		if (used > 0)
 		{
-			result.styles++;
-			result.settings += used;
+			item.used = used;
 			items.push_back(item);
 		}
 	}
+	if (items.empty())
+	{
+		// nothing read (e.g. an empty folder of a model): the factory settings stay as they are
+		result.details.add("No factory OTS were read: the previous ones are kept");
+		return result;
+	}
 
+	// The new files are written into a folder of their own (next to the OTS folder: its own
+	// settings are looked for in every folder of the OTS folder), which then takes the place
+	// of the old factory folder. Only the styles really written are counted.
 	report(0.9);
-	factoryFolder.deleteRecursively();
+	const File otsFolder = factoryFolder.getParentDirectory();
+	const File newFolder = otsFolder.getSiblingFile(otsFolder.getFileName() + "-" + factoryFolder.getFileName() + ".new");
+	const File oldFolder = otsFolder.getSiblingFile(otsFolder.getFileName() + "-" + factoryFolder.getFileName() + ".old");
+	newFolder.deleteRecursively();
+	oldFolder.deleteRecursively();
 	int written = 0;
 	for (const Item& item : items)
 	{
-		OneTouchSettings::WriteFile(OneTouchSettings::FileIn(factoryFolder, item.style), item.style,
-			item.settings, OneTouchSettings::NumFactorySettings);
+		if (exiting())
+		{
+			newFolder.deleteRecursively();
+			result.cancelled = true;
+			return result;
+		}
+		const File file = OneTouchSettings::FileIn(newFolder, item.style);
+		if (OneTouchSettings::WriteFile(file, item.style, item.settings, OneTouchSettings::NumFactorySettings))
+		{
+			result.styles++;
+			result.settings += item.used;
+		}
+		else
+		{
+			result.failed++;
+			result.details.add(item.style + ": cannot write " + file.getFullPathName());
+		}
 		report(0.9 + 0.1 * ++written / jmax(1, (int)items.size()));
 	}
+	if (result.styles == 0)
+	{
+		newFolder.deleteRecursively();
+		result.details.add("No factory OTS could be written: the previous ones are kept");
+		return result;
+	}
+
+	// The new folder in the place of the old one. If a folder cannot be renamed (e.g. a file
+	// of it is open in another program), the new files are copied over the old folder.
+	bool replaced = false;
+	if (!factoryFolder.exists() || factoryFolder.moveFileTo(oldFolder))
+	{
+		replaced = newFolder.moveFileTo(factoryFolder);
+		if (!replaced && oldFolder.isDirectory())
+		{
+			oldFolder.moveFileTo(factoryFolder); // the old one back
+		}
+	}
+	if (!replaced)
+	{
+		result.details.add("The factory folder could not be renamed: the files are copied");
+		if (!factoryFolder.deleteRecursively())
+		{
+			result.details.add("Not every old file could be deleted from " + factoryFolder.getFullPathName());
+		}
+		replaced = newFolder.copyDirectoryTo(factoryFolder);
+		if (!replaced)
+		{
+			result.details.add("Cannot copy the new files into " + factoryFolder.getFullPathName());
+		}
+	}
+	newFolder.deleteRecursively();
+	oldFolder.deleteRecursively();
+	result.replaced = replaced;
 	report(1.0);
 	return result;
 }

@@ -565,8 +565,10 @@ void RecorderComponent::startRecording()
 	hasRecordingTime = true;
 	updatePreview();
 	const int countIn = jlimit(0, 2, countInCombo.getSelectedId() - 1);
+	// the accompaniment comes from the piano: only a recording made with it can have it
+	recordedWithPiano = pianoController.IsConnected();
 	// a recorded accompaniment starts and keeps the automatic recording going
-	pianoController.GetRecorder().SetStyleCounts(withStyle());
+	pianoController.GetRecorder().SetStyleCounts(styleButton.getToggleState() && recordedWithPiano);
 	if (autoButton.getToggleState())
 	{
 		pianoController.StartRecording(true);
@@ -654,6 +656,23 @@ Array<File> RecorderComponent::targetFiles(bool ofRecordingTime, const StringArr
 	const bool ofRecording = ofRecordingTime && hasRecordingTime &&
 		(recorder.GetState() != LiveRecorder::stIdle || recorder.HasData());
 	const Time time = ofRecording ? recordingTime : Time::getCurrentTime();
+	// A file name may have 128 characters (longer names are cut, and the cut would drop the
+	// number that keeps an existing file from being overwritten): the name typed is
+	// shortened so that the time, the longest suffix and a number " (999)" fit.
+	{
+		int longestSuffix = 0;
+		for (const String& suffix : suffixes)
+		{
+			longestSuffix = jmax(longestSuffix, suffix.isEmpty() ? 0 : suffix.length() + 1);
+		}
+		const int timeLength = !timestampButton.getToggleState() ? 0 :
+			dateFoldersButton.getToggleState() ? 9 : 20; // " 19-45-02", " 2026-10-18 19-45-02"
+		const int room = MaxFileNameLength - timeLength - longestSuffix - 6;
+		if (name.length() > room)
+		{
+			name = name.substring(0, jmax(1, room)).trimEnd();
+		}
+	}
 	File directory = settings.GetRecordingsDirectory();
 	if (dateFoldersButton.getToggleState())
 	{
@@ -772,8 +791,7 @@ void RecorderComponent::updatePreview()
 // accompaniment was recorded, its file is not written, with a message.
 void RecorderComponent::writeFiles(const File& wholeFile, const File& playingFile, const File& styleFile)
 {
-	writeFile(wholeFile);
-	if (!saved || savedName != wholeFile.getFileName())
+	if (!writeFile(wholeFile))
 	{
 		return; // (could not be saved: the message is shown)
 	}
@@ -821,13 +839,14 @@ void RecorderComponent::writeFiles(const File& wholeFile, const File& playingFil
 	updateStatus();
 }
 
-void RecorderComponent::writeFile(const File& file)
+bool RecorderComponent::writeFile(const File& file)
 {
 	String error;
 	applyKeySignature();
-	if (pianoController.SaveRecording(file, withStyle(), error, true,
+	const bool ok = pianoController.SaveRecording(file, withStyle(), error, true,
 		quantizeTicks(), quantizeEndsButton.getToggleState(), tripletTicks(),
-		quantizeFillButton.getToggleState()))
+		quantizeFillButton.getToggleState());
+	if (ok)
 	{
 		saved = true;
 		savedKey = saveKey();
@@ -841,6 +860,7 @@ void RecorderComponent::writeFile(const File& file)
 	}
 	updateControls();
 	updateStatus();
+	return ok;
 }
 
 // Listening back: the recording is written into a temporary file as it would be saved
@@ -866,9 +886,21 @@ void RecorderComponent::listen()
 		return;
 	}
 
+	// A new file every time (via network the piano may first report the song it had, which
+	// may be an earlier version of this recording: see songLoaded). The earlier ones are
+	// deleted, but not the one in the player (it is loaded again if the player is switched).
 	const File directory = Settings::GetTemporaryDirectory();
 	directory.createDirectory();
-	const File file = directory.getChildFile(File::createLegalFileName(TRANS("Recording (listening)")) + ".mid");
+	const String baseName = File::createLegalFileName(TRANS("Recording (listening)"));
+	const File inPlayer = File::createFileWithoutCheckingPath(pianoController.GetSongName());
+	for (const File& old : directory.findChildFiles(File::findFiles, false, baseName + "*.mid"))
+	{
+		if (old != inPlayer)
+		{
+			old.deleteFile();
+		}
+	}
+	const File file = directory.getNonexistentChildFile(baseName, ".mid", true);
 	String error;
 	applyKeySignature();
 	if (!pianoController.SaveRecording(file, withStyle(), error, false,
@@ -1020,8 +1052,9 @@ void RecorderComponent::askDiscard()
 // comes from it). A recording made while it was connected keeps its accompaniment.
 bool RecorderComponent::withStyle() const
 {
+	// the recording in hand: if it was made with the piano; the next one: if it is there now
 	return styleButton.getToggleState() &&
-		(pianoController.IsConnected() || pianoController.GetRecorder().HasData());
+		(pianoController.GetRecorder().HasData() ? recordedWithPiano : pianoController.IsConnected());
 }
 
 bool RecorderComponent::canRecordPlayback() const

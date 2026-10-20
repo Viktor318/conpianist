@@ -89,6 +89,8 @@ public:
 	void importFactoryOts();
 	void runFactoryOtsImport();
 	void factoryOtsImported(const FactoryOts::Result& result, const File& stylesFolder);
+	// the import running (it deletes itself when it is ready; deleted at exit if it is not)
+	class FactoryOtsImportTask* importTask = nullptr;
 	void showStyleMixer();
 	void showBalance();
 	void showPianoRoom();

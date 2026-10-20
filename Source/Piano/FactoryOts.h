@@ -56,6 +56,9 @@ public:
 		int settings = 0;          // factory settings taken
 		int skipped = 0;           // factory settings left out (a voice not on the CSP-170)
 		int missing = 0;           // styles without a style file
+		int failed = 0;            // styles whose file could not be written
+		bool cancelled = false;    // stopped (the program exits): nothing was changed
+		bool replaced = false;     // the factory settings were replaced by the new ones
 		StringArray details;       // for the log: what is left out, and why
 	};
 
@@ -63,16 +66,20 @@ public:
 	static const StringArray& Sources();
 
 	// Reads every style, then replaces the content of factoryFolder (see
-	// OneTouchSettings::FileIn). Nothing is deleted if no folder of the style files is there.
+	// OneTouchSettings::FileIn). The new files are written into a folder next to the OTS
+	// folder first, and replace the old ones only when they are all there. Nothing is
+	// changed if no folder of the style files is there, if no factory setting was read, or
+	// if shouldExit (if given) says so meanwhile (the program exits).
 	// progress (if given) gets how much is done (0..1): reading up to 0.9, then writing.
 	static Result Import(const File& stylesFolder, const File& factoryFolder,
-		const std::function<void(double)>& progress = nullptr);
+		const std::function<void(double)>& progress = nullptr, const std::function<bool()>& shouldExit = nullptr);
 
 	// The four OTS of a style file; false if it has none. Every left out setting is counted
 	// in skipped and explained in log.
 	// source: the folder of the model of the file (its voices, see CspVoice).
+	// error (if given): why the file could not be read (empty if it has no OTS).
 	static bool ReadStyleFile(const File& file, OneTouchSettings::Setting* settings, int& skipped, StringArray& log,
-		const String& source = {});
+		const String& source = {}, String* error = nullptr);
 
 	// The panel voice of the CSP-170 (preset path) for a voice of a style file
 	// (0x00MMLLPP, as Voice::num); empty if there is none. source: the folder of the model

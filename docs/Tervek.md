@@ -2,7 +2,7 @@
 
 Ez a fájl a ConPianist jövőbeli fejlesztéseit gyűjti egy helyre. Új ötlet ide kerül be, verzióemeléskor pedig átnézzük és átrendezzük. Az elkészült változásokat a [CHANGELOG.md](../CHANGELOG.md) tartalmazza.
 
-**Állapot:** 2026. október 11. A következő kiadás az **5.0**: addig csak a hibajavítások, az OTS funkció (a program saját OTS-e; a gyári OTS stílusfájlokból az 5.1-ben), a Dal felvétele a Felvétel ablakban és a kézikönyv készül el, minden más terv az 5.0 utáni verziókba került. Az 5.0 utáni verziókra bontás javaslat, a sorrend verzióemeléskor változhat.
+**Állapot:** 2026. október 11. A következő kiadás az **5.0**: addig csak a hibajavítások, az OTS funkció (a program saját OTS-e; a gyári OTS stílusfájlokból az 5.1-ben), a Dal felvétele a Felvétel ablakban és a kézikönyv készül el (október 20.: a kézikönyv az 5.0 kiadása után, az 5.1-gyel párhuzamosan), minden más terv az 5.0 utáni verziókba került. Az 5.0 utáni verziókra bontás javaslat, a sorrend verzióemeléskor változhat.
 
 **Munkaigény:** K = kicsi (egy alkalom), Kö = közepes (néhány alkalom), N = nagy (több hét, vagy bizonytalan kimenetel).
 
@@ -123,7 +123,12 @@ Döntés (október 20.): a kiadás előtt, az ablakok javításainak (A1–A11) 
 
 Kimarad (csak néhány sor változott, az átnézések javításaiból): `Connector/*`, `PianoMessage`, `Presets`, `RegistrationMemory`, `KeyboardComponent`, az október 18-án átnézett többi ablak; a `BalanceComponent` a 4.8 óta nem változott. A Lomse saját javításai (`Library`) sem: azokat a kották kirajzolása teszteli.
 
+**Eredmény (október 20.)**, Viktor mindet jóváhagyta az 5.0-ba (a három jegyzet nem kell): **B1** (közepes–magas): sérült stílusfájl a gyári OTS beolvasásakor összeomlást okozhatott (a darab hossza túlcsordult az ellenőrzésben, `FactoryOts::ReadChunks`). **B2** (közepes): az import akkor is törölte az összes gyári OTS-t, ha semmit nem olvasott be (pl. üres modellmappa), a törlés és az újraírás nem egy lépés volt, és a sikertelen írást is beolvasottnak számolta; javítás: üres eredménynél nincs változás, az új fájlok egy külön mappába kerülnek, és csak a végén cserélik le a régit. **B3**: az OTS Link újracsatlakozáskor (a zongora ki- és bekapcsolása után) behívhatott egy gyári OTS-t; a stílus lekapcsoláskor feledésbe megy. **B4**: hosszú fájlnévnél a „külön fájlba is” mentés felülírhatott egy korábbi fájlt (a JUCE 128 karakternél levágja a nevet a sorszámmal együtt). **B5**: hálózaton a visszahallgatás a felvétel előző változatát indíthatta (mindig ugyanaz az ideiglenes fájl); most mindig új fájl. **B6**: a három fájlos mentés a teljes felvétel sikerét a fájlnévből találgatta. **B7**: a „Játék és kíséret külön fájlba is” zongora nélkül készült felvételnél is választható volt. **B8**: zongora nélkül a felvételbe a dal tempója került akkor is, ha a dal nem szólt. **B9**: a kottában az A–B jel húzása közben (a zongorán vagy dalváltással) megváltozott ismétlést a jel elengedése elronthatta. **B10**: a saját OTS mentési hibája csendes volt (és az ikon is eltűnt). **B11**: gyári OTS import: a körbemutató mappahivatkozások nem követődnek, a 32 MB-nál nagyobb fájl kimarad, az olvashatatlan fájl a naplóban így szerepel, kilépéskor (pl. Windows-leállítás) az import leáll, mielőtt bármit megváltoztatna. **B12** (belső): zongora nélkül a Kíséret ablak negyedmásodpercenként frissült. **B13**: a Felvétel ablak a felvétel hosszát a kíséret vége nélkül mutatta. Állapot: **elkészült** (október 20.), tesztelésre vár.
+
 ### 6. Kézikönyv
+
+Döntés (október 20.): a kézikönyv az 5.0 kiadása után készül, az 5.1 fejlesztésével párhuzamosan, az 5.0 állapotáról; a kiadást nem várja meg.
+
 
 Egyetlen tömör magyar PDF kézikönyv (kb. 24 oldal, képernyőképekkel, kattintható tartalomjegyzékkel), amely minden funkcióra kitér, túlzott részletesség nélkül; Markdown forrásból (`docs` mappa). Munka: Kö. Az 5.0 állapotát írja le, az OTS-szel és az 5.0 újdonságaival együtt (például az A–B jelek egérrel mozgatása), ezért a funkciók elkészülte után véglegesedik.
 
