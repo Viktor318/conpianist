@@ -110,13 +110,26 @@ Viktor ötlete (október 16.), döntés: az 5.0-ba. **Állapot: elkészült, tes
 - **Teljesítmény:** a lejátszó szála hangonként csak egy számot ír, várakozás nélkül; a Keverő egy kb. 30 Hz-es időzítővel csak a változott sávokat rajzolja újra, és csak akkor, ha a Keverő látszik.
 - **Kézikönyv:** a Keverő fejezetben.
 
-### 5. Kézikönyv
+### 5. Záró kódátnézés
+
+Döntés (október 20.): a kiadás előtt, az ablakok javításainak (A1–A11) tesztje után és a kézikönyv véglegesítése előtt egy célzott átnézés: azok a forrásfájlok, amelyek a 4.8 óta változtak, és az utolsó átnézésük óta új kódot kaptak, vagy még egyszer sem voltak átnézve (a lista git alapján, október 20.). Szempontok, eredmény és jóváhagyás az Alapelvek szerint. Munka: Kö (egy hosszabb alkalom, vagy két rövidebb).
+
+| Sorrend | Fájlok | Mióta | Mi változott |
+|---|---|---|---|
+| 1 | `PianoController.cpp/.h` (+581/−47 sor), `OneTouchSettings.cpp/.h` (1075 sor, új) | október 13. / soha | Tempó szétválasztása, stílus újratöltése dalbetöltés után, OTS (Tér, Zengetés, hangok lezárása, OTS Link), szintjelző, lejátszás/dal felvétele, automatikus indítás, tempókövetés zongora nélkül. A legtöbb szálkezelés és állapot itt van. |
+| 2 | `LiveRecorder.cpp/.h` (+150/−23), `LocalSongPlayer.cpp/.h` (+97/−3), `ChannelComponent`, `MixerComponent` (+106/−54) | október 10. / 13. | Lejátszás felvétele, kíséret külön fájlba, automatikus indítás, a Keverő szintjelzője (a lejátszó szála ír, időzítő olvas). |
+| 3 | `FactoryOts.cpp/.h` (1547 sor, új) | soha | A gyári OTS beolvasása a Yamaha stílusfájlokból; hibás vagy szokatlan stílusfájlnál is helyesen kell működnie. |
+| 4 | `RecorderComponent.cpp/.h` (+248/−95), `ScoreComponent.cpp` (+162/−32), `VoiceComponent.cpp` (+22/−58), `SongSelectorComponent` (+22/−3), `PianoRoomComponent.cpp/.h` (301 sor, nem modális lett, soha) | október 18. / 13. | A Felvétel ablak három felvételi módja és három fájlja, az A–B jelek egérrel, MIDI-eszköz mód a Hangszín fülön, a Dalválasztó bezárása dupla kattintásra, a nem modális Piano Room. |
+
+Kimarad (csak néhány sor változott, az átnézések javításaiból): `Connector/*`, `PianoMessage`, `Presets`, `RegistrationMemory`, `KeyboardComponent`, az október 18-án átnézett többi ablak; a `BalanceComponent` a 4.8 óta nem változott. A Lomse saját javításai (`Library`) sem: azokat a kották kirajzolása teszteli.
+
+### 6. Kézikönyv
 
 Egyetlen tömör magyar PDF kézikönyv (kb. 24 oldal, képernyőképekkel, kattintható tartalomjegyzékkel), amely minden funkcióra kitér, túlzott részletesség nélkül; Markdown forrásból (`docs` mappa). Munka: Kö. Az 5.0 állapotát írja le, az OTS-szel és az 5.0 újdonságaival együtt (például az A–B jelek egérrel mozgatása), ezért a funkciók elkészülte után véglegesedik.
 
 Fejezetek: bevezetés és első indítás; főablak; Dalválasztó és saját dalok; kotta; hangszínek és Piano Room; Keverő és élő játék; Hangerőegyensúly; Kíséret (OTS-szel); Kíséret keverő; regisztrációs memória; Felvétel; mentés, beállítások, alaphelyzet; gyorsbillentyűk és hibaelhárítás. Döntés (október 10.): külön rövid útmutató és részletes kézikönyv helyett csak ez az egy készül, verzióemeléskor a változott fejezetek frissülnek. A képernyőképeket Viktor készíti lista alapján. A Dalválasztó fejezetbe: a zongora dalaiból mentett MIDI-fájlok üres első (beállító) ütemét a fájlból (`Tools/elso_utem_torlese.py`) és a kottából is törölni kell. A kotta fejezetbe: az A–B jelek húzása és a Ctrl+kattintás, a felütéses dalok.
 
-### 6. Kiadáskor
+### 7. Kiadáskor
 
 - **README.md frissítése** (Viktor kérése, október 17.): az 5.0 kiadásakor a README.md-t az 5.0 állapotára kell frissíteni.
 
