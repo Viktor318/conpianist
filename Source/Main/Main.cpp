@@ -190,7 +190,16 @@ public:
 			// The state saved by JUCE: maximised too, and moved onto a screen if the screens
 			// have changed since (e.g. a second monitor was disconnected). Without it (saved by
 			// an older version): the position, if its top is on a screen.
-			if (settings.windowState.isEmpty() || !restoreWindowStateFromString(settings.windowState))
+			// Maximised ("fs x y w h"): first the normal position and size, then maximised.
+			// JUCE notes the normal size (saved at exit) before it sets the saved one, and does
+			// not update it while the window is not shown: restored maximised at once, the
+			// normal size would be the default size of the window.
+			const String windowState = settings.windowState.trim();
+			if (windowState.startsWithIgnoreCase("fs"))
+			{
+				restoreWindowStateFromString(windowState.fromFirstOccurrenceOf("fs", false, true).trim());
+			}
+			if (windowState.isEmpty() || !restoreWindowStateFromString(windowState))
 			{
 				Rectangle<int> bounds = settings.windowPos;
 				if (bounds.getWidth() > 200 && bounds.getHeight() > 100 &&
