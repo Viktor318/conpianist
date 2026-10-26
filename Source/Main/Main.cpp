@@ -208,7 +208,7 @@ public:
 			{
 				// shown when the content has been painted; at the latest after the time limit
 				content->addComponentListener(this);
-				uncloakAfter(UncloakTimeoutMs);
+				uncloakAfter(UncloakTimeoutMs, "time limit");
 			}
 #endif
         }
@@ -261,6 +261,7 @@ public:
 		static const int UncloakAfterPaintMs = 50;
 		static const int UncloakTimeoutMs = 1500;
 		bool cloaked = false;
+		double cloakedAtMs = 0; // for the log: how long the window was hidden
 
 		// Hides or shows the window without changing its state (DWMWA_CLOAK): a cloaked
 		// window is laid out and painted, but not drawn on the screen and not animated.
@@ -272,13 +273,25 @@ public:
 				const int value = shouldBeCloaked ? 1 : 0; // BOOL
 				DwmSetWindowAttribute(peer->getNativeHandle(), DwmwaCloak, &value, sizeof(value));
 				cloaked = shouldBeCloaked;
+				if (shouldBeCloaked)
+				{
+					cloakedAtMs = Time::getMillisecondCounterHiRes();
+					Logger::writeToLog("Main window: maximised, hidden until it is painted");
+				}
 			}
 		}
 
-		void uncloakAfter(int delayMs)
+		int getCloakedMs() const
+		{
+			return roundToInt(Time::getMillisecondCounterHiRes() - cloakedAtMs);
+		}
+
+		// shown (and brought to the front: while it was hidden, another program, e.g. the
+		// debugger, may have become the active one)
+		void uncloakAfter(int delayMs, const String& reason)
 		{
 			Component::SafePointer<MainWindow> window(this);
-			Timer::callAfterDelay(delayMs, [window]
+			Timer::callAfterDelay(delayMs, [window, reason]
 			{
 				if (window != nullptr && window->cloaked)
 				{
@@ -287,6 +300,9 @@ public:
 						window->content->removeComponentListener(window.getComponent());
 					}
 					window->setCloaked(false);
+					window->toFront(true);
+					Logger::writeToLog("Main window: shown after " + String(window->getCloakedMs()) +
+						" ms (" + reason + ")");
 				}
 			});
 		}
@@ -295,7 +311,8 @@ public:
 		void componentPainted(Component& component, const ComponentPaintDiagnostics&) override
 		{
 			component.removeComponentListener(this);
-			uncloakAfter(UncloakAfterPaintMs);
+			Logger::writeToLog("Main window: first paint after " + String(getCloakedMs()) + " ms");
+			uncloakAfter(UncloakAfterPaintMs, "painted");
 		}
 #endif
 
