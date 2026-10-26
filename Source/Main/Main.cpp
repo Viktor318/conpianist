@@ -21,6 +21,10 @@
  #endif
 // from <windows.h>, which is not included here (its names clash with those of JUCE)
 extern "C" __declspec(dllimport) unsigned int __stdcall SetErrorMode(unsigned int mode);
+// from <dwmapi.h> (dwmapi.lib is linked by JUCE): the window handle as void*, the result
+// as HRESULT (long)
+extern "C" __declspec(dllimport) long __stdcall DwmSetWindowAttribute(void* hwnd, unsigned long attribute,
+	const void* value, unsigned long size);
 #endif
 
 //==============================================================================
@@ -173,6 +177,16 @@ public:
 			setFullScreen(true);
 #else
 			centreWithSize (getWidth(), getHeight());
+ #if JUCE_WINDOWS
+			// Shown maximised, Windows animates the window from its normal size, and the
+			// window is black until it has been painted at its new size: it is hidden
+			// (cloaked) until then, and appears maximised at once (see uncloak below).
+			const bool maximised = settings.windowState.trim().startsWithIgnoreCase("fs");
+			if (maximised)
+			{
+				setCloaked(true);
+			}
+ #endif
 			// The state saved by JUCE: maximised too, and moved onto a screen if the screens
 			// have changed since (e.g. a second monitor was disconnected). Without it (saved by
 			// an older version): the position, if its top is on a screen.
@@ -188,6 +202,20 @@ public:
 #endif
 
             setVisible (true);
+
+#if JUCE_WINDOWS
+			if (maximised)
+			{
+				Component::SafePointer<MainWindow> window(this);
+				Timer::callAfterDelay(UncloakDelayMs, [window]
+				{
+					if (window != nullptr)
+					{
+						window->setCloaked(false);
+					}
+				});
+			}
+#endif
         }
 
 		~MainWindow()
@@ -231,6 +259,23 @@ public:
         */
 
     private:
+#if JUCE_WINDOWS
+		// the time the maximised window stays hidden at start, until it has been painted
+		static const int UncloakDelayMs = 150;
+
+		// Hides or shows the window without changing its state (DWMWA_CLOAK): a cloaked
+		// window is laid out and painted, but not drawn on the screen and not animated.
+		void setCloaked(bool cloaked)
+		{
+			if (auto* peer = getPeer())
+			{
+				const unsigned long DwmwaCloak = 13;
+				const int value = cloaked ? 1 : 0; // BOOL
+				DwmSetWindowAttribute(peer->getNativeHandle(), DwmwaCloak, &value, sizeof(value));
+			}
+		}
+#endif
+
         JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainWindow)
         Settings settings;
     	std::unique_ptr<FileLogger> logger;

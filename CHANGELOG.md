@@ -2,6 +2,11 @@
 
 Ez a fájl a ConPianist változásait dokumentálja. Az 1.0–3.0 verziók az eredeti [hugbug/conpianist](https://github.com/hugbug/conpianist) projekt kiadásai (lásd az [eredeti release-eket](https://github.com/hugbug/conpianist/releases)); az ez utáni bejegyzések ennek a fork-nak ([Viktor318/conpianist](https://github.com/Viktor318/conpianist)) a saját, magáncélú fejlesztései.
 
+## 5.1 (fejlesztés alatt)
+
+### Javítva
+- **A teljes méretre nagyítva bezárt főablak a következő indításkor villanás nélkül, rögtön teljes méretben jelenik meg.** Eddig normál méretben beúszott, majd felnagyítódott, és egy pillanatig fekete volt (a Windows animációja, és mert az ablak még nem volt megrajzolva az új méretben). Most az ablak a megrajzolásáig (kb. 0,15 másodpercig) rejtve marad.
+
 ## 5.0 (fork) – 2026. október 26.
 
 ### Új
