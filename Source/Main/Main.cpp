@@ -150,7 +150,7 @@ public:
         This class implements the desktop window that contains an instance of
         our MainComponent class.
     */
-    class MainWindow    : public DocumentWindow
+    class MainWindow    : public DocumentWindow, private ComponentListener
     {
     public:
         MainWindow (String name)  : DocumentWindow (name,
@@ -180,7 +180,7 @@ public:
  #if JUCE_WINDOWS
 			// Shown maximised, Windows animates the window from its normal size, and the
 			// window is black until it has been painted at its new size: it is hidden
-			// (cloaked) until then, and appears maximised at once (see uncloak below).
+			// (cloaked) until then, and appears maximised at once (see componentPainted).
 			const bool maximised = settings.windowState.trim().startsWithIgnoreCase("fs");
 			if (maximised)
 			{
@@ -206,14 +206,9 @@ public:
 #if JUCE_WINDOWS
 			if (maximised)
 			{
-				Component::SafePointer<MainWindow> window(this);
-				Timer::callAfterDelay(UncloakDelayMs, [window]
-				{
-					if (window != nullptr)
-					{
-						window->setCloaked(false);
-					}
-				});
+				// shown when the content has been painted; at the latest after the time limit
+				content->addComponentListener(this);
+				uncloakAfter(UncloakTimeoutMs);
 			}
 #endif
         }
@@ -260,19 +255,47 @@ public:
 
     private:
 #if JUCE_WINDOWS
-		// the time the maximised window stays hidden at start, until it has been painted
-		static const int UncloakDelayMs = 150;
+		// The maximised window is hidden at start until its content has been painted (at its
+		// maximised size), and a moment more, until the picture is on the screen; at the
+		// latest until the time limit (if no paint comes).
+		static const int UncloakAfterPaintMs = 50;
+		static const int UncloakTimeoutMs = 1500;
+		bool cloaked = false;
 
 		// Hides or shows the window without changing its state (DWMWA_CLOAK): a cloaked
 		// window is laid out and painted, but not drawn on the screen and not animated.
-		void setCloaked(bool cloaked)
+		void setCloaked(bool shouldBeCloaked)
 		{
 			if (auto* peer = getPeer())
 			{
 				const unsigned long DwmwaCloak = 13;
-				const int value = cloaked ? 1 : 0; // BOOL
+				const int value = shouldBeCloaked ? 1 : 0; // BOOL
 				DwmSetWindowAttribute(peer->getNativeHandle(), DwmwaCloak, &value, sizeof(value));
+				cloaked = shouldBeCloaked;
 			}
+		}
+
+		void uncloakAfter(int delayMs)
+		{
+			Component::SafePointer<MainWindow> window(this);
+			Timer::callAfterDelay(delayMs, [window]
+			{
+				if (window != nullptr && window->cloaked)
+				{
+					if (window->content != nullptr)
+					{
+						window->content->removeComponentListener(window.getComponent());
+					}
+					window->setCloaked(false);
+				}
+			});
+		}
+
+		// the first paint of the content (the window is already maximised then)
+		void componentPainted(Component& component, const ComponentPaintDiagnostics&) override
+		{
+			component.removeComponentListener(this);
+			uncloakAfter(UncloakAfterPaintMs);
 		}
 #endif
 

@@ -5,7 +5,7 @@ Ez a fájl a ConPianist változásait dokumentálja. Az 1.0–3.0 verziók az er
 ## 5.1 (fejlesztés alatt)
 
 ### Javítva
-- **A teljes méretre nagyítva bezárt főablak a következő indításkor villanás nélkül, rögtön teljes méretben jelenik meg.** Eddig normál méretben beúszott, majd felnagyítódott, és egy pillanatig fekete volt (a Windows animációja, és mert az ablak még nem volt megrajzolva az új méretben). Most az ablak a megrajzolásáig (kb. 0,15 másodpercig) rejtve marad.
+- **A teljes méretre nagyítva bezárt főablak a következő indításkor villanás nélkül, rögtön teljes méretben jelenik meg.** Eddig normál méretben beúszott, majd felnagyítódott, és egy pillanatig fekete volt (a Windows animációja, és mert az ablak még nem volt megrajzolva az új méretben). Most az ablak rejtve marad, amíg teljes méretben meg nem rajzolódik.
 
 ## 5.0 (fork) – 2026. október 26.
 
