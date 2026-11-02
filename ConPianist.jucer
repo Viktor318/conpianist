@@ -183,6 +183,10 @@
               file="Source/Room/PrVrmComponent.h"/>
       </GROUP>
       <GROUP id="{CB024AEE-F1C1-3BA7-7A02-6D6F224DD312}" name="Scene">
+        <FILE id="Ai3PkW" name="AudioInputComponent.cpp" compile="1" resource="0"
+              file="Source/Scene/AudioInputComponent.cpp"/>
+        <FILE id="Ai7RnZ" name="AudioInputComponent.h" compile="0" resource="0"
+              file="Source/Scene/AudioInputComponent.h"/>
         <FILE id="GI08vR" name="ConnectionComponent.cpp" compile="1" resource="0"
               file="Source/Scene/ConnectionComponent.cpp"/>
         <FILE id="mJFYJm" name="ConnectionComponent.h" compile="0" resource="0"
@@ -362,7 +366,7 @@
     <MODULE id="juce_opengl" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
     <MODULE id="juce_video" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
   </MODULES>
-  <JUCEOPTIONS/>
+  <JUCEOPTIONS JUCE_ASIO="1"/>
   <LIVE_SETTINGS>
     <OSX/>
     <WINDOWS/>

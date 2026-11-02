@@ -37,6 +37,7 @@
 #include "BalanceComponent.h"
 #include "PianoRoomComponent.h"
 #include "SongSelectorComponent.h"
+#include "AudioInputComponent.h"
 #include "FactoryOts.h"
 //[/Headers]
 
@@ -94,6 +95,7 @@ public:
 	void showStyleMixer();
 	void showBalance();
 	void showPianoRoom();
+	void showAudioInput();
 	void showSongSelector();
 	void resetMidiConnector();
 	void updatePlaybackSource();
@@ -162,6 +164,7 @@ private:
     std::unique_ptr<BalanceWindow> balanceWindow; // Balance window, likewise
     std::unique_ptr<PianoRoomWindow> pianoRoomWindow; // Piano Room window, likewise
     std::unique_ptr<SongSelectorWindow> songSelectorWindow; // Song Selector window, likewise
+    std::unique_ptr<AudioInputWindow> audioInputWindow; // Audio Interface window, likewise
     // top bar buttons created in code, from left to right; then come the Balance button
     // (created by the Projucer) and the Piano Room button
     std::unique_ptr<TopBarButton> songSelectorButton;

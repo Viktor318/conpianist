@@ -52,6 +52,8 @@ Döntés (október 26.): az 5.0 a tesztek befejezése előtt kiadva; a még ki n
 
 Az 5.1 első új funkciója (Viktor döntése, október 26.; az 5.2-ből előrehozva, az ötlet október 18-i). A CSP-170 USB-n hangkártyaként is működik (Yamaha Steinberg USB Driver, ASIO; 44,1 kHz): a zongora kész sztereó hangját küldi, mindent együtt, ami szól (billentyűk, kíséret, dal); hangszerenként külön sáv így nem kapható, arra a MIDI-felvétel való.
 
+**Állapot (november 2.):** az 1–2. lépés (a hangkártya kiválasztása) elkészült, tesztelésre vár: Hangkártya ablak (Főmenü → ESZKÖZÖK → Hangkártya…) a JUCE beállítópaneljével, a bal és jobb csatorna szintjelzőjével és a meghajtó által jelzett bemeneti késéssel; a hangeszköz csak az ablak nyitva tartásáig van megnyitva, a választás a beállításokban (`Audio.State`); ASIO bekapcsolva (`JUCE_ASIO`). A naplóba bekerül minden eszköztípus a bemeneti eszközeivel, és a megnyitott eszköz adatai. A teszt kérdései: melyik eszköztípusnál látszik a CSP-170 (Windows Audio, ASIO), jön-e jel (szintjelző), milyen mintavétellel, pufferrel és késéssel; ezután jön a felvétel (körpuffer, WAV-írás, lecsengés).
+
 - **Végleges terv** (Viktor döntései, október 26.):
   - **Alapok:** a hangkártya kiválasztása a beállításokban (eszköz, mintavétel, pufferméret; a JUCE kész beállítópaneljével; ASIO vagy WASAPI). A Felvétel ablakban új kapcsoló: „Hang felvétele”, kis szintjelzővel. A felvétel külön szálon íródik egy ideiglenes WAV-fájlba, hogy a lemezírás ne akassza meg a hangot.
   - **A MIDI-felvétel nem változik:** indulása, leállása (automatikus és kézi mód, csend, előszámlálás) és a fájlja is a mostani.

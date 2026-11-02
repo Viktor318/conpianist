@@ -4,6 +4,9 @@ Ez a fájl a ConPianist változásait dokumentálja. Az 1.0–3.0 verziók az er
 
 ## 5.1 (fejlesztés alatt)
 
+### Új
+- **Hangkártya ablak** (Főmenü → ESZKÖZÖK → Hangkártya…), a hangfelvétel előkészítése: itt választható ki, melyik hangeszközről jön a zongora hangja (a CSP-170 USB-n hangkártyaként is működik): eszköztípus (Windows Audio, ASIO stb.), eszköz, bemeneti csatornák, mintavétel és pufferméret, a JUCE beállítópaneljével. Alatta a bal és a jobb csatorna szintjelzője dBFS-értékkel, és a meghajtó által jelzett bemeneti késés. A program a hangeszközt csak addig nyitja meg, amíg az ablak látszik (így nem foglalja le más programok elől), a választást megjegyzi. A program ASIO-támogatással készül.
+
 ### Javítva
 - **A teljes méretre nagyítva bezárt főablak a következő indításkor villanás nélkül, rögtön teljes méretben jelenik meg.** Eddig normál méretben beúszott, majd felnagyítódott, és egy pillanatig fekete volt (a Windows animációja, és mert az ablak még nem volt megrajzolva az új méretben). Most az ablak rejtve marad, amíg teljes méretben meg nem rajzolódik.
 - **A nagyítva bezárt főablak a következő indítás után is a saját normál méretére áll vissza**, ha megszünteted a nagyítást. Eddig a program alapméretére kicsinyedett, mert a nagyított állapot visszaállításakor a JUCE még az alapméretet jegyezte fel normál méretként, és kilépéskor ezt mentette el (5.0-s hiba).

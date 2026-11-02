@@ -89,6 +89,7 @@ public:
 	Point<int> styleMixerWindowPos{NoWindowPos, NoWindowPos};
 	Point<int> balanceWindowPos{NoWindowPos, NoWindowPos};
 	Point<int> pianoRoomWindowPos{NoWindowPos, NoWindowPos};
+	Point<int> audioInputWindowPos{NoWindowPos, NoWindowPos};
 	// the Song Selector window can be resized: its position and size
 	Rectangle<int> songSelectorWindowBounds{NoWindowPos, NoWindowPos, 0, 0};
 	// true if a window of this size at this (saved) position can be reached on a screen
@@ -162,6 +163,9 @@ public:
 	// (negative); false if no key is chosen.
 	bool GetKeySignature(int& sharps) const;
 	bool recorderQuantizeEnds = false;
+	// the audio input chosen in the Audio Interface window (the device setup of JUCE, as XML;
+	// empty: not chosen yet, the default input of the system)
+	String audioState;
 
 private:
 	PropertiesFile::Options opt;

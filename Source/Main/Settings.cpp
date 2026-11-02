@@ -105,6 +105,9 @@ void Settings::Save()
 	prop.setValue("Balance.Window.Y", balanceWindowPos.y);
 	prop.setValue("PianoRoom.Window.X", pianoRoomWindowPos.x);
 	prop.setValue("PianoRoom.Window.Y", pianoRoomWindowPos.y);
+	prop.setValue("AudioInput.Window.X", audioInputWindowPos.x);
+	prop.setValue("AudioInput.Window.Y", audioInputWindowPos.y);
+	prop.setValue("Audio.State", audioState);
 	prop.setValue("SongSelector.Window.X", songSelectorWindowBounds.getX());
 	prop.setValue("SongSelector.Window.Y", songSelectorWindowBounds.getY());
 	prop.setValue("SongSelector.Window.W", songSelectorWindowBounds.getWidth());
@@ -205,6 +208,9 @@ void Settings::Load()
 	balanceWindowPos.y = prop.getIntValue("Balance.Window.Y", balanceWindowPos.y);
 	pianoRoomWindowPos.x = prop.getIntValue("PianoRoom.Window.X", pianoRoomWindowPos.x);
 	pianoRoomWindowPos.y = prop.getIntValue("PianoRoom.Window.Y", pianoRoomWindowPos.y);
+	audioInputWindowPos.x = prop.getIntValue("AudioInput.Window.X", audioInputWindowPos.x);
+	audioInputWindowPos.y = prop.getIntValue("AudioInput.Window.Y", audioInputWindowPos.y);
+	audioState = prop.getValue("Audio.State", audioState);
 	songSelectorWindowBounds.setBounds(
 		prop.getIntValue("SongSelector.Window.X", songSelectorWindowBounds.getX()),
 		prop.getIntValue("SongSelector.Window.Y", songSelectorWindowBounds.getY()),
