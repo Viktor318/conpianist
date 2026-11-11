@@ -110,6 +110,7 @@ class Event:
     tuplet: tuple = None
     slur_start: list = field(default_factory=list)
     slur_stop: list = field(default_factory=list)
+    slur_place: dict = field(default_factory=dict)   # slur number -> 'above' / 'below' (side in the PDF)
 
 
 @dataclass
@@ -796,7 +797,10 @@ def _analyse_system(sy, glyphs, strokes, fills, log):
         if b is None and not (R[0] > last_x + 0.5 * sp):
             sy.measures[0].warnings.append(f"iv vege parositatlan x={R[0]:.0f} y={R[1]:.0f}"); continue
         s_.used = True
-        sy.curves.append({'a': a, 'b': b, 'ea': owner.get(id(a)), 'eb': owner.get(id(b)), 'y': s_.cy, 'L': L, 'R': R})
+        # the curve bulges upwards if its middle is above its ends
+        over = s_.cy < (L[1] + R[1]) / 2
+        sy.curves.append({'a': a, 'b': b, 'ea': owner.get(id(a)), 'eb': owner.get(id(b)), 'y': s_.cy, 'L': L, 'R': R,
+                          'over': over})
     # --- volta (1st / 2nd ending): horizontal line above the upper staff + large number
     vd = [g for g in glyphs if g.name in DIGITS and not g.used and 1.5 * sp <= g.h < 2.3 * sp and g.cy < S[0].top]
     segs = [s_ for s_ in strokes if not s_.used and not s_.dashed and s_.w > 3 * sp and s_.y0 < S[0].top - 1.2 * sp and

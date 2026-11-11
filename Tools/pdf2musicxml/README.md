@@ -37,9 +37,16 @@ a felismert ütemekkel. Az elején lévő üres ütemeket és a felütést magá
 D.C./D.S. ugrásokat követi. Az egyértelmű oktáveltérést (8va) kijavítja és jelzi a kottában; minden más
 eltérést ütemszámmal felsorol a jelentés „MIDI összevetés” részében. A szerző nevét is a MIDI-ből veszi.
 
-A kezdő tempójelzés helye: a szöveg és a metronómjelzés `default-x` értéket kap (a PDF-ből számolva:
-a szöveg bal széle az első hanghoz/szünethez képest, tizedvonalközben), a szöveg pedig `default-y="40"` értéket,
-ha metronómjelzés is van. A vízszintes hely felülírható: `--tempo-x -105`.
+A kezdő tempójelzés helye: a szöveg és a metronómjelzés a kottasor bal szélénél kezdődik, a kulcs fölött.
+A `default-x` értéke a kottasor bal széle az ütem első hangoszlopához képest, tizedvonalközben, a PDF-ből számolva
+(így keskeny ablakban sem csúszik rá az első hangok ujjrendjére). A szöveg `default-y="40"` értéket kap, a
+metronómjelzés alá kerül. A vízszintes hely felülírható: `--tempo-x -105`.
+
+Ívek: átkötés csak egy szólam két szomszédos, azonos magasságú hangja között lehet; ha közöttük más hang is van,
+az ív kötőív. A kötőív oldala (a hangok fölött vagy alatt) a PDF szerint kerül a kottába (`placement`).
+
+Szólamnév: csak akkor látszik, ha a PDF-ben is szerepel (négykezesnél „Piano I”, „Piano II”); különben
+`print-object="no"` jelöli, így a Lomse nem írja ki.
 
 Szöveges utasítások (rit., a tempo stb.): a PDF szerint a sor fölé vagy alá kerülnek (`placement`); a sor fölöttiek
 `default-y` értéket is kapnak (a szöveg alja a felső vonaltól, tizedvonalközben), hogy ne csússzanak az ujjrendre.

@@ -76,7 +76,8 @@ def write(score, path):
         A(f'  <rights>{escape(score["rights"])}</rights>')
     A('  <encoding><software>pdf2musicxml (vektoros PDF kiolvaso)</software></encoding>')
     A(' </identification>')
-    A(' <part-list>' + ''.join(f'<score-part id="P{k + 1}"><part-name>{escape(nm)}</part-name></score-part>'
+    shown, hide = score.get('shown_parts', set()), ' print-object="no"'
+    A(' <part-list>' + ''.join(f'<score-part id="P{k + 1}"><part-name{"" if nm in shown else hide}>{escape(nm)}</part-name></score-part>'
                               for k, (nm, _) in enumerate(parts)) + '</part-list>')
     for pk, (pname, ms) in enumerate(parts):
         A(f' <part id="P{pk + 1}">')
@@ -120,7 +121,7 @@ def write(score, path):
                 A('   <direction placement="above"><direction-type>')
                 if score.get('tempo_text'):
                     dx = f' default-x="{score["tempo_dx"]}"' if score.get('tempo_dx') is not None else ''
-                    dy = ' default-y="40"' if score.get('bpm') else ''
+                    dy = ' default-y="40"'   # above the fingering and the clef, with or without a metronome mark
                     A(f'    <words font-weight="bold"{dx}{dy}>{escape(score["tempo_text"])}</words>')
                 if score.get('bpm'):
                     A('    </direction-type><direction-type>' if score.get('tempo_text') else '')
@@ -256,7 +257,9 @@ def _event(e, vn, st, div, clef, ka, alter_state):
         if not i:
             nt += _tup(e)
             for num in e.slur_stop: nt += f'<slur type="stop" number="{num}"/>'
-            for num in e.slur_start: nt += f'<slur type="start" number="{num}"/>'
+            for num in e.slur_start:
+                pl = f' placement="{e.slur_place[num]}"' if num in e.slur_place else ''
+                nt += f'<slur type="start" number="{num}"{pl}/>'
         if h.fingering:
             nt += f'<technical><fingering placement="{h.fing_place}">{h.fingering}</fingering></technical>'
         art = ''

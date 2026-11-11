@@ -144,10 +144,21 @@ def write_trimmed_midi(mid, md, measures, out_dir):
 
 def link_curves(systems, measures):
     """Curves: tie (same note) or slur; joining the ones that cross a system break (within one part)."""
-    order = {}
+    order, voice_of = {}, {}
     for i, m in enumerate(measures):
-        for _, _, evs in m.voices:
-            for e in evs: order[id(e)] = (i, e.onset)
+        for st, vn, evs in m.voices:
+            for e in evs: order[id(e)] = (i, e.onset); voice_of[id(e)] = (st, vn)
+
+    def notes_between(ea, eb):
+        # notes of the same voice between the two ends: then the curve is a slur, not a tie
+        if id(ea) not in order or id(eb) not in order:
+            return False
+        oa, ob, va = order[id(ea)], order[id(eb)], voice_of[id(ea)]
+        for i in range(oa[0], min(ob[0], len(measures) - 1) + 1):
+            for st, vn, evs in measures[i].voices:
+                if (st, vn) == va and any(e.heads and not e.grace and oa < order[id(e)] < ob for e in evs):
+                    return True
+        return False
     slurs, pending = [], []
     cur = {'sy': None, 'c': None}
 
@@ -182,21 +193,24 @@ def link_curves(systems, measures):
             art = lambda e: e.staccato or e.tenuto or e.stacciss
             edge = (c.get('stitched') or 'L' not in c or
                     (c['L'][0] - a.g.cx > 0.2 * a.g.w or c['R'][0] - b.g.cx < -0.2 * b.g.w))
-            if a.staff == b.staff and a.pos == b.pos and c['ea'] is not c['eb'] and not art(c['ea']) and not art(c['eb']) and edge:
+            if (a.staff == b.staff and a.pos == b.pos and c['ea'] is not c['eb'] and not art(c['ea']) and not art(c['eb']) and edge
+                    and not notes_between(c['ea'], c['eb'])):
                 a.tie_start = True; b.tie_stop = True
             elif c['ea'] is not c['eb']:
-                slurs.append((c['ea'], c['eb']))
+                slurs.append((c['ea'], c['eb'], c.get('over')))
         pending = [p for p in pending if p.get('age', 0) < 1]
         for p in pending: p['age'] = 1
     slurs = [s for s in slurs if id(s[0]) in order and id(s[1]) in order and order[id(s[0])] < order[id(s[1])]]
     slurs.sort(key=lambda s: order[id(s[0])])
     active = {}
-    for a, b in slurs:
+    for a, b, over in slurs:
         for num in [k for k, v in active.items() if order[id(v)] <= order[id(a)]]:
             del active[num]
         num = next(k for k in range(1, 9) if k not in active)
         active[num] = b
         a.slur_start.append(num); b.slur_stop.append(num)
+        if over is not None:
+            a.slur_place[num] = 'above' if over else 'below'
 
 
 def finish_part(measures, systems, sp):
@@ -285,7 +299,7 @@ def convert(pdf, out_dir, args):
                     if t: part_names.setdefault(sy.part, t)
                     for g in c['g']: g.used = True
                 elif is_tempo:
-                    meta['tempo_left'] = (c['x0'], sy.sp)
+                    meta['tempo_left'] = (sy.x0, sy.sp)
                     log(f"tempo-sor OCR: {t!r}")
                     mm = re.search(r'[=:]\s*([0-9]{2,3})', t) or re.search(r'([0-9]{2,3})\s*\)?\s*$', t)
                     word = re.match(r'[A-Za-z][A-Za-z .]+', t)
@@ -337,10 +351,11 @@ def convert(pdf, out_dir, args):
     if t0[1] == 8 and t0[0] % 3 == 0:
         meta['beat_dot'] = True
     if meta.get('tempo_left') and measures and measures[0].voices:
-        evs0 = measures[0].voices[0][2]
-        if evs0:
+        # reference: the first column of the measure (a whole-measure rest stands in the middle, so not the first voice)
+        xs = [e.x for _, _, evs in measures[0].voices for e in evs if e.onset == 0]
+        if xs:
             x0, sp0 = meta['tempo_left']
-            meta['tempo_dx'] = round((x0 - evs0[0].x) / sp0 * 10)
+            meta['tempo_dx'] = round((x0 - min(xs)) / sp0 * 10)
     if args.tempo_x is not None:
         meta['tempo_dx'] = args.tempo_x
     for k in pkeys:
@@ -388,6 +403,7 @@ def convert(pdf, out_dir, args):
             midi_lines += write_trimmed_midi(mid, md, measures, args.midi_out)
     if nparts > 1:
         meta['parts'] = [(part_names.get(k, f'Piano {"I" * (k + 1)}'), part_measures[k]) for k in pkeys]
+    meta['shown_parts'] = set(part_names.values())
     meta['measures'] = measures
     out = os.path.join(out_dir or os.path.dirname(os.path.abspath(pdf)), name + '.musicxml')
     musicxml.write(meta, out)
@@ -435,7 +451,8 @@ def main():
     ap.add_argument('-o', '--out', help='kimeneti mappa (alapertelmezes: a PDF mellett)')
     ap.add_argument('--title'); ap.add_argument('--composer'); ap.add_argument('--tempo')
     ap.add_argument('--bpm', type=int)
-    ap.add_argument('--tempo-x', type=int, help='a kezdo tempojelzes default-x erteke tizedvonalkozben (alapertelmezes: a PDF-bol szamolva)')
+    ap.add_argument('--tempo-x', type=int, help='a kezdo tempojelzes default-x erteke tizedvonalkozben (alapertelmezes: a kottasor bal szele, '
+                         'a PDF-bol szamolva)')
     ap.add_argument('--midi-out', help='ide irja a MIDI-ket (az elejukrol a kottahoz kepest plusz teljes utemeket levagva), eredeti nevvel')
     ap.add_argument('--title-from-pdf', action='store_true', help='a cimet a PDF-bol olvassa (OCR), ne a fajlnevbol')
     ap.add_argument('--json', help='a Yamaha kottaszinkron .json fajlok mappaja (alapertelmezes: a PDF mellett)')
