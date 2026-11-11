@@ -39,8 +39,9 @@ eltérést ütemszámmal felsorol a jelentés „MIDI összevetés” részében
 
 A kezdő tempójelzés helye: a szöveg és a metronómjelzés a kottasor bal szélénél kezdődik, a kulcs fölött.
 A `default-x` értéke a kottasor bal széle az ütem első hangoszlopához képest, tizedvonalközben, a PDF-ből számolva
-(így keskeny ablakban sem csúszik rá az első hangok ujjrendjére). A szöveg `default-y="40"` értéket kap, a
-metronómjelzés alá kerül. A vízszintes hely felülírható: `--tempo-x -105`.
+(így keskeny ablakban sem csúszik rá az első hangok ujjrendjére). A metronómjelzés `default-y="35"`, fölötte a
+szöveg `default-y="60"` értéket kap; metronómjelzés nélkül a szöveg `default-y="40"`. A vízszintes hely
+felülírható: `--tempo-x -105`.
 
 Ívek: átkötés csak egy szólam két szomszédos, azonos magasságú hangja között lehet; ha közöttük más hang is van,
 az ív kötőív. A kötőív oldala (a hangok fölött vagy alatt) a PDF szerint kerül a kottába (`placement`).

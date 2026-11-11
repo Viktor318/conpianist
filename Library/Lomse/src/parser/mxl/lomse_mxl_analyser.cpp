@@ -4651,15 +4651,20 @@ public:
         //ConPianist fork: the tempo mark at the beginning of the score is placed
         //horizontally where the score asks (default-x, relative-x), as its words are
         //(e.g. "Allegretto" above it): otherwise it is drawn above the first note, among
-        //the fingerings. Only the horizontal position is read (the vertical one is left
-        //to the engraver), and only at the beginning: the tempo marks later in the
-        //score stay above their notes.
+        //the fingerings. The vertical position (default-y, relative-y) is read too, so
+        //that a larger mark does not reach the clef or the tempo text above it. Only at
+        //the beginning: the tempo marks later in the score stay above their notes.
         if (m_pAnalyser->get_current_time() == 0.0)
         {
             if (has_attribute(&m_analysedNode, "default-x"))
                 pMtr->set_user_ref_point_x(get_attribute_as_tenths("default-x", 0.0f));
             if (has_attribute(&m_analysedNode, "relative-x"))
                 pMtr->set_user_location_x(get_attribute_as_tenths("relative-x", 0.0f));
+            //AWARE: positive y is up, negative y is down
+            if (has_attribute(&m_analysedNode, "default-y"))
+                pMtr->set_user_ref_point_y(-get_attribute_as_tenths("default-y", 0.0f));
+            if (has_attribute(&m_analysedNode, "relative-y"))
+                pMtr->set_user_location_y(-get_attribute_as_tenths("relative-y", 0.0f));
         }
 
         //attrb: parentheses %yes-no; #IMPLIED

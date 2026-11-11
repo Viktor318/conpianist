@@ -4797,7 +4797,9 @@ void ImoScore::add_required_text_styles()
 	    ImoStyle* pStyle = static_cast<ImoStyle*>(ImFactory::inject(k_imo_style, m_pDocModel));
         pStyle->set_name("Metronome marks");
         pStyle->set_parent_style(pDefStyle);
-	    pStyle->font_size( 7.0f);
+        //ConPianist fork: 10 pt instead of 7 pt, the number was hardly readable next
+        //to the 12 pt tempo text
+	    pStyle->font_size(10.0f);
         add_style(pStyle);
         pStyle->reset_style_modified();
     }
@@ -5850,7 +5852,7 @@ bool ImoStyle::is_default_style_with_default_values()
 
     //Metronome marks
     if (m_name == "Metronome marks")
-	    return font_size() == 7.0f
+	    return font_size() == 10.0f     //ConPianist fork: was 7 pt
             //inherited defaults:
                //font
             && font_file() == ""

@@ -42,7 +42,13 @@ GmoShape* MetronomeMarkEngraver::create_shape(ImoMetronomeMark* pImo, UPoint uPo
     m_fontSize = pStyle->font_size() * 1.5f;
     m_pCreatorImo = pImo;
     m_uPos = uPos;
-    m_uPos.y -= m_pMeter->tenths_to_logical(20.0f, m_iInstr, m_iStaff);
+    //ConPianist fork: the vertical position given in the score (default-y relative to
+    //the top line, see the analyser); without it, two spaces above the top line
+    if (pImo->get_user_ref_point_y() != 0.0f || pImo->get_user_location_y() != 0.0f)
+        m_uPos.y += m_pMeter->tenths_to_logical(pImo->get_user_ref_point_y())
+                    + m_pMeter->tenths_to_logical(pImo->get_user_location_y());
+    else
+        m_uPos.y -= m_pMeter->tenths_to_logical(20.0f, m_iInstr, m_iStaff);
     //ConPianist fork: the horizontal position given in the score (see the analyser)
     m_xShift = m_pMeter->tenths_to_logical(pImo->get_user_ref_point_x())
                + m_pMeter->tenths_to_logical(pImo->get_user_location_x());
@@ -133,6 +139,9 @@ void MetronomeMarkEngraver::create_main_container_shape()
 void MetronomeMarkEngraver::create_text_shape(const string& text)
 {
     LUnits y = m_uPos.y + m_pMeter->tenths_to_logical(2.0f, m_iInstr, m_iStaff);
+    //ConPianist fork: the text engraver adds the vertical position of the creator again
+    y -= m_pMeter->tenths_to_logical(m_pCreatorImo->get_user_ref_point_y())
+         + m_pMeter->tenths_to_logical(m_pCreatorImo->get_user_location_y());
     ImoStyle* pStyle = m_pMeter->get_style_info("Metronome marks");
     TextEngraver engr(m_libraryScope, m_pMeter, text, "", pStyle,
                       TextEngraver::k_class_metronome_text);

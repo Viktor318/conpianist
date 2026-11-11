@@ -165,6 +165,11 @@ static const std::initializer_list<EngravingOrderInfo> m_order
     { k_imo_articulation_symbol },
 
     { k_imo_tuplet },
+    //ConPianist fork: fingerings before slurs and ties. The slur is drawn over the shapes
+    //already engraved, so it passes above (below) the fingerings, and the fingering stays
+    //next to its note, as in printed music. Before, the fingering avoided the slur and
+    //was placed above it.
+    { k_imo_fingering },
     { k_imo_slur },
     { k_imo_tie },
 
@@ -173,7 +178,6 @@ static const std::initializer_list<EngravingOrderInfo> m_order
     { k_imo_ornament },
     { k_imo_symbol_repetition_mark },
     { k_imo_technical },
-    { k_imo_fingering },
     { k_imo_articulation_line },
     { k_imo_text_repetition_mark },
     { k_imo_octave_shift },

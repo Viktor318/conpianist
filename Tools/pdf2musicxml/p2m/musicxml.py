@@ -121,13 +121,14 @@ def write(score, path):
                 A('   <direction placement="above"><direction-type>')
                 if score.get('tempo_text'):
                     dx = f' default-x="{score["tempo_dx"]}"' if score.get('tempo_dx') is not None else ''
-                    dy = ' default-y="40"'   # above the fingering and the clef, with or without a metronome mark
+                    # above the fingering and the clef; with a metronome mark below it, higher
+                    dy = ' default-y="60"' if score.get('bpm') else ' default-y="40"'
                     A(f'    <words font-weight="bold"{dx}{dy}>{escape(score["tempo_text"])}</words>')
                 if score.get('bpm'):
                     A('    </direction-type><direction-type>' if score.get('tempo_text') else '')
                     dot = '<beat-unit-dot/>' if score.get('beat_dot') else ''
                     dx = f' default-x="{score["tempo_dx"]}"' if score.get('tempo_dx') is not None else ''
-                    A(f'    <metronome parentheses="yes"{dx}><beat-unit>{score.get("beat_unit", "quarter")}</beat-unit>{dot}'
+                    A(f'    <metronome parentheses="yes"{dx} default-y="35"><beat-unit>{score.get("beat_unit", "quarter")}</beat-unit>{dot}'
                       f'<per-minute>{score["bpm"]}</per-minute></metronome>')
                 A('   </direction-type><staff>1</staff>')
                 if score.get('bpm'):
