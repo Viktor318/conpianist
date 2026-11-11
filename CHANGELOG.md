@@ -6,6 +6,7 @@ Ez a fájl a ConPianist változásait dokumentálja. Az 1.0–3.0 verziók az er
 
 ### Új
 - **Hangkártya ablak** (Főmenü → ESZKÖZÖK → Hangkártya…), a hangfelvétel előkészítése: itt választható ki, melyik hangeszközről jön a zongora hangja (a CSP-170 USB-n hangkártyaként is működik): eszköztípus (Windows Audio, ASIO stb.), eszköz, bemeneti csatornák, mintavétel és pufferméret, a JUCE beállítópaneljével. Alatta a bal és a jobb csatorna szintjelzője dBFS-értékkel, és a meghajtó által jelzett bemeneti késés. A program a hangeszközt csak addig nyitja meg, amíg az ablak látszik (így nem foglalja le más programok elől), a választást megjegyzi. A program ASIO-támogatással készül.
+- **pdf2musicxml segédprogram** (`Tools/pdf2musicxml`): a zongora dalaihoz tartozó vektoros kotta-PDF-ekből MusicXML-kottát készít a ConPianist kottanézetéhez. Az eredményt hangról hangra összeveti a dal MIDI-fájljának kottahű csatornáival (15–16.) és a Yamaha `.json` kottaszinkron-fájljával, az eltéréseket ütemszámmal jelentésbe írja, és a MIDI-fájl elejéről a kottához képest fölösleges üres ütemeket is levágja. Használat és ismert hiányok: `Tools/pdf2musicxml/README.md`.
 
 ### Javítva
 - **A teljes méretre nagyítva bezárt főablak a következő indításkor villanás nélkül, rögtön teljes méretben jelenik meg.** Eddig normál méretben beúszott, majd felnagyítódott, és egy pillanatig fekete volt (a Windows animációja, és mert az ablak még nem volt megrajzolva az új méretben). Most az ablak rejtve marad, amíg teljes méretben meg nem rajzolódik.

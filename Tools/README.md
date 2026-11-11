@@ -1,5 +1,10 @@
 # Segédprogramok
 
+## pdf2musicxml – kotta-PDF-ből MusicXML
+
+A zongora dalaihoz tartozó vektoros kotta-PDF-ekből MusicXML-kottát készít a ConPianist kottanézetéhez, és a
+dal MIDI-fájljával ellenőrzi. Leírása: [pdf2musicxml/README.md](pdf2musicxml/README.md).
+
 ## elso_utem_torlese.py – az üres kezdő ütemek törlése MIDI-fájlokból
 
 A zongora saját dalaiból mentett Yamaha MIDI-fájlok első üteme egy hang nélküli
