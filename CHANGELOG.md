@@ -14,6 +14,9 @@ Ez a fájl a ConPianist változásait dokumentálja. Az 1.0–3.0 verziók az er
 - **Kottanézet: az ujjrend a kötőív alá kerül**, a hang mellé, ahogy a nyomtatott kottákban. Eddig a kottamegjelenítő (Lomse) előbb a kötőívet rajzolta meg, és az ujjrendet fölé tolta.
 - **Kottanézet: nagyobb metronómjelzés a darab elején.** A szám eddig alig volt olvasható (7 pont a 12 pontos tempószöveg mellett), most 10 pontos. A kotta megadhatja a magasságát is (`default-y`), így nem ér a violinkulcsba és a fölötte álló tempószövegbe.
 
+### Egyéb
+- **JUCE 9.0.5.** A program a JUCE 9.0.5-tel készül. Ez javítja a Windows MIDI-eszközkezelésének (WinMM) és a Direct2D-rajzolásnak néhány hibáját, és védelmet ad a hibás XML-, JSON-, ZIP-, PNG-, WAV- és más fájlok ellen. A párbeszédablakok gombjainak visszaadott értékét a JUCE 9.0.5-től ki kell írni (`MessageBoxOptions::withButton()`): a program ugyanazokat az értékeket adja meg, amelyeket a JUCE eddig a gombok sorrendjéből számolt (Igen/Kilépés = 1, Mégse és OK = 0), így a gombok és az Enter/Esc billentyűk ugyanúgy működnek.
+
 ## 5.0 (fork) – 2026. október 26.
 
 ### Új

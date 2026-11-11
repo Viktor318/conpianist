@@ -877,8 +877,8 @@ void ChannelComponent::showMenu(Button* button)
 						.withIconType(MessageBoxIconType::QuestionIcon)
 						.withTitle("ConPianist")
 						.withMessage(TRANS("All settings of this channel will be reset. Continue?"))
-						.withButton(TRANS("Yes"))
-						.withButton(TRANS("Cancel")),
+						.withButton(TRANS("Yes"), 1)
+						.withButton(TRANS("Cancel"), 0),
 					[this, self](int button)
 					{
 						if (self != nullptr && button == 1)

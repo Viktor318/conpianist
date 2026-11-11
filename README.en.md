@@ -25,7 +25,7 @@
 > - the program starts in the state it was closed in (playback output, voices, Piano Room, balance, accompaniment, mixer, Playback panel, song, position – saved to `LastState.conmem`), and remembers the positions of its windows;
 > - holding the rewind / forward button for 1 second jumps to the beginning / last measure of the song; a song loaded during playback starts by itself;
 > - the connection recovers by itself after the USB cable is plugged in again; "Reset Connection" also reopens the MIDI device and rechecks the network;
-> - builds with current tools (Visual Studio 2026, JUCE 9.0.4, vcpkg); several crash and freeze fixes (including threading).
+> - builds with current tools (Visual Studio 2026, JUCE 9.0.5, vcpkg); several crash and freeze fixes (including threading).
 >
 > A ready-to-run Windows (64-bit) build is available on the [Releases](https://github.com/Viktor318/conpianist/releases) page: unzip it to any folder and start `ConPianist.exe` (the `Resources` folder and the `.dll` files must stay next to the `.exe`). Opening songs and scores starts in `%APPDATA%\ConPianist\Songs`, saving and loading the piano state (`.conmem`) in `%APPDATA%\ConPianist` (each remembers the folder it used last); recordings go to `Songs\User Songs\Recorded Songs`. It is worth copying the contents of the included `Demo Midi Songs` folder to `%APPDATA%\ConPianist\Songs\Demo Midi Songs`. The factory OTS need the style files of Yamaha instruments (not included): put them into the model subfolders (`CVP-809`, `CVP-709`, `Genos`, `PSR-SX900`, `PSR-SX700`, `PSR-SX600`, `PSR-S970`, `PSR-S950`) of `%APPDATA%\ConPianist\Styles`, then choose main menu → TOOLS → Import factory OTS.
 >

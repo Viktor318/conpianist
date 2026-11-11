@@ -495,8 +495,8 @@ void OtsComponent::askDelete(int index)
 			.withIconType(MessageBoxIconType::QuestionIcon)
 			.withTitle("ConPianist")
 			.withMessage(TRANS("Delete own OTS NUMBER?").replace("NUMBER", String(index + 1)))
-			.withButton(TRANS("Yes"))
-			.withButton(TRANS("Cancel"))
+			.withButton(TRANS("Yes"), 1)
+			.withButton(TRANS("Cancel"), 0)
 			.withAssociatedComponent(this),
 		[this, index, self = Component::SafePointer<Component>(this)](int button)
 		{
@@ -522,8 +522,8 @@ void OtsComponent::askSaveFactory()
 			.withIconType(MessageBoxIconType::QuestionIcon)
 			.withTitle("ConPianist")
 			.withMessage(TRANS("The original factory data is lost. Continue?"))
-			.withButton(TRANS("Yes"))
-			.withButton(TRANS("Cancel"))
+			.withButton(TRANS("Yes"), 1)
+			.withButton(TRANS("Cancel"), 0)
 			.withAssociatedComponent(this),
 		[this, self = Component::SafePointer<Component>(this)](int button)
 		{
@@ -566,8 +566,8 @@ void OtsComponent::askCopy(int first)
 			.withIconType(MessageBoxIconType::QuestionIcon)
 			.withTitle("ConPianist")
 			.withMessage(message)
-			.withButton(TRANS("Yes"))
-			.withButton(TRANS("Cancel"))
+			.withButton(TRANS("Yes"), 1)
+			.withButton(TRANS("Cancel"), 0)
 			.withAssociatedComponent(this),
 		[this, first, self = Component::SafePointer<Component>(this)](int button)
 		{

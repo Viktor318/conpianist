@@ -814,7 +814,7 @@ void AccompanimentComponent::showShortcuts()
 			.withIconType(MessageBoxIconType::NoIcon)
 			.withTitle(TRANS("Keyboard shortcuts"))
 			.withMessage(text)
-			.withButton(TRANS("OK"))
+			.withButton(TRANS("OK"), 0)
 			.withAssociatedComponent(isShowing() ? this : nullptr), // H in another window
 		[self = Component::SafePointer<Component>(this)](int)
 		{
@@ -1996,8 +1996,8 @@ void AccompanimentComponent::askDeleteRegistration(int index)
 			.withIconType(MessageBoxIconType::QuestionIcon)
 			.withTitle("ConPianist")
 			.withMessage(question)
-			.withButton(TRANS("Yes"))
-			.withButton(TRANS("Cancel"))
+			.withButton(TRANS("Yes"), 1)
+			.withButton(TRANS("Cancel"), 0)
 			.withAssociatedComponent(this),
 		[this, index, self = Component::SafePointer<Component>(this)](int button)
 		{

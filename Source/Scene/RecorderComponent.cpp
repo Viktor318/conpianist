@@ -429,8 +429,8 @@ void RecorderComponent::buttonClicked(Button* button)
 					.withIconType(MessageBoxIconType::QuestionIcon)
 					.withTitle("ConPianist")
 					.withMessage(TRANS("The previous recording is not saved and will be lost. Continue?"))
-					.withButton(TRANS("Yes"))
-					.withButton(TRANS("Cancel"))
+					.withButton(TRANS("Yes"), 1)
+					.withButton(TRANS("Cancel"), 0)
 					.withAssociatedComponent(this),
 				[this, self = Component::SafePointer<Component>(this)](int result)
 				{
@@ -1014,8 +1014,8 @@ void RecorderComponent::askDiscard()
 			.withIconType(MessageBoxIconType::QuestionIcon)
 			.withTitle("ConPianist")
 			.withMessage(TRANS("Discard the last recording? It will not be saved."))
-			.withButton(TRANS("Yes"))
-			.withButton(TRANS("Cancel"))
+			.withButton(TRANS("Yes"), 1)
+			.withButton(TRANS("Cancel"), 0)
 			.withAssociatedComponent(this),
 		[this, self = Component::SafePointer<Component>(this)](int result)
 		{

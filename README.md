@@ -58,7 +58,7 @@ A ConPianist forráskódja a következő könyvtárakat tartalmazza:
 
 ## Erről a fork-ról
 
-Ez a változat saját, magáncélú felhasználásra készül egy Yamaha CSP-170 zongorához, modern fejlesztői eszközökkel (Visual Studio 2026, JUCE 9.0.4, vcpkg) újra buildelve. Az eredeti programhoz képest a legfontosabb változások:
+Ez a változat saját, magáncélú felhasználásra készül egy Yamaha CSP-170 zongorához, modern fejlesztői eszközökkel (Visual Studio 2026, JUCE 9.0.5, vcpkg) újra buildelve. Az eredeti programhoz képest a legfontosabb változások:
 - kétnyelvű (magyar/angol) kezelőfelület, a szakkifejezések a CSP-170 magyar használati útmutatóját követik;
 - a zenedarab csatornáinak hangszíne módosítható a keverőben, és a regisztrációs memóriába is mentődik;
 - zenedarab lejátszása USB-n keresztül, Wi-Fi nélkül, a ConPianist saját lejátszójával, a dal saját tempójához képest állítható sebességgel; a lejátszó a bal panelen választható;

@@ -1763,8 +1763,8 @@ void SceneComponent::importFactoryOts()
 			.withIconType(MessageBoxIconType::QuestionIcon)
 			.withTitle(TRANS("Import factory OTS"))
 			.withMessage(TRANS("The factory OTS are read again from the style files. The previous factory OTS are replaced, the own OTS do not change. Continue?"))
-			.withButton(TRANS("Yes"))
-			.withButton(TRANS("Cancel"))
+			.withButton(TRANS("Yes"), 1)
+			.withButton(TRANS("Cancel"), 0)
 			.withAssociatedComponent(this),
 		[this, self = Component::SafePointer<Component>(this)](int button)
 		{
@@ -1844,7 +1844,7 @@ void SceneComponent::factoryOtsImported(const FactoryOts::Result& result, const 
 			.withIconType(MessageBoxIconType::InfoIcon)
 			.withTitle(TRANS("Import factory OTS"))
 			.withMessage(message)
-			.withButton("OK")
+			.withButton("OK", 0)
 			.withAssociatedComponent(this),
 		nullptr);
 }
@@ -1956,8 +1956,8 @@ void SceneComponent::requestExit()
 			.withIconType(MessageBoxIconType::WarningIcon)
 			.withTitle("ConPianist")
 			.withMessage(TRANS("There is a recording that has not been saved. Exit without saving it?"))
-			.withButton(TRANS("Exit"))
-			.withButton(TRANS("Cancel"))
+			.withButton(TRANS("Exit"), 1)
+			.withButton(TRANS("Cancel"), 0)
 			.withAssociatedComponent(this),
 		[this, self = Component::SafePointer<Component>(this)](int result)
 		{
