@@ -146,8 +146,10 @@ private:
 	// and the number of measures of the score
 	std::vector<int> m_playOrder;
 	std::vector<int> m_passStarts;
-	// The played measures (0..) that end with the pickup of the score (see ReadPlaybackOrder)
-	std::vector<int> m_pickupTails;
+	// The played measures (0..) made of two incomplete measures of the score (see
+	// ReadPlaybackOrder): the played measure -> its second measure in the score (0..) and
+	// the time where that begins inside the played measure
+	std::map<int, std::pair<int, TimeUnits>> m_splitMeasures;
 	int m_scoreMeasures = 0;
 	// Moving the A-B marks with the mouse: the mark being dragged (0: none, 1: A, 2: B)
 	// and the position it is shown at while dragged
@@ -1028,19 +1030,21 @@ static void PrepareScoreText(String& content)
 // through. The measures are counted as in the song positions: the first measure of the
 // score (a pickup measure too) is the first. numMeasures: the number of measures of the
 // score.
-// A repeat back to the pickup: the measure before the repeat sign is short by the pickup,
-// and the two make one measure of the song (in Fur Elise the first ending has two eighths,
-// the pickup is the third). The pickup is then left out of the playback order, otherwise
-// every measure after the repeat was shown one measure late. pickupTails (if given): the
-// played measures (0..) whose last beats are the pickup.
+// A measure of the song may be written as two incomplete measures in the score: a repeat
+// sign inside the measure, or a repeat back to the pickup (in Fur Elise the first ending
+// has two eighths, the pickup is the third; in a minuet the first part ends with two
+// quarters and the second part begins with a pickup of one). The two are one measure for
+// the piano, so the second one is left out of the playback order, otherwise every measure
+// after it was shown one measure late. splitMeasures (if given): the played measure (0..)
+// -> its second measure in the score (0..) and the time where that begins.
 static void ReadPlaybackOrder(ImoScore* score, std::vector<int>& order, std::vector<int>& passStarts,
-	int& numMeasures, std::vector<int>* pickupTails = nullptr)
+	int& numMeasures, std::map<int, std::pair<int, TimeUnits>>* splitMeasures = nullptr)
 {
 	order.clear();
 	passStarts.clear();
-	if (pickupTails != nullptr)
+	if (splitMeasures != nullptr)
 	{
-		pickupTails->clear();
+		splitMeasures->clear();
 	}
 	numMeasures = 0;
 	if (score == nullptr)
@@ -1049,55 +1053,82 @@ static void ReadPlaybackOrder(ImoScore* score, std::vector<int>& order, std::vec
 	}
 	SoundEventsTable* table = score->get_midi_table();
 	numMeasures = table->get_num_measures();
-	// the time missing from the pickup measure (0: the score has no pickup)
-	ColStaffObjs* staffObjs = score->get_staffobjs_table();
-	const TimeUnits missing = staffObjs != nullptr && staffObjs->is_anacrusis_start() ?
-		staffObjs->anacrusis_missing_time() : 0.0;
-	ImMeasuresTable* measures = score->get_num_instruments() > 0 ?
-		score->get_instrument(0)->get_measures_table() : nullptr;
+	std::vector<int> rawOrder;
+	std::vector<bool> startsPass;
 	for (MeasuresJumpsEntry* pass : table->get_measures_jumps())
 	{
-		int from = pass->get_from_measure();
+		const int from = pass->get_from_measure();
 		const int to = pass->get_to_measure() == 0 ? numMeasures : pass->get_to_measure(); // 0: to the end
 		if (from < 1 || to < from || to > numMeasures)
 		{
 			continue; // e.g. the jump of a D.S. without a segno
 		}
-		if (from == 1 && to > 1 && !order.empty() && missing > 0.0 && measures != nullptr)
-		{
-			// back to the pickup: is the measure played before it as long as the part
-			// missing from the pickup?
-			ImMeasuresTableEntry* last = measures->get_measure(order.back());
-			ImMeasuresTableEntry* next = measures->get_measure(order.back() + 1);
-			if (last != nullptr && next != nullptr &&
-				std::abs((next->get_timepos() - last->get_timepos()) - missing) < 1.0)
-			{
-				if (pickupTails != nullptr)
-				{
-					pickupTails->push_back((int)order.size() - 1);
-				}
-				from = 2;
-			}
-		}
-		passStarts.push_back((int)order.size());
 		for (int measure = from; measure <= to; measure++)
 		{
-			order.push_back(measure - 1);
+			rawOrder.push_back(measure - 1);
+			startsPass.push_back(measure == from);
 		}
-		if (order.size() > 100000)
+		if (rawOrder.size() > 100000)
 		{
 			break; // (jumps that would never end)
 		}
 	}
-	bool straight = (int)order.size() == numMeasures;
-	for (int i = 0; straight && i < (int)order.size(); i++)
+	bool straight = (int)rawOrder.size() == numMeasures;
+	for (int i = 0; straight && i < (int)rawOrder.size(); i++)
 	{
-		straight = order[i] == i;
+		straight = rawOrder[i] == i;
 	}
 	if (straight)
 	{
-		order.clear();
-		passStarts.clear();
+		return;
+	}
+
+	// the length of the measures, and the length of a whole measure: the most frequent one
+	ImMeasuresTable* measures = score->get_num_instruments() > 0 ?
+		score->get_instrument(0)->get_measures_table() : nullptr;
+	std::vector<TimeUnits> lengths(numMeasures, 0.0);
+	std::map<int, int> counts;
+	TimeUnits whole = 0.0;
+	for (int i = 0; measures != nullptr && i + 1 < numMeasures; i++)
+	{
+		ImMeasuresTableEntry* entry = measures->get_measure(i);
+		ImMeasuresTableEntry* next = measures->get_measure(i + 1);
+		if (entry != nullptr && next != nullptr)
+		{
+			lengths[i] = next->get_timepos() - entry->get_timepos();
+			const int count = ++counts[roundToInt(lengths[i])];
+			if (count > counts[roundToInt(whole)] || whole == 0.0)
+			{
+				whole = lengths[i];
+			}
+		}
+	}
+
+	bool pendingStart = false;
+	for (size_t i = 0; i < rawOrder.size(); i++)
+	{
+		const int measure = rawOrder[i];
+		pendingStart = pendingStart || startsPass[i];
+		// the second half of a measure of the song: both halves incomplete, together whole
+		const int before = order.empty() ? -1 : order.back();
+		const bool second = before >= 0 && i > 0 && rawOrder[i - 1] == before && whole > 0.0 &&
+			lengths[before] > 0.0 && lengths[measure] > 0.0 &&
+			lengths[before] < whole - 1.0 && lengths[measure] < whole - 1.0 &&
+			std::abs(lengths[before] + lengths[measure] - whole) < 1.0;
+		if (second)
+		{
+			if (splitMeasures != nullptr)
+			{
+				(*splitMeasures)[(int)order.size() - 1] = {measure, lengths[before]};
+			}
+			continue; // (a pass starting here starts with the next measure)
+		}
+		if (pendingStart)
+		{
+			passStarts.push_back((int)order.size());
+			pendingStart = false;
+		}
+		order.push_back(measure);
 	}
 }
 
@@ -1136,7 +1167,7 @@ void LomseScoreComponent::LoadDocument(String content)
 
 	// the playback order of the measures, while all instruments are in the score
 	ReadPlaybackOrder(dynamic_cast<ImoScore*>(m_presenter->get_document_raw_ptr()->get_im_root()->get_content_item(0)),
-		m_playOrder, m_passStarts, m_scoreMeasures, &m_pickupTails);
+		m_playOrder, m_passStarts, m_scoreMeasures, &m_splitMeasures);
 	if (!m_playOrder.empty())
 	{
 		String passes;
@@ -1701,6 +1732,18 @@ int LomseScoreComponent::PlayedMeasure(int scoreMeasure)
 			nearest = i;
 		}
 	}
+	if (nearest < 0)
+	{
+		// the second half of a played measure (see ReadPlaybackOrder): the measure it belongs to
+		for (const auto& split : m_splitMeasures)
+		{
+			if (split.second.first == scoreMeasure &&
+				(nearest < 0 || std::abs(split.first - current) <= std::abs(nearest - current)))
+			{
+				nearest = split.first;
+			}
+		}
+	}
 	return nearest;
 }
 
@@ -2013,21 +2056,22 @@ void LomseScoreComponent::UpdateTempoLine(bool scroll)
 	Document* doc = m_presenter->get_document_raw_ptr();
 	ImoScore* score = dynamic_cast<ImoScore*>(doc->get_im_root()->get_content_item(0));
 	int measure = ScoreMeasure(songPosition.measure - 1);
-	// the last beats of a measure before a repeat back to the pickup are the pickup itself
-	// (see ReadPlaybackOrder): the position line is shown there
-	if (score != nullptr && score->get_num_instruments() > 0 && FollowsPlaybackOrder() &&
-		std::find(m_pickupTails.begin(), m_pickupTails.end(), songPosition.measure - 1) != m_pickupTails.end())
+	TimeUnits location = BeatLocation(score, measure, songPosition.beat - 1);
+	// a played measure made of two incomplete measures of the score (see ReadPlaybackOrder):
+	// its last beats are shown in the second one
+	const auto split = m_splitMeasures.find(songPosition.measure - 1);
+	if (score != nullptr && score->get_num_instruments() > 0 && split != m_splitMeasures.end() &&
+		FollowsPlaybackOrder())
 	{
 		ImMeasuresTable* table = score->get_instrument(0)->get_measures_table();
 		ImMeasuresTableEntry* entry = table != nullptr ? table->get_measure(measure) : nullptr;
-		ImMeasuresTableEntry* next = table != nullptr ? table->get_measure(measure + 1) : nullptr;
-		if (entry != nullptr && next != nullptr && entry->get_bottom_ts_beat_duration() * (songPosition.beat - 1) >=
-			next->get_timepos() - entry->get_timepos() - 1.0)
+		const TimeUnits time = entry != nullptr ? entry->get_bottom_ts_beat_duration() * (songPosition.beat - 1) : 0.0;
+		if (time >= split->second.second - 1.0)
 		{
-			measure = 0;
+			measure = split->second.first;
+			location = std::max(0.0, time - split->second.second);
 		}
 	}
-	const TimeUnits location = BeatLocation(score, measure, songPosition.beat - 1);
 	if (scroll)
 	{
 		interactor->move_tempo_line_and_scroll_if_necessary(m_scoreId, measure, location);
