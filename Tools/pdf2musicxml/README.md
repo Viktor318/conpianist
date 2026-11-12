@@ -45,7 +45,8 @@ felülírható: `--tempo-x -105`.
 
 Az átkötés oldala (`orientation`) is a PDF szerinti, így a kéthangos akkord két íve felül és alul fut.
 A crescendo- és decrescendo-villák kezdete és vége `<offset>` értéket kap, ha nem hangra esik (például egy hosszú
-hang közepén kezdődik).
+hang közepén kezdődik). Az időpont a legközelebbi hangkezdethez igazodik: a hangok közé eső időpontnak a Lomse saját
+oszlopot nyitna, és a körülötte lévő hangokat egymásra rajzolná.
 
 Ívek: átkötés csak egy szólam két szomszédos, azonos magasságú hangja között lehet; ha közöttük más hang is van,
 az ív kötőív. A kötőív oldala (a hangok fölött vagy alatt) a PDF szerint kerül a kottába (`placement`).

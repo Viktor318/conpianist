@@ -166,6 +166,9 @@ def write(score, path):
                         if xa <= x <= xb:
                             td = ta + (tb - ta) * F(x - xa).limit_denominator(1000) / F(xb - xa).limit_denominator(1000) if xb > xa else ta
                             break
+                # snapped to the nearest note onset: a time between the notes would get a column of its own in
+                # Lomse, and the notes around it were drawn on top of each other
+                td = min((p[1] for p in xt), key=lambda on: abs(on - td))
                 return int(round((td - now) * div))
             for st, vn, evs in m.voices:
                 t = F(0)
