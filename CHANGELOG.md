@@ -12,6 +12,7 @@ Ez a fájl a ConPianist változásait dokumentálja. Az 1.0–3.0 verziók az er
 - **A teljes méretre nagyítva bezárt főablak a következő indításkor villanás nélkül, rögtön teljes méretben jelenik meg.** Eddig normál méretben beúszott, majd felnagyítódott, és egy pillanatig fekete volt (a Windows animációja, és mert az ablak még nem volt megrajzolva az új méretben). Most az ablak rejtve marad, amíg teljes méretben meg nem rajzolódik.
 - **A nagyítva bezárt főablak a következő indítás után is a saját normál méretére áll vissza**, ha megszünteted a nagyítást. Eddig a program alapméretére kicsinyedett, mert a nagyított állapot visszaállításakor a JUCE még az alapméretet jegyezte fel normál méretként, és kilépéskor ezt mentette el (5.0-s hiba).
 - **Kottanézet: az ujjrend a kötőív alá kerül**, a hang mellé, ahogy a nyomtatott kottákban. Eddig a kottamegjelenítő (Lomse) előbb a kötőívet rajzolta meg, és az ujjrendet fölé tolta.
+- **Kottanézet: vízszintes gerenda, ahol a nyomtatott kottákban is az.** Ha egy gerendás csoport belső hangja ugyanolyan közel van a gerendához, mint a közelebbi szélső hang (például D–Cisz–D–Fisz felfelé álló szárakkal), a gerenda vízszintes; eddig a kottamegjelenítő (Lomse) ilyenkor ferdén húzta.
 - **Kottanézet: nagyobb metronómjelzés a darab elején.** A szám eddig alig volt olvasható (7 pont a 12 pontos tempószöveg mellett), most 10 pontos. A kotta megadhatja a magasságát is (`default-y`), így nem ér a violinkulcsba és a fölötte álló tempószövegbe.
 
 ### Egyéb

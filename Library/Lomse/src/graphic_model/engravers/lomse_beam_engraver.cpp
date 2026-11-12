@@ -1333,6 +1333,8 @@ bool BeamEngraver::beam_must_be_horizontal(std::vector<GmoShapeNote*>& noteShape
 
     //R2c. The beam is horizontal when an inner note is closer to the beam than
     //     either of the outer notes
+    //ConPianist fork: also when it is as close as the nearer outer note (e.g. D C D F
+    //with stems up), as in printed music; before, only a strictly closer note counted
     if (!fHorizontal && numNotes > 2)
     {
         //check if any intermediate note is placed nearer than both outer notes
@@ -1340,13 +1342,13 @@ bool BeamEngraver::beam_must_be_horizontal(std::vector<GmoShapeNote*>& noteShape
         {
             int refPos = max(pos0, posN);
             for(int i=1; i < numNotes-1; i++)
-                fHorizontal |= (noteShapes[i]->get_pos_on_staff() > refPos);
+                fHorizontal |= (noteShapes[i]->get_pos_on_staff() >= refPos);
         }
         else
         {
             int refPos = min(pos0, posN);
             for(int i=1; i < numNotes-1; i++)
-                fHorizontal |= (noteShapes[i]->get_pos_on_staff() < refPos);
+                fHorizontal |= (noteShapes[i]->get_pos_on_staff() <= refPos);
         }
     }
 
