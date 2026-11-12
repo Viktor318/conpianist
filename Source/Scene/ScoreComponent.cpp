@@ -1104,6 +1104,16 @@ static void ReadPlaybackOrder(ImoScore* score, std::vector<int>& order, std::vec
 		}
 	}
 
+	// the last measure: up to the end of the score (it has no next measure). A piece often
+	// ends with an incomplete measure before the repeat or the D.C. (a minuet).
+	ColStaffObjs* staffObjs = score->get_staffobjs_table();
+	ColStaffObjsEntry* lastObj = staffObjs != nullptr ? staffObjs->back() : nullptr;
+	ImMeasuresTableEntry* lastEntry = measures != nullptr && numMeasures > 0 ? measures->get_measure(numMeasures - 1) : nullptr;
+	if (lastObj != nullptr && lastEntry != nullptr)
+	{
+		lengths[numMeasures - 1] = lastObj->time() + lastObj->imo_object()->get_duration() - lastEntry->get_timepos();
+	}
+
 	bool pendingStart = false;
 	for (size_t i = 0; i < rawOrder.size(); i++)
 	{
