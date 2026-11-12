@@ -56,9 +56,20 @@ fájlban is korábban véget ért (különben a másik sor egyszerre végződő 
 Szólamnév: csak akkor látszik, ha a PDF-ben is szerepel (négykezesnél „Piano I”, „Piano II”); különben
 `print-object="no"` jelöli, így a Lomse nem írja ki.
 
-Szöveges utasítások (rit., a tempo stb.): a PDF szerint a sor fölé vagy alá kerülnek (`placement`); a sor fölöttiek
-`default-y` értéket is kapnak (a szöveg alja a felső vonaltól, tizedvonalközben), hogy ne csússzanak az ujjrendre.
+Szöveges utasítások (rit., a tempo, dolce, cresc. stb.): a PDF szerint a sor fölé vagy alá kerülnek (`placement`), és
+mind `default-y` értéket kap (a szöveg alja a sor felső vonalától, tizedvonalközben), mert a Lomse a szöveget csak
+ebből teszi a sorok közé. A sor alatti szövegek a legközelebbi hanghoz kötődnek, a PDF szerinti eltolással
+(`relative-x`); az alsó sor alattiak (Fine, D.C. al Fine) az alsó sorhoz igazodnak.
 A fermata iránya mindig ki van írva: `type="upright"` vagy `type="inverted"`.
+
+Kulcsváltás az ütem utolsó hangja után: a következő ütem elejére kerül, a Lomse az ütemvonal elé rajzolja.
+
+Sorvégen megtört villa: ha a villa két vonala nem ér össze, az a megtört villa egyik darabja; a két darabból egy villa
+lesz.
+
+Pedáljelek: mindig a fölöttük lévő sorhoz tartoznak, akkor is, ha a mély hangok miatt lejjebb kerültek.
+
+Két szólam egy sorban: az akkord mellé jobbra tolt (szekund vagy terc távolságra lévő) hang az akkorddal együtt szól.
 
 Fájlnevek: a kimenet neve a PDF nevével egyezik, ékezetekkel és írásjelekkel együtt
 (`Bartók – Román népi táncok.pdf` → `Bartók – Román népi táncok.musicxml`). A MIDI-párosítás ékezet-,

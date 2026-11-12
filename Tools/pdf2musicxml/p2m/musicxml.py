@@ -82,6 +82,7 @@ def write(score, path):
     for pk, (pname, ms) in enumerate(parts):
         A(f' <part id="P{pk + 1}">')
         clef = {0: 'G', 1: 'F'}
+        late_clef = {}      # staff -> clef printed after the last note of the previous measure
         ott = {}
         fifths, time = 0, (4, 4, None)
         for n, m in enumerate(ms, 1):
@@ -111,7 +112,7 @@ def write(score, path):
             if n == 1:
                 attrs.append('<staves>2</staves>')
             for st in (0, 1):
-                c = m.clefs.get(st)
+                c = m.clefs.get(st) or late_clef.pop(st, None)
                 if c and (n == 1 or c != clef[st]):
                     clef[st] = c
                     attrs.append(f'<clef number="{st + 1}"><sign>{c}</sign><line>{2 if c == "G" else 4}</line></clef>')
@@ -136,7 +137,14 @@ def write(score, path):
                     A(f'    <sound tempo="{q:g}"/>')
                 A('   </direction>')
             # directions (dynamics, text) before the nearest event
-            dirs = sorted(m.directions, key=lambda d: (d[0], d[2]))
+            dirs = list(m.directions)
+            # words below the staff (between the staves) hang on the nearest note, shifted to their place in the PDF
+            ex = [e.x for e in m.voices[0][2]] if m.voices else []
+            for k, d in enumerate(dirs):
+                if d[2] == 'words' and len(d) > 6:
+                    a = min(ex, key=lambda x: abs(x - d[0])) if d[4] == 'below' and ex else d[0]
+                    dirs[k] = (a,) + tuple(d[1:6]) + (round((d[0] - a) / d[6] * 10),)
+            dirs.sort(key=lambda d: (d[0], d[2]))
             alter_state = {}
             ka = key_alters(fifths)
             cur_clef = dict(clef)
@@ -200,6 +208,10 @@ def write(score, path):
                 first_voice = False
                 if t > 0:
                     A(f'   <backup><duration>{int(t * div)}</duration></backup>')
+            # a clef after the last note of the measure is written at the start of the next measure
+            for d in sorted(d for d in dirs if d[2] == 'clef'):
+                if d[3] != clef[d[1]]: late_clef[d[1]] = d[3]
+                else: late_clef.pop(d[1], None)
             if not m.voices:
                 for st in (0, 1):
                     A(f'   <note><rest measure="yes"/><duration>{int(m.length * div)}</duration><voice>{1 if st == 0 else 5}</voice>'
@@ -231,7 +243,8 @@ def _direction(d, offset=0):
         return '   <direction placement="above"><direction-type><coda/></direction-type><staff>1</staff></direction>'
     if d[2] == 'words' and len(d) > 4:
         dy = f' default-y="{d[5]}"' if len(d) > 5 and d[5] is not None else ''
-        return (f'   <direction placement="{d[4]}"><direction-type><words font-style="italic"{dy}>{escape(d[3])}</words></direction-type><staff>1</staff></direction>')
+        if d[4] == 'below' and len(d) > 6 and d[6]: dy += f' relative-x="{d[6]}"'
+        return (f'   <direction placement="{d[4]}"><direction-type><words font-style="italic"{dy}>{escape(d[3])}</words></direction-type><staff>{d[1] + 1}</staff></direction>')
     if d[2] == 'wedge':
         # the offset (in divisions) tells where the hairpin starts or ends within a long note
         off = f'<offset>{offset}</offset>' if offset else ''

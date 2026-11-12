@@ -142,6 +142,23 @@ def write_trimmed_midi(mid, md, measures, out_dir):
     return L
 
 
+def join_wedges(measures):
+    """A hairpin broken at the end of a system is drawn in two pieces, and the lines of one piece do not meet
+    (crescendo: the second piece, diminuendo: the first one). The two pieces become one hairpin."""
+    seq = [(i, d) for i, m in enumerate(measures) for d in sorted(m.directions, key=lambda d: d[0]) if d[2] == 'wedge']
+    drop = []
+    for k, (i, d) in enumerate(seq):
+        if len(d) < 5 or d[3] == 'stop':
+            continue
+        if d[3] == 'crescendo' and k >= 2 and seq[k - 1][1][3] == 'stop' and seq[k - 2][1][3] == 'crescendo' and i - seq[k - 1][0] <= 1:
+            drop += [seq[k - 1], seq[k]]
+        elif (d[3] == 'diminuendo' and k + 2 < len(seq) and seq[k + 1][1][3] == 'stop' and seq[k + 2][1][3] == 'diminuendo'
+              and seq[k + 2][0] - seq[k + 1][0] <= 1):
+            drop += [seq[k + 1], seq[k + 2]]
+    for i, d in drop:
+        if d in measures[i].directions: measures[i].directions.remove(d)
+
+
 def link_curves(systems, measures):
     """Curves: tie (same note) or slur; joining the ones that cross a system break (within one part)."""
     order, voice_of = {}, {}
@@ -238,6 +255,7 @@ def finish_part(measures, systems, sp):
         if end + measures[0].length == last.length:
             last.length = end; last.warnings = [w for w in last.warnings if 'rovidebb' not in w and 'utemhossz' not in w]
     link_curves(systems, measures)
+    join_wedges(measures)
     cur = None
     for i, m in enumerate(measures):
         v = m.volta
@@ -313,8 +331,10 @@ def convert(pdf, out_dir, args):
                     for g in c['g']: g.used = True
                 elif len(re.findall(r'[A-Za-z0-9]', t)) >= 2:
                     place = 'above' if (c['y0'] + c['y1']) / 2 < sy.staves[0].top else 'below'
-                    sy.measure_at(c['x0']).directions.append((c['x0'], 0, 'words', t, place,
-                                                                 round((sy.staves[0].top - c['y1']) / sy.sp * 10) if place == 'above' else None))
+                    # texts below the top line of the lower staff are placed relative to the lower staff
+                    ws = 1 if (c['y0'] + c['y1']) / 2 > sy.staves[1].top else 0
+                    sy.measure_at(c['x0']).directions.append((c['x0'], ws, 'words', t, place,
+                                                                 round((sy.staves[ws].top - c['y1']) / sy.sp * 10), sy.sp))
                     texts.append((pi + 1, si + 1, t))
                     for g in c['g']: g.used = True
             sy.unknown = [g for g in getattr(sy, 'unknown', []) if not g.used]

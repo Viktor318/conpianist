@@ -360,6 +360,7 @@ def analyse_page(page, log, jbars=None):
     strokes = [s for s in shapes if s.kind == 's' and not s.used and not (s.w > 300 and s.h > 300)]
     fills = [s for s in shapes if s.kind != 's' and not (s.w > 300 and s.h > 300)]
     glyphs = [g for g in glyphs if not (g.w > 300 and g.h > 300)]
+    peds = [g for g in glyphs if g.name in ('ped', 'ped_up')]
     for k, sy in enumerate(systems):
         lo = systems[k - 1].bottom if k else 0
         hi = systems[k + 1].top if k + 1 < len(systems) else page.rect.height
@@ -367,8 +368,12 @@ def analyse_page(page, log, jbars=None):
         yb = sy.bottom + min(0.38 * (hi - sy.bottom), 9 * sy.sp)
         zone = lambda o: ya <= o.cy <= yb
         vzone = lambda o: zone(o) or (o.ops == 'l' and o.w < 0.05 and o.y0 < sy.top + 0.6 and o.y1 > sy.bottom - 0.6)
-        _analyse_system(sy, [g for g in glyphs if zone(g)], [s for s in strokes if vzone(s)],
-                        [s for s in fills if zone(s)], log)
+        # pedal marks always belong to the staves above them, however far below they were pushed by low notes
+        # (with the small pieces next to them, e.g. the dot of "Ped.")
+        gzone = lambda o: sy.bottom < o.cy < hi if any(p.x0 - sy.sp <= o.cx <= p.x1 + sy.sp and p.y0 - sy.sp <= o.cy <= p.y1 + sy.sp
+                                                        for p in peds) else zone(o)
+        _analyse_system(sy, [g for g in glyphs if gzone(g)], [s for s in strokes if vzone(s)],
+                        [s for s in fills if gzone(s)], log)
     return systems, glyphs, shapes
 
 
@@ -699,9 +704,10 @@ def _analyse_system(sy, glyphs, strokes, fills, log):
             measure_at(g.x0).directions.append((g.x0, 0, 'dynamics', g.name[4:])); g.used = True
         elif g.name.startswith('txt_'):
             above = g.cy < S[0].top
-            measure_at(g.x0).directions.append((g.x0, 0, 'words', {'cresc': 'cresc.', 'dim': 'dim.', 'rit': 'rit.'}[g.name[4:]],
+            ws = 1 if g.cy > S[1].top else 0
+            measure_at(g.x0).directions.append((g.x0, ws, 'words', {'cresc': 'cresc.', 'dim': 'dim.', 'rit': 'rit.'}[g.name[4:]],
                                                 'above' if above else 'below',
-                                                round((S[0].top - g.y1) / sp * 10) if above else None))
+                                                round((S[ws].top - g.y1) / sp * 10), sp))
             g.used = True
         elif g.name in ('ped', 'ped_up'):
             measure_at(g.x0).directions.append((g.x0, 1, 'pedal', 'start' if g.name == 'ped' else 'stop')); g.used = True
@@ -865,8 +871,10 @@ def _analyse_system(sy, glyphs, strokes, fills, log):
             pa = [(p.x, p.y) for p in a.items[0][1:]]; pb = [(p.x, p.y) for p in b.items[0][1:]]
             la, ra = min(pa), max(pa); lb, rb = min(pb), max(pb)
             kind = 'crescendo' if abs(la[1] - lb[1]) < abs(ra[1] - rb[1]) else 'diminuendo'
-            measure_at(a.x0).directions.append((a.x0, 0, 'wedge', kind))
-            measure_at(a.x1 - 0.5 * sp).directions.append((a.x1, 0, 'wedge', 'stop'))
+            # lines that do not meet: the piece of a hairpin broken at the end of the system (joined in join_wedges)
+            opened = ('open',) if min(abs(la[1] - lb[1]), abs(ra[1] - rb[1])) > 0.15 * sp else ()
+            measure_at(a.x0).directions.append((a.x0, 0, 'wedge', kind) + opened)
+            measure_at(a.x1 - 0.5 * sp).directions.append((a.x1, 0, 'wedge', 'stop') + opened)
             a.used = b.used = True; done |= {i, j}; break
     # --- assigning events to measures
     for ev in events:
@@ -978,16 +986,20 @@ def solve_measure(m, length, sp, is_first):
         if sum(e.dur for e in evs) == length:
             t = F(0)
             for e in evs:
-                e.onset = t; xmap.append((e.x, t)); t += e.dur
+                e.onset = t; xmap.append((e.x, t, e)); t += e.dur
     for st, evs in voices:
         if evs[0].onset is not None:
             continue
         t = F(0)
         for e in evs:
-            hit = [o for x, o in xmap if abs(x - e.x) < 0.9 * sp]
+            hit = [o for x, o, _ in xmap if abs(x - e.x) < 0.9 * sp]
+            if not hit and e.heads:
+                # a head pushed to the right of the chord of the other voice (a second or a third apart) sounds with the chord
+                hit = [o for x, o, c in xmap if 0 < e.x - x < 1.7 * sp and o >= t and c.staff == e.staff and
+                       any(abs(h.pos - k.pos) <= 2 for h in e.heads for k in c.heads)]
             if hit and min(hit) >= t:
                 t = min(h for h in hit if h >= t)
-            e.onset = t; xmap.append((e.x, t)); t += e.dur
+            e.onset = t; xmap.append((e.x, t, e)); t += e.dur
         if t > length:
             m.warnings.append(f"szolam tullog az utemen ({float(t)} > {float(length)})")
     # grace notes: before the next note, into its voice
