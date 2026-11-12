@@ -9163,6 +9163,35 @@ public:
         // attrib: %text-formatting;
         get_attributes_for_text_formatting(pImo);
 
+        //ConPianist fork: font-style="italic" and font-weight="bold" of the words. The
+        //font attributes were not imported at all, so every text was upright and regular.
+        //One style per combination, created when first needed.
+        bool fItalic = has_attribute(&m_analysedNode, "font-style")
+                       && m_analysedNode.attribute_value("font-style") == "italic";
+        bool fBold = has_attribute(&m_analysedNode, "font-weight")
+                     && m_analysedNode.attribute_value("font-weight") == "bold";
+        if (fItalic || fBold)
+        {
+            ImoScore* pScore = m_pAnalyser->get_score_being_analysed();
+            if (pScore)
+            {
+                string name = string("Words") + (fBold ? "-bold" : "") + (fItalic ? "-italic" : "");
+                ImoStyle* pStyle = pScore->find_style(name);
+                if (pStyle == nullptr)
+                {
+                    pStyle = static_cast<ImoStyle*>(ImFactory::inject(k_imo_style, pDoc));
+                    pStyle->set_name(name);
+                    pStyle->set_parent_style(pScore->get_default_style());
+                    if (fItalic)
+                        pStyle->font_style(ImoStyle::k_font_style_italic);
+                    if (fBold)
+                        pStyle->font_weight(ImoStyle::k_font_weight_bold);
+                    pScore->add_style(pStyle);
+                }
+                pImo->set_style(pStyle);
+            }
+        }
+
         // words (#PCDATA)
         pImo->set_text(text);
 
