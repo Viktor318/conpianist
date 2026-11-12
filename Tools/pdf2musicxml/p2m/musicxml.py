@@ -141,6 +141,32 @@ def write(score, path):
             ka = key_alters(fifths)
             cur_clef = dict(clef)
             first_voice = True
+            # the time of a horizontal position, from the notes of all the voices (for the ends of the hairpins)
+            # (per onset the leftmost note; long rests stand in the middle of their time, so they are left out)
+            by_on = {}
+            for _, _, evs_ in m.voices:
+                for e in evs_:
+                    if not e.grace and e.onset is not None and not (e.rest in ('whole', 'half') or e.whole_measure):
+                        by_on[e.onset] = min(by_on.get(e.onset, e.x), e.x)
+            xt = []
+            for on in sorted(by_on):
+                if not xt or by_on[on] > xt[-1][0]:
+                    xt.append((by_on[on], on))
+            xt.append((max(m.x1, xt[-1][0] + 1) if xt else m.x1, m.length))
+
+            def offset_of(d, now):
+                if d[2] != 'wedge' or len(xt) < 2:
+                    return 0
+                x = d[0]
+                if x <= xt[0][0]:
+                    td = xt[0][1]
+                else:
+                    td = xt[-1][1]
+                    for (xa, ta), (xb, tb) in zip(xt, xt[1:]):
+                        if xa <= x <= xb:
+                            td = ta + (tb - ta) * F(x - xa).limit_denominator(1000) / F(xb - xa).limit_denominator(1000) if xb > xa else ta
+                            break
+                return int(round((td - now) * div))
             for st, vn, evs in m.voices:
                 t = F(0)
                 pend = [d for d in dirs if d[2] in ('dynamics', 'words', 'wedge', 'pedal', 'coda')] if first_voice else []
@@ -163,11 +189,11 @@ def write(score, path):
                             ott[st] = want
                     while pend and pend[0][0] <= e.x + 6:
                         d = pend.pop(0)
-                        A(_direction(d))
+                        A(_direction(d, offset_of(d, t)))
                     t += e.dur
                     A(_event(e, vn, st, div, cur_clef, ka, alter_state))
                 for d in pend:
-                    A(_direction(d))
+                    A(_direction(d, offset_of(d, t)))
                 first_voice = False
                 if t > 0:
                     A(f'   <backup><duration>{int(t * div)}</duration></backup>')
@@ -195,7 +221,7 @@ def write(score, path):
         f.write('\n'.join(x for x in o if x) + '\n')
 
 
-def _direction(d):
+def _direction(d, offset=0):
     if d[2] == 'pedal':
         return (f'   <direction placement="below"><direction-type><pedal type="{d[3]}" sign="yes"/></direction-type><staff>2</staff></direction>')
     if d[2] == 'coda':
@@ -204,7 +230,9 @@ def _direction(d):
         dy = f' default-y="{d[5]}"' if len(d) > 5 and d[5] is not None else ''
         return (f'   <direction placement="{d[4]}"><direction-type><words font-style="italic"{dy}>{escape(d[3])}</words></direction-type><staff>1</staff></direction>')
     if d[2] == 'wedge':
-        return (f'   <direction placement="below"><direction-type><wedge type="{d[3]}"/></direction-type><staff>1</staff></direction>')
+        # the offset (in divisions) tells where the hairpin starts or ends within a long note
+        off = f'<offset>{offset}</offset>' if offset else ''
+        return (f'   <direction placement="below"><direction-type><wedge type="{d[3]}"/></direction-type>{off}<staff>1</staff></direction>')
     if d[2] == 'dynamics':
         return (f'   <direction placement="below"><direction-type><dynamics><{d[3]}/></dynamics>'
                 f'</direction-type><staff>1</staff></direction>')
@@ -254,7 +282,9 @@ def _event(e, vn, st, div, clef, ka, alter_state):
                 s += f'<beam number="{lvl}">{tag}</beam>'
         nt = ''
         if h.tie_stop: nt += '<tied type="stop"/>'
-        if h.tie_start: nt += '<tied type="start"/>'
+        if h.tie_start:
+            ov = getattr(h, 'tie_over', None)
+            nt += '<tied type="start"' + ('' if ov is None else ' orientation="over"' if ov else ' orientation="under"') + '/>'
         if not i:
             nt += _tup(e)
             for num in e.slur_stop: nt += f'<slur type="stop" number="{num}"/>'

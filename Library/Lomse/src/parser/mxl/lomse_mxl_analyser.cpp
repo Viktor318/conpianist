@@ -10338,8 +10338,10 @@ void MxlTiesBuilder::add_relation_to_staffobjs(ImoTieDto* pEndDto)
 //---------------------------------------------------------------------------------------
 bool MxlTiesBuilder::notes_can_be_tied(ImoNote* pStartNote, ImoNote* pEndNote)
 {
-    return (pStartNote->get_voice() == pEndNote->get_voice())
-            && (pStartNote->get_staff() == pEndNote->get_staff())
+    //ConPianist fork: the two notes need not be in the same voice. A note is often tied
+    //to a note of another voice (e.g. the last note of a measure to a note of the lower
+    //voice where the next measure has two voices); the tie was dropped with a warning.
+    return (pStartNote->get_staff() == pEndNote->get_staff())
             && (pStartNote->get_actual_accidentals() == pEndNote->get_actual_accidentals())
             && (pStartNote->get_step() == pEndNote->get_step())
             && (pStartNote->get_octave() == pEndNote->get_octave()) ;

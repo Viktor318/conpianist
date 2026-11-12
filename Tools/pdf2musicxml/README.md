@@ -43,6 +43,10 @@ A `default-x` értéke a kottasor bal széle az ütem első hangoszlopához kép
 szöveg `default-y="60"` értéket kap; metronómjelzés nélkül a szöveg `default-y="40"`. A vízszintes hely
 felülírható: `--tempo-x -105`.
 
+Az átkötés oldala (`orientation`) is a PDF szerinti, így a kéthangos akkord két íve felül és alul fut.
+A crescendo- és decrescendo-villák kezdete és vége `<offset>` értéket kap, ha nem hangra esik (például egy hosszú
+hang közepén kezdődik).
+
 Ívek: átkötés csak egy szólam két szomszédos, azonos magasságú hangja között lehet; ha közöttük más hang is van,
 az ív kötőív. A kötőív oldala (a hangok fölött vagy alatt) a PDF szerint kerül a kottába (`placement`).
 A kötőívek sorszáma (`number`) a fájl sorrendjéhez igazodik: egy sorszám csak akkor használható újra, ha az íve a

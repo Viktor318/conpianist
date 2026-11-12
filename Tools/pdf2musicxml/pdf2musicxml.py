@@ -198,6 +198,7 @@ def link_curves(systems, measures):
             if (a.staff == b.staff and a.pos == b.pos and c['ea'] is not c['eb'] and not art(c['ea']) and not art(c['eb']) and edge
                     and not notes_between(c['ea'], c['eb'])):
                 a.tie_start = True; b.tie_stop = True
+                a.tie_over = c.get('over')      # the side of the tie in the PDF
             elif c['ea'] is not c['eb']:
                 slurs.append((c['ea'], c['eb'], c.get('over')))
         pending = [p for p in pending if p.get('age', 0) < 1]
