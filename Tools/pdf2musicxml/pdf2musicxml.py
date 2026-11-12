@@ -33,6 +33,11 @@ from p2m.midi import Midi
 from p2m.recognize import analyse_page, solve_measure
 
 
+FULL_WORDS = {'dolce', 'legato', 'leggiero', 'cantabile', 'espressivo', 'sostenuto', 'tempo', 'fine', 'tranquillo',
+              'grazioso', 'animato', 'agitato', 'marcato', 'staccato', 'simile', 'sempre', 'subito', 'morendo',
+              'crescendo', 'diminuendo', 'ritardando', 'rallentando', 'accelerando', 'calando', 'smorzando'}
+
+
 def ocr(page, rect, psm=7):
     exe = shutil.which('tesseract') or next((p for p in (
         r'C:\Program Files\Tesseract-OCR\tesseract.exe',
@@ -330,6 +335,8 @@ def convert(pdf, out_dir, args):
                     if not meta['tempo_text'] and word: meta['tempo_text'] = re.sub(r'\s+[A-Za-z]$', '', word.group(0).strip())
                     for g in c['g']: g.used = True
                 elif len(re.findall(r'[A-Za-z0-9]', t)) >= 2:
+                    # full words are not abbreviations: a dot read after them is OCR noise
+                    if t.endswith('.') and t[:-1].split()[-1].lower() in FULL_WORDS: t = t[:-1]
                     place = 'above' if (c['y0'] + c['y1']) / 2 < sy.staves[0].top else 'below'
                     # texts below the top line of the lower staff are placed relative to the lower staff
                     ws = 1 if (c['y0'] + c['y1']) / 2 > sy.staves[1].top else 0

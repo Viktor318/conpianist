@@ -60,6 +60,8 @@ Szöveges utasítások (rit., a tempo, dolce, cresc. stb.): a PDF szerint a sor 
 mind `default-y` értéket kap (a szöveg alja a sor felső vonalától, tizedvonalközben), mert a Lomse a szöveget csak
 ebből teszi a sorok közé. A sor alatti szövegek a legközelebbi hanghoz kötődnek, a PDF szerinti eltolással
 (`relative-x`); az alsó sor alattiak (Fine, D.C. al Fine) az alsó sorhoz igazodnak.
+Ha ugyanarra a hangra dinamikai jel is kerül (p dolce), a szöveg a jel után kezdődik. A nem rövidített szavak
+(dolce, legato, cantabile stb.) után az OCR által olvasott pont lekerül.
 A fermata iránya mindig ki van írva: `type="upright"` vagy `type="inverted"`.
 
 Kulcsváltás az ütem utolsó hangja után: a következő ütem elejére kerül, a Lomse az ütemvonal elé rajzolja.

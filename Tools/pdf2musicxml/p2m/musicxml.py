@@ -4,6 +4,8 @@ from math import lcm
 from xml.sax.saxutils import escape
 
 STEPS = 'CDEFGAB'
+# width of the dynamic marks in Lomse, in tenths (measured on the rendered score)
+DYN_WIDTH = {'p': 20, 'pp': 34, 'ppp': 48, 'mp': 38, 'mf': 38, 'f': 18, 'ff': 30, 'sf': 28}
 CLEF_BASE = {'G': 30, 'F': 18}          # diatonic number of the bottom line (E4, G2)
 SHARP_ORDER = 'FCGDAEB'
 TYPES = {F(4): 'whole', F(2): 'half', F(1): 'quarter', F(1, 2): 'eighth', F(1, 4): '16th', F(1, 8): '32nd'}
@@ -143,7 +145,14 @@ def write(score, path):
             for k, d in enumerate(dirs):
                 if d[2] == 'words' and len(d) > 6:
                     a = min(ex, key=lambda x: abs(x - d[0])) if d[4] == 'below' and ex else d[0]
-                    dirs[k] = (a,) + tuple(d[1:6]) + (round((d[0] - a) / d[6] * 10),)
+                    rx = round((d[0] - a) / d[6] * 10)
+                    # a dynamic mark on the same note: Lomse draws it from the note to the right (in the PDF it is to the
+                    # left of the note), so the text starts after it
+                    dyn = [q for q in m.directions if q[2] == 'dynamics' and q[0] < d[0] and d[4] == 'below' and
+                           next((x for x in ex if q[0] <= x + 6), None) == a]
+                    if dyn:
+                        rx = max(rx, max(DYN_WIDTH.get(q[3], 30) for q in dyn) + 16)
+                    dirs[k] = (a,) + tuple(d[1:6]) + (rx,)
             dirs.sort(key=lambda d: (d[0], d[2]))
             alter_state = {}
             ka = key_alters(fifths)
