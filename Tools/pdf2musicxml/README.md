@@ -69,6 +69,13 @@ Kulcsváltás az ütem utolsó hangja után: a következő ütem elejére kerül
 Sorvégen megtört villa: ha a villa két vonala nem ér össze, az a megtört villa egyik darabja; a két darabból egy villa
 lesz.
 
+Visszaugrások: a D.C. és a Fine felirat mellé lejátszási utasítás is kerül (`<sound dacapo="yes"/>`, `<sound fine="yes"/>`),
+a szakasz végére (az első ismétlőjelhez, kettős vagy záró ütemvonalhoz), mert a kottamegjelenítő a feliratot magát nem követi.
+Ha egy ismétlőjelhez a szakaszában nincs kiírt kezdő ismétlőjel, a szakasz eleje (az előző ismétlőjel, kettős vagy záró
+ütemvonal utáni ütem) `<sound forward-repeat="yes"/>` utasítást kap; ebből a kottában semmi nem látszik.
+A D.C. és a Fine felirata ahhoz az ütemhez tartozik, ahol a szöveg véget ér. A D.S. és a Coda még nincs meg (a segno
+jelet a script nem ismeri fel).
+
 Pedáljelek: mindig a fölöttük lévő sorhoz tartoznak, akkor is, ha a mély hangok miatt lejjebb kerültek.
 
 Két szólam egy sorban: az akkord mellé jobbra tolt (szekund vagy terc távolságra lévő) hang az akkorddal együtt szól.

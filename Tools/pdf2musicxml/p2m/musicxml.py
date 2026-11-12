@@ -1,4 +1,5 @@
 """Writing MusicXML 3.1 (score-partwise) from the recognized measures."""
+import re
 from fractions import Fraction as F
 from math import lcm
 from xml.sax.saxutils import escape
@@ -81,6 +82,27 @@ def write(score, path):
     shown, hide = score.get('shown_parts', set()), ' print-object="no"'
     A(' <part-list>' + ''.join(f'<score-part id="P{k + 1}"><part-name{"" if nm in shown else hide}>{escape(nm)}</part-name></score-part>'
                               for k, (nm, _) in enumerate(parts)) + '</part-list>')
+    # D.C. and Fine of any part: measure number -> instructions. They take effect at the end of the section: at the
+    # first repeat sign, double or final barline from their measure on (a long text begins a measure earlier)
+    jumps = {}
+    for _, ms in parts:
+        for n, m in enumerate(ms, 1):
+            for d in m.directions:
+                snd = _jump_sound(d[3]) if d[2] == 'words' else None
+                if snd:
+                    k = next((j for j in range(n, min(n + 2, len(ms)) + 1) if ms[j - 1].right_bar in ('repeat-end', 'double', 'final')), n)
+                    jumps.setdefault(k, set()).add(snd)
+    # A repeat sign with no forward repeat sign before it in its section: the repeat goes back to the start of the
+    # section, the measure after the last repeat sign, double or final barline (the trio after the Fine). Written as
+    # an implied forward repeat (a playback instruction, nothing is printed).
+    implied, open_start, boundary = set(), True, None
+    for n, m in enumerate(parts[0][1], 1):
+        if m.left_bar == 'repeat-start': open_start = True
+        if m.right_bar == 'repeat-end':
+            if not open_start and boundary: implied.add(boundary + 1)
+            open_start, boundary = False, n
+        elif m.right_bar in ('double', 'final'):
+            boundary = n
     for pk, (pname, ms) in enumerate(parts):
         A(f' <part id="P{pk + 1}">')
         clef = {0: 'G', 1: 'F'}
@@ -94,6 +116,8 @@ def write(score, path):
                 A('   <print new-page="yes"/>')
             elif n > 1 and m.new_system:
                 A('   <print new-system="yes"/>')
+            if pk == 0 and n in implied:
+                A('   <sound forward-repeat="yes"/>')
             vs = getattr(m, 'ending_start', None)
             if m.left_bar == 'repeat-start' or vs:
                 A('   <barline location="left">' + ('<bar-style>heavy-light</bar-style>' if m.left_bar else '') +
@@ -144,7 +168,7 @@ def write(score, path):
             ex = [e.x for e in m.voices[0][2]] if m.voices else []
             for k, d in enumerate(dirs):
                 if d[2] == 'words' and len(d) > 6:
-                    a = min(ex, key=lambda x: abs(x - d[0])) if d[4] == 'below' and ex else d[0]
+                    a = min(ex, key=lambda x: abs(x - d[0])) if (d[4] == 'below' or _jump_sound(d[3])) and ex else d[0]
                     rx = round((d[0] - a) / d[6] * 10)
                     # a dynamic mark on the same note: Lomse draws it from the note to the right (in the PDF it is to the
                     # left of the note), so the text starts after it
@@ -228,6 +252,11 @@ def write(score, path):
                     if st == 0: A(f'   <backup><duration>{int(m.length * div)}</duration></backup>')
             if o[-1].startswith('   <backup>'):
                 o.pop()
+            # D.C. and Fine also as playback instructions (the texts alone are not followed by the players):
+            # once, in the first part, at the end of the measure (see jumps)
+            if pk == 0:
+                for snd in sorted(jumps.get(n, ())):
+                    A(f'   <sound {snd}="yes"/>')
             ve = getattr(m, 'ending_stop', None)
             end = f'<ending number="{ve[0]}" type="{ve[1]}"/>' if ve else ''
             if ve and m.right_bar is None:
@@ -245,6 +274,17 @@ def write(score, path):
         f.write('\n'.join(x for x in o if x) + '\n')
 
 
+def _jump_sound(text):
+    """The playback instruction of a text: 'dacapo' (D.C., Da Capo, also with words around it, e.g.
+    "Menuetto D.C. al Fine"), 'fine' (Fine alone), or None."""
+    s = re.sub(r'\s+', ' ', text.lower()).strip()
+    if re.search(r'(^|[^a-z])d\. ?c\.?($|[^a-z])', s) or 'da capo' in s:
+        return 'dacapo'
+    if s.strip(' .') == 'fine':
+        return 'fine'
+    return None
+
+
 def _direction(d, offset=0):
     if d[2] == 'pedal':
         return (f'   <direction placement="below"><direction-type><pedal type="{d[3]}" sign="yes"/></direction-type><staff>2</staff></direction>')
@@ -252,7 +292,7 @@ def _direction(d, offset=0):
         return '   <direction placement="above"><direction-type><coda/></direction-type><staff>1</staff></direction>'
     if d[2] == 'words' and len(d) > 4:
         dy = f' default-y="{d[5]}"' if len(d) > 5 and d[5] is not None else ''
-        if d[4] == 'below' and len(d) > 6 and d[6]: dy += f' relative-x="{d[6]}"'
+        if len(d) > 6 and d[6]: dy += f' relative-x="{d[6]}"'
         return (f'   <direction placement="{d[4]}"><direction-type><words font-style="italic"{dy}>{escape(d[3])}</words></direction-type><staff>{d[1] + 1}</staff></direction>')
     if d[2] == 'wedge':
         # the offset (in divisions) tells where the hairpin starts or ends within a long note

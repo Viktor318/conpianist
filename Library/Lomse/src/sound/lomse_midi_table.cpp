@@ -186,6 +186,11 @@ void SoundEventsTable::create_events()
             {
                 int iInstr = cursor.num_instrument();
                 int channel = m_channels[iInstr];
+                //ConPianist fork: <sound forward-repeat="yes"/>: a forward repeat sign is
+                //implied here but not printed (e.g. the trio of a minuet, after the double
+                //barline). The next end-repetition barline jumps back to this measure.
+                if (iInstr == 0 && pSound->get_attribute(k_attr_forward_repeat))
+                    jumpToMeasure = measure;
                 process_sound_change(pSound, cursor, channel, iInstr, measure);
             }
         }
@@ -194,6 +199,9 @@ void SoundEventsTable::create_events()
             ImoSoundChange* pSound = static_cast<ImoSoundChange*>(pSO);
             int iInstr = cursor.num_instrument();
             int channel = m_channels[iInstr];
+            //ConPianist fork: an implied forward repeat (see above)
+            if (iInstr == 0 && pSound->get_attribute(k_attr_forward_repeat))
+                jumpToMeasure = measure;
             process_sound_change(pSound, cursor, channel, iInstr, measure);
         }
         else if (pSO->is_transpose())
@@ -225,6 +233,9 @@ void SoundEventsTable::process_sound_change(ImoSoundChange* pSound,
 
             case k_attr_dacapo:
                 pJump = create_jump(measure, 1, 1);   //to measure 1, 1 time
+                //ConPianist fork: marked, to tell it from a repeat back to the first measure
+                //(see get_measures_jumps). The label names no target, so it changes nothing.
+                pJump->set_label("DaCapo");
                 add_jump(cursor, measure, pJump);
                 break;
 
@@ -745,6 +756,11 @@ vector<MeasuresJumpsEntry*> SoundEventsTable::get_measures_jumps()
     //loop to process m_events
     int fromMeasure = m_events[i]->Measure;
     TimeUnits fromTime = TimeUnits(m_events[i]->DeltaTime);
+    //ConPianist fork: 'Fine' and 'To Coda' are followed only after a 'D.C.' or 'D.S.' has
+    //been taken. They were followed the second time the playback reached them, which is
+    //the repeat of the section when the 'Fine' stands before a repeat sign (a minuet):
+    //the playback order ended there, in the middle of the piece.
+    bool fReturned = false;
     do
     {
         //if it is a jump event, execute the jump if applicable
@@ -752,7 +768,28 @@ vector<MeasuresJumpsEntry*> SoundEventsTable::get_measures_jumps()
         {
             bool fExecuted = false;
             JumpEntry* pJump = m_events[i]->pJump;
-            if (pJump->get_visited() >= pJump->get_times_before())
+            const std::string& label = pJump->get_label();
+            const bool fIsReturn = label == "DaCapo" || (!label.empty() && label[0] == 'S');
+            const bool fAfterReturn = pJump->get_to_measure() == -1 || (!label.empty() && label[0] == 'C');
+            //A 'D.C.' or 'D.S.' at a repeat sign is taken after the repeat: it waits while
+            //another jump at the same place can still be taken.
+            bool fWait = false;
+            for (size_t k = i + 1; fIsReturn && !fWait && k < maxEvent
+                    && m_events[k]->EventType == SoundEvent::k_jump
+                    && m_events[k]->DeltaTime == m_events[i]->DeltaTime; ++k)
+            {
+                JumpEntry* pNext = m_events[k]->pJump;
+                const std::string& next = pNext->get_label();
+                const bool fPlain = pNext->get_to_measure() > 0 && next.empty();
+                fWait = fPlain && pNext->get_visited() >= pNext->get_times_before()
+                        && (pNext->get_times_valid() == 0 || pNext->get_times_valid() > pNext->get_executed());
+            }
+            if (fWait)
+            {
+                ++i;
+                continue;
+            }
+            if (fAfterReturn ? fReturned : pJump->get_visited() >= pJump->get_times_before())
             {
                 if (pJump->get_times_valid() == 0
                     || pJump->get_times_valid() > pJump->get_executed())
@@ -781,6 +818,8 @@ vector<MeasuresJumpsEntry*> SoundEventsTable::get_measures_jumps()
                     fromTime = jmpTime;
 
                     fExecuted = true;
+                    if (fIsReturn)
+                        fReturned = true;
                 }
             }
 

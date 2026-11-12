@@ -30,6 +30,7 @@ import pymupdf
 
 from p2m import musicxml, compare
 from p2m.midi import Midi
+from p2m.musicxml import _jump_sound
 from p2m.recognize import analyse_page, solve_measure
 
 
@@ -340,7 +341,10 @@ def convert(pdf, out_dir, args):
                     place = 'above' if (c['y0'] + c['y1']) / 2 < sy.staves[0].top else 'below'
                     # texts below the top line of the lower staff are placed relative to the lower staff
                     ws = 1 if (c['y0'] + c['y1']) / 2 > sy.staves[1].top else 0
-                    sy.measure_at(c['x0']).directions.append((c['x0'], ws, 'words', t, place,
+                    # D.C., Fine: written at the end of their section, they belong to the measure where the text ends
+                    # (a long one, e.g. "Menuetto D.C. al Fine", begins a measure earlier)
+                    tm = sy.measure_at(c['x1'] - sy.sp) if _jump_sound(t) else sy.measure_at(c['x0'])
+                    tm.directions.append((c['x0'], ws, 'words', t, place,
                                                                  round((sy.staves[ws].top - c['y1']) / sy.sp * 10), sy.sp))
                     texts.append((pi + 1, si + 1, t))
                     for g in c['g']: g.used = True
