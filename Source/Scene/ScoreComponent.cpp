@@ -146,6 +146,8 @@ private:
 	// and the number of measures of the score
 	std::vector<int> m_playOrder;
 	std::vector<int> m_passStarts;
+	// The played measures (0..) that end with the pickup of the score (see ReadPlaybackOrder)
+	std::vector<int> m_pickupTails;
 	int m_scoreMeasures = 0;
 	// Moving the A-B marks with the mouse: the mark being dragged (0: none, 1: A, 2: B)
 	// and the position it is shown at while dragged
@@ -1026,11 +1028,20 @@ static void PrepareScoreText(String& content)
 // through. The measures are counted as in the song positions: the first measure of the
 // score (a pickup measure too) is the first. numMeasures: the number of measures of the
 // score.
+// A repeat back to the pickup: the measure before the repeat sign is short by the pickup,
+// and the two make one measure of the song (in Fur Elise the first ending has two eighths,
+// the pickup is the third). The pickup is then left out of the playback order, otherwise
+// every measure after the repeat was shown one measure late. pickupTails (if given): the
+// played measures (0..) whose last beats are the pickup.
 static void ReadPlaybackOrder(ImoScore* score, std::vector<int>& order, std::vector<int>& passStarts,
-	int& numMeasures)
+	int& numMeasures, std::vector<int>* pickupTails = nullptr)
 {
 	order.clear();
 	passStarts.clear();
+	if (pickupTails != nullptr)
+	{
+		pickupTails->clear();
+	}
 	numMeasures = 0;
 	if (score == nullptr)
 	{
@@ -1038,13 +1049,35 @@ static void ReadPlaybackOrder(ImoScore* score, std::vector<int>& order, std::vec
 	}
 	SoundEventsTable* table = score->get_midi_table();
 	numMeasures = table->get_num_measures();
+	// the time missing from the pickup measure (0: the score has no pickup)
+	ColStaffObjs* staffObjs = score->get_staffobjs_table();
+	const TimeUnits missing = staffObjs != nullptr && staffObjs->is_anacrusis_start() ?
+		staffObjs->anacrusis_missing_time() : 0.0;
+	ImMeasuresTable* measures = score->get_num_instruments() > 0 ?
+		score->get_instrument(0)->get_measures_table() : nullptr;
 	for (MeasuresJumpsEntry* pass : table->get_measures_jumps())
 	{
-		const int from = pass->get_from_measure();
+		int from = pass->get_from_measure();
 		const int to = pass->get_to_measure() == 0 ? numMeasures : pass->get_to_measure(); // 0: to the end
 		if (from < 1 || to < from || to > numMeasures)
 		{
 			continue; // e.g. the jump of a D.S. without a segno
+		}
+		if (from == 1 && to > 1 && !order.empty() && missing > 0.0 && measures != nullptr)
+		{
+			// back to the pickup: is the measure played before it as long as the part
+			// missing from the pickup?
+			ImMeasuresTableEntry* last = measures->get_measure(order.back());
+			ImMeasuresTableEntry* next = measures->get_measure(order.back() + 1);
+			if (last != nullptr && next != nullptr &&
+				std::abs((next->get_timepos() - last->get_timepos()) - missing) < 1.0)
+			{
+				if (pickupTails != nullptr)
+				{
+					pickupTails->push_back((int)order.size() - 1);
+				}
+				from = 2;
+			}
 		}
 		passStarts.push_back((int)order.size());
 		for (int measure = from; measure <= to; measure++)
@@ -1103,7 +1136,7 @@ void LomseScoreComponent::LoadDocument(String content)
 
 	// the playback order of the measures, while all instruments are in the score
 	ReadPlaybackOrder(dynamic_cast<ImoScore*>(m_presenter->get_document_raw_ptr()->get_im_root()->get_content_item(0)),
-		m_playOrder, m_passStarts, m_scoreMeasures);
+		m_playOrder, m_passStarts, m_scoreMeasures, &m_pickupTails);
 	if (!m_playOrder.empty())
 	{
 		String passes;
@@ -1979,7 +2012,21 @@ void LomseScoreComponent::UpdateTempoLine(bool scroll)
 	PianoController::Position songPosition = m_pianoController.GetPosition();
 	Document* doc = m_presenter->get_document_raw_ptr();
 	ImoScore* score = dynamic_cast<ImoScore*>(doc->get_im_root()->get_content_item(0));
-	const int measure = ScoreMeasure(songPosition.measure - 1);
+	int measure = ScoreMeasure(songPosition.measure - 1);
+	// the last beats of a measure before a repeat back to the pickup are the pickup itself
+	// (see ReadPlaybackOrder): the position line is shown there
+	if (score != nullptr && score->get_num_instruments() > 0 && FollowsPlaybackOrder() &&
+		std::find(m_pickupTails.begin(), m_pickupTails.end(), songPosition.measure - 1) != m_pickupTails.end())
+	{
+		ImMeasuresTable* table = score->get_instrument(0)->get_measures_table();
+		ImMeasuresTableEntry* entry = table != nullptr ? table->get_measure(measure) : nullptr;
+		ImMeasuresTableEntry* next = table != nullptr ? table->get_measure(measure + 1) : nullptr;
+		if (entry != nullptr && next != nullptr && entry->get_bottom_ts_beat_duration() * (songPosition.beat - 1) >=
+			next->get_timepos() - entry->get_timepos() - 1.0)
+		{
+			measure = 0;
+		}
+	}
 	const TimeUnits location = BeatLocation(score, measure, songPosition.beat - 1);
 	if (scroll)
 	{
