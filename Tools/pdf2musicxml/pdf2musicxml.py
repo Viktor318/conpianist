@@ -148,6 +148,8 @@ def link_curves(systems, measures):
     for i, m in enumerate(measures):
         for st, vn, evs in m.voices:
             for e in evs: order[id(e)] = (i, e.onset); voice_of[id(e)] = (st, vn)
+    # the order in which the notes are written to the file: measure, voice, onset
+    forder = {id(e): (i, k, e.onset) for i, m in enumerate(measures) for k, (_, _, evs) in enumerate(m.voices) for e in evs}
 
     def notes_between(ea, eb):
         # notes of the same voice between the two ends: then the curve is a slur, not a tie
@@ -201,10 +203,12 @@ def link_curves(systems, measures):
         pending = [p for p in pending if p.get('age', 0) < 1]
         for p in pending: p['age'] = 1
     slurs = [s for s in slurs if id(s[0]) in order and id(s[1]) in order and order[id(s[0])] < order[id(s[1])]]
-    slurs.sort(key=lambda s: order[id(s[0])])
+    slurs.sort(key=lambda s: forder[id(s[0])])
     active = {}
     for a, b, over in slurs:
-        for num in [k for k, v in active.items() if order[id(v)] <= order[id(a)]]:
+        # a number is free again only when its slur has ended earlier in the file (or on this very note): a slur
+        # of the other staff that ends at the same time is written later, and its number must not be reused yet
+        for num in [k for k, v in active.items() if forder[id(v)] < forder[id(a)] or v is a]:
             del active[num]
         num = next(k for k in range(1, 9) if k not in active)
         active[num] = b

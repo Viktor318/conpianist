@@ -45,6 +45,8 @@ felülírható: `--tempo-x -105`.
 
 Ívek: átkötés csak egy szólam két szomszédos, azonos magasságú hangja között lehet; ha közöttük más hang is van,
 az ív kötőív. A kötőív oldala (a hangok fölött vagy alatt) a PDF szerint kerül a kottába (`placement`).
+A kötőívek sorszáma (`number`) a fájl sorrendjéhez igazodik: egy sorszám csak akkor használható újra, ha az íve a
+fájlban is korábban véget ért (különben a másik sor egyszerre végződő ívével ütközne, és a Lomse rossz hangokat kötne össze).
 
 Szólamnév: csak akkor látszik, ha a PDF-ben is szerepel (négykezesnél „Piano I”, „Piano II”); különben
 `print-object="no"` jelöli, így a Lomse nem írja ki.
