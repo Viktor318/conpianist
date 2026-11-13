@@ -91,7 +91,7 @@ bool LocalSongPlayer::ReadMidiFile(InputStream& stream, MidiFile& midiFile)
 	return midiFile.readFrom(input);
 }
 
-int LocalSongPlayer::SetupMeasureTicks(const MidiFile& midiFile)
+int LocalSongPlayer::LeadInTicks(const MidiFile& midiFile)
 {
 	const int ticksPerQuarter = midiFile.getTimeFormat();
 	if (ticksPerQuarter <= 0)
@@ -99,31 +99,12 @@ int LocalSongPlayer::SetupMeasureTicks(const MidiFile& midiFile)
 		return 0;
 	}
 
-	// the first measure: 4/4 unless the file begins with another time signature
-	int measureTicks = ticksPerQuarter * 4;
-	for (int t = 0; t < midiFile.getNumTracks(); t++)
-	{
-		const MidiMessageSequence* track = midiFile.getTrack(t);
-		for (int i = 0; i < track->getNumEvents(); i++)
-		{
-			const MidiMessage& msg = track->getEventPointer(i)->message;
-			if (roundToInt(msg.getTimeStamp()) > 0)
-			{
-				break;
-			}
-			if (msg.isTimeSignatureMetaEvent())
-			{
-				int numerator, denominator;
-				msg.getTimeSignatureInfo(numerator, denominator);
-				measureTicks = std::max(1, numerator) * std::max(1, ticksPerQuarter * 4 / std::max(1, denominator));
-			}
-		}
-	}
-
-	// no note in it, and the tempo and the time signature of the song at its end
-	bool tempo = false;
-	bool signature = false;
-	bool notes = false;
+	// the time signatures, the first note, and what stands at the end of the first measure
+	// (4/4 unless the file begins with another time signature)
+	struct Signature { int tick; int measureTicks; };
+	std::vector<Signature> signatures;
+	std::vector<int> tempoTicks;
+	int firstNoteTick = std::numeric_limits<int>::max();
 	for (int t = 0; t < midiFile.getNumTracks(); t++)
 	{
 		const MidiMessageSequence* track = midiFile.getTrack(t);
@@ -133,20 +114,52 @@ int LocalSongPlayer::SetupMeasureTicks(const MidiFile& midiFile)
 			const int tick = roundToInt(msg.getTimeStamp());
 			if (msg.isNoteOn())
 			{
-				if (tick < measureTicks)
-				{
-					return 0;
-				}
-				notes = true;
+				firstNoteTick = std::min(firstNoteTick, tick);
 			}
-			else if (tick == measureTicks)
+			else if (msg.isTimeSignatureMetaEvent())
 			{
-				tempo = tempo || msg.isTempoMetaEvent();
-				signature = signature || msg.isTimeSignatureMetaEvent();
+				int numerator, denominator;
+				msg.getTimeSignatureInfo(numerator, denominator);
+				signatures.push_back({tick, std::max(1, numerator) * std::max(1, ticksPerQuarter * 4 / std::max(1, denominator))});
+			}
+			else if (msg.isTempoMetaEvent())
+			{
+				tempoTicks.push_back(tick);
 			}
 		}
 	}
-	return tempo && signature && notes ? measureTicks : 0;
+	std::stable_sort(signatures.begin(), signatures.end(),
+		[](const Signature& a, const Signature& b) { return a.tick < b.tick; });
+	auto measureTicksAt = [&](int tick)
+	{
+		int measureTicks = ticksPerQuarter * 4;
+		for (const Signature& signature : signatures)
+		{
+			if (signature.tick <= tick)
+			{
+				measureTicks = signature.measureTicks;
+			}
+		}
+		return measureTicks;
+	};
+
+	// the setup measure: no note in it, the tempo and the time signature of the song at its end
+	const int setupTicks = measureTicksAt(0);
+	const bool tempo = std::find(tempoTicks.begin(), tempoTicks.end(), setupTicks) != tempoTicks.end();
+	const bool signature = std::any_of(signatures.begin(), signatures.end(),
+		[&](const Signature& s) { return s.tick == setupTicks; });
+	if (firstNoteTick == std::numeric_limits<int>::max() || firstNoteTick < setupTicks || !tempo || !signature)
+	{
+		return 0;
+	}
+
+	// the empty measures after it, up to the measure of the first note
+	int leadIn = setupTicks;
+	while (leadIn + measureTicksAt(leadIn) <= firstNoteTick)
+	{
+		leadIn += measureTicksAt(leadIn);
+	}
+	return leadIn;
 }
 
 bool LocalSongPlayer::Load(const File& file)
@@ -165,10 +178,11 @@ bool LocalSongPlayer::Load(const File& file)
 		return false;
 	}
 
-	// The setup measure of a song file of Yamaha is left out: its messages are sent at the
-	// beginning of the song, everything else comes one measure earlier (the tempo and the
-	// time signature at its end are those of the beginning of the song).
-	const int setupTicks = SetupMeasureTicks(midiFile);
+	// The empty measures at the beginning of a song file of Yamaha are left out: their
+	// messages are sent at the beginning of the song, everything else comes earlier by
+	// their length (the last tempo and time signature in them are those of the beginning
+	// of the song).
+	const int leadInTicks = LeadInTicks(midiFile);
 
 	Unload();
 
@@ -191,7 +205,7 @@ bool LocalSongPlayer::Load(const File& file)
 		for (int i = 0; i < track->getNumEvents(); i++)
 		{
 			const MidiMessage& msg = track->getEventPointer(i)->message;
-			const int tick = std::max(0, roundToInt(msg.getTimeStamp()) - setupTicks);
+			const int tick = std::max(0, roundToInt(msg.getTimeStamp()) - leadInTicks);
 			m_endTick = std::max(m_endTick, tick);
 
 			if (msg.isTempoMetaEvent())
