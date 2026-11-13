@@ -81,6 +81,13 @@ def glyphs(page, log=None):
                 for u, gid, origin, bbox in t['chars']:
                     if chr(u) in '236':
                         out.append(Glyph('tuplet' + chr(u), bbox[0], origin[1] - 0.72 * size, bbox[2], origin[1], 'font'))
+            elif 'Helvetica' in base:
+                # the number of a volta (1st / 2nd ending): "1." or "2." in a text font
+                txt = ''.join(chr(c[0]) for c in t['chars']).strip()
+                if len(txt) == 2 and txt[0] in '123456789' and txt[1] == '.':
+                    c0 = next(c for c in t['chars'] if chr(c[0]) == txt[0])
+                    g = Glyph('d' + txt[0], c0[3][0], c0[2][1] - 0.72 * size, c0[3][2], c0[2][1], 'font'); g.volta = True
+                    out.append(g)
             continue
         for u, gid, origin, bbox in t['chars']:
             ch = chr(u)

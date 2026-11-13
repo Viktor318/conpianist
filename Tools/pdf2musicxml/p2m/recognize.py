@@ -417,7 +417,7 @@ def _analyse_system(sy, glyphs, strokes, fills, log):
             groups[-1].append(b)
         else:
             groups.append([b])
-    rdots = [g for g in glyphs if g.name == 'dot' and g.w > 0.42 * sp and
+    rdots = [g for g in glyphs if g.name == 'dot' and (g.w > 0.42 * sp or finale_page) and
              any(abs(g.cy - (st.ys[1] + st.ys[2]) / 2) < 0.2 * sp or abs(g.cy - (st.ys[2] + st.ys[3]) / 2) < 0.2 * sp
                  for st in S)]
     binfo = []
@@ -868,7 +868,8 @@ def _analyse_system(sy, glyphs, strokes, fills, log):
         sy.curves.append({'a': a, 'b': b, 'ea': owner.get(id(a)), 'eb': owner.get(id(b)), 'y': s_.cy, 'L': L, 'R': R,
                           'over': over})
     # --- volta (1st / 2nd ending): horizontal line above the upper staff + large number
-    vd = [g for g in glyphs if g.name in DIGITS and not g.used and 1.5 * sp <= g.h < 2.3 * sp and g.cy < S[0].top]
+    vd = [g for g in glyphs if g.name in DIGITS and not g.used and g.cy < S[0].top and
+          (1.5 * sp <= g.h < 2.3 * sp or getattr(g, 'volta', False))]
     segs = [s_ for s_ in strokes if not s_.used and not s_.dashed and s_.w > 3 * sp and s_.y0 < S[0].top - 1.2 * sp and
             ((s_.ops == 'l' and s_.h < 0.05) or (s_.ops in ('ll', 'lll') and s_.h < 4 * sp and _has_vertical(s_)))]
     for s_ in segs:

@@ -119,6 +119,10 @@ def write(score, path):
                 A('   <print new-system="yes"/>')
             if pk == 0 and n in implied:
                 A('   <sound forward-repeat="yes"/>')
+            elif pk == 0 and m.left_bar == 'repeat-start' and n > 1 and ms[n - 2].right_bar in ('double', 'final'):
+                # Lomse loses a forward repeat sign that follows a double barline (the repeat then goes back to
+                # the beginning of the piece): the playback instruction says the same once more
+                A('   <sound forward-repeat="yes"/>')
             vs = getattr(m, 'ending_start', None)
             if m.left_bar == 'repeat-start' or vs:
                 A('   <barline location="left">' + ('<bar-style>heavy-light</bar-style>' if m.left_bar else '') +

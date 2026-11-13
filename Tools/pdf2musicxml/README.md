@@ -116,7 +116,7 @@ betűkészletből veszi. A vonalak (kottasor, szár, gerenda, ütemvonal, ív) i
 
 Karakterből felismert jelek: kottafejek, kulcsok, szünetek (egésztől 32-edig), módosítójelek (kettős kereszt
 és kettős bé is), zászlók, pontok, ujjrend, ütemmutató, Ped. és feloldás, hangsúly, marcato, tenuto,
-staccatissimo, fermata, trilla, triolaszám; dinamika: p, pp, ppp, mp, mf, f, ff, sf, sfz, fp.
+staccatissimo, fermata, trilla, triolaszám, az 1. és 2. befejezés (volta) száma; dinamika: p, pp, ppp, mp, mf, f, ff, sf, sfz, fp.
 A szám nélküli triolákat és szextolákat (az első ütem után „simile”, vagy sehol nincs szám) szólamonként felismeri,
 hatos és tizenkettes gerendacsoportban, felváltva föl és le álló szárakkal is. Az egymásra nyomott két kottafej
 (egy hang két szólamban) két szárat kap.
