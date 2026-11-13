@@ -400,6 +400,7 @@ def analyse_page(page, log, jbars=None):
 
 def _analyse_system(sy, glyphs, strokes, fills, log):
     sp = sy.sp
+    finale_page = getattr(sy, 'finale', False)
     S = sy.staves
     # --- barlines: vertical lines spanning both staves
     bars = [s for s in strokes if s.ops == 'l' and s.w < 0.05 and
@@ -509,7 +510,16 @@ def _analyse_system(sy, glyphs, strokes, fills, log):
             if not (s.y0 - 0.6 * sp <= h.g.cy <= s.y1 + 0.6 * sp):
                 continue
             d = min(abs(s.x0 - h.g.x0), abs(s.x0 - h.g.x1))
-            if d < 0.22 * sp and (best is None or d < best[0]):
+            if finale_page and d < 0.22 * sp:
+                # A head at the end of a stem: a stem going up stands at the right edge of the head, a stem going
+                # down at its left edge. Two voices in unison share one line (the head of the upper voice on the
+                # left with its stem up, the head of the lower voice on the right with its stem down), and the
+                # nearer stem is not always the right one.
+                if abs(h.g.cy - s.y1) < 0.3 * sp and abs(s.x0 - h.g.x1) > abs(s.x0 - h.g.x0):
+                    d += 0.15 * sp
+                elif abs(h.g.cy - s.y0) < 0.3 * sp and abs(s.x0 - h.g.x0) > abs(s.x0 - h.g.x1):
+                    d += 0.15 * sp
+            if d < (0.37 if finale_page else 0.22) * sp and (best is None or d < best[0]):
                 best = (d, i)
         if best is None:
             ev = Event(h.g.x0, h.staff, [h]); events.append(ev)

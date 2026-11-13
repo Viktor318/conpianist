@@ -427,6 +427,11 @@ def convert(pdf, out_dir, args):
     # ---- MIDI comparison per part
     midi_lines, part_diffs, part_stats = [], {}, {}
     mid = find_midi(pdf, args.midi) if args.midi else None
+    if not args.midi:
+        # the MIDI file beside the PDF with the same name is found without --midi (like the .json file)
+        for ext in ('.mid', '.midi'):
+            if os.path.isfile(os.path.splitext(pdf)[0] + ext):
+                mid = os.path.splitext(pdf)[0] + ext; break
     if args.midi and not mid:
         midi_lines = ["", "=== MIDI osszevetes ===", "  nem talaltam a PDF-hez tartozo MIDI fajlt"]
     if mid:

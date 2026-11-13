@@ -2,6 +2,7 @@
 (Maestro layout: Kousaku, Maestro) and of a dynamics font (Chaconne), so the character code
 tells what the symbol is. The exact outline box of each character comes from the embedded font."""
 import io
+import logging
 from .recognize import Glyph
 
 MUSIC_FONTS = ('Kousaku', 'Maestro')
@@ -41,6 +42,8 @@ def _boxes(doc, page):
             continue
         try:
             buf = doc.extract_font(f[0])[3]
+            # (fontTools warns about harmless flaws of the embedded font subsets, e.g. "2 extra bytes in post.stringData")
+            logging.getLogger('fontTools').setLevel(logging.ERROR)
             tt = TTFont(io.BytesIO(buf), fontNumber=0)
             upm = tt['head'].unitsPerEm; glyf = tt['glyf']
             for table in tt['cmap'].tables:

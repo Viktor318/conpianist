@@ -34,6 +34,7 @@ Ellenőrzés MIDI fájllal (ajánlott, ha van):
     py pdf2musicxml.py *.pdf -o kimenet --midi MIDI_mappa
 
 A `--midi` egy fájl vagy egy mappa lehet; mappánál név szerint párosítja a PDF-eket a `.mid` fájlokkal.
+Ha a PDF mellett ott van az azonos nevű `.mid` fájl, azt `--midi` nélkül is megtalálja (ahogy a `.json` fájlt).
 A program a Yamaha-dalfájlok kottahű „guide” csatornáit (15: jobb kéz, 16: bal kéz) veti össze hangról hangra
 a felismert ütemekkel. Az elején lévő üres ütemeket és a felütést magától kiegyenlíti, az ismétléseket és a
 D.C./D.S. ugrásokat követi. Az egyértelmű oktáveltérést (8va) kijavítja és jelzi a kottában; minden más
@@ -119,8 +120,8 @@ staccatissimo, fermata, trilla, triolaszám; dinamika: p, pp, ppp, mp, mf, f, ff
 A szám nélküli triolákat (az első ütem után „simile”) szólamonként, hatos gerendacsoportban is felismeri.
 Az ismeretlen karaktereket a jelentés felsorolja.
 
-Állapot (2026. november 13., első teljes futás): a 303 kottából 169-ben minden hang egyezik a MIDI-vel,
-a hangok 90,2%-a egyezik összesen. Még nincs bekötve: a szöveges feliratok (a PDF-ben sima szövegként
+Állapot (2026. november 13.): a 303 kottából 171-ben minden hang egyezik a MIDI-vel,
+a hangok 90,5%-a egyezik összesen. Még nincs bekötve: a szöveges feliratok (a PDF-ben sima szövegként
 megvannak, OCR nem kell hozzájuk), a szögletes vonallal jelölt pedál, a 8va karakter (a szaggatott vonalat
 kezeli), trillavonal, mordent, paránytrilla, zárójelek. Ismert hibák: két szólam egy sorban (a ritmus
 szétesik), átkötések egy része, hosszú ívek, ismétlések sorrendje néhány kottában.
