@@ -502,11 +502,17 @@ def _analyse_system(sy, glyphs, strokes, fills, log):
     flags = [g for g in glyphs if g.name in ('flag_up', 'flag_down')]
     events = []
     by_stem = {}
+    twins = []      # (scores made by Finale) two heads printed on each other: one note of two voices
     for h in heads:
         if h.kind == 'whole' or h.grace:
             continue
         best = None
+        # the stem of the twin of this head is not its stem
+        twin = next((o for o in heads if o is not h and finale_page and getattr(o, 'stem_i', None) is not None and
+                     o.staff == h.staff and o.pos == h.pos and abs(o.g.x0 - h.g.x0) < 0.15 * sp), None)
         for i, s in enumerate(stems):
+            if twin is not None and i == twin.stem_i:
+                continue
             if not (s.y0 - 0.6 * sp <= h.g.cy <= s.y1 + 0.6 * sp):
                 continue
             d = min(abs(s.x0 - h.g.x0), abs(s.x0 - h.g.x1))
@@ -525,7 +531,8 @@ def _analyse_system(sy, glyphs, strokes, fills, log):
             ev = Event(h.g.x0, h.staff, [h]); events.append(ev)
             sy.measures[0].warnings.append(f"szar nelkuli fej x={h.g.x0:.0f}")
         else:
-            by_stem.setdefault(best[1], []).append(h)
+            by_stem.setdefault(best[1], []).append(h); h.stem_i = best[1]
+            if twin is not None: twins.append((twin, h))
     for i, hs in by_stem.items():
         s = stems[i]; s.used = True
         hs.sort(key=lambda h: h.g.cy)
@@ -596,6 +603,15 @@ def _analyse_system(sy, glyphs, strokes, fills, log):
                    (0.05 * sp < g.cx - h.g.x1 < 1.5 * sp or 0.05 * sp < g.cx - xr < 1.5 * sp)]
             if hit:
                 min(hit, key=lambda h: abs(g.cy - h.g.cy)).dots = 1; g.used = True; break
+    # the dot of a note of two voices belongs to the longer one (the one without a beam or a flag)
+    owner_d = {id(h): ev for ev in events for h in ev.heads}
+    for a_, b_ in twins:
+        ea, eb = owner_d.get(id(a_)), owner_d.get(id(b_))
+        if ea is None or eb is None or a_.dots == b_.dots:
+            continue
+        dotted, plain = (a_, b_) if a_.dots else (b_, a_)
+        if owner_d[id(dotted)].beams > 0 and owner_d[id(plain)].beams == 0:
+            plain.dots, dotted.dots = dotted.dots, 0
     for ev in events:
         ev.dots = max((h.dots for h in ev.heads), default=0)
     for g in glyphs:
@@ -613,6 +629,9 @@ def _analyse_system(sy, glyphs, strokes, fills, log):
                                        'rest_half': 'half', 'rest_whole': 'whole'}[g.name], y=g.cy)
             for d in glyphs:
                 if d.name == 'dot' and not d.used and 0 < d.cx - g.x1 < 1.2 * sp and abs(d.cy - g.cy) < 1.2 * sp:
+                    # (not the staccato dot above or below the next note)
+                    if finale_page and any(abs(d.cx - h.g.cx) < 0.45 * sp for h in heads):
+                        continue
                     ev.dots = 1; d.used = True
             events.append(ev); g.used = True
     for s in fills:
@@ -789,8 +808,8 @@ def _analyse_system(sy, glyphs, strokes, fills, log):
         if g.name == 'arpeggio' and not g.used and any(abs(a.x0 - g.x0) < 0.5 * sp for a in arp): g.used = True
     # --- tuplets: duplet (2 notes instead of 3), triplet (3 notes instead of 2)
     for g in glyphs:
-        if g.name in ('tuplet2', 'tuplet3'):
-            n = int(g.name[-1]); ratio = (2, 3) if n == 2 else (3, 2)
+        if g.name in ('tuplet2', 'tuplet3', 'tuplet6'):
+            n = int(g.name[-1]); ratio = (2, 3) if n == 2 else (3, 2)      # (6: two triplets under one number)
             hooks = [s_ for s_ in strokes if s_.ops == 'll' and not s_.used and abs(s_.cy - g.cy) < 1.5 * sp and abs(s_.cx - g.cx) < 7 * sp
                      and s_.w < 5 * sp]
             cand = [e for e in events if (e.heads or e.rest) and abs(e.x + 0.6 * sp - g.cx) < 8 * sp and e.tuplet is None]

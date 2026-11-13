@@ -243,26 +243,37 @@ def link_curves(systems, measures):
 
 def implied_triplets(m, L):
     """Triplets written without their number (after the first ones, "simile"): if a voice of a staff (the notes
-    with the stems in the same direction) is too long for the measure and it fits exactly when its beamed groups
-    of three or six equal notes are triplets, they are triplets."""
+    with the stems in the same direction) is too long for the measure, and it fits exactly when some of its beamed
+    groups of three, six or twelve equal notes are triplets, they are triplets."""
     for st in (0, 1):
-        for stem in ('up', 'down'):
-            evs = [e for e in m.events if e.staff == st and not e.grace and e.dur and e.heads and e.stem == stem]
+        allv = [e for e in m.events if e.staff == st and not e.grace and e.dur]
+        ups = [e for e in allv if e.heads and e.stem == 'up']; downs = [e for e in allv if e.heads and e.stem == 'down']
+        # stems up and down at the same place: two voices; one after the other: one voice (with its rests)
+        # (heads of two voices on the same pitch stand side by side: one head width apart)
+        two = any(abs(a.x - b.x) < 1.3 * a.heads[0].g.w for a in ups for b in downs) or \
+            any(e.heads and e.stem is None for e in allv)
+        for evs in ([ups, downs] if two else [allv]):
             total = sum((e.dur for e in evs), F(0))
             if total <= L:
                 continue
             groups = {}
             for e in evs:
-                if e.beam_ids and e.tuplet is None:
+                if e.heads and e.beam_ids and e.tuplet is None:
                     groups.setdefault(max(e.beam_ids), []).append(e)
-            cand = [g for g in groups.values() if len(g) in (3, 6) and len({e.dur for e in g}) == 1]
-            if cand and len(cand) == len(groups) and total - sum((e.dur for g in cand for e in g), F(0)) / 3 <= L:
-                for g in cand:
-                    g.sort(key=lambda e: e.x)
-                    for k in range(0, len(g), 3):
-                        for e in g[k:k + 3]:
-                            e.dur = e.dur * F(2, 3); e.tuplet = (3, 2)
-                        g[k].tuplet_start = True; g[k + 2].tuplet_stop = True
+            cand = [g for g in groups.values() if len(g) in (3, 6, 12) and len({e.dur for e in g}) == 1]
+            cand.sort(key=lambda g: min(e.x for e in g))
+            gain = [sum((e.dur for e in g), F(0)) / 3 for g in cand]
+            excess = total - L
+            if sum(gain, F(0)) == excess:
+                chosen = cand
+            else:
+                continue
+            for g in chosen:
+                g.sort(key=lambda e: e.x)
+                for k in range(0, len(g), 3):
+                    for e in g[k:k + 3]:
+                        e.dur = e.dur * F(2, 3); e.tuplet = (3, 2)
+                    g[k].tuplet_start = True; g[k + 2].tuplet_stop = True
 
 
 def finish_part(measures, systems, sp):

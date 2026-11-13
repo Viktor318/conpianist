@@ -79,7 +79,7 @@ def glyphs(page, log=None):
             # the number of a tuplet: a small digit in a text font
             if 'Helvetica' in base and size < 9.5:
                 for u, gid, origin, bbox in t['chars']:
-                    if chr(u) in '23':
+                    if chr(u) in '236':
                         out.append(Glyph('tuplet' + chr(u), bbox[0], origin[1] - 0.72 * size, bbox[2], origin[1], 'font'))
             continue
         for u, gid, origin, bbox in t['chars']:
@@ -116,6 +116,14 @@ def glyphs(page, log=None):
             for d in grp: unknown['dyn:' + d[4]] = unknown.get('dyn:' + d[4], 0) + 1
         g = Glyph(name, min(d[0] for d in grp), min(d[1] for d in grp), max(d[2] for d in grp), max(d[3] for d in grp), 'font')
         out.append(g)
+    # the same symbol printed twice at the same place counts once (not the noteheads: two voices on one note)
+    seen, uniq = set(), []
+    for g in out:
+        key = (g.name, round(g.x0, 1), round(g.y0, 1))
+        if not g.name.startswith('head') and key in seen:
+            continue
+        seen.add(key); uniq.append(g)
+    out = uniq
     if log and unknown:
         log('  ! ismeretlen karakterek: ' + ', '.join(f"{k!r} (U+{ord(k[-1]):04X}) x{v}" for k, v in sorted(unknown.items())))
     return out

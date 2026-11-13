@@ -117,11 +117,13 @@ betűkészletből veszi. A vonalak (kottasor, szár, gerenda, ütemvonal, ív) i
 Karakterből felismert jelek: kottafejek, kulcsok, szünetek (egésztől 32-edig), módosítójelek (kettős kereszt
 és kettős bé is), zászlók, pontok, ujjrend, ütemmutató, Ped. és feloldás, hangsúly, marcato, tenuto,
 staccatissimo, fermata, trilla, triolaszám; dinamika: p, pp, ppp, mp, mf, f, ff, sf, sfz, fp.
-A szám nélküli triolákat (az első ütem után „simile”) szólamonként, hatos gerendacsoportban is felismeri.
+A szám nélküli triolákat és szextolákat (az első ütem után „simile”, vagy sehol nincs szám) szólamonként felismeri,
+hatos és tizenkettes gerendacsoportban, felváltva föl és le álló szárakkal is. Az egymásra nyomott két kottafej
+(egy hang két szólamban) két szárat kap.
 Az ismeretlen karaktereket a jelentés felsorolja.
 
-Állapot (2026. november 13.): a 303 kottából 171-ben minden hang egyezik a MIDI-vel,
-a hangok 90,5%-a egyezik összesen. Még nincs bekötve: a szöveges feliratok (a PDF-ben sima szövegként
+Állapot (2026. november 13.): a 303 kottából 184-ben minden hang egyezik a MIDI-vel,
+a hangok 93,4%-a egyezik összesen. Még nincs bekötve: a szöveges feliratok (a PDF-ben sima szövegként
 megvannak, OCR nem kell hozzájuk), a szögletes vonallal jelölt pedál, a 8va karakter (a szaggatott vonalat
 kezeli), trillavonal, mordent, paránytrilla, zárójelek. Ismert hibák: két szólam egy sorban (a ritmus
 szétesik), átkötések egy része, hosszú ívek, ismétlések sorrendje néhány kottában.
