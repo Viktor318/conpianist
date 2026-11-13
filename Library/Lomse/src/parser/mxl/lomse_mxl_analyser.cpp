@@ -2767,7 +2767,10 @@ protected:
                 type = rightSide;
             else if (leftSide == k_barline_end_repetition &&
                      rightSide == k_barline_start_repetition)
-                type = k_barline_double_repetition;
+                //ConPianist fork: an end repetition followed by a start repetition is drawn
+                //with two heavy lines between the dots, as in printed piano music (and as the
+                //two signs look side by side). It was drawn with two thin lines.
+                type = k_barline_double_repetition_alt;
             else
             {
                 error_msg2(

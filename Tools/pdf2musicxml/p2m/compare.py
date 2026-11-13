@@ -134,6 +134,7 @@ def compare(ms, midi, log, chans=None, tol=0, start=None, order=None):
         notes = [n for i, n in enumerate(notes) if i not in claimed]
     # differences + octave correction
     diffs, fixed, matched, total_s, total_m, durdiff, hand = [], 0, 0, 0, 0, [], 0
+    shifted = 0
     fixed_at = set(); ott_conflict = set()
     seen = set()
     for k, t in played:
@@ -150,6 +151,23 @@ def compare(ms, midi, log, chans=None, tol=0, start=None, order=None):
                 hit = [x for x in only_m if x[1] == pch and 0 < x[0] - o <= F(1, 2)]
                 if hit:
                     only_s.remove((o, pch)); only_m.remove(hit[0]); arp.add((o, pch))
+        # a main note after grace notes: when the grace notes are played on the beat (an appoggiatura as a
+        # sixteenth), the main note sounds later than it stands in the score, by a quarter of a beat for each
+        # grace note at most; the score is right
+        after = {}
+        for st_, vn_, evs_ in ms[k].voices:
+            g = 0
+            for e_ in evs_:
+                if e_.grace: g += 1
+                else:
+                    if g: after[id(e_)] = g
+                    g = 0
+        for (o, pch) in list(only_s):
+            g = max((after.get(id(e), 0) for _, _, e in S[(o, pch)]), default=0)
+            if g:
+                hit = [x for x in only_m if x[1] == pch and 0 < x[0] - o <= min(F(1, 2), F(g, 4))]
+                if hit:
+                    only_s.remove((o, pch)); only_m.remove(min(hit)); shifted += 1
         for (o, pch) in list(only_s):
             for sh in (12, -12):
                 if (o, pch + sh) in only_m:
@@ -176,7 +194,7 @@ def compare(ms, midi, log, chans=None, tol=0, start=None, order=None):
         seen.update((k, key) for key in set(S) & set(M))
     rest = len([n for n in notes if n[0] >= t_end])
     stats = dict(grace=(grace_ok, grace_n), ott_conflict=sorted(ott_conflict), fixed_at=sorted(fixed_at), start=t_start, chans=chans, played=len(played), order=[k for k, _ in played], matched=matched, score_notes=total_s, midi_notes=total_m,
-                 fixed=fixed, durdiff=durdiff, hand=hand, leftover=rest, jumps=jumps, unplayed=sorted(set(range(len(ms))) - {k for k, _ in played}))
+                 fixed=fixed, durdiff=durdiff, hand=hand, shifted=shifted, leftover=rest, jumps=jumps, unplayed=sorted(set(range(len(ms))) - {k for k, _ in played}))
     return diffs, stats
 
 
@@ -201,6 +219,8 @@ def report(diffs, stats, ms):
         L.append("  a MIDI-ben nem szereplo utemek: " + ', '.join(str(k + 1) for k in stats['unplayed']))
     if stats['leftover']:
         L.append(f"  a MIDI vegen parositatlan hangok: {stats['leftover']}")
+    if stats.get('shifted'):
+        L.append(f"  eloke utan kesobb megszolalo fohangok (az eloke utesre szol; a kotta jo): {stats['shifted']}")
     if stats['hand']:
         L.append(f"  mas kezben/sorban levo hangok (csak tajekoztatas): {stats['hand']}")
     if not diffs:

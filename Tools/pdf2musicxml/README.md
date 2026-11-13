@@ -35,7 +35,7 @@ A `--midi` egy fájl vagy egy mappa lehet; mappánál név szerint párosítja a
 A program a Yamaha-dalfájlok kottahű „guide” csatornáit (15: jobb kéz, 16: bal kéz) veti össze hangról hangra
 a felismert ütemekkel. Az elején lévő üres ütemeket és a felütést magától kiegyenlíti, az ismétléseket és a
 D.C./D.S. ugrásokat követi. Az egyértelmű oktáveltérést (8va) kijavítja és jelzi a kottában; minden más
-eltérést ütemszámmal felsorol a jelentés „MIDI összevetés” részében. A szerző nevét is a MIDI-ből veszi.
+eltérést ütemszámmal felsorol a jelentés „MIDI összevetés” részében. A szerző nevét is a MIDI-ből veszi. Ha egy főhang előtt előke áll, és a MIDI-ben a főhang legfeljebb előkénként egy tizenhatoddal (összesen legfeljebb egy nyolcaddal) később szól, az nem eltérés: az előkét ütésre játsszák. Az ilyen hangok számát a jelentés külön sorban adja meg.
 
 A kezdő tempójelzés helye: a szöveg és a metronómjelzés a kottasor bal szélénél kezdődik, a kulcs fölött.
 A `default-x` értéke a kottasor bal széle az ütem első hangoszlopához képest, tizedvonalközben, a PDF-ből számolva
