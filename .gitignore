@@ -83,3 +83,6 @@ Builds/
 
 # ConPianist regisztrációs memória fájlok (személyes zongorabeállítások dalonként)
 *.conmem
+
+# Claude munkafájljai (véletlenül ide mentett csomagok, jegyzetek)
+/Claude outputs/
