@@ -133,11 +133,16 @@ szétesik), átkötések egy része, hosszú ívek, ismétlések sorrendje néh�
 Kulcsok (soronként, kulcsváltással), előjegyzés, ütemmutató (számok és C), hangok és akkordok (szekund-akkordok is),
 pontozás, gerendák, zászlók, szünetek (egésztől tizenhatodig), módosítójelek, két szólam soronként,
 ujjrend (fent/lent, akkordra halmozva is), dinamika (ppp–ff, sf), crescendo-villák,
-pedál (Ped. és feloldó csillag), átkötések és kötőívek (rendszerhatáron át is),
+pedál (a kottában Ped. felirat és vonal, lásd lent), átkötések és kötőívek (rendszerhatáron át is),
 staccato, staccatissimo, tenuto, hangsúly, marcato, fermata, arpeggio, ismétlőjelek, 1./2. befejezés (volta),
 duola és triola, felütés, coda-jel, sor- és oldaltörések.
 OCR-rel (Tesseract kell hozzá): cím, szerző, tempó, szöveges utasítások (dolce, a tempo, poco rit., Fine, D.C. stb.).
 Az OCR-rel olvasott szövegeket a jelentés külön felsorolja, ezeket érdemes átolvasni.
+
+**Pedál:** a nyomtatott kottában Ped. felirat és feloldó csillag áll; a szkript a lenyomást Ped. felirattal
+és vonallal írja ki, a felengedést a vonal vége jelzi, csillag nélkül (a kettő együtt zsúfolt volt).
+Ha a pedál lenyomva marad és új Ped. jön, a vonal ott véget ér és új kezdődik. A pár nélküli jel
+vonal nélkül marad: a soha fel nem oldott Ped. csak felirat, a Ped. nélküli feloldás csak csillag.
 
 ## Ismert hiányok
 

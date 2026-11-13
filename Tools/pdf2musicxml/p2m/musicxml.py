@@ -83,6 +83,8 @@ def write(score, path):
     shown, hide = score.get('shown_parts', set()), ' print-object="no"'
     A(' <part-list>' + ''.join(f'<score-part id="P{k + 1}"><part-name{"" if nm in shown else hide}>{escape(nm)}</part-name></score-part>'
                               for k, (nm, _) in enumerate(parts)) + '</part-list>')
+    for _, ms in parts:
+        _pedal_lines(ms)
     # D.C. and Fine of any part: measure number -> instructions. They take effect at the end of the section: at the
     # first repeat sign, double or final barline from their measure on (a long text begins a measure earlier)
     jumps = {}
@@ -290,9 +292,39 @@ def _jump_sound(text):
     return None
 
 
+# Pedal: "Ped." and a line. The end of the line is the release, so there is no release sign after a line.
+#   (type, line, sign) of the <pedal> elements written for a mark
+PEDAL = {'start': [('start', 'yes', 'yes')],
+         'stop': [('stop', 'yes', 'no')],
+         'again': [('stop', 'yes', 'no'), ('start', 'yes', 'yes')],     # "Ped." while the pedal is down
+         'start-only': [('start', 'no', 'yes')],                        # never released: "Ped." alone
+         'again-only': [('stop', 'yes', 'no'), ('start', 'no', 'yes')],
+         'stop-only': [('stop', 'no', 'yes')]}                          # release without "Ped.": the sign alone
+
+
+def _pedal_lines(ms):
+    """Pairs the pedal marks of a part, so that every line written has both ends."""
+    last = None     # (measure, index) of the mark whose line is open
+    for m in ms:
+        for k in sorted((k for k, d in enumerate(m.directions) if d[2] == 'pedal'), key=lambda k: m.directions[k][0]):
+            d = m.directions[k]
+            if d[3] in ('start', 'again', 'start-only', 'again-only'):
+                kind = 'again' if last else 'start'
+                last = (m, k)
+            else:
+                kind = 'stop' if last else 'stop-only'
+                last = None
+            m.directions[k] = d[:3] + (kind,) + d[4:]
+    if last:
+        m, k = last
+        d = m.directions[k]
+        m.directions[k] = d[:3] + (d[3] + '-only',) + d[4:]
+
+
 def _direction(d, offset=0):
     if d[2] == 'pedal':
-        return (f'   <direction placement="below"><direction-type><pedal type="{d[3]}" sign="yes"/></direction-type><staff>2</staff></direction>')
+        return '\n'.join(f'   <direction placement="below"><direction-type><pedal type="{t}" line="{ln}" sign="{sg}"/>'
+                       f'</direction-type><staff>2</staff></direction>' for t, ln, sg in PEDAL[d[3]])
     if d[2] == 'coda':
         return '   <direction placement="above"><direction-type><coda/></direction-type><staff>1</staff></direction>'
     if d[2] == 'words' and len(d) > 4:
