@@ -40,7 +40,7 @@ Az oszlopok a kotta útjának lépései: **Nyers** (megvan a kiinduló MusicXML)
 
 | Kotta | Nyers | Hangok | Jelölések | Megjelenítés | Lejátszás | Zongora | Kész | Megjegyzés |
 |---|---|---|---|---|---|---|---|---|
-| Classic21 Prelude (Wohltemperierte Klavier I No.1) | | | | | | | |  |
+| Classic21 Prelude (Wohltemperierte Klavier I No.1) | | | | | | | | A zongora saját példánya más tempójú, mint a MIDI-fájl (kb. 61–68 a fájl 73–77-e helyett); nem hiba (november 13.). |
 | Classic22 Menuett G dur BWV Anh.114 | | | | | | | |  |
 | Classic23 Piano Sonate No.15 K.545 1st mov | | | | | | | |  |
 | Classic24 Turkish March | | | | | | | |  |

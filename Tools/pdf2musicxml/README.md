@@ -4,7 +4,7 @@ Vektoros zongorakotta-PDF → MusicXML konverter (Python, Windows/macOS/Linux) a
 2026. november 11. óta a ConPianist repó része (`Tools/pdf2musicxml`, a v8-as csomagból), a fejlesztése itt folytatódik.
 A parancsokat ebből a mappából kell futtatni (`cd Tools\pdf2musicxml`).
 
-Fájlok: `pdf2musicxml.py`, `p2m/__init__.py`, `p2m/extract.py`, `p2m/recognize.py`,
+Fájlok: `pdf2musicxml.py`, `p2m/__init__.py`, `p2m/extract.py`, `p2m/recognize.py`, `p2m/finale.py`,
 `p2m/musicxml.py`, `p2m/midi.py`, `p2m/compare.py`, `p2m/miditrim.py`, `p2m/catalog.json`, `p2m/templates.json`.
 
 A `.json` fájlt a PDF mellől magától megtalálja; más mappa: `--json MAPPA`, kikapcsolás: `--no-json`.
@@ -15,7 +15,9 @@ olvassa ki pontos koordinátákkal, és ezekből építi fel a kottát.
 
 ## Telepítés (Windows)
 
-    py -m pip install pymupdf
+    py -m pip install pymupdf fonttools
+
+A `fonttools` a Finale-ből készült PDF-ekhez kell (lásd lent), a többihez nem.
 
 Opcionális: [Tesseract OCR](https://github.com/UB-Mannheim/tesseract/wiki) – a cím, a szerző és a tempójelzés
 kiolvasásához (ezek a PDF-ben körvonalként vannak, nem szövegként). Ha nincs telepítve, a cím a fájlnévből jön,
@@ -103,6 +105,26 @@ Minden PDF mellé két fájl készül:
 **A jelentés a lényeg:** ha 0 figyelmeztetés és 0 fel nem használt jel van, akkor a PDF minden alakzata
 bekerült a kottába, és minden ütem hossza stimmel. Ami a jelentésben szerepel, azt kézzel kell megnézni.
 
+## Finale-ből készült PDF-ek (Lesson)
+
+A zongora Lesson dalainak kottái (Beyer, Burgmüller, Czerny 100, Czerny 30, Hanon; 303 kotta) Finale-ből
+készültek: a kottajelek bennük nem körvonalak, hanem egy kottabetűkészlet (Kousaku, a Maestro kiosztásával)
+karakterei, a dinamikai jelek a Chaconne betűkészleté. A szkript ezt magától észreveszi, és ilyenkor a jeleket
+a karakterkódból olvassa ki (`p2m/finale.py`), nem alakmintákból; a jelek pontos méretét a PDF-be ágyazott
+betűkészletből veszi. A vonalak (kottasor, szár, gerenda, ütemvonal, ív) itt is rajzolt elemek.
+
+Karakterből felismert jelek: kottafejek, kulcsok, szünetek (egésztől 32-edig), módosítójelek (kettős kereszt
+és kettős bé is), zászlók, pontok, ujjrend, ütemmutató, Ped. és feloldás, hangsúly, marcato, tenuto,
+staccatissimo, fermata, trilla, triolaszám; dinamika: p, pp, ppp, mp, mf, f, ff, sf, sfz, fp.
+A szám nélküli triolákat (az első ütem után „simile”) szólamonként, hatos gerendacsoportban is felismeri.
+Az ismeretlen karaktereket a jelentés felsorolja.
+
+Állapot (2026. november 13., első teljes futás): a 303 kottából 169-ben minden hang egyezik a MIDI-vel,
+a hangok 90,2%-a egyezik összesen. Még nincs bekötve: a szöveges feliratok (a PDF-ben sima szövegként
+megvannak, OCR nem kell hozzájuk), a szögletes vonallal jelölt pedál, a 8va karakter (a szaggatott vonalat
+kezeli), trillavonal, mordent, paránytrilla, zárójelek. Ismert hibák: két szólam egy sorban (a ritmus
+szétesik), átkötések egy része, hosszú ívek, ismétlések sorrendje néhány kottában.
+
 ## Amit felismer
 
 Kulcsok (soronként, kulcsváltással), előjegyzés, ütemmutató (számok és C), hangok és akkordok (szekund-akkordok is),
@@ -130,6 +152,7 @@ Az OCR-rel olvasott szövegeket a jelentés külön felsorolja, ezeket érdemes 
 
 - `p2m/extract.py` – látható vektoros alakzatok kiolvasása (rétegek, vágóterületek kezelése)
 - `p2m/recognize.py` – kottasorok, ütemek, glifek, hangok, ritmus, szólamok, jelek
+- `p2m/finale.py` – Finale-ből készült PDF: a kottabetűkészlet karakterei → jelek
 - `p2m/musicxml.py` – hangmagasság-számítás, MusicXML 3.1 író
 - `p2m/midi.py`, `p2m/compare.py` – MIDI olvasó és összevetés (külső csomag nélkül)
 - `p2m/catalog.json` – alak-szignatúra → jel neve

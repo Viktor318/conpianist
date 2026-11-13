@@ -52,7 +52,8 @@ def visible_shapes(page):
         for _, r in stack:
             clip = r if clip is None else (clip & r)
         r = d['rect']
-        if clip is None or clip.is_empty or not clip.intersects(r + (-.5, -.5, .5, .5)):
+        # (a PDF without any clip area, e.g. made by Finale 2012: everything is visible)
+        if clip is not None and (clip.is_empty or not clip.intersects(r + (-.5, -.5, .5, .5))):
             continue
         dsh = d.get('dashes') or ''
         out.append(Shape(d['type'], _ops(d['items']), r.x0, r.y0, r.x1, r.y1,

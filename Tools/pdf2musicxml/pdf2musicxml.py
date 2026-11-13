@@ -241,6 +241,30 @@ def link_curves(systems, measures):
             a.slur_place[num] = 'above' if over else 'below'
 
 
+def implied_triplets(m, L):
+    """Triplets written without their number (after the first ones, "simile"): if a voice of a staff (the notes
+    with the stems in the same direction) is too long for the measure and it fits exactly when its beamed groups
+    of three or six equal notes are triplets, they are triplets."""
+    for st in (0, 1):
+        for stem in ('up', 'down'):
+            evs = [e for e in m.events if e.staff == st and not e.grace and e.dur and e.heads and e.stem == stem]
+            total = sum((e.dur for e in evs), F(0))
+            if total <= L:
+                continue
+            groups = {}
+            for e in evs:
+                if e.beam_ids and e.tuplet is None:
+                    groups.setdefault(max(e.beam_ids), []).append(e)
+            cand = [g for g in groups.values() if len(g) in (3, 6) and len({e.dur for e in g}) == 1]
+            if cand and len(cand) == len(groups) and total - sum((e.dur for g in cand for e in g), F(0)) / 3 <= L:
+                for g in cand:
+                    g.sort(key=lambda e: e.x)
+                    for k in range(0, len(g), 3):
+                        for e in g[k:k + 3]:
+                            e.dur = e.dur * F(2, 3); e.tuplet = (3, 2)
+                        g[k].tuplet_start = True; g[k + 2].tuplet_stop = True
+
+
 def finish_part(measures, systems, sp):
     """Measure lengths, voices, pickup, curves, voltas for one part."""
     time = (4, 4, None)
@@ -250,6 +274,8 @@ def finish_part(measures, systems, sp):
         jl = getattr(m, 'jlen', None)
         if jl is not None:
             L = F(str(jl)).limit_denominator(96)
+            if systems and getattr(systems[0], 'finale', False):
+                implied_triplets(m, L)
             solve_measure(m, L, sp, False)
             if i == 0 and L < nominal:
                 m.implicit = True

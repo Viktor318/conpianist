@@ -10,7 +10,8 @@ DYN_WIDTH = {'p': 20, 'pp': 34, 'ppp': 48, 'mp': 38, 'mf': 38, 'f': 18, 'ff': 30
 CLEF_BASE = {'G': 30, 'F': 18}          # diatonic number of the bottom line (E4, G2)
 SHARP_ORDER = 'FCGDAEB'
 TYPES = {F(4): 'whole', F(2): 'half', F(1): 'quarter', F(1, 2): 'eighth', F(1, 4): '16th', F(1, 8): '32nd'}
-ALTER = {'sharp': 1, 'flat': -1, 'natural': 0}
+ALTER = {'sharp': 1, 'flat': -1, 'natural': 0, 'dsharp': 2, 'dflat': -2}
+ACC_NAMES = {'dsharp': 'double-sharp', 'dflat': 'flat-flat'}
 
 
 def key_alters(fifths):
@@ -337,7 +338,7 @@ def _event(e, vn, st, div, clef, ka, alter_state):
         if typ:
             s += f'<type>{typ}</type>' + '<dot/>' * e.dots
         if h.accidental:
-            s += f'<accidental>{h.accidental}</accidental>'
+            s += f'<accidental>{ACC_NAMES.get(h.accidental, h.accidental)}</accidental>'
         s += tm
         if e.stem:
             s += f'<stem>{e.stem}</stem>'

@@ -354,19 +354,40 @@ def analyse_page(page, log, jbars=None):
             sy.jbars = [dict(b, x0=b['x'] * W, x1=(b['x'] + b['w']) * W) for b in jbars
                         if b['y'] * H < sy.bottom - sy.sp and (b['y'] + b['h']) * H > sy.top + sy.sp]
     glyphs = glyphs_from_shapes(shapes)
-    if staves:
+    from . import finale as _fin
+    if _fin.is_finale_page(page):
+        # a PDF made by Finale: the symbols are characters of the music font, not outlines
+        glyphs = [g for g in glyphs if g.name == '?'] + _fin.glyphs(page, log)
+        for sy in systems: sy.finale = True
+    elif staves:
         match_digits(page, glyphs, staves[0].sp, log)
         match_templates(page, glyphs, staves[0].sp, log)
     strokes = [s for s in shapes if s.kind == 's' and not s.used and not (s.w > 300 and s.h > 300)]
     fills = [s for s in shapes if s.kind != 's' and not (s.w > 300 and s.h > 300)]
     glyphs = [g for g in glyphs if not (g.w > 300 and g.h > 300)]
     peds = [g for g in glyphs if g.name in ('ped', 'ped_up')]
+    if systems and getattr(systems[0], 'finale', False):
+        # (scores made by Finale: their systems stand close to each other)
+        # A stem belongs to the system of its notehead, a beam to the system of its stems: with notes far
+        # below or above the staves their middle may be nearer to the neighbouring system.
+        sp0 = systems[0].sp
+        def sdist(y): return min(min(st.dist(y) for st in sy.staves) for sy in systems)
+        vst = [s for s in strokes if s.ops == 'l' and s.w < 0.05 and s.h > 1.5 * sp0 and s.width < 0.75]
+        for s in vst:
+            s.zy = s.y0 if sdist(s.y0) <= sdist(s.y1) else s.y1
+        for f in fills:
+            if f.ops == 'lll' and f.w > 0.8 * sp0:
+                zs = [s.zy for s in vst if f.x0 - 0.25 * sp0 <= s.x0 <= f.x1 + 0.25 * sp0 and
+                      s.y0 - 0.3 * sp0 <= _beam_y(f, s.x0) <= s.y1 + 0.3 * sp0 and
+                      min(abs(s.y0 - _beam_y(f, s.x0)), abs(s.y1 - _beam_y(f, s.x0))) < 2.5 * sp0]
+                if zs:
+                    f.zy = sorted(zs)[len(zs) // 2]
     for k, sy in enumerate(systems):
         lo = systems[k - 1].bottom if k else 0
         hi = systems[k + 1].top if k + 1 < len(systems) else page.rect.height
         ya = sy.top - min(0.62 * (sy.top - lo), 12 * sy.sp) if k else sy.top - 9 * sy.sp
         yb = sy.bottom + min(0.38 * (hi - sy.bottom), 9 * sy.sp)
-        zone = lambda o: ya <= o.cy <= yb
+        zone = lambda o: ya <= getattr(o, 'zy', o.cy) <= yb
         vzone = lambda o: zone(o) or (o.ops == 'l' and o.w < 0.05 and o.y0 < sy.top + 0.6 and o.y1 > sy.bottom - 0.6)
         # pedal marks always belong to the staves above them, however far below they were pushed by low notes
         # (with the small pieces next to them, e.g. the dot of "Ped.")
@@ -576,9 +597,10 @@ def _analyse_system(sy, glyphs, strokes, fills, log):
                     ev.staccato = True; g.used = True; break
     # --- rests
     for g in glyphs:
-        if g.name in ('rest_q', 'rest_8', 'rest_16'):
+        if g.name in ('rest_q', 'rest_8', 'rest_16', 'rest_32', 'rest_half', 'rest_whole'):
             st = sy.staff_of(g.cy)
-            ev = Event(g.x0, st, rest={'rest_q': 'quarter', 'rest_8': 'eighth', 'rest_16': '16th'}[g.name], y=g.cy)
+            ev = Event(g.x0, st, rest={'rest_q': 'quarter', 'rest_8': 'eighth', 'rest_16': '16th', 'rest_32': '32nd',
+                                       'rest_half': 'half', 'rest_whole': 'whole'}[g.name], y=g.cy)
             for d in glyphs:
                 if d.name == 'dot' and not d.used and 0 < d.cx - g.x1 < 1.2 * sp and abs(d.cy - g.cy) < 1.2 * sp:
                     ev.dots = 1; d.used = True
@@ -591,7 +613,7 @@ def _analyse_system(sy, glyphs, strokes, fills, log):
             kind = 'whole' if abs(line_above - s.y0) < 0.15 * sp else 'half'
             events.append(Event(s.x0, st, rest=kind, y=s.cy)); s.used = True
     # --- durations
-    base = {'whole': F(4), 'half': F(2), 'quarter': F(1), 'eighth': F(1, 2), '16th': F(1, 4)}
+    base = {'whole': F(4), 'half': F(2), 'quarter': F(1), 'eighth': F(1, 2), '16th': F(1, 4), '32nd': F(1, 8)}
     for ev in events:
         if ev.rest:
             d = base[ev.rest]
@@ -635,8 +657,9 @@ def _analyse_system(sy, glyphs, strokes, fills, log):
             g.used = True
         if g.name == 'time_common':
             measure_at(g.cx).time = (4, 4, 'common'); g.used = True
-    accs = [g for g in glyphs if g.name in ('sharp', 'flat', 'natural')]
+    accs = [g for g in glyphs if g.name in ('sharp', 'flat', 'natural', 'dsharp', 'dflat')]
     for m in sy.measures:
+        runs_ = {}
         for st in (0, 1):
             cl = [g for g in glyphs if g.name in ('clef_g', 'clef_f') and sy.staff_of(g.cy) == st and 0 <= g.x0 - m.x0 < 3 * sp]
             x = cl[0].x1 if cl else m.x0
@@ -648,11 +671,19 @@ def _analyse_system(sy, glyphs, strokes, fills, log):
                     run.append(g); x = g.x1
                 else:
                     break
-            if run:
+            if getattr(sy, 'finale', False):
+                runs_[st] = run
+            elif run:
                 for g in run: g.used = True
                 if st == 0:
                     real = [g for g in run if g.name != 'natural']
                     m.key = (len(real) if real[0].name == 'sharp' else -len(real)) if real else 0
+        # (scores made by Finale) a key signature stands in both staves; the accidentals of a chord right after
+        # the barline do not
+        if runs_ and runs_[0] and len(runs_[0]) == len(runs_[1]):
+            for g in runs_[0] + runs_[1]: g.used = True
+            real = [g for g in runs_[0] if g.name != 'natural']
+            m.key = (len(real) if real[0].name == 'sharp' else -len(real)) if real else 0
     for g in sorted(accs, key=lambda g: -g.x0):
         if g.used: continue
         st = sy.staff_of(g.cy)
