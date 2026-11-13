@@ -31,6 +31,8 @@
 //
 // Positions are 1-based (measure 1, beat 1 is the start of the song), the same way
 // the piano reports them, so the rest of the program can use them unchanged.
+// The setup measure of Yamaha's song files is not a measure of the song (see
+// SetupMeasureTicks): measure 1 is the measure after it, as on the piano.
 //
 // Setup events (program changes, controllers etc. before the first note of a channel)
 // are sent once when the song is loaded and never again. This way voices chosen by the
@@ -70,6 +72,13 @@ public:
 	// extra chunks besides the tracks (e.g. the XF chunks XFIH and XFKM after the track
 	// of the piano's Lesson songs), which JUCE rejects: those chunks are left out.
 	static bool ReadMidiFile(InputStream& stream, MidiFile& midiFile);
+	// The length (in ticks) of the setup measure at the beginning of a song file of Yamaha,
+	// or 0 if the file has none. Such a file begins with a measure without notes (GM/XG
+	// reset, voices, volumes, XF data), and the song's own tempo and time signature stand
+	// at the beginning of the second measure. The piano's own copy of the song begins
+	// without that measure, so the player leaves it out too (see Load): the positions of
+	// the two players are the same, and the score of the song fits both.
+	static int SetupMeasureTicks(const MidiFile& midiFile);
 
 	LocalSongPlayer() { ResetMixer(); }
 	~LocalSongPlayer() override;

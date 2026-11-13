@@ -151,6 +151,11 @@ private:
 	// the time where that begins inside the played measure
 	std::map<int, std::pair<int, TimeUnits>> m_splitMeasures;
 	int m_scoreMeasures = 0;
+	// The measures at the beginning of the song that are not in the score (see
+	// ReadLeadMeasures): the first measure of the score is measure m_leadMeasures + 1 of
+	// the song. In the positions of the piano (PianoController::Position) these measures
+	// are counted, in the playback order (m_playOrder, m_splitMeasures) they are not.
+	int m_leadMeasures = 0;
 	// Moving the A-B marks with the mouse: the mark being dragged (0: none, 1: A, 2: B)
 	// and the position it is shown at while dragged
 	int m_dragMark = 0;
@@ -182,7 +187,7 @@ private:
 	int MarkAtPoint(const MouseEvent& event);
 	void SetMarkAtPoint(const MouseEvent& event, bool end);
 	bool FollowsPlaybackOrder();
-	int ScoreMeasure(int playedMeasure);
+	int ScoreMeasure(int songMeasure);
 	int PlayedMeasure(int scoreMeasure);
 	void UpdateScoreEnd();
 	void SetViewport(int y);
@@ -1655,7 +1660,8 @@ bool LomseScoreComponent::FollowsPlaybackOrder()
 	{
 		return false;
 	}
-	const int length = m_pianoController.IsSongLoaded() ? m_pianoController.GetLength().measure : 0;
+	// (without the measures before the score)
+	const int length = m_pianoController.IsSongLoaded() ? m_pianoController.GetLength().measure - m_leadMeasures : 0;
 	if (length <= 0)
 	{
 		return true; // not known
@@ -1672,7 +1678,7 @@ void LomseScoreComponent::UpdateScoreEnd()
 	ImMeasuresTable* table = score != nullptr && score->get_num_instruments() > 0 ?
 		score->get_instrument(0)->get_measures_table() : nullptr;
 	const int played = FollowsPlaybackOrder() ? (int)m_playOrder.size() : m_scoreMeasures;
-	const int measure = played > 0 ? ScoreMeasure(played - 1) : -1;
+	const int measure = played > 0 ? ScoreMeasure(m_leadMeasures + played - 1) : -1;
 	ImMeasuresTableEntry* entry = table != nullptr && measure >= 0 ? table->get_measure(measure) : nullptr;
 	if (entry == nullptr || entry->get_bottom_ts_beat_duration() <= 0.0)
 	{
@@ -1694,12 +1700,14 @@ void LomseScoreComponent::UpdateScoreEnd()
 	}
 	// (a beat begun is played to its end)
 	const int beats = std::max(1, (int)std::ceil(length / entry->get_bottom_ts_beat_duration() - 0.01));
-	m_pianoController.SetScoreEnd({played, beats});
+	m_pianoController.SetScoreEnd({m_leadMeasures + played, beats});
 }
 
-// The measure of the score (0..) shown for a measure of the song (0..).
-int LomseScoreComponent::ScoreMeasure(int playedMeasure)
+// The measure of the score (0..) shown for a measure of the song (0..). For the measures
+// of the song before the score (see m_leadMeasures): the first measure of the score.
+int LomseScoreComponent::ScoreMeasure(int songMeasure)
 {
+	const int playedMeasure = songMeasure < 0 ? songMeasure : std::max(0, songMeasure - m_leadMeasures);
 	if (playedMeasure < 0 || !FollowsPlaybackOrder())
 	{
 		// the song may go on after the score (e.g. an empty measure at its end): the
@@ -1718,10 +1726,10 @@ int LomseScoreComponent::PlayedMeasure(int scoreMeasure)
 {
 	if (!FollowsPlaybackOrder())
 	{
-		return scoreMeasure;
+		return m_leadMeasures + scoreMeasure;
 	}
 	const int count = (int)m_playOrder.size();
-	const int current = jlimit(0, count - 1, m_pianoController.GetPosition().measure - 1);
+	const int current = jlimit(0, count - 1, m_pianoController.GetPosition().measure - 1 - m_leadMeasures);
 
 	const auto nextPass = std::upper_bound(m_passStarts.begin(), m_passStarts.end(), current);
 	const int passStart = nextPass == m_passStarts.begin() ? 0 : *(nextPass - 1);
@@ -1730,7 +1738,7 @@ int LomseScoreComponent::PlayedMeasure(int scoreMeasure)
 	{
 		if (m_playOrder[i] == scoreMeasure)
 		{
-			return i;
+			return m_leadMeasures + i;
 		}
 	}
 
@@ -1754,7 +1762,7 @@ int LomseScoreComponent::PlayedMeasure(int scoreMeasure)
 			}
 		}
 	}
-	return nearest;
+	return nearest < 0 ? -1 : m_leadMeasures + nearest;
 }
 
 void LomseScoreComponent::mouseDrag(const MouseEvent& event)
@@ -1904,7 +1912,8 @@ bool LomseScoreComponent::IsMarkAt(const BeatPoint& point, PianoController::Posi
 	{
 		return true;
 	}
-	return point.beat == point.beats && mark.beat == 1 && mark.measure > 1 &&
+	// (not for a mark at the beginning of the score: the measure before it is not in the score)
+	return point.beat == point.beats && mark.beat == 1 && mark.measure > 1 + m_leadMeasures &&
 		point.scoreMeasure == ScoreMeasure(mark.measure - 2);
 }
 
@@ -2065,11 +2074,14 @@ void LomseScoreComponent::UpdateTempoLine(bool scroll)
 	PianoController::Position songPosition = m_pianoController.GetPosition();
 	Document* doc = m_presenter->get_document_raw_ptr();
 	ImoScore* score = dynamic_cast<ImoScore*>(doc->get_im_root()->get_content_item(0));
+	// in the measures of the song before the score the line waits at the beginning of the score
+	const bool beforeScore = songPosition.measure <= m_leadMeasures;
 	int measure = ScoreMeasure(songPosition.measure - 1);
-	TimeUnits location = BeatLocation(score, measure, songPosition.beat - 1);
+	TimeUnits location = beforeScore ? 0.0 : BeatLocation(score, measure, songPosition.beat - 1);
 	// a played measure made of two incomplete measures of the score (see ReadPlaybackOrder):
 	// its last beats are shown in the second one
-	const auto split = m_splitMeasures.find(songPosition.measure - 1);
+	const auto split = beforeScore ? m_splitMeasures.end() :
+		m_splitMeasures.find(songPosition.measure - 1 - m_leadMeasures);
 	if (score != nullptr && score->get_num_instruments() > 0 && split != m_splitMeasures.end() &&
 		FollowsPlaybackOrder())
 	{
@@ -2162,6 +2174,15 @@ void LomseScoreComponent::UpdateABMarks(bool force)
 		{
 			end = m_dragPos;
 		}
+		// a mark in the measures of the song before the score is shown at the beginning of the score
+		if (begin.measure > 0 && begin.measure <= m_leadMeasures)
+		{
+			begin = {m_leadMeasures + 1, 1};
+		}
+		if (end.measure > 0 && end.measure <= m_leadMeasures)
+		{
+			end = {m_leadMeasures + 1, 1};
+		}
 
 		if (begin.measure > 0)
 		{
@@ -2183,7 +2204,7 @@ void LomseScoreComponent::UpdateABMarks(bool force)
 			TimeUnits timepos = 0.0;
 			ImMeasuresTable* table = score != nullptr && score->get_num_instruments() > 0 ?
 				score->get_instrument(0)->get_measures_table() : nullptr;
-			if (end.beat <= 1 && end.measure > 1 && table != nullptr)
+			if (end.beat <= 1 && end.measure > 1 + m_leadMeasures && table != nullptr)
 			{
 				ImMeasuresTableEntry* next = table->get_measure(ScoreMeasure(end.measure - 2) + 1);
 				ColStaffObjs* staffObjs = score->get_staffobjs_table();
@@ -2210,6 +2231,7 @@ void LomseScoreComponent::LoadSong()
 {
 	m_scoreSongName = m_pianoController.GetSongName();
 	Cleanup();
+	m_leadMeasures = 0;
 	m_pianoController.SetScoreEnd({0,0}); // until the score of the song is shown
 	m_check.reset(); // the check of the score of the previous song
 	m_checkNumber++;
@@ -2451,9 +2473,60 @@ int ScoreComponent::CheckScoreFile(const File& file, const File& resultFile)
 
 // A score is checked before it is shown (see ScoreCheck): a faulty score file is not
 // loaded, a window tells about it and the reason is written into the log.
+// The number of measures at the beginning of a song that are not in its score, from the
+// score synchronisation file of Yamaha beside the score (the same name with the extension
+// .json; the songs of the piano with a PDF score have one): the measures ("bars") at its
+// beginning with no beat in the score ("isInScore"). Some songs begin with an empty
+// measure that the printed score does not have (e.g. Classic21, the Prelude in C major).
+// 0 if there is no such file, or it is not such a file.
+static int ReadLeadMeasures(const File& score)
+{
+	const File file = score.withFileExtension(".json");
+	if (!file.existsAsFile() || file.getSize() > 16 * 1024 * 1024)
+	{
+		return 0;
+	}
+	const juce::var json = juce::JSON::parse(file.loadFileAsString());
+	const juce::var bars = json["bars"];
+	if (!bars.isArray())
+	{
+		juce::Logger::writeToLog("[SCORE] No measures in " + file.getFileName());
+		return 0;
+	}
+	int count = 0;
+	for (const juce::var& bar : *bars.getArray())
+	{
+		const juce::var beats = bar["beats"];
+		if (!beats.isArray() || beats.size() == 0)
+		{
+			break;
+		}
+		bool inScore = false;
+		for (const juce::var& beat : *beats.getArray())
+		{
+			inScore = inScore || !beat.hasProperty("isInScore") || (bool)beat["isInScore"];
+		}
+		if (inScore)
+		{
+			break;
+		}
+		count++;
+	}
+	if (count >= bars.size())
+	{
+		return 0; // no measure in the score at all: not usable
+	}
+	if (count > 0)
+	{
+		juce::Logger::writeToLog("[SCORE] The song begins " + String(count) + " measure(s) before the score");
+	}
+	return count;
+}
+
 void LomseScoreComponent::LoadScore(const File& file)
 {
 	Cleanup();
+	m_leadMeasures = ReadLeadMeasures(file);
 	// the end of the score shown before must not stop the song any more, even if this
 	// score turns out to be faulty (LoadSong does this too)
 	m_pianoController.SetScoreEnd({0,0});
