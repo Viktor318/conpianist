@@ -563,35 +563,42 @@ def finale_texts(page, pi, systems, meta, texts):
 
 
 def midi_tempo(md, t0, span):
-    """The average tempo of the MIDI file from t0 for span (both in quarters), in quarters per minute."""
+    """The tempo of the MIDI file from t0 for span (both in quarters), in quarters per minute: the median of the
+    tempo values weighted by their time (half of the time the music is slower, half of the time faster). The
+    recordings are played freely, a new tempo stands at almost every beat: the median is the value the others
+    gather around, and a slow beginning or the end of a phrase does not move it as it moves the average."""
     ev = sorted(md.tempos)
     if not ev or span <= 0:
         return None
     a, b = float(t0) * md.ppq, float(t0 + span) * md.ppq
     cur = [v for t, v in ev if t <= a]
     cur = cur[-1] if cur else ev[0][1]
-    minutes, last = 0.0, a
+    seg, last = [], a
     for t, v in ev:
         if a < t < b:
-            minutes += (t - last) / md.ppq / cur; cur = v; last = t
-    minutes += (b - last) / md.ppq / cur
-    return (b - a) / md.ppq / minutes if minutes > 0 else None
+            seg.append((t - last, cur)); cur = v; last = t
+    seg.append((b - last, cur))
+    seg = sorted((d, v) for d, v in seg if d > 0)
+    seg.sort(key=lambda x: x[1])
+    half, acc = sum(d for d, _ in seg) / 2, 0.0
+    for d, v in seg:
+        acc += d
+        if acc >= half:
+            return v
+    return None
 
 
 def beat_unit(time):
-    """The note of the metronome mark for a time signature: (name, dotted, its length in quarters)."""
-    top, bottom = (time[0], time[1]) if time else (4, 4)
-    if bottom == 2: return 'half', False, 2.0
-    if bottom == 8 and top % 3 == 0 and top > 3: return 'quarter', True, 1.5
-    if bottom == 8: return 'eighth', False, 0.5
-    if bottom == 4 and top == 6: return 'half', True, 3.0
-    return 'quarter', False, 1.0
+    """The note of the metronome mark for a time signature: the note of its bottom number (an eighth in 6/8, a
+    quarter in 3/4 and 4/4, a half in 2/2). Returns (name, dotted, its length in quarters)."""
+    bottom = time[1] if time else 4
+    return {2: ('half', False, 2.0), 8: ('eighth', False, 0.5), 16: ('16th', False, 0.25)}.get(bottom, ('quarter', False, 1.0))
 
 
 def set_tempos(meta, ms, md, stats, tempo_lines):
     """The tempo of the beginning of the piece and of the tempo marks in it. The tempo of the beginning is always
-    written: the metronome mark of the score, otherwise the average of the first four measures of the MIDI file (the
-    recordings are played freely, there is no single tempo in them). A new tempo mark gets the tempo of the MIDI file
+    written: the metronome mark of the score, otherwise the median of the first six measures of the MIDI file (see
+    midi_tempo), for the note of the bottom number of the time signature. A new tempo mark gets the tempo of the MIDI file
     at its place; "a tempo" the tempo in force before it, "Tempo I" the tempo of the beginning."""
     order = stats.get('order') or []
     start = stats.get('start')
@@ -602,7 +609,7 @@ def set_tempos(meta, ms, md, stats, tempo_lines):
     for k in order:
         at.setdefault(k, len(times)); times.append(t); t += ms[k].length
 
-    def tempo_at(k, n=4):
+    def tempo_at(k, n=6):
         if k not in at:
             return None
         i = at[k]
@@ -623,7 +630,7 @@ def set_tempos(meta, ms, md, stats, tempo_lines):
                 typical = v; break
     name, dot, quarters = beat_unit(ms[order[0]].time if ms[order[0]].time else ms[0].time)
     if meta.get('bpm'):
-        base = meta['bpm'] * (1.5 if meta.get('beat_dot') else 1) * {'half': 2, 'eighth': 0.5}.get(meta.get('beat_unit', 'quarter'), 1)
+        base = meta['bpm'] * (1.5 if meta.get('beat_dot') else 1) * {'half': 2, 'eighth': 0.5, '16th': 0.25}.get(meta.get('beat_unit', 'quarter'), 1)
         tempo_lines.append(f"  kezdo tempo: {meta['bpm']} (a kottabol)")
     else:
         q = tempo_at(order[0])
@@ -632,8 +639,8 @@ def set_tempos(meta, ms, md, stats, tempo_lines):
         shown = max(1, round(q / quarters))
         meta['bpm'], meta['beat_unit'], meta['beat_dot'], meta['bpm_midi'] = shown, name, dot, True
         base = shown * quarters
-        unit = {'half': 'fel', 'quarter': 'negyed', 'eighth': 'nyolcad'}[name]
-        tempo_lines.append(f"  kezdo tempo: {'pontozott ' if dot else ''}{unit} = {shown} (a MIDI-bol, az elso negy utem atlaga: negyed = {q:.1f}"
+        unit = {'half': 'fel', 'quarter': 'negyed', 'eighth': 'nyolcad', '16th': 'tizenhatod'}[name]
+        tempo_lines.append(f"  kezdo tempo: {'pontozott ' if dot else ''}{unit} = {shown} (a MIDI-bol, az elso hat utem kozeperteke: negyed = {q:.1f}"
                            + (f"; a darab jellemzo tempoja: negyed = {typical:.0f}" if typical else '') + ")")
     first, cur = base, base
     for i, m in enumerate(ms):

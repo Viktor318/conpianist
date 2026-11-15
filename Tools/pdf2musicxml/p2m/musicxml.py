@@ -166,7 +166,7 @@ def write(score, path):
                       f'<per-minute>{score["bpm"]}</per-minute></metronome>')
                 A('   </direction-type><staff>1</staff>')
                 if score.get('bpm'):
-                    q = score['bpm'] * (1.5 if score.get('beat_dot') else 1) * {'half': 2, 'eighth': 0.5}.get(score.get('beat_unit', 'quarter'), 1)
+                    q = score['bpm'] * (1.5 if score.get('beat_dot') else 1) * {'half': 2, 'eighth': 0.5, '16th': 0.25}.get(score.get('beat_unit', 'quarter'), 1)
                     A(f'    <sound tempo="{q:g}"/>')
                 A('   </direction>')
             # directions (dynamics, text) before the nearest event
