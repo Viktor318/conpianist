@@ -72,7 +72,6 @@ def compare(ms, midi, log, chans=None, tol=0, start=None, order=None):
             ts += min(o for o, *_ in sn[k]); break
         ts += ms[k].length
     t = notes[0][0] - ts if start is None else start
-    t_start = t
     end = notes[-1][0]
 
     def window(t, L):
@@ -91,6 +90,24 @@ def compare(ms, midi, log, chans=None, tol=0, start=None, order=None):
             return 1.0
         return len(S & M) / len(S | M)
 
+    if start is None:
+        # The first note of the MIDI file is not always the first main note of the score: grace notes before the
+        # first beat sound earlier. The start is tried at every pairing of the first MIDI notes with the first
+        # notes of the score; another start is taken only if the first measures match clearly better with it.
+        def fit(t0):
+            v, tt = 0.0, t0
+            for k in order[:4]:
+                v += sim(k, tt); tt += ms[k].length
+            return v
+        first, acc = [], F(0)
+        for k in order[:2]:
+            first += sorted({acc + o for o, *_ in sn[k]})[:6]
+            acc += ms[k].length
+        cands = {q - o for q in sorted({n[0] for n in notes})[:8] for o in first}
+        best = max(cands, key=lambda c: (fit(c), -abs(c - t)), default=t)
+        if fit(best) > fit(t) + 0.5:
+            t = best
+    t_start = t
     played, p, guard, jumps = [], 0, 0, []
     while t <= end and guard < 6 * len(ms) + 100:
         guard += 1
@@ -132,9 +149,11 @@ def compare(ms, midi, log, chans=None, tol=0, start=None, order=None):
                         claimed.add(max(c, key=lambda i: notes[i][0])); grace_ok += 1
     if claimed:
         notes = [n for i, n in enumerate(notes) if i not in claimed]
+    orn_abs = sorted({(t0 + o, pch, e.dur) for k, t0 in played for o, pch, st, h, e in sn[k] if getattr(e, 'ornament', '')})
     # differences + octave correction
     diffs, fixed, matched, total_s, total_m, durdiff, hand = [], 0, 0, 0, 0, [], 0
     shifted = 0
+    orn_notes = 0
     fixed_at = set(); ott_conflict = set()
     seen = set()
     for k, t in played:
@@ -145,6 +164,7 @@ def compare(ms, midi, log, chans=None, tol=0, start=None, order=None):
         for q, pch, ch, dur in window(t, ms[k].length):
             M.setdefault((snap(k, q - t, pch), pch), []).append((ch, dur))
         only_s = [x for x in S if x not in M]; only_m = [x for x in M if x not in S]
+        orn_m, shifted_orn = set(), set()
         arp = set()
         for (o, pch) in list(only_s):     # arpeggio: in the MIDI file the notes sound one after the other
             if any(e.arpeggio for _, _, e in S[(o, pch)]):
@@ -168,6 +188,19 @@ def compare(ms, midi, log, chans=None, tol=0, start=None, order=None):
                 hit = [x for x in only_m if x[1] == pch and 0 < x[0] - o <= min(F(1, 2), F(g, 4))]
                 if hit:
                     only_s.remove((o, pch)); only_m.remove(min(hit)); shifted += 1
+        # ornaments (trill, mordent, turn): the MIDI file plays them out. The notes of the realization (the note
+        # itself again and its neighbours, from a quarter before the note while it lasts) are not differences;
+        # the score is right
+        for (ta, pch, d) in orn_abs:
+            o = ta - t
+            if o + d <= -F(1, 4) or o - F(1, 4) >= ms[k].length: continue
+            if (o, pch) in only_s:      # the realization begins on the neighbour note: the main note sounds later
+                hit = [x for x in only_m if x[1] == pch and o < x[0] < o + d]
+                if hit:
+                    only_s.remove((o, pch)); only_m.remove(min(hit)); shifted_orn.add((o, pch))
+            for x in list(only_m):
+                if o - F(1, 4) <= x[0] < o + d and abs(x[1] - pch) <= 2 and x != (o, pch):
+                    only_m.remove(x); orn_m.add(x); orn_notes += 1
         for (o, pch) in list(only_s):
             for sh in (12, -12):
                 if (o, pch + sh) in only_m:
@@ -182,7 +215,7 @@ def compare(ms, midi, log, chans=None, tol=0, start=None, order=None):
                         fixed_at.add(k + 1)
                     only_s.remove((o, pch)); only_m.remove((o, pch + sh))
                     break
-        total_s += len(S); total_m += len(M); matched += len(set(S) & set(M))
+        total_s += len(S); total_m += len(M) - len(orn_m); matched += len(set(S) & set(M)) + len(shifted_orn)
         for key in set(S) & set(M):
             st, h, e = S[key][0]; ch, dur = M[key][0]
             if len(chans) == 2 and (ch == chans[1]) != (st == 1): hand += 1
@@ -194,7 +227,7 @@ def compare(ms, midi, log, chans=None, tol=0, start=None, order=None):
         seen.update((k, key) for key in set(S) & set(M))
     rest = len([n for n in notes if n[0] >= t_end])
     stats = dict(grace=(grace_ok, grace_n), ott_conflict=sorted(ott_conflict), fixed_at=sorted(fixed_at), start=t_start, chans=chans, played=len(played), order=[k for k, _ in played], matched=matched, score_notes=total_s, midi_notes=total_m,
-                 fixed=fixed, durdiff=durdiff, hand=hand, shifted=shifted, leftover=rest, jumps=jumps, unplayed=sorted(set(range(len(ms))) - {k for k, _ in played}))
+                 orn_notes=orn_notes, fixed=fixed, durdiff=durdiff, hand=hand, shifted=shifted, leftover=rest, jumps=jumps, unplayed=sorted(set(range(len(ms))) - {k for k, _ in played}))
     return diffs, stats
 
 
@@ -207,6 +240,8 @@ def report(diffs, stats, ms):
     if stats['fixed']:
         L.append(f"  oktav-elteres (8va/8vb) MIDI alapjan javitva: {stats['fixed']} hang"
                  + (f" (utemek: {', '.join(map(str, stats.get('fixed_at', [])))})" if stats.get('fixed_at') else ''))
+    if stats.get('orn_notes'):
+        L.append(f"  kijatszott diszitesek (trilla, mordent; a kotta jo): {stats['orn_notes']} hang a MIDI-ben")
     if stats.get('grace', (0, 0))[1]:
         L.append(f"  elokek: {stats['grace'][1]} a kottaban, ebbol {stats['grace'][0]} megvan a MIDI-ben")
     if stats.get('ott_conflict'):

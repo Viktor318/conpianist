@@ -122,10 +122,10 @@ hatos és tizenkettes gerendacsoportban, felváltva föl és le álló szárakka
 (egy hang két szólamban) két szárat kap.
 Az ismeretlen karaktereket a jelentés felsorolja.
 
-Állapot (2026. november 13.): a 303 kottából 184-ben minden hang egyezik a MIDI-vel,
-a hangok 93,4%-a egyezik összesen. Még nincs bekötve: a szöveges feliratok (a PDF-ben sima szövegként
+Állapot (2026. november 15.): a 303 kottából 186-ban minden hang egyezik a MIDI-vel,
+a hangok 95,6%-a egyezik összesen. Még nincs bekötve: a szöveges feliratok (a PDF-ben sima szövegként
 megvannak, OCR nem kell hozzájuk), a szögletes vonallal jelölt pedál, a 8va karakter (a szaggatott vonalat
-kezeli), trillavonal, mordent, paránytrilla, zárójelek. Ismert hibák: két szólam egy sorban (a ritmus
+kezeli), trillavonal, zárójelek. Ismert hibák: két szólam egy sorban (a ritmus
 szétesik), átkötések egy része, hosszú ívek, ismétlések sorrendje néhány kottában.
 
 ## Amit felismer
@@ -143,6 +143,14 @@ Az OCR-rel olvasott szövegeket a jelentés külön felsorolja, ezeket érdemes 
 és vonallal írja ki, a felengedést a vonal vége jelzi, csillag nélkül (a kettő együtt zsúfolt volt).
 Ha a pedál lenyomva marad és új Ped. jön, a vonal ott véget ér és új kezdődik. A pár nélküli jel
 vonal nélkül marad: a soha fel nem oldott Ped. csak felirat, a Ped. nélküli feloldás csak csillag.
+
+**Díszítések:** a trilla, a mordent és a turn jele a hanghoz kötve bekerül a kottába (`<ornaments>`; a mordent
+felső váltóhangos formában, ahogy a MIDI játssza). A MIDI ezeket kijátssza: a kijátszott hangokat az összevetés
+nem veszi eltérésnek, a jelentés külön sorban adja meg a számukat.
+
+**Előkék:** ha a darab előkével indul, a MIDI első hangja az előke; az összevetés a kezdőpontot ezért az első
+ütemek legjobb illeszkedése alapján keresi meg. Előkéről induló ív mindig kötőív, akkor is, ha a főhang
+ugyanaz a hang.
 
 ## Ismert hiányok
 

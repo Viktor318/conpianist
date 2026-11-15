@@ -101,6 +101,7 @@ class Event:
     accent: bool = False
     fermata: bool = False
     grace: bool = False
+    ornament: str = ''
     arpeggio: bool = False
     marcato: bool = False
     stacciss: bool = False
@@ -789,6 +790,14 @@ def _analyse_system(sy, glyphs, strokes, fills, log):
                     except Exception:
                         pass
                 setattr(e, g.name, val); g.used = True
+
+    # --- ornaments (trill, mordent, turn): on the nearest note of the system
+    for g in glyphs:
+        if g.name in ('trill', 'mordent', 'turn') and not g.used:
+            cand = [e for e in events if e.heads and not e.grace and abs(e.x + 0.6 * sp - g.cx) < 1.5 * sp]
+            if cand:
+                e = min(cand, key=lambda e: abs(e.x + 0.6 * sp - g.cx) + 0.25 * min([abs(h.g.cy - g.cy) for h in e.heads] + [abs(e.y - g.cy)]))
+                e.ornament = g.name; g.used = True
 
     # --- tenuto: short horizontal line above/below the head
     for s_ in fills:

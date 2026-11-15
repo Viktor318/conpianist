@@ -219,7 +219,7 @@ def link_curves(systems, measures):
             edge = (c.get('stitched') or 'L' not in c or
                     (c['L'][0] - a.g.cx > 0.2 * a.g.w or c['R'][0] - b.g.cx < -0.2 * b.g.w))
             if (a.staff == b.staff and a.pos == b.pos and c['ea'] is not c['eb'] and not art(c['ea']) and not art(c['eb']) and edge
-                    and not notes_between(c['ea'], c['eb'])):
+                    and not notes_between(c['ea'], c['eb']) and not c['ea'].grace):     # from a grace note: a slur
                 a.tie_start = True; b.tie_stop = True
                 a.tie_over = c.get('over')      # the side of the tie in the PDF
             elif c['ea'] is not c['eb']:

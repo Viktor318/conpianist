@@ -402,6 +402,8 @@ def _event(e, vn, st, div, clef, ka, alter_state):
         if not i and e.stacciss: art += '<staccatissimo/>'
         if not i and e.tenuto: art += '<tenuto/>'
         if art: nt += f'<articulations>{art}</articulations>'
+        if not i and getattr(e, 'ornament', ''):
+            nt += '<ornaments><%s/></ornaments>' % {'trill': 'trill-mark', 'mordent': 'inverted-mordent', 'turn': 'turn'}[e.ornament]
         if e.arpeggio: nt += '<arpeggiate/>'
         if not i and e.fermata: nt += f'<fermata type="{e.fermata if isinstance(e.fermata, str) else "upright"}"/>'
         if nt:
