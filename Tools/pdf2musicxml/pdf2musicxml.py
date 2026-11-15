@@ -529,6 +529,7 @@ def convert(pdf, out_dir, args):
     for k, v in sorted(kinds.items(), key=lambda kv: -len(kv[1])):
         lines.append(f"  {len(v):3d} x {k}: " + '; '.join(v[:6]) + (' ...' if len(v) > 6 else ''))
     lines += midi_lines
+    lines += repeat_check(part_measures[pkeys[0]], part_stats.get(pkeys[0]) if mid else None)
     if tempo_lines:
         lines += ["", "=== Tempo ==="] + tempo_lines
     lines += ["", "OCR-rel olvasott szovegek (ellenorizd):"] + [f"  o{p}/r{s_}: {t}" for p, s_, t in texts] + [""] + rep
@@ -545,6 +546,36 @@ def convert(pdf, out_dir, args):
 TEMPO_WORD = re.compile(r'(?i)^(molto |poco |un poco |pi[uù] |meno |tempo di |mouvement )?'
                         r'(allegr|andant|adagio|largo|larghetto|lento|lent\b|moderato|presto|prestissimo|vivace|vivo|'
                         r'maestoso|grave|comodo|mosso|marcia|valse|menuett|langsam)')
+
+
+def repeat_check(ms, stats=None):
+    """Report lines about the repeat signs and voltas of a part: signs without a pair, voltas that do not fit a
+    repeat, and the measure boundaries where two different barlines meet at a line break of the PDF."""
+    L, names = [], {'double': 'kettos utemvonal', 'final': 'zaro utemvonal', 'repeat-end': 'zaro ismetlojel'}
+    opened, firsts, meets, nrep = None, {}, [], 0
+    for n, m in enumerate(ms, 1):
+        if m.left_bar == 'repeat-start':
+            if opened: L.append(f"  ! kezdo ismetlojel zaro par nelkul: {opened}. utem (a kovetkezo kezdo jel: {n}. utem)")
+            opened = n
+            if n > 1 and (m.new_system or m.new_page) and ms[n - 2].right_bar in names:
+                meets.append(f"{n - 1}|{n} ({names[ms[n - 2].right_bar]} + kezdo ismetlojel)")
+        vs = getattr(m, 'ending_start', None)
+        if vs and str(vs) == '1': firsts[n] = False
+        if vs and str(vs) != '1' and not (n > 1 and getattr(ms[n - 2], 'ending_stop', None)):
+            L.append(f"  ! {vs}. kapu elozo kapu nelkul: {n}. utem")
+        ve = getattr(m, 'ending_stop', None)
+        if ve and str(ve[0]) == '1':
+            if m.right_bar != 'repeat-end': L.append(f"  ! az 1. kapu vegen nincs zaro ismetlojel: {n}. utem")
+            if n == len(ms) or not getattr(ms[n], 'ending_start', None):
+                L.append(f"  ! az 1. kapu utan nincs 2. kapu: {n}. utem")
+        if m.right_bar == 'repeat-end': opened = None; nrep += 1
+    if opened: L.append(f"  ! kezdo ismetlojel zaro par nelkul: {opened}. utem")
+    if stats and stats.get('jumps'):
+        L.append(f"  ! a MIDI lejatszasi sorrendje {len(stats['jumps'])} helyen nem kovetkezik a kottabol (lasd a MIDI osszevetesnel)")
+    if meets: L.append("  sortoresnel talalkozo utemvonalak (a megjelenitoben egy jel): " + ', '.join(meets))
+    if not nrep and not L: return []
+    head = f"  zaro ismetlojelek: {nrep}, kapuk: {sum(1 for m in ms if getattr(m, 'ending_start', None))}"
+    return ["", "=== Ismetlojelek ===", head] + L + ([] if any(x.startswith('  !') for x in L) else ["  a parok rendben"])
 
 
 def is_tempo_mark(text):

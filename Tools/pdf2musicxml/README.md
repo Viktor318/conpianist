@@ -161,6 +161,15 @@ duola és triola, felütés, coda-jel, sor- és oldaltörések.
 OCR-rel (Tesseract kell hozzá): cím, szerző, tempó, szöveges utasítások (dolce, a tempo, poco rit., Fine, D.C. stb.).
 Az OCR-rel olvasott szövegeket a jelentés külön felsorolja, ezeket érdemes átolvasni.
 
+### Ismétlőjelek ellenőrzése
+
+A jelentés „Ismetlojelek” része (csak ha a kottában van ismétlés) megszámolja a záró ismétlőjeleket és a kapukat,
+és felkiáltójellel jelzi, ha egy kezdő ismétlőjelnek nincs záró párja, ha az 1. kapu végén nincs záró ismétlőjel,
+ha az 1. kapu után nincs 2. kapu (vagy fordítva), és ha a MIDI lejátszási sorrendje nem következik a kottából.
+A darab eleji, ki nem írt kezdet nem hiba. Külön sor sorolja fel azokat az ütemhatárokat, ahol a PDF sortörésénél
+két ütemvonal találkozik (a sor végén kettős ütemvonal vagy záró ismétlőjel, a következő sor elején kezdő
+ismétlőjel): ezek a kottanézetben egyetlen jelként jelennek meg.
+
 **Pedál:** a nyomtatott kottában Ped. felirat és feloldó csillag áll; a szkript a lenyomást Ped. felirattal
 és vonallal írja ki, a felengedést a vonal vége jelzi, csillag nélkül (a kettő együtt zsúfolt volt).
 Ha a pedál lenyomva marad és új Ped. jön, a vonal ott véget ér és új kezdődik. A pár nélküli jel

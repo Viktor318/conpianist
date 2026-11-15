@@ -2763,7 +2763,12 @@ protected:
                 type = k_barline_simple;
             else if (leftSide == k_barline_simple)
                 type = rightSide;
-            else if (leftSide == k_barline_end && rightSide == k_barline_start_repetition)
+            //ConPianist fork: a double barline followed by a start-repetition sign (the printed
+            //score puts the double barline at the end of a line and the repetition sign at the
+            //start of the next one) is the start-repetition sign alone. It was replaced by a
+            //heavy-heavy barline and the repetition was lost.
+            else if ((leftSide == k_barline_end || leftSide == k_barline_double)
+                     && rightSide == k_barline_start_repetition)
                 type = rightSide;
             else if (leftSide == k_barline_end_repetition &&
                      rightSide == k_barline_start_repetition)
