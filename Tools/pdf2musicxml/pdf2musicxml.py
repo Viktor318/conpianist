@@ -216,7 +216,8 @@ def link_curves(systems, measures):
                 continue
             a, b = c['a'], c['b']
             art = lambda e: e.staccato or e.tenuto or e.stacciss
-            edge = (c.get('stitched') or 'L' not in c or
+            # (paired: a page stored as an image, the curve was matched to two heads of the same pitch at its height)
+            edge = (c.get('stitched') or c.get('paired') or 'L' not in c or
                     (c['L'][0] - a.g.cx > 0.2 * a.g.w or c['R'][0] - b.g.cx < -0.2 * b.g.w))
             if (a.staff == b.staff and a.pos == b.pos and c['ea'] is not c['eb'] and not art(c['ea']) and not art(c['eb']) and edge
                     and not notes_between(c['ea'], c['eb']) and not c['ea'].grace):     # from a grace note: a slur
@@ -374,10 +375,14 @@ def convert(pdf, out_dir, args):
             si = groups.index(sy.group)
             for c in getattr(sy, 'text_clusters', []):
                 rect = pymupdf.Rect(c['x0'], c['y0'], c['x1'], c['y1'])
+                pre = c.get('text')         # (a page stored as an image: the text is already read, see raster.py)
                 big = max(g.h for g in c['g']) > 1.55 * sy.sp
                 is_tempo = pi == 0 and si == 0 and sy.part == 0 and c['y1'] < sy.top and big and c['x0'] < sy.x0 + 14 * sy.sp
-                tall = rect.height > 2.6 * sy.sp
-                t = (ocr(page, rect, 6 if tall else 7) or '').strip()
+                tall = rect.height > 2.6 * sy.sp and not pre
+                # (a page stored as an image) the texts are found and read in the image: a group of leftover shapes
+                # is not a text there (it was read as one: "TT Sd 4"), except the tempo line with its metronome number
+                if getattr(sy, 'image', False) and not pre and not is_tempo: continue
+                t = pre or (ocr(page, rect, 6 if tall else 7) or '').strip()
                 if tall and is_tempo: t = t.split('\n')[0]
                 t = re.sub(r'\s+', ' ', t).strip(' _|~')
                 if c['x1'] < sy.x0 + 0.5 * sy.sp:          # part name before the system (e.g. "Piano I")
@@ -403,8 +408,11 @@ def convert(pdf, out_dir, args):
                     # D.C., Fine: written at the end of their section, they belong to the measure where the text ends
                     # (a long one, e.g. "Menuetto D.C. al Fine", begins a measure earlier)
                     tm = sy.measure_at(c['x1'] - sy.sp) if _jump_sound(t) else sy.measure_at(c['x0'])
+                    # (pages stored as images) a title or tempo mark above the system begins with a capital letter and
+                    # is printed bold; the playing instructions are lower case italics
+                    bold = ('bold',) if pre and place == 'above' and ws == 0 and t[0].isupper() and not _jump_sound(t) else ()
                     tm.directions.append((c['x0'], ws, 'words', t, place,
-                                                                 round((sy.staves[ws].top - c['y1']) / sy.sp * 10), sy.sp))
+                                                                 round((sy.staves[ws].top - c['y1']) / sy.sp * 10), sy.sp) + bold)
                     texts.append((pi + 1, si + 1, t))
                     for g in c['g']: g.used = True
             sy.unknown = [g for g in getattr(sy, 'unknown', []) if not g.used]

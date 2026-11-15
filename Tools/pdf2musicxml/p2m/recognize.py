@@ -430,6 +430,14 @@ def _analyse_system(sy, glyphs, strokes, fills, log):
     sp = sy.sp
     finale_page = getattr(sy, 'finale', False)
     S = sy.staves
+    # (a page stored as an image) the texts are already read: nothing else may take them
+    read_texts = [g for g in glyphs if g.name == 'text']
+    for g in read_texts: g.used = True
+    # the dot after the number of a volta ("1.", "2.") is not a staccato dot of the note below it
+    for g in glyphs:
+        if g.name in DIGITS and g.cy < S[0].top and g.h >= 1.5 * sp:
+            for d in glyphs:
+                if d.name == 'dot' and 0 < d.cx - g.x1 < sp and abs(d.y1 - g.y1) < 0.4 * sp: d.used = True
     # --- barlines: vertical lines spanning both staves
     bars = [s for s in strokes if s.ops == 'l' and s.w < 0.05 and
             s.y0 < sy.top + 0.6 and s.y1 > sy.bottom - 0.6 and s.y0 > sy.top - 30 * sp and s.h < 70 * sp]
@@ -889,6 +897,21 @@ def _analyse_system(sy, glyphs, strokes, fills, log):
                     best = (c, h)
             return best[1] if best else None
         a, b = pick(L, True), pick(R, False)
+        # a short curve between two heads of the same pitch, at their height, is the tie of these two notes: of
+        # the ties of a chord, one under the other, each one finds its own notes (the nearest head alone may
+        # be another note of the chord, and the tie became a slur)
+        paired = False
+        if getattr(sy, 'image', False) and R[0] - L[0] < 8 * sp:
+            def at(tip, left):
+                # (the tie begins and ends at its heads: between the middle of the head and a little beyond its edge)
+                return [h for h in heads if abs(h.g.cy - tip[1]) < 1.1 * sp and
+                        (h.g.cx - 0.3 * sp <= tip[0] <= h.g.x1 + 0.6 * sp if left else h.g.x0 - 0.6 * sp <= tip[0] <= h.g.cx + 0.3 * sp)]
+            pairs = [(abs(ha.g.cx - L[0]) + abs(hb.g.cx - R[0]) + abs(ha.g.cy - L[1]) + abs(hb.g.cy - R[1]), id(ha), ha, hb)
+                     for ha in at(L, True) for hb in at(R, False)
+                     if ha is not hb and ha.staff == hb.staff and ha.pos == hb.pos and owner[id(ha)] is not owner[id(hb)] and hb.g.cx > ha.g.cx + sp]
+            if pairs:
+                _, _, a, b = min(pairs, key=lambda q: q[:2])
+                paired = True
         if a is not None and b is not None and a is b:
             # stub of a curve crossing the system break: it is on one side of the head
             if R[0] <= a.g.cx + 0.3 * sp and L[0] < a.g.x0: a = None
@@ -902,12 +925,15 @@ def _analyse_system(sy, glyphs, strokes, fills, log):
         # the curve bulges upwards if its middle is above its ends
         over = s_.cy < (L[1] + R[1]) / 2
         sy.curves.append({'a': a, 'b': b, 'ea': owner.get(id(a)), 'eb': owner.get(id(b)), 'y': s_.cy, 'L': L, 'R': R,
-                          'over': over})
+                          'over': over, 'paired': paired})
     # --- volta (1st / 2nd ending): horizontal line above the upper staff + large number
     vd = [g for g in glyphs if g.name in DIGITS and not g.used and g.cy < S[0].top and
           (1.5 * sp <= g.h < 2.3 * sp or getattr(g, 'volta', False))]
     segs = [s_ for s_ in strokes if not s_.used and not s_.dashed and s_.w > 3 * sp and s_.y0 < S[0].top - 1.2 * sp and
             ((s_.ops == 'l' and s_.h < 0.05) or (s_.ops in ('ll', 'lll') and s_.h < 4 * sp and _has_vertical(s_)))]
+    if os.environ.get('P2M_TRACE') == 'volta':
+        print('VOLTA sp', round(sp, 2), 'top', round(S[0].top), [(g.name, round(g.x0), round(g.cy), round(g.h / sp, 2), g.used) for g in glyphs if g.name in DIGITS and g.cy < S[0].top],
+              [(round(s_.x0), round(s_.x1), round(s_.y0)) for s_ in segs], [(round(m.x0), round(m.x1)) for m in sy.measures])
     for s_ in segs:
         num = [g for g in vd if s_.x0 - sp < g.x0 < s_.x0 + 4 * sp and 0 < g.cy - s_.y0 < 3 * sp]
         n = DIGITS[num[0].name] if num else 'cont'
@@ -918,7 +944,9 @@ def _analyse_system(sy, glyphs, strokes, fills, log):
         for m in sy.measures:
             ov = min(m.x1, s_.x1) - max(m.x0, s_.x0)
             if ov > 0.5 * (m.x1 - m.x0):
-                m.volta = n if (n != 'cont' and m.volta is None and not any(mm.volta == n for mm in sy.measures)) else (m.volta or 'cont')
+                # (a numbered bracket takes the measure from a longer line that ran over it: the lines of two
+                # brackets next to each other may be read as one)
+                m.volta = n if (n != 'cont' and m.volta in (None, 'cont') and not any(mm.volta == n for mm in sy.measures)) else (m.volta or 'cont')
         s_.used = True
     for s_ in strokes:   # the vertical hook of the volta
         if s_.ops == 'l' and s_.w < 0.05 and not s_.used and s_.y1 < S[0].top + 0.5 * sp and any(abs(s_.y0 - v.y0) < sp for v in segs):
@@ -1008,6 +1036,7 @@ def _analyse_system(sy, glyphs, strokes, fills, log):
         else:
             clusters.append({'x0': g.x0, 'x1': g.x1, 'y0': g.y0, 'y1': g.y1, 'g': [g]})
     sy.text_clusters = [c for c in clusters if len(c['g']) >= 3 and c['x1'] - c['x0'] > 1.5 * sp]
+    sy.text_clusters += [{'x0': g.x0, 'x1': g.x1, 'y0': g.y0, 'y1': g.y1, 'g': [g], 'text': g.src.text} for g in read_texts]
     for s_ in strokes:   # ledger lines
         if s_.ops == 'l' and s_.h < 0.05 and s_.w < 3.2 * sp and not s_.used and any(
                 abs(h.g.cx - s_.cx) < 1.6 * sp and abs(h.g.cy - s_.y0) < 4.5 * sp for h in heads) or any(

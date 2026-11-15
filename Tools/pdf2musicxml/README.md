@@ -148,6 +148,18 @@ The Entertainer 95% fölött; a sűrű, többszólamú darabok (Fantaisie-Improm
 Liebesträume) 70% körül vagy alatta. A szám nélküli triolák közül itt csak a hármas gerendacsoportokat veszi
 triolának (a szünetek hossza a képen bizonytalanabb).
 
+**Szövegek a képes oldalakon** (Tesseract kell hozzá): a feliratok itt a kép részei. A szkript a kottasorokon
+kívül álló, betű méretű alakzatok sorait szövegként olvassa be (tempófelirat, „Trio”, „stacc.”, „r.h.”, „a tempo”),
+és a betűket kiveszi a képből, hogy ne váljanak kottajellé (a betűkből korábban hegyes staccato és staccato pont
+lett). A rosszul olvasott szót a zenei szavak listája igazítja helyre (grazloso → grazioso); ami a listától messze
+esik, csak akkor marad meg, ha az olvasás biztos. A dinamikai jeleket, a Ped. jelet, a cresc., dim. és rit. szót
+továbbra is a jelminták ismerik fel. A sor fölött álló, nagybetűvel kezdődő szöveg félkövér (tempó, szakaszcím),
+a többi dőlt. Tesseract nélkül a képes kottákba nem kerül szöveg.
+
+**Átkötések a képes oldalakon:** az ütemvonalon átmenő ívet az ütemvonal kivétele kettévágja, a két darabot a
+szkript újra összeilleszti. Az akkord egymás alatti átkötései közül mindegyik a saját magasságában álló, azonos
+hangpárt kapja meg (a legközelebbi kottafej az akkord másik hangja is lehet, így az átkötésből kötőív lett).
+
 Nyomkövetés a fejlesztéshez: `P2M_DEBUG=mappa` (a felismert alakzatok képe oldalanként), `P2M_TRACE=x0,y0,x1,y1`.
 
 ## Amit felismer

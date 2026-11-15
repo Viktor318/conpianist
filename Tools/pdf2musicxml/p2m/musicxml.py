@@ -170,6 +170,8 @@ def write(score, path):
                     A(f'    <sound tempo="{q:g}"/>')
                 A('   </direction>')
             # directions (dynamics, text) before the nearest event
+            upper_empty = (any(st == 1 and any(e.heads for e in evs) for st, vn, evs in m.voices) and
+                           not any(st == 0 and any(e.heads for e in evs) for st, vn, evs in m.voices))
             dirs = list(m.directions)
             # words below the staff (between the staves) hang on the nearest note, shifted to their place in the PDF
             ex = [e.x for e in m.voices[0][2]] if m.voices else []
@@ -240,11 +242,11 @@ def write(score, path):
                             ott[st] = want
                     while pend and pend[0][0] <= e.x + 6:
                         d = pend.pop(0)
-                        A(_direction(d, offset_of(d, t)))
+                        A(_direction(d, offset_of(d, t), upper_empty))
                     t += e.dur
                     A(_event(e, vn, st, div, cur_clef, ka, alter_state))
                 for d in pend:
-                    A(_direction(d, offset_of(d, t)))
+                    A(_direction(d, offset_of(d, t), upper_empty))
                 first_voice = False
                 if t > 0:
                     A(f'   <backup><duration>{int(t * div)}</duration></backup>')
@@ -321,7 +323,7 @@ def _pedal_lines(ms):
         m.directions[k] = d[:3] + (d[3] + '-only',) + d[4:]
 
 
-def _direction(d, offset=0):
+def _direction(d, offset=0, upper_empty=False):
     if d[2] == 'pedal':
         return '\n'.join(f'   <direction placement="below"><direction-type><pedal type="{t}" line="{ln}" sign="{sg}"/>'
                        f'</direction-type><staff>2</staff></direction>' for t, ln, sg in PEDAL[d[3]])
@@ -334,13 +336,17 @@ def _direction(d, offset=0):
         font = 'font-weight="bold"' if len(d) > 7 and d[7] == 'bold' else 'font-style="italic"'
         snd = f'<sound tempo="{d[8]:g}"/>' if len(d) > 8 and d[8] else ''
         return (f'   <direction placement="{d[4]}"><direction-type><words {font}{dy}>{escape(d[3])}</words></direction-type><staff>{d[1] + 1}</staff>{snd}</direction>')
+    # The dynamics stand between the staves: below the upper staff. In a measure whose upper staff has no notes
+    # Lomse hangs the mark on a note of the lower staff and draws it under the system: there it is written above
+    # the lower staff, which is the same place
+    side, staff = ('above', 2) if upper_empty else ('below', 1)
     if d[2] == 'wedge':
         # the offset (in divisions) tells where the hairpin starts or ends within a long note
         off = f'<offset>{offset}</offset>' if offset else ''
-        return (f'   <direction placement="below"><direction-type><wedge type="{d[3]}"/></direction-type>{off}<staff>1</staff></direction>')
+        return (f'   <direction placement="{side}"><direction-type><wedge type="{d[3]}"/></direction-type>{off}<staff>{staff}</staff></direction>')
     if d[2] == 'dynamics':
-        return (f'   <direction placement="below"><direction-type><dynamics><{d[3]}/></dynamics>'
-                f'</direction-type><staff>1</staff></direction>')
+        return (f'   <direction placement="{side}"><direction-type><dynamics><{d[3]}/></dynamics>'
+                f'</direction-type><staff>{staff}</staff></direction>')
     return (f'   <direction placement="below"><direction-type><words font-style="italic">{escape(d[3])}</words>'
             f'</direction-type><staff>1</staff></direction>')
 

@@ -5,8 +5,15 @@ stems, barlines, beams, slurs and the other symbols are located; the result is a
 objects like the ones read from a vector page, with the symbols already named (Shape.name).
 """
 import base64
+import csv
+import difflib
+import io
 import json
 import os
+import re
+import shutil
+import subprocess
+import tempfile
 import numpy as np
 import cv2
 import pymupdf
@@ -73,6 +80,141 @@ def _match(img, t, thr):
         out.append((v, x, y))
         cv2.rectangle(r, (x - w // 2, y - h // 2), (x + w // 2, y + h // 2), -1, -1)
     return out
+
+
+DYN_WORDS = {'p', 'pp', 'ppp', 'f', 'ff', 'fff', 'mf', 'mp', 'sf', 'sfz', 'fz', 'fp', 'rf', 'rfz'}
+# words read by their own template (see SLIDE): they are left in the image
+TEMPLATE_WORDS = ('cresc', 'dim', 'rit', 'ped')
+SHORT_WORDS = {'r.h.', 'l.h.', 'm.d.', 'm.s.', 'm.g.', 'd.c.', 'd.s.', 'a', 'al', 'e', 'ed', 'di', 'il', 'la', 'un', 'ma', 'in', 'da',
+               'con', 'col', 'non', 'piu', 'più', 'poco', 'i', 'ii'}
+
+
+# The words of the scores: a word read a little differently is corrected to the nearest one of them, a word far
+# from all of them is kept only when it was read with confidence
+VOCABULARY = """a accelerando adagio affettuoso agitato al alla allargando allegretto allegro amoroso andante andantino
+animato appassionato arpeggio assai attacca ben brillante brio calando calmato cantabile cantando capo coda col colla
+come commodo comodo con corda corde crescendo cresc da deciso decresc decrescendo delicato delicatamente di dim diminuendo
+dolce dolcissimo doloroso e ed energico espressivo espress fine forte fuoco funebre giocoso giusto grave grazia grazioso
+il in lamentoso largamente larghetto largo legato leggiero leggero lento loco lunga ma maestoso marcato marcia marziale
+meno mesto mezza mezzo moderato molto morendo mosso moto non ossia ped pedale perdendosi pesante piacere piano più piu
+pizzicato poco pochissimo poi portato presto prestissimo prima primo quasi rallentando rall rinforzando risoluto rit
+ritardando ritenuto rubato scherzando scherzo segno segue semplice sempre senza sforzando simile sin smorzando sopra
+sostenuto sotto staccato stacc stretto stringendo subito tanto tempo teneramente tenuto tranquillo tre trio troppo tutta
+tutte turca un una valse veloce vivace vivo voce volta thema tema var variation menuetto menuet minuetto rondo
+finale intro introduction lebhaft langsam ruhig sehr mit und nicht zu schnell innig zart etwas bewegt""".split()
+
+
+def _vocab(word):
+    """The word of the vocabulary nearest to the word read, or None."""
+    low = re.sub(r'[^a-zà-ÿ]', '', word.lower())
+    if low in VOCABULARY: return low
+    hit = difflib.get_close_matches(low, [v for v in VOCABULARY if len(v) >= 4], n=1, cutoff=0.8) if len(low) >= 4 else []
+    return hit[0] if hit else None
+
+
+def _tesseract():
+    return shutil.which('tesseract') or next((p for p in (
+        r'C:\Program Files\Tesseract-OCR\tesseract.exe',
+        r'C:\Program Files (x86)\Tesseract-OCR\tesseract.exe') if os.path.exists(p)), None)
+
+
+def _read_line(img, exe):
+    """The words of a one-line image (black on white): [(text, confidence, x0, x1)]."""
+    with tempfile.TemporaryDirectory() as td:
+        png = os.path.join(td, 'a.png')
+        cv2.imwrite(png, img)
+        try:
+            r = subprocess.run([exe, png, 'stdout', '--psm', '7', '-l', 'eng', 'tsv'],
+                               capture_output=True, text=True, encoding='utf-8', timeout=60)
+        except Exception:
+            return []
+    out = []
+    for w in csv.DictReader(io.StringIO(r.stdout), delimiter='\t', quoting=csv.QUOTE_NONE):
+        if (w.get('text') or '').strip() and float(w['conf']) >= 0:
+            out.append((w['text'].strip(), float(w['conf']), int(w['left']), int(w['left']) + int(w['width'])))
+    return out
+
+
+def _texts(work, staff_y):
+    """Texts printed in the image outside the staves (tempo marks, section titles, playing instructions):
+    [(x0, y0, x1, y1, text)] in pixels. Their letters are erased from work, so that they are not taken for music
+    symbols. Rows of letter-sized components are read by Tesseract; without it nothing is found."""
+    exe = _tesseract()
+    if not exe:
+        return []
+    H, W = work.shape
+    n, lab, st, cen = cv2.connectedComponentsWithStats(work, connectivity=8)
+    comps = []
+    for i in range(1, n):
+        x0, y0, w, h, area = st[i]
+        if area < 30 or w > 3.2 * PX or h > 3.4 * PX: continue
+        if any(y0 + h > a - 0.25 * PX and y0 < b + 0.25 * PX for a, b in staff_y): continue     # on a staff
+        if area / (w * h) > 0.93 and (w > 0.8 * PX or h > 0.8 * PX): continue              # a bar: beam, ledger line
+        letter = h >= 0.55 * PX and w >= 0.2 * PX
+        comps.append([x0, y0, x0 + w, y0 + h, letter, i])
+    comps.sort()
+    rows = []
+    for c in comps:
+        for r in rows:
+            if c[0] - r[2] < 1.5 * PX and c[1] < r[3] - 0.2 * PX and c[3] > r[1] + 0.2 * PX and c[3] - c[1] < 3.2 * PX:
+                r[0] = min(r[0], c[0]); r[1] = min(r[1], c[1]); r[2] = max(r[2], c[2]); r[3] = max(r[3], c[3]); r[4].append(c); break
+        else:
+            rows.append([c[0], c[1], c[2], c[3], [c]])
+    found = []
+    for x0, y0, x1, y1, cs in rows:
+        if sum(1 for c in cs if c[4]) < 2 or y1 - y0 > 3.4 * PX: continue
+        ids = np.array([c[5] for c in cs])
+        crop = (np.isin(lab[y0:y1, x0:x1], ids)).astype(np.uint8)
+        k = 48.0 / max(20, np.median([c[3] - c[1] for c in cs if c[4]]))
+        img = cv2.resize(crop * 255, None, fx=k, fy=k, interpolation=cv2.INTER_AREA if k < 1 else cv2.INTER_CUBIC)
+        img = 255 - cv2.copyMakeBorder(img, 20, 20, 20, 20, cv2.BORDER_CONSTANT)
+        words = _read_line(img, exe)
+        if os.environ.get('P2M_TRACE') == 'text': print('TEXTROW', x0, y0, x1, y1, len(cs), words)
+        keep = []
+        for t, conf, wa, wb in words:
+            t = t.strip('|_~—-=“”"\' ')
+            low = t.lower()
+            letters = re.sub(r'[^a-zà-ÿ]', '', low)
+            if not letters or low.strip('.') in DYN_WORDS or any(letters.startswith(k_) for k_ in TEMPLATE_WORDS): continue
+            # the abbreviations of the hands: two small italic letters with dots, often read without one of the dots
+            hand = re.fullmatch(r'([rl])\.?h\.?|m\.?([dsg])\.?', low)
+            if hand and len(words) == 1 and sum(1 for c in cs if c[4]) == 2 and len(cs) >= 3:
+                t = low = f'{hand.group(1)}.h.' if hand.group(1) else f'm.{hand.group(2)}.'
+                conf = 100
+            if re.fullmatch(r'.ed', letters): continue      # the pedal mark (Ped. in ornate letters, read as Red., Led.)
+            if len(letters) >= 3 and re.search(r'[a-zà-ÿ][A-Z]|[A-Z]{2}', t):      # capitals inside a word are misread small letters
+                t = t[0] + t[1:].lower() if t[1:2].islower() else t.lower()
+            if low.strip('.') in ('plu', 'piu', 'pit', 'pid'): t = 'più'; low = t; letters = 'piu'
+            known = _vocab(t) if len(letters) >= 3 else None
+            if known and known != letters:
+                # read a little differently (grazloso, CreSsc.): the known word, with the capital and the dot it was read with
+                t = (known.capitalize() if t[0].isupper() and not t[1:2].isupper() else known) + ('.' if t.endswith('.') else '')
+                low = t.lower(); letters = known
+            if any(letters.startswith(k_) for k_ in TEMPLATE_WORDS): continue
+            good = len(letters) >= 3 and re.search(r'[aeiouy]', letters) and re.fullmatch(r"[A-Za-zÀ-ÿ.'’,:()\-]+", t) and (
+                (known and conf >= 30) or (conf >= 80 and len(letters) >= 4))
+            short = conf >= 40 and (low in SHORT_WORDS or low + '.' in SHORT_WORDS)
+            if good or short:
+                keep.append([t, bool(good), x0 + (wa - 20) / k, x0 + (wb - 20) / k])
+        if not any(g for _, g, _, _ in keep) and not any(t.lower() in ('r.h.', 'l.h.', 'm.d.', 'm.s.', 'm.g.', 'd.c.', 'd.s.') for t, _, _, _ in keep):
+            continue
+        # the words of a line that follow each other make one text; a gap (a dynamic mark, another symbol) parts them
+        keep.sort(key=lambda w_: w_[2])
+        lines = []
+        for t, g, wa, wb in keep:
+            if lines and wa - lines[-1][2] < 2.2 * PX:
+                lines[-1][0] += ' ' + t; lines[-1][2] = wb
+            else:
+                lines.append([t, wa, wb])
+        for t, wa, wb in lines:
+            inside = [c for c in cs if c[2] > wa - 0.3 * PX and c[0] < wb + 0.3 * PX]
+            if not inside: continue
+            bx0, by0 = min(c[0] for c in inside), min(c[1] for c in inside)
+            bx1, by1 = max(c[2] for c in inside), max(c[3] for c in inside)
+            for c in inside:
+                work[c[1]:c[3], c[0]:c[2]][lab[c[1]:c[3], c[0]:c[2]] == c[5]] = 0
+            found.append((bx0, by0, bx1, by1, t))
+    return found
 
 
 def image_shapes(page, debug=None):
@@ -255,6 +397,9 @@ def image_shapes(page, debug=None):
             sub[thin_h[ya_:yb_, xa_:xb_] > 0] = 0
     if debug == 'work':
         return work
+    # --- texts: read first, so that their letters are not taken for dynamics, articulations or other symbols
+    for tx0, ty0, tx1, ty1, tt in _texts(work, staff_y):
+        add('f', '@', tx0, ty0, tx1, ty1, name='text').text = tt
     # --- symbols found by sliding their template (several parts, or damaged by the staff line removal)
     claimed = np.zeros_like(work)
     cands = []
@@ -326,6 +471,7 @@ def image_shapes(page, debug=None):
     # --- connected components of the rest
     n, lab, st, cen = cv2.connectedComponentsWithStats(work, connectivity=8)
     tips = [(x, y) for x, ya, yb, bar in used_stems if not bar for y in (ya, yb)]
+    curves = []
     for i in range(1, n):
         x0, y0, w, h, area = st[i]
         if area < 40: continue
@@ -335,6 +481,9 @@ def image_shapes(page, debug=None):
         fillr = area / (w * h)
         # dots
         if 0.2 < wsp < 0.6 and 0.2 < hsp < 0.6 and abs(w - h) <= 4 and fillr > 0.6:
+            # a speck left at the edge of a notehead is not a dot
+            if any(abs(x0 + w / 2 - hd['cx']) < hd['w'] / 2 + 2 and abs(y0 + h / 2 - hd['cy']) < hd['h'] / 2 + 2 for hd in heads):
+                continue
             grow = 0
             if any(abs(x0 + w / 2 - bx) < 1.3 * PX for bx in thick_x) and any(a < y0 + h / 2 < b for a, b in staff_y):
                 grow = max(0, (0.46 * PX - w) / 2)      # repeat dots are told by their size
@@ -399,6 +548,7 @@ def image_shapes(page, debug=None):
                 Lp = P(X(x0), Y(y0 + ys_l.mean())); Rp = P(X(x0 + w), Y(y0 + ys_r.mean()))
                 ycm = (np.arange(h)[:, None] * m).sum() / area
                 s = add('f', 'cc', x0, y0, x0 + w, y0 + h, items=[('c', Lp, Lp, Rp, Rp)])
+                curves.append([s, x0, x0 + w, y0 + ys_l.mean(), y0 + ys_r.mean()])
                 # the vertical centre of the shape tells the side of the bulge: keep it in the box
                 continue
         if h > 6 * PX and wsp < 1.5:
@@ -416,6 +566,20 @@ def image_shapes(page, debug=None):
             add('f', '@', x0, y0, x0 + w, y0 + h, name=best[1])
         else:
             add('f', '?', x0, y0, x0 + w, y0 + h)
+    # a tie or slur that crosses a barline was cut in two when the barline was taken out: the two pieces that
+    # meet at a barline are one curve
+    bar_x = [x for x, ya, yb, bar in used_stems if bar] + thick_x
+    curves.sort(key=lambda c: c[1])
+    for i, c in enumerate(curves):
+        if c[0] is None: continue
+        for d in curves[i + 1:]:
+            if d[0] is None or d[1] - c[2] > 0.6 * PX: continue
+            if d[1] - c[2] >= -2 and abs(d[3] - c[4]) <= 0.35 * PX and any(c[2] - 6 <= bx <= d[1] + 6 for bx in bar_x):
+                a_, b_ = c[0], d[0]
+                a_.items = [('c', a_.items[0][1], a_.items[0][1], b_.items[0][4], b_.items[0][4])]
+                a_.x1 = b_.x1; a_.y0 = min(a_.y0, b_.y0); a_.y1 = max(a_.y1, b_.y1)
+                shapes.remove(b_)
+                c[2], c[4] = d[2], d[4]; d[0] = None
     if debug:
         vis = cv2.cvtColor(255 - bw * 255, cv2.COLOR_GRAY2BGR)
         col = {'s': (0, 160, 0)}
