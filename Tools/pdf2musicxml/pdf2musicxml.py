@@ -348,6 +348,8 @@ def convert(pdf, out_dir, args):
             if foot:
                 meta['rights'] = (ocr(page, foot[0]) or '').replace('©', '(c)') or None
         groups = sorted({sy.group for sy in systems})
+        if systems and getattr(systems[0], 'finale', False):
+            finale_texts(page, pi, systems, meta, texts)
         for sy in systems:
             si = groups.index(sy.group)
             for c in getattr(sy, 'text_clusters', []):
@@ -445,6 +447,7 @@ def convert(pdf, out_dir, args):
                 mid = os.path.splitext(pdf)[0] + ext; break
     if args.midi and not mid:
         midi_lines = ["", "=== MIDI osszevetes ===", "  nem talaltam a PDF-hez tartozo MIDI fajlt"]
+    tempo_lines = []
     if mid:
         md = Midi(mid)
         start = None
@@ -465,6 +468,7 @@ def convert(pdf, out_dir, args):
                 st2['fixed'] = stats['fixed']; st2['fixed_at'] = stats['fixed_at']; st2['ott_conflict'] = stats['ott_conflict']; stats = st2
             if k == 0:
                 start = stats.get('start')
+                set_tempos(meta, ms, md, stats, tempo_lines)
             part_diffs[k], part_stats[k] = diffs, stats
             L = compare.report(diffs, stats, ms)
             if nparts > 1:
@@ -505,6 +509,8 @@ def convert(pdf, out_dir, args):
     for k, v in sorted(kinds.items(), key=lambda kv: -len(kv[1])):
         lines.append(f"  {len(v):3d} x {k}: " + '; '.join(v[:6]) + (' ...' if len(v) > 6 else ''))
     lines += midi_lines
+    if tempo_lines:
+        lines += ["", "=== Tempo ==="] + tempo_lines
     lines += ["", "OCR-rel olvasott szovegek (ellenorizd):"] + [f"  o{p}/r{s_}: {t}" for p, s_, t in texts] + [""] + rep
     with open(os.path.splitext(out)[0] + '.report.txt', 'w', encoding='utf-8') as f:
         f.write('\n'.join(lines) + '\n')
@@ -514,6 +520,139 @@ def convert(pdf, out_dir, args):
     pinfo = f" ({nparts} szolam)" if nparts > 1 else ''
     print(f"{os.path.basename(pdf)}: {len(measures)} utem{pinfo}, {nwarn} figyelmeztetes, {len(unknown)} fel nem hasznalt jel{extra} -> {out}")
     return measures, unknown
+
+
+TEMPO_WORD = re.compile(r'(?i)^(molto |poco |un poco |pi[uù] |meno |tempo di |mouvement )?'
+                        r'(allegr|andant|adagio|largo|larghetto|lento|lent\b|moderato|presto|prestissimo|vivace|vivo|'
+                        r'maestoso|grave|comodo|mosso|marcia|valse|menuett|langsam)')
+
+
+def is_tempo_mark(text):
+    """A new tempo written in the score (Allegro, Andante, Più lento, Tempo di Valse): it begins with a capital."""
+    t = text.strip()
+    if not t or not t[0].isupper() or re.search(r'D\.\s*[CS]\.|Fine|Coda', t):
+        return False
+    return bool(TEMPO_WORD.match(t)) and not re.match(r'(?i)tempo\s+(I\b|1\b|primo)', t)
+
+
+def finale_texts(page, pi, systems, meta, texts):
+    """The bold texts of a score made with Finale are plain text in the PDF: the tempo at the beginning of the piece,
+    a new tempo later, and the titles of the sections (Thema, Var. 1)."""
+    spans = []
+    for b in page.get_text('dict')['blocks']:
+        for ln in b.get('lines', []):
+            for sp_ in ln['spans']:
+                t = sp_['text'].strip()
+                if 'Bold' in sp_['font'] and 'Ital' not in sp_['font'] and len(t) > 1 and not re.fullmatch(r'[\d. ]+', t):
+                    spans.append((sp_['bbox'], t))
+    groups = sorted({sy.group for sy in systems})
+    for (x0, y0, x1, y1), t in sorted(spans, key=lambda s_: (s_[0][1], s_[0][0])):
+        # the system below the text (of the first part, if there are several)
+        below = [sy for sy in systems if sy.top > y0 and sy.top - y1 < 12 * sy.sp]
+        if not below:
+            continue
+        sy = min(below, key=lambda sy: (sy.top, sy.part))
+        si = groups.index(sy.group)
+        first = pi == 0 and si == 0 and x0 < sy.x0 + 14 * sy.sp
+        if first and not meta.get('tempo_text') and is_tempo_mark(t):
+            meta['tempo_text'] = t
+            meta['tempo_left'] = (sy.x0, sy.sp)
+        else:
+            sy.measure_at(x0).directions.append((x0, 0, 'words', t, 'above', round((sy.staves[0].top - y1) / sy.sp * 10), sy.sp, 'bold'))
+        texts.append((pi + 1, si + 1, t))
+
+
+def midi_tempo(md, t0, span):
+    """The average tempo of the MIDI file from t0 for span (both in quarters), in quarters per minute."""
+    ev = sorted(md.tempos)
+    if not ev or span <= 0:
+        return None
+    a, b = float(t0) * md.ppq, float(t0 + span) * md.ppq
+    cur = [v for t, v in ev if t <= a]
+    cur = cur[-1] if cur else ev[0][1]
+    minutes, last = 0.0, a
+    for t, v in ev:
+        if a < t < b:
+            minutes += (t - last) / md.ppq / cur; cur = v; last = t
+    minutes += (b - last) / md.ppq / cur
+    return (b - a) / md.ppq / minutes if minutes > 0 else None
+
+
+def beat_unit(time):
+    """The note of the metronome mark for a time signature: (name, dotted, its length in quarters)."""
+    top, bottom = (time[0], time[1]) if time else (4, 4)
+    if bottom == 2: return 'half', False, 2.0
+    if bottom == 8 and top % 3 == 0 and top > 3: return 'quarter', True, 1.5
+    if bottom == 8: return 'eighth', False, 0.5
+    if bottom == 4 and top == 6: return 'half', True, 3.0
+    return 'quarter', False, 1.0
+
+
+def set_tempos(meta, ms, md, stats, tempo_lines):
+    """The tempo of the beginning of the piece and of the tempo marks in it. The tempo of the beginning is always
+    written: the metronome mark of the score, otherwise the average of the first four measures of the MIDI file (the
+    recordings are played freely, there is no single tempo in them). A new tempo mark gets the tempo of the MIDI file
+    at its place; "a tempo" the tempo in force before it, "Tempo I" the tempo of the beginning."""
+    order = stats.get('order') or []
+    start = stats.get('start')
+    if md is None or start is None or not order:
+        return
+    at, t = {}, start        # the first time a measure is played, in quarters
+    times = []
+    for k in order:
+        at.setdefault(k, len(times)); times.append(t); t += ms[k].length
+
+    def tempo_at(k, n=4):
+        if k not in at:
+            return None
+        i = at[k]
+        span = sum(ms[j].length for j in order[i:i + n])
+        return midi_tempo(md, times[i], span)
+
+    typical = None
+    seg, evs = [], sorted(md.tempos)
+    end = float(t) * md.ppq
+    for (ta, va), (tb, _) in zip(evs, evs[1:] + [(end, 0)]):
+        ta, tb = max(ta, float(start) * md.ppq), min(tb, end)
+        if tb > ta: seg.append((tb - ta, va))
+    if seg:
+        seg.sort(key=lambda x: x[1]); half, acc = sum(d for d, _ in seg) / 2, 0
+        for d, v in seg:
+            acc += d
+            if acc >= half:
+                typical = v; break
+    name, dot, quarters = beat_unit(ms[order[0]].time if ms[order[0]].time else ms[0].time)
+    if meta.get('bpm'):
+        base = meta['bpm'] * (1.5 if meta.get('beat_dot') else 1) * {'half': 2, 'eighth': 0.5}.get(meta.get('beat_unit', 'quarter'), 1)
+        tempo_lines.append(f"  kezdo tempo: {meta['bpm']} (a kottabol)")
+    else:
+        q = tempo_at(order[0])
+        if q is None:
+            return
+        shown = max(1, round(q / quarters))
+        meta['bpm'], meta['beat_unit'], meta['beat_dot'], meta['bpm_midi'] = shown, name, dot, True
+        base = shown * quarters
+        unit = {'half': 'fel', 'quarter': 'negyed', 'eighth': 'nyolcad'}[name]
+        tempo_lines.append(f"  kezdo tempo: {'pontozott ' if dot else ''}{unit} = {shown} (a MIDI-bol, az elso negy utem atlaga: negyed = {q:.1f}"
+                           + (f"; a darab jellemzo tempoja: negyed = {typical:.0f}" if typical else '') + ")")
+    first, cur = base, base
+    for i, m in enumerate(ms):
+        for j, d in sorted(enumerate(m.directions), key=lambda x: x[1][0]):
+            if d[2] != 'words' or len(d) < 7:
+                continue
+            text, snd, style = d[3].strip(), None, (d[7] if len(d) > 7 else None)
+            if re.match(r'(?i)a tempo\b', text):
+                snd, why = cur, 'az elozo tempo'
+            elif re.match(r'(?i)tempo\s+(I\b|1\b|primo)', text):
+                snd, why = first, 'a kezdo tempo'; cur = first
+            elif is_tempo_mark(text):
+                q = tempo_at(i)
+                if q is None:
+                    continue
+                snd, why = float(round(q)), 'a MIDI-bol'; cur = snd; style = 'bold'
+            if snd is not None:
+                m.directions[j] = tuple(d[:7]) + (style, snd)
+                tempo_lines.append(f"  {i + 1}. utem, \"{text}\": negyed = {snd:g} ({why})")
 
 
 def main():

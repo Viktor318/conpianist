@@ -166,7 +166,7 @@ def write(score, path):
                       f'<per-minute>{score["bpm"]}</per-minute></metronome>')
                 A('   </direction-type><staff>1</staff>')
                 if score.get('bpm'):
-                    q = score['bpm'] * (1.5 if score.get('beat_dot') else 1)
+                    q = score['bpm'] * (1.5 if score.get('beat_dot') else 1) * {'half': 2, 'eighth': 0.5}.get(score.get('beat_unit', 'quarter'), 1)
                     A(f'    <sound tempo="{q:g}"/>')
                 A('   </direction>')
             # directions (dynamics, text) before the nearest event
@@ -183,7 +183,7 @@ def write(score, path):
                            next((x for x in ex if q[0] <= x + 6), None) == a]
                     if dyn:
                         rx = max(rx, max(DYN_WIDTH.get(q[3], 30) for q in dyn) + 16)
-                    dirs[k] = (a,) + tuple(d[1:6]) + (rx,)
+                    dirs[k] = (a,) + tuple(d[1:6]) + (rx,) + tuple(d[7:])
             dirs.sort(key=lambda d: (d[0], d[2]))
             alter_state = {}
             ka = key_alters(fifths)
@@ -330,7 +330,10 @@ def _direction(d, offset=0):
     if d[2] == 'words' and len(d) > 4:
         dy = f' default-y="{d[5]}"' if len(d) > 5 and d[5] is not None else ''
         if len(d) > 6 and d[6]: dy += f' relative-x="{d[6]}"'
-        return (f'   <direction placement="{d[4]}"><direction-type><words font-style="italic"{dy}>{escape(d[3])}</words></direction-type><staff>{d[1] + 1}</staff></direction>')
+        # (a tempo mark is bold; the tempo of a tempo mark is for the playback only, it is not shown)
+        font = 'font-weight="bold"' if len(d) > 7 and d[7] == 'bold' else 'font-style="italic"'
+        snd = f'<sound tempo="{d[8]:g}"/>' if len(d) > 8 and d[8] else ''
+        return (f'   <direction placement="{d[4]}"><direction-type><words {font}{dy}>{escape(d[3])}</words></direction-type><staff>{d[1] + 1}</staff>{snd}</direction>')
     if d[2] == 'wedge':
         # the offset (in divisions) tells where the hairpin starts or ends within a long note
         off = f'<offset>{offset}</offset>' if offset else ''

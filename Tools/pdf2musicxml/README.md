@@ -148,6 +148,13 @@ vonal nélkül marad: a soha fel nem oldott Ped. csak felirat, a Ped. nélküli 
 felső váltóhangos formában, ahogy a MIDI játssza). A MIDI ezeket kijátssza: a kijátszott hangokat az összevetés
 nem veszi eltérésnek, a jelentés külön sorban adja meg a számukat.
 
+**Tempó:** a kotta elején mindig áll metronómjel. Ha a nyomtatott kotta megadja, az az érték; ha nem, a MIDI-ből
+az első négy ütem átlaga (a felvételek szabadon játszottak, egyetlen tempójuk nincs), az ütemmutató egységében
+(6/8-ban pontozott negyed, 2/2-ben fél, 3/8-ban nyolcad). A darab közben álló új tempófelirat (Allegro, Più lento,
+Tempo di Valse) félkövér, és megkapja a MIDI ottani tempóját; az „a tempo” az előtte érvényes, a „Tempo I” a kezdő
+tempót. Ezek csak lejátszási adatok (`<sound tempo>`), számként nem látszanak. A jelentés „Tempo” része felsorolja
+a beírt értékeket és a forrásukat. A Finale-kották félkövér feliratai (tempó, Thema, Var.) szövegként olvashatók.
+
 **Előkék:** ha a darab előkével indul, a MIDI első hangja az előke; az összevetés a kezdőpontot ezért az első
 ütemek legjobb illeszkedése alapján keresi meg. Előkéről induló ív mindig kötőív, akkor is, ha a főhang
 ugyanaz a hang.
