@@ -8,6 +8,7 @@
 //---------------------------------------------------------------------------------------
 
 #include "lomse_tuplet_engraver.h"
+#include "lomse_vertical_profile.h"
 
 #include "lomse_glyphs.h"
 #include "lomse_shape_beam.h"
@@ -86,6 +87,45 @@ GmoShape* TupletEngraver::create_first_or_intermediate_shape(const RelObjEngravi
 }
 
 //---------------------------------------------------------------------------------------
+//ConPianist: the fingerings are engraved before the tuplets (see the engraving order in
+//lomse_system_layouter.cpp) and stand next to their notes. If a fingering reaches beyond
+//the reference line of the tuplet (the beam or the noteheads), the tuplet is moved
+//beyond the fingerings, keeping its slant. Other shapes do not move it: the layout of
+//the scores without fingerings does not change.
+static void conpianist_tuplet_beyond_fingerings(VerticalProfile* pVProfile, int idxStaff,
+                                                bool fAbove, LUnits xLeft, LUnits xRight,
+                                                LUnits& yStart, LUnits& yEnd)
+{
+    if (pVProfile == nullptr || idxStaff < 0 || xRight < xLeft)
+        return;
+
+    std::pair<LUnits, GmoShape*> limit = (fAbove ? pVProfile->get_min_for(xLeft, xRight, idxStaff)
+                                                 : pVProfile->get_max_for(xLeft, xRight, idxStaff));
+    GmoShape* pShape = limit.second;
+    if (pShape == nullptr || !(pShape->is_shape_fingering() || pShape->is_shape_fingering_box()))
+        return;
+
+    if (fAbove)
+    {
+        LUnits shift = min(yStart, yEnd) - limit.first;
+        if (shift > 0.0f)
+        {
+            yStart -= shift;
+            yEnd -= shift;
+        }
+    }
+    else
+    {
+        LUnits shift = limit.first - max(yStart, yEnd);
+        if (shift > 0.0f)
+        {
+            yStart += shift;
+            yEnd += shift;
+        }
+    }
+}
+
+//---------------------------------------------------------------------------------------
 GmoShape* TupletEngraver::create_last_shape(const RelObjEngravingContext& ctx)
 {
     GmoShapeNote* pStart = get_first_note();
@@ -103,6 +143,9 @@ GmoShape* TupletEngraver::create_last_shape(const RelObjEngravingContext& ctx)
     if (m_fDrawNumber || m_fDrawBracket)
     {
         compute_y_coordinates(pStart, pEnd);
+        conpianist_tuplet_beyond_fingerings(m_pVProfile, m_idxStaff, m_fAbove,
+                                            pStart->get_left(), pEnd->get_right(),
+                                            m_yStart, m_yEnd);
         create_shape();
         set_shape_details();
         m_numShapes = 1;

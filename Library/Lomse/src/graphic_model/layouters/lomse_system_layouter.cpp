@@ -164,12 +164,16 @@ static const std::initializer_list<EngravingOrderInfo> m_order
     { k_imo_beam },
     { k_imo_articulation_symbol },
 
-    { k_imo_tuplet },
     //ConPianist fork: fingerings before slurs and ties. The slur is drawn over the shapes
     //already engraved, so it passes above (below) the fingerings, and the fingering stays
     //next to its note, as in printed music. Before, the fingering avoided the slur and
     //was placed above it.
+    //ConPianist: and before the tuplets. The fingering has priority: it is always next to
+    //its note, the number (and the bracket) of a tuplet goes beyond it (see
+    //TupletEngraver::create_last_shape). Before, both stood at the same height and a
+    //tuplet number could be taken for a fingering.
     { k_imo_fingering },
+    { k_imo_tuplet },
     { k_imo_slur },
     { k_imo_tie },
 

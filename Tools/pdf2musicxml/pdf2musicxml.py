@@ -261,6 +261,22 @@ def implied_triplets(m, L):
                 if e.heads and e.beam_ids and e.tuplet is None:
                     groups.setdefault(max(e.beam_ids), []).append(e)
             cand = [g for g in groups.values() if len(g) in (3, 6, 12) and len({e.dur for e in g}) == 1]
+            # a triplet with a rest: a rest and two notes beamed together, of the same length, one after the other
+            # (the rest before, between or after the notes); the beam holds these two notes only
+            taken = {id(e) for g in cand for e in g}
+            seq = sorted(evs, key=lambda e: e.x)
+            k = 0
+            while k + 3 <= len(seq):
+                u = seq[k:k + 3]
+                notes = [e for e in u if e.heads]
+                whole_beams = all(len(groups.get(max(e.beam_ids), [])) == sum(1 for o in notes if o.beam_ids and max(o.beam_ids) == max(e.beam_ids))
+                                  for e in notes if e.beam_ids)
+                paired = len(notes) == 2 and all(e.beam_ids for e in notes) and max(notes[0].beam_ids) == max(notes[1].beam_ids)
+                if (len({e.dur for e in u}) == 1 and paired and whole_beams and
+                        all(e.tuplet is None and id(e) not in taken and not getattr(e, 'whole_measure', False) for e in u)):
+                    cand.append(u); k += 3
+                else:
+                    k += 1
             cand.sort(key=lambda g: min(e.x for e in g))
             gain = [sum((e.dur for e in g), F(0)) / 3 for g in cand]
             excess = total - L

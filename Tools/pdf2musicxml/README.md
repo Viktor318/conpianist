@@ -118,12 +118,14 @@ Karakterből felismert jelek: kottafejek, kulcsok, szünetek (egésztől 32-edig
 és kettős bé is), zászlók, pontok, ujjrend, ütemmutató, Ped. és feloldás, hangsúly, marcato, tenuto,
 staccatissimo, fermata, trilla, triolaszám, az 1. és 2. befejezés (volta) száma; dinamika: p, pp, ppp, mp, mf, f, ff, sf, sfz, fp.
 A szám nélküli triolákat és szextolákat (az első ütem után „simile”, vagy sehol nincs szám) szólamonként felismeri,
-hatos és tizenkettes gerendacsoportban, felváltva föl és le álló szárakkal is. Az egymásra nyomott két kottafej
+hatos és tizenkettes gerendacsoportban, felváltva föl és le álló szárakkal is. A szünettel kezdődő vagy szünetet
+tartalmazó triolát is (egy szünet és két összegerendázott hang). A felismert triola száma a kottában mindig látszik,
+akkor is, ha a nyomtatott kotta az első csoportok után elhagyja. Az egymásra nyomott két kottafej
 (egy hang két szólamban) két szárat kap.
 Az ismeretlen karaktereket a jelentés felsorolja.
 
-Állapot (2026. november 15.): a 303 kottából 194-ben minden hang egyezik a MIDI-vel,
-a hangok 96,7%-a egyezik összesen. Még nincs bekötve: a szöveges feliratok (a PDF-ben sima szövegként
+Állapot (2026. november 15.): a 303 kottából 195-ben minden hang egyezik a MIDI-vel,
+a hangok 96,9%-a egyezik összesen. Még nincs bekötve: a szöveges feliratok (a PDF-ben sima szövegként
 megvannak, OCR nem kell hozzájuk), a szögletes vonallal jelölt pedál, a 8va karakter (a szaggatott vonalat
 kezeli), trillavonal, zárójelek. Ismert hibák: két szólam egy sorban (a ritmus
 szétesik), átkötések egy része, hosszú ívek, ismétlések sorrendje néhány kottában.
