@@ -161,6 +161,9 @@ a beírt értékeket és a forrásukat. A Finale-kották félkövér feliratai (
 elején „8va” jel áll, a vonal az alatta lévő sorhoz tartozik (a jelével és a záró kampójával együtt), nem a
 fölötte lévő sor basszusához.
 
+**D.C. al Fine, Fine a Finale-kottákban:** a dőlt betűs felirat szövegként olvasható a PDF-ből; a kottába kerül,
+a lejátszási utasítással együtt (a szakasz végén lép életbe, ahogy a többi kottában).
+
 **Előkék:** ha a darab előkével indul, a MIDI első hangja az előke; az összevetés a kezdőpontot ezért az első
 ütemek legjobb illeszkedése alapján keresi meg. Előkéről induló ív mindig kötőív, akkor is, ha a főhang
 ugyanaz a hang.

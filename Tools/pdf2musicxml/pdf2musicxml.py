@@ -560,6 +560,20 @@ def finale_texts(page, pi, systems, meta, texts):
         else:
             sy.measure_at(x0).directions.append((x0, 0, 'words', t, 'above', round((sy.staves[0].top - y1) / sy.sp * 10), sy.sp, 'bold'))
         texts.append((pi + 1, si + 1, t))
+    # D.C. al Fine, Fine (italic): written at the end of their section, they belong to the measure where the text ends
+    for bl in page.get_text('dict')['blocks']:
+        for ln in bl.get('lines', []):
+            for sp_ in ln['spans']:
+                t = re.sub(r'\s+', ' ', sp_['text']).strip()
+                if 'Ital' not in sp_['font'] or not _jump_sound(t):
+                    continue
+                x0, y0, x1, y1 = sp_['bbox']
+                cy = (y0 + y1) / 2
+                sy = min(systems, key=lambda sy: 0 if sy.top <= cy <= sy.bottom else min(abs(cy - sy.top), abs(cy - sy.bottom)))
+                ws = 1 if cy > sy.staves[1].top else 0
+                place = 'above' if cy < sy.staves[0].top else 'below'
+                sy.measure_at(x1 - sy.sp).directions.append((x0, ws, 'words', t, place, round((sy.staves[ws].top - y1) / sy.sp * 10), sy.sp))
+                texts.append((pi + 1, groups.index(sy.group) + 1, t))
 
 
 def midi_tempo(md, t0, span):
