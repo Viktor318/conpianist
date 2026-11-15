@@ -121,11 +121,11 @@ A szám nélküli triolákat és szextolákat (az első ütem után „simile”
 hatos és tizenkettes gerendacsoportban, felváltva föl és le álló szárakkal is. A szünettel kezdődő vagy szünetet
 tartalmazó triolát is (egy szünet és két összegerendázott hang). A felismert triola száma a kottában mindig látszik,
 akkor is, ha a nyomtatott kotta az első csoportok után elhagyja. Az egymásra nyomott két kottafej
-(egy hang két szólamban) két szárat kap.
+(egy hang két szólamban) két szárat kap. A külön zászlós (nem gerendás) tizenhatod kettős zászlója is a hanghoz tartozik.
 Az ismeretlen karaktereket a jelentés felsorolja.
 
-Állapot (2026. november 15.): a 303 kottából 195-ben minden hang egyezik a MIDI-vel,
-a hangok 96,9%-a egyezik összesen. Még nincs bekötve: a szöveges feliratok (a PDF-ben sima szövegként
+Állapot (2026. november 15.): a 303 kottából 196-ban minden hang egyezik a MIDI-vel,
+a hangok 97,6%-a egyezik összesen. Még nincs bekötve: a szöveges feliratok (a PDF-ben sima szövegként
 megvannak, OCR nem kell hozzájuk), a szögletes vonallal jelölt pedál, a 8va karakter (a szaggatott vonalat
 kezeli), trillavonal, zárójelek. Ismert hibák: két szólam egy sorban (a ritmus
 szétesik), átkötések egy része, hosszú ívek, ismétlések sorrendje néhány kottában.

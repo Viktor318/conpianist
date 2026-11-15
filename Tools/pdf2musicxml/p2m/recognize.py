@@ -518,7 +518,7 @@ def _analyse_system(sy, glyphs, strokes, fills, log):
              (s.ops == 'r' and s.w > 1.6 * sp and 0.3 * sp < s.h < 0.62 * sp) or
              (s.ops == 'r' and s.w > 0.8 * sp and 0.3 * sp < s.h < 0.62 * sp and any(
                  s.x0 - 0.3 * sp <= t.x0 <= s.x1 + 0.3 * sp and t.y0 - 0.3 * sp <= s.cy <= t.y1 + 0.3 * sp for t in stems))]
-    flags = [g for g in glyphs if g.name in ('flag_up', 'flag_down')]
+    flags = [g for g in glyphs if g.name in ('flag_up', 'flag_down', 'flag_up2', 'flag_down2')]
     events = []
     by_stem = {}
     twins = []      # (scores made by Finale) two heads printed on each other: one note of two voices
@@ -571,7 +571,7 @@ def _analyse_system(sy, glyphs, strokes, fills, log):
         if not ids:
             for f in flags:
                 if abs(f.x0 - s.x0) < 0.3 * sp and (abs(f.y0 - tip) < 0.6 * sp or abs(f.y1 - tip) < 0.6 * sp):
-                    ev.beams = 1; f.used = True
+                    ev.beams = 2 if f.name.endswith('2') else 1; f.used = True      # (a double flag: a sixteenth)
         ev.y = tip
         events.append(ev)
     # --- grace notes: small heads with a short stem (with or without a slash)
