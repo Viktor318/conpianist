@@ -122,8 +122,8 @@ hatos és tizenkettes gerendacsoportban, felváltva föl és le álló szárakka
 (egy hang két szólamban) két szárat kap.
 Az ismeretlen karaktereket a jelentés felsorolja.
 
-Állapot (2026. november 15.): a 303 kottából 186-ban minden hang egyezik a MIDI-vel,
-a hangok 95,6%-a egyezik összesen. Még nincs bekötve: a szöveges feliratok (a PDF-ben sima szövegként
+Állapot (2026. november 15.): a 303 kottából 194-ben minden hang egyezik a MIDI-vel,
+a hangok 96,7%-a egyezik összesen. Még nincs bekötve: a szöveges feliratok (a PDF-ben sima szövegként
 megvannak, OCR nem kell hozzájuk), a szögletes vonallal jelölt pedál, a 8va karakter (a szaggatott vonalat
 kezeli), trillavonal, zárójelek. Ismert hibák: két szólam egy sorban (a ritmus
 szétesik), átkötések egy része, hosszú ívek, ismétlések sorrendje néhány kottában.
@@ -154,6 +154,10 @@ az első négy ütem átlaga (a felvételek szabadon játszottak, egyetlen temp�
 Tempo di Valse) félkövér, és megkapja a MIDI ottani tempóját; az „a tempo” az előtte érvényes, a „Tempo I” a kezdő
 tempót. Ezek csak lejátszási adatok (`<sound tempo>`), számként nem látszanak. A jelentés „Tempo” része felsorolja
 a beírt értékeket és a forrásukat. A Finale-kották félkövér feliratai (tempó, Thema, Var.) szövegként olvashatók.
+
+**8va a Finale-kottákban:** a szaggatott vonal a két kottasor között áll, gyakran a felső sorhoz közelebb. Ha az
+elején „8va” jel áll, a vonal az alatta lévő sorhoz tartozik (a jelével és a záró kampójával együtt), nem a
+fölötte lévő sor basszusához.
 
 **Előkék:** ha a darab előkével indul, a MIDI első hangja az előke; az összevetés a kezdőpontot ezért az első
 ütemek legjobb illeszkedése alapján keresi meg. Előkéről induló ív mindig kötőív, akkor is, ha a főhang

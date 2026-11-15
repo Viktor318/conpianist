@@ -383,6 +383,24 @@ def analyse_page(page, log, jbars=None):
                       min(abs(s.y0 - _beam_y(f, s.x0)), abs(s.y1 - _beam_y(f, s.x0))) < 2.5 * sp0]
                 if zs:
                     f.zy = sorted(zs)[len(zs) // 2]
+        # The dashed line of an 8va stands between two systems, often nearer to the upper one: with the "8va"
+        # sign at its beginning it raises the notes below it, so it belongs to the system below (with its sign
+        # and its closing hook).
+        for s in strokes:
+            if not (s.dashed and s.ops == 'l' and s.h < 0.05 and s.w > 2 * sp0):
+                continue
+            sign = [g for g in glyphs if g.name == 'ottava' and s.x0 - 5 * sp0 <= g.cx <= s.x0 + sp0 and abs(g.cy - s.y0) < 2.2 * sp0]
+            below = [sy for sy in systems if sy.top > s.y0]
+            if not sign or not below:
+                continue
+            zy = min(sy.top for sy in below) - sp0
+            s.zy = zy
+            for g in glyphs:
+                if s.x0 - 5 * sp0 <= g.cx <= s.x0 + sp0 and abs(g.cy - s.y0) < 2.2 * sp0 and g.name in ('ottava', 'paren_l', 'paren_r'):
+                    g.zy = zy
+            for t in strokes:
+                if t is not s and t.ops == 'l' and t.w < 0.05 and abs(t.x0 - s.x1) < 0.6 * sp0 and min(abs(t.y0 - s.y0), abs(t.y1 - s.y0)) < 0.3 * sp0:
+                    t.zy = zy
     for k, sy in enumerate(systems):
         lo = systems[k - 1].bottom if k else 0
         hi = systems[k + 1].top if k + 1 < len(systems) else page.rect.height
