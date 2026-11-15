@@ -171,6 +171,8 @@ def glyphs_from_shapes(shapes):
     for s in shapes:
         if s.kind == 's':
             continue
+        if s.name:          # (a page stored as an image: the symbol is already named, see raster.py)
+            glyphs.append(Glyph(s.name, s.x0, s.y0, s.x1, s.y1, s.ops, src=s)); continue
         if s.ops in CATALOG:
             glyphs.append(_fix_six(Glyph(CATALOG[s.ops], s.x0, s.y0, s.x1, s.y1, s.ops, src=s), _contours(s) if CATALOG[s.ops] == 'd9' else [])); continue
         conts = _contours(s)
@@ -329,6 +331,12 @@ class System:
 
 def analyse_page(page, log, jbars=None):
     shapes = visible_shapes(page)
+    # a page stored as one bitmap image (a scanned or rasterized score): the lines and symbols are located in
+    # the image, the rest works as for a vector page (needs numpy and opencv-python)
+    image_page = any(i['width'] * i['height'] > 4e6 for i in page.get_image_info())
+    if image_page:
+        from . import raster as _ras
+        shapes = shapes + _ras.image_shapes(page, os.path.join(os.environ['P2M_DEBUG'], f'page{page.number + 1}.png') if os.environ.get('P2M_DEBUG') else None)
     staves = find_staves(shapes)
     if len(staves) % 2:
         log(f"  ! paratlan szamu kottasor ({len(staves)}), az utolsot kihagyom")
@@ -361,6 +369,7 @@ def analyse_page(page, log, jbars=None):
         glyphs = [g for g in glyphs if g.name == '?'] + _fin.glyphs(page, log)
         for sy in systems: sy.finale = True
     elif staves:
+        for sy in systems: sy.image = image_page
         match_digits(page, glyphs, staves[0].sp, log)
         match_templates(page, glyphs, staves[0].sp, log)
     strokes = [s for s in shapes if s.kind == 's' and not s.used and not (s.w > 300 and s.h > 300)]
@@ -719,14 +728,14 @@ def _analyse_system(sy, glyphs, strokes, fills, log):
                     run.append(g); x = g.x1
                 else:
                     break
-            if getattr(sy, 'finale', False):
+            if getattr(sy, 'finale', False) or getattr(sy, 'image', False):
                 runs_[st] = run
             elif run:
                 for g in run: g.used = True
                 if st == 0:
                     real = [g for g in run if g.name != 'natural']
                     m.key = (len(real) if real[0].name == 'sharp' else -len(real)) if real else 0
-        # (scores made by Finale) a key signature stands in both staves; the accidentals of a chord right after
+        # (scores made by Finale, and pages stored as images) a key signature stands in both staves; the accidentals of a chord right after
         # the barline do not
         if runs_ and runs_[0] and len(runs_[0]) == len(runs_[1]):
             for g in runs_[0] + runs_[1]: g.used = True

@@ -241,7 +241,7 @@ def link_curves(systems, measures):
             a.slur_place[num] = 'above' if over else 'below'
 
 
-def implied_triplets(m, L):
+def implied_triplets(m, L, with_rests=True):
     """Triplets written without their number (after the first ones, "simile"): if a voice of a staff (the notes
     with the stems in the same direction) is too long for the measure, and it fits exactly when some of its beamed
     groups of three, six or twelve equal notes are triplets, they are triplets."""
@@ -256,6 +256,8 @@ def implied_triplets(m, L):
             total = sum((e.dur for e in evs), F(0))
             if total <= L:
                 continue
+            if not with_rests and any(e.rest for e in evs):
+                continue        # (a rest read with a wrong length would make false triplets of its neighbours)
             groups = {}
             for e in evs:
                 if e.heads and e.beam_ids and e.tuplet is None:
@@ -266,7 +268,7 @@ def implied_triplets(m, L):
             taken = {id(e) for g in cand for e in g}
             seq = sorted(evs, key=lambda e: e.x)
             k = 0
-            while k + 3 <= len(seq):
+            while with_rests and k + 3 <= len(seq):
                 u = seq[k:k + 3]
                 notes = [e for e in u if e.heads]
                 whole_beams = all(len(groups.get(max(e.beam_ids), [])) == sum(1 for o in notes if o.beam_ids and max(o.beam_ids) == max(e.beam_ids))
@@ -301,8 +303,10 @@ def finish_part(measures, systems, sp):
         jl = getattr(m, 'jlen', None)
         if jl is not None:
             L = F(str(jl)).limit_denominator(96)
-            if systems and getattr(systems[0], 'finale', False):
-                implied_triplets(m, L)
+            if systems and (getattr(systems[0], 'finale', False) or getattr(systems[0], 'image', False)):
+                # (on a page stored as an image the lengths of the rests are less certain: only the beamed
+                # groups of three are taken for triplets there)
+                implied_triplets(m, L, with_rests=getattr(systems[0], 'finale', False))
             solve_measure(m, L, sp, False)
             if i == 0 and L < nominal:
                 m.implicit = True

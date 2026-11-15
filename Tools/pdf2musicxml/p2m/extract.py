@@ -15,6 +15,7 @@ class Shape:
     items: list = field(repr=False, default_factory=list)
     used: bool = False
     dashed: bool = False
+    name: str = None     # symbol name, when already known (pages stored as images, see raster.py)
 
     @property
     def w(self): return self.x1 - self.x0

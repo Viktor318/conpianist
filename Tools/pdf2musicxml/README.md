@@ -17,6 +17,10 @@ olvassa ki pontos koordinátákkal, és ezekből építi fel a kottát.
 
     py -m pip install pymupdf fonttools
 
+A képként tárolt kottaoldalakhoz (lásd „Képként tárolt kották”) még két csomag kell:
+
+    py -m pip install numpy opencv-python
+
 A `fonttools` a Finale-ből készült PDF-ekhez kell (lásd lent), a többihez nem.
 
 Opcionális: [Tesseract OCR](https://github.com/UB-Mannheim/tesseract/wiki) – a cím, a szerző és a tempójelzés
@@ -129,6 +133,22 @@ a hangok 97,6%-a egyezik összesen. Még nincs bekötve: a szöveges feliratok (
 megvannak, OCR nem kell hozzájuk), a szögletes vonallal jelölt pedál, a 8va karakter (a szaggatott vonalat
 kezeli), trillavonal, zárójelek. Ismert hibák: két szólam egy sorban (a ritmus
 szétesik), átkötések egy része, hosszú ívek, ismétlések sorrendje néhány kottában.
+
+## Képként tárolt kották (50 Classics, Original Compositions)
+
+Az 50 Classics 30 eredeti darabjából 26-nak a PDF-jében a kottaoldal egyetlen kép, nincsenek benne körvonalak.
+Ezeknél a `p2m/raster.py` a képből keresi meg a kottavonalakat, kottafejeket, szárakat, gerendákat, íveket és a
+többi jelet (a jelmintákat a `p2m/image_templates.json` tartalmazza), és ugyanolyan alakzatokat ad tovább, mint
+amilyeneket a vektoros oldalról olvas a szkript; innen a feldolgozás közös. A szkript magától felismeri az ilyen
+oldalt. Lassabb, mint a vektoros: kottánként 2–10 perc.
+
+A felismerés bizonytalanabb, mint a vektoros oldalon. Állapot (2026. november 15., a hangok egyezése a MIDI-vel):
+a Prelude, a Menuett BWV Anh.114 és a Maple Leaf Rag 99% fölött, a K.545, a Turkish March, a Für Elise és a
+The Entertainer 95% fölött; a sűrű, többszólamú darabok (Fantaisie-Impromptu, La prière d'une Vierge,
+Liebesträume) 70% körül vagy alatta. A szám nélküli triolák közül itt csak a hármas gerendacsoportokat veszi
+triolának (a szünetek hossza a képen bizonytalanabb).
+
+Nyomkövetés a fejlesztéshez: `P2M_DEBUG=mappa` (a felismert alakzatok képe oldalanként), `P2M_TRACE=x0,y0,x1,y1`.
 
 ## Amit felismer
 
