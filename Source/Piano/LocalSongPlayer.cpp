@@ -162,6 +162,76 @@ int LocalSongPlayer::LeadInTicks(const MidiFile& midiFile)
 	return leadIn;
 }
 
+bool LocalSongPlayer::FirstNotePlace(const File& file, double& fromStart, double& toEnd)
+{
+	fromStart = 0.0;
+	toEnd = 0.0;
+	FileInputStream stream(file);
+	MidiFile midiFile;
+	if (!stream.openedOk() || !ReadMidiFile(stream, midiFile))
+	{
+		return false;
+	}
+	const int ticksPerQuarter = midiFile.getTimeFormat();
+	if (ticksPerQuarter <= 0)
+	{
+		return false;
+	}
+
+	// the first note, and the time signatures (4/4 unless the file says otherwise)
+	struct Signature { int tick; int measureTicks; };
+	std::vector<Signature> signatures;
+	int firstNoteTick = std::numeric_limits<int>::max();
+	for (int t = 0; t < midiFile.getNumTracks(); t++)
+	{
+		const MidiMessageSequence* track = midiFile.getTrack(t);
+		for (int i = 0; i < track->getNumEvents(); i++)
+		{
+			const MidiMessage& msg = track->getEventPointer(i)->message;
+			const int tick = roundToInt(msg.getTimeStamp());
+			if (msg.isNoteOn())
+			{
+				firstNoteTick = std::min(firstNoteTick, tick);
+			}
+			else if (msg.isTimeSignatureMetaEvent())
+			{
+				int numerator, denominator;
+				msg.getTimeSignatureInfo(numerator, denominator);
+				signatures.push_back({tick, std::max(1, numerator) * std::max(1, ticksPerQuarter * 4 / std::max(1, denominator))});
+			}
+		}
+	}
+	if (firstNoteTick == std::numeric_limits<int>::max())
+	{
+		return false;
+	}
+	std::stable_sort(signatures.begin(), signatures.end(),
+		[](const Signature& a, const Signature& b) { return a.tick < b.tick; });
+	auto measureTicksAt = [&](int tick)
+	{
+		int measureTicks = ticksPerQuarter * 4;
+		for (const Signature& signature : signatures)
+		{
+			if (signature.tick <= tick)
+			{
+				measureTicks = signature.measureTicks;
+			}
+		}
+		return measureTicks;
+	};
+
+	// the measure of the first note: the measures are counted from the end of the empty
+	// measures left out (from the beginning of the file if there are none)
+	int measureStart = LeadInTicks(midiFile);
+	while (measureStart + measureTicksAt(measureStart) <= firstNoteTick)
+	{
+		measureStart += measureTicksAt(measureStart);
+	}
+	fromStart = (double)(firstNoteTick - measureStart) / ticksPerQuarter;
+	toEnd = (double)(measureStart + measureTicksAt(measureStart) - firstNoteTick) / ticksPerQuarter;
+	return true;
+}
+
 bool LocalSongPlayer::Load(const File& file)
 {
 	FileInputStream stream(file);

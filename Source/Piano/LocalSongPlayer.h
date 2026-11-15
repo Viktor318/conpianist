@@ -82,6 +82,13 @@ public:
 	// positions of the two players are the same, and the score of the song fits both.
 	static int LeadInTicks(const MidiFile& midiFile);
 
+	// The place of the first note of a song file in its measure (the first measure of the
+	// song, see LeadInTicks): how far it is from the beginning of the measure and from its
+	// end, in quarter notes. False if the file cannot be read or there is no note in it.
+	// A song beginning with grace notes has a measure of its own for them: the grace notes
+	// sound at its very end, before the first beat of the first measure of the score.
+	static bool FirstNotePlace(const File& file, double& fromStart, double& toEnd);
+
 	LocalSongPlayer() { ResetMixer(); }
 	~LocalSongPlayer() override;
 

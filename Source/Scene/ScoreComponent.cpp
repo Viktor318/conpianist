@@ -151,6 +151,10 @@ private:
 	// the time where that begins inside the played measure
 	std::map<int, std::pair<int, TimeUnits>> m_splitMeasures;
 	int m_scoreMeasures = 0;
+	// The measures at the beginning of the song which are not in the score (see
+	// ReadLeadMeasure): they stand at the beginning of the playback order, the position
+	// line waits at the beginning of the score while they are played
+	int m_leadMeasures = 0;
 	// Moving the A-B marks with the mouse: the mark being dragged (0: none, 1: A, 2: B)
 	// and the position it is shown at while dragged
 	int m_dragMark = 0;
@@ -185,6 +189,7 @@ private:
 	int ScoreMeasure(int playedMeasure);
 	int PlayedMeasure(int scoreMeasure);
 	void UpdateScoreEnd();
+	void ReadLeadMeasure(const File& file);
 	void SetViewport(int y);
 	void LimitViewport();
 	int ScoreBottom();
@@ -1023,6 +1028,39 @@ static void PrepareScoreText(String& content)
 	}
 }
 
+// The missing time of a pickup (an incomplete first measure) of the score, 0 if its first
+// measure is whole. For a score beginning with grace notes Lomse reports a pickup too (the
+// time of the grace notes sounding before the first beat, the rest of a measure is
+// "missing"), but the first measure of such a score is a whole measure.
+static TimeUnits PickupMissingTime(ImoScore* score)
+{
+	ColStaffObjs* staffObjs = score != nullptr ? score->get_staffobjs_table() : nullptr;
+	if (staffObjs == nullptr || !staffObjs->is_anacrusis_start())
+	{
+		return 0.0;
+	}
+	const TimeUnits missing = staffObjs->anacrusis_missing_time();
+	const TimeUnits graces = staffObjs->anacrusis_extra_time();
+	ImMeasuresTable* table = graces > 0.0 && score->get_num_instruments() > 0 ?
+		score->get_instrument(0)->get_measures_table() : nullptr;
+	ImMeasuresTableEntry* first = table != nullptr ? table->get_measure(0) : nullptr;
+	ImMeasuresTableEntry* second = table != nullptr ? table->get_measure(1) : nullptr;
+	ImMeasuresTableEntry* third = table != nullptr ? table->get_measure(2) : nullptr;
+	if (first != nullptr && second != nullptr)
+	{
+		// with grace notes only, the missing time and the grace notes make a whole measure:
+		// the first measure is as long (and the second one is not longer: a pickup of
+		// half a measure with grace notes gives the same sum)
+		const TimeUnits length = second->get_timepos() - first->get_timepos();
+		const bool longerSecond = third != nullptr && third->get_timepos() - second->get_timepos() > length + 1.0;
+		if (std::abs(length - (missing + graces)) < 1.0 && !longerSecond)
+		{
+			return 0.0;
+		}
+	}
+	return missing;
+}
+
 // The playback order of the measures of a score with repeats (repeat signs, voltas, D.C.,
 // D.S., Fine, Coda), as Lomse works it out: for each played measure (0..) the measure of
 // the score (0..). The passes (the parts played straight through, between two jumps) are
@@ -1176,6 +1214,7 @@ void LomseScoreComponent::LoadDocument(String content)
 	interactor->switch_task(TaskFactory::k_task_drag_view);
 
 	// the playback order of the measures, while all instruments are in the score
+	m_leadMeasures = 0;
 	ReadPlaybackOrder(dynamic_cast<ImoScore*>(m_presenter->get_document_raw_ptr()->get_im_root()->get_content_item(0)),
 		m_playOrder, m_passStarts, m_scoreMeasures, &m_splitMeasures);
 	if (!m_playOrder.empty())
@@ -1663,6 +1702,79 @@ bool LomseScoreComponent::FollowsPlaybackOrder()
 	return std::abs(length - (int)m_playOrder.size()) < std::abs(length - m_scoreMeasures);
 }
 
+// A song beginning with grace notes: in the song file of Yamaha (and in the piano's own
+// copy) the grace notes sound before the first beat, at the very end of a measure of their
+// own, which is not in the score. The piano and the player of the program both play that
+// measure, so the first measure of the score is the second measure of the song. Such a
+// measure is put at the beginning of the playback order (shown at the first measure of the
+// score, where the position line waits, see UpdateTempoLine): every measure after it is
+// shown in its place. It is recognized from the song file beside the score (the same name,
+// .mid): the first note sounds in the last half quarter of its measure, while the first
+// measure of the score is a whole measure (not a pickup) beginning with a note. A real
+// pickup (it is in the score) and a song beginning with a rest are not such measures.
+void LomseScoreComponent::ReadLeadMeasure(const File& file)
+{
+	m_leadMeasures = 0;
+	ImoScore* score = GetScore();
+	ColStaffObjs* staffObjs = score != nullptr ? score->get_staffobjs_table() : nullptr;
+	if (staffObjs == nullptr || m_scoreMeasures <= 0 || PickupMissingTime(score) > 0.0)
+	{
+		return;
+	}
+	File song = file.withFileExtension(".mid");
+	if (!song.existsAsFile())
+	{
+		song = file.withFileExtension(".midi");
+	}
+	double fromStart = 0.0;
+	double toEnd = 0.0;
+	if (!song.existsAsFile() || !LocalSongPlayer::FirstNotePlace(song, fromStart, toEnd) ||
+		toEnd >= 0.5 || fromStart < 0.5)
+	{
+		return;
+	}
+	// the first note of the score (a grace note stands at the time of its main note)
+	TimeUnits firstNote = -1.0;
+	for (ColStaffObjsEntry* entry = staffObjs->front(); entry != nullptr; entry = entry->get_next())
+	{
+		if (entry->imo_object()->is_note())
+		{
+			firstNote = entry->time();
+			break;
+		}
+	}
+	if (firstNote < 0.0 || firstNote > 1.0)
+	{
+		return; // the score begins with a rest
+	}
+
+	if (m_playOrder.empty())
+	{
+		// the score is played straight through
+		for (int i = 0; i < m_scoreMeasures; i++)
+		{
+			m_playOrder.push_back(i);
+		}
+		m_passStarts.assign(1, 0);
+	}
+	m_playOrder.insert(m_playOrder.begin(), 0);
+	for (int& start : m_passStarts)
+	{
+		if (start > 0)
+		{
+			start++;
+		}
+	}
+	std::map<int, std::pair<int, TimeUnits>> splitMeasures;
+	for (const auto& split : m_splitMeasures)
+	{
+		splitMeasures[split.first + 1] = split.second;
+	}
+	m_splitMeasures = splitMeasures;
+	m_leadMeasures = 1;
+	juce::Logger::writeToLog("[SCORE] The song begins with a measure of grace notes which is not in the score");
+}
+
 // The end of the score in the song (see PianoController::SetScoreEnd): the last beat of
 // the last played measure (with repeats: of the playback order, e.g. the Fine). The song
 // is played up to there, also if the file goes on after it.
@@ -1688,9 +1800,9 @@ void LomseScoreComponent::UpdateScoreEnd()
 	const TimeUnits end = next != nullptr ? next->get_timepos() :
 		last != nullptr ? last->time() + last->imo_object()->get_duration() : entry->get_timepos();
 	TimeUnits length = end - entry->get_timepos();
-	if (measure == 0 && staffObjs != nullptr && staffObjs->is_anacrusis_start())
+	if (measure == 0)
 	{
-		length += staffObjs->anacrusis_missing_time(); // (see BeatLocation)
+		length += PickupMissingTime(score); // (see BeatLocation)
 	}
 	// (a beat begun is played to its end)
 	const int beats = std::max(1, (int)std::ceil(length / entry->get_bottom_ts_beat_duration() - 0.01));
@@ -1724,7 +1836,8 @@ int LomseScoreComponent::PlayedMeasure(int scoreMeasure)
 	const int current = jlimit(0, count - 1, m_pianoController.GetPosition().measure - 1);
 
 	const auto nextPass = std::upper_bound(m_passStarts.begin(), m_passStarts.end(), current);
-	const int passStart = nextPass == m_passStarts.begin() ? 0 : *(nextPass - 1);
+	// (a measure of the score is never shown by a lead measure, see ReadLeadMeasure)
+	const int passStart = std::max(m_leadMeasures, nextPass == m_passStarts.begin() ? 0 : *(nextPass - 1));
 	const int passEnd = nextPass == m_passStarts.end() ? count : *nextPass;
 	for (int i = passStart; i < passEnd; i++)
 	{
@@ -1735,7 +1848,7 @@ int LomseScoreComponent::PlayedMeasure(int scoreMeasure)
 	}
 
 	int nearest = -1;
-	for (int i = 0; i < count; i++)
+	for (int i = m_leadMeasures; i < count; i++)
 	{
 		if (m_playOrder[i] == scoreMeasure && (nearest < 0 || std::abs(i - current) <= std::abs(nearest - current)))
 		{
@@ -1862,11 +1975,10 @@ bool LomseScoreComponent::BeatAtPoint(const MouseEvent& event, bool wholeMeasure
 		std::max(locator.location, beat);
 	// the beats of the piano in a pickup are counted from the start of the whole measure
 	// (see BeatLocation)
-	ColStaffObjs* staffObjs = score->get_staffobjs_table();
 	TimeUnits missing = 0.0;
-	if (locator.iMeasure == 0 && staffObjs != nullptr && staffObjs->is_anacrusis_start())
+	if (locator.iMeasure == 0)
 	{
-		missing = staffObjs->anacrusis_missing_time();
+		missing = PickupMissingTime(score);
 	}
 	point.scoreMeasure = locator.iMeasure;
 	point.beats = std::max(1, roundToInt((length + missing) / beat));
@@ -2066,7 +2178,9 @@ void LomseScoreComponent::UpdateTempoLine(bool scroll)
 	Document* doc = m_presenter->get_document_raw_ptr();
 	ImoScore* score = dynamic_cast<ImoScore*>(doc->get_im_root()->get_content_item(0));
 	int measure = ScoreMeasure(songPosition.measure - 1);
-	TimeUnits location = BeatLocation(score, measure, songPosition.beat - 1);
+	// (during a lead measure the line waits at the beginning of the score, see ReadLeadMeasure)
+	const bool lead = songPosition.measure - 1 < m_leadMeasures && FollowsPlaybackOrder();
+	TimeUnits location = BeatLocation(score, measure, lead ? 0 : songPosition.beat - 1);
 	// a played measure made of two incomplete measures of the score (see ReadPlaybackOrder):
 	// its last beats are shown in the second one
 	const auto split = m_splitMeasures.find(songPosition.measure - 1);
@@ -2114,10 +2228,9 @@ TimeUnits LomseScoreComponent::BeatLocation(ImoScore* score, int measure, int be
 	// that), so the beats of the piano are counted from the start of the whole measure.
 	// Without this the position line ran past the pickup into the second measure and
 	// jumped back when the piano reached it.
-	ColStaffObjs* staffObjs = score->get_staffobjs_table();
-	if (measure == 0 && staffObjs != nullptr && staffObjs->is_anacrusis_start())
+	if (measure == 0)
 	{
-		location = std::max(0.0, location - staffObjs->anacrusis_missing_time());
+		location = std::max(0.0, location - PickupMissingTime(score));
 	}
 	return location;
 }
@@ -2555,6 +2668,7 @@ void LomseScoreComponent::ShowScore(const File& file, const String& content)
 	{
 		PrepareImage();
 	}
+	ReadLeadMeasure(file);
 	UpdateScoreEnd();
 
 	loadButton->setVisible(m_presenter == nullptr);
