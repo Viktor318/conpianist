@@ -128,7 +128,7 @@ public:
 	static const int MinRecorderSilence = 2;
 	static const int MaxRecorderSilence = 60;
 	bool recorderAutomatic = true;
-	static const int DefaultRecorderSilence = 5;
+	static const int DefaultRecorderSilence = 3;
 	int recorderSilence = DefaultRecorderSilence;
 	bool recorderStyle = true;
 	bool recorderPlayback = false; // the playback of the own player is recorded too
@@ -151,6 +151,7 @@ public:
 	bool recorderAudio = false; // the sound of the piano is recorded too (an audio file beside the MIDI file)
 	int recorderAudioFormat = 0; // 0: WAV, 1: FLAC, 2: MP3 (see AudioCapture::Format)
 	bool recorderAudioNormalize = false; // the saved audio is normalized
+	bool recorderAudioContinue = false; // the audio goes on until the song or the accompaniment ends
 	// Accompaniment window: a fill in is played when the main section is changed
 	bool accompanimentAutoFill = false;
 	// the (major) key of the music, for the names of the chords: empty - as the piano

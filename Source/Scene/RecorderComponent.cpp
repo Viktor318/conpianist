@@ -54,7 +54,7 @@ RecorderComponent::RecorderComponent(Settings& settings, PianoController& pianoC
 	addAndMakeVisible(autoButton);
 
 	manualButton.setButtonText(TRANS("Manual"));
-	manualButton.setTooltip(TRANS("The recording is started and stopped with the buttons"));
+	manualButton.setTooltip(TRANS("The recording starts with the first played note (with a count-in: after it) and is stopped with the Stop button"));
 	manualButton.setRadioGroupId(1);
 	manualButton.setClickingTogglesState(true);
 	manualButton.addListener(this);
@@ -178,6 +178,11 @@ RecorderComponent::RecorderComponent(Settings& settings, PianoController& pianoC
 	normalizeButton.addListener(this);
 	addAndMakeVisible(normalizeButton);
 
+	continueButton.setButtonText(TRANS("Continue recording until the song/accompaniment ends"));
+	continueButton.setTooltip(TRANS("When the recording is stopped, the audio goes on until the song or the accompaniment has ended (there is silence); the Stop button ends it at once. When off, the audio ends at once when the recording stops"));
+	continueButton.addListener(this);
+	addAndMakeVisible(continueButton);
+
 	quantizeButton.setButtonText(TRANS("Quantize"));
 	quantizeButton.setTooltip(TRANS("The notes of the saved (and listened) recording are moved to the nearest beat division; useful for making a score from a recording played with the metronome or with a song"));
 	quantizeButton.addListener(this);
@@ -293,6 +298,7 @@ RecorderComponent::RecorderComponent(Settings& settings, PianoController& pianoC
 	audioButton.setToggleState(settings.recorderAudio, dontSendNotification);
 	formatCombo.setSelectedId(settings.recorderAudioFormat + 1, dontSendNotification);
 	normalizeButton.setToggleState(settings.recorderAudioNormalize, dontSendNotification);
+	continueButton.setToggleState(settings.recorderAudioContinue, dontSendNotification);
 	pianoController.SetRecordPlayback(settings.recorderPlayback);
 	countInCombo.setSelectedId(settings.recorderCountIn + 1, dontSendNotification);
 	quantizeButton.setToggleState(settings.recorderQuantize, dontSendNotification);
@@ -341,7 +347,7 @@ RecorderComponent::~RecorderComponent()
 }
 
 // vertical positions of the lines between the groups of the controls
-static const int SeparatorY[] = {234, 350, 430, 582}; // (after the two rows of the audio: 56 lower)
+static const int SeparatorY[] = {262, 378, 458, 610}; // (after the three rows of the audio: 84 lower)
 
 void RecorderComponent::paint(Graphics& g)
 {
@@ -392,58 +398,59 @@ void RecorderComponent::resized()
 		formatCombo.setBounds(40 + labelWidth, 196, 232 - (40 + labelWidth), 24);
 		normalizeButton.setBounds(236, 196, 188, 24);
 	}
+	continueButton.setBounds(36, 224, 388, 24);
 	// metronome
-	metronomeButton.setBounds(12, 244, 120, 24);
-	bellButton.setBounds(136, 244, 100, 24);
-	countInCombo.setBounds(240, 244, 184, 24);
+	metronomeButton.setBounds(12, 272, 120, 24);
+	bellButton.setBounds(136, 272, 100, 24);
+	countInCombo.setBounds(240, 272, 184, 24);
 	{
 		const int labelWidth = jlimit(60, 170, textWidth(tempoLabel.getText()) + 10);
-		tempoLabel.setBounds(16, 280, labelWidth, 24);
-		tempoSlider.setBounds(16 + labelWidth, 280, 120, 24);
-		beatCombo.setBounds(16 + labelWidth + 120 + 8, 280, 110, 24);
+		tempoLabel.setBounds(16, 308, labelWidth, 24);
+		tempoSlider.setBounds(16 + labelWidth, 308, 120, 24);
+		beatCombo.setBounds(16 + labelWidth + 120 + 8, 308, 110, 24);
 	}
 	{
 		// the value box right after the text, the slider to the end of the row
 		const int labelWidth = jlimit(60, 170, textWidth(metronomeVolumeLabel.getText()) + 10);
-		metronomeVolumeLabel.setBounds(16, 316, labelWidth, 24);
-		metronomeVolumeSlider.setBounds(16 + labelWidth, 316, 424 - (16 + labelWidth), 24);
+		metronomeVolumeLabel.setBounds(16, 344, labelWidth, 24);
+		metronomeVolumeSlider.setBounds(16 + labelWidth, 344, 424 - (16 + labelWidth), 24);
 	}
 	// quantization
 	{
 		// the tick box and the text of the button, then the two lists
 		const int buttonWidth = jlimit(70, 140, textWidth(quantizeButton.getButtonText()) + 40);
-		quantizeButton.setBounds(12, 360, buttonWidth, 24);
-		quantizeCombo.setBounds(12 + buttonWidth, 360, 126, 24);
-		tripletCombo.setBounds(12 + buttonWidth + 126 + 8, 360, 150, 24);
+		quantizeButton.setBounds(12, 388, buttonWidth, 24);
+		quantizeCombo.setBounds(12 + buttonWidth, 388, 126, 24);
+		tripletCombo.setBounds(12 + buttonWidth + 126 + 8, 388, 150, 24);
 	}
-	quantizeEndsButton.setBounds(12, 396, 222, 24);
-	quantizeFillButton.setBounds(240, 396, 184, 24);
+	quantizeEndsButton.setBounds(12, 424, 222, 24);
+	quantizeFillButton.setBounds(240, 424, 184, 24);
 	// file and state
 	{
 		// the name right after its label; the Folder button at the end of the row
 		const int labelWidth = jlimit(40, 120, textWidth(nameLabel.getText()) + 10);
-		nameLabel.setBounds(16, 440, labelWidth, 24);
-		nameEditor.setBounds(16 + labelWidth, 440, 424 - (16 + labelWidth), 24);
+		nameLabel.setBounds(16, 468, labelWidth, 24);
+		nameEditor.setBounds(16 + labelWidth, 468, 424 - (16 + labelWidth), 24);
 	}
 	// where the recording goes (like the tick boxes of the quantization), and the preview
-	dateFoldersButton.setBounds(12, 472, 222, 24);
-	timestampButton.setBounds(240, 472, 184, 24);
-	previewLabel.setBounds(16, 502, 408, 20);
+	dateFoldersButton.setBounds(12, 500, 222, 24);
+	timestampButton.setBounds(240, 500, 184, 24);
+	previewLabel.setBounds(16, 530, 408, 20);
 	updatePreview();
-	folderButton.setBounds(16, 536, 200, 32);
-	loadButton.setBounds(224, 536, 200, 32);
+	folderButton.setBounds(16, 564, 200, 32);
+	loadButton.setBounds(224, 564, 200, 32);
 	// recording, saving, discarding; the messages; playing back
-	recordButton.setBounds(16, 594, 128, 32);
-	saveButton.setBounds(156, 594, 128, 32);
-	discardButton.setBounds(296, 594, 128, 32);
-	statusLabel.setBounds(16, 634, 408, 28);
-	listenButton.setBounds(16, 672, 140, 32);
-	positionLabel.setBounds(164, 672, 260, 32);
+	recordButton.setBounds(16, 622, 128, 32);
+	saveButton.setBounds(156, 622, 128, 32);
+	discardButton.setBounds(296, 622, 128, 32);
+	statusLabel.setBounds(16, 662, 408, 28);
+	listenButton.setBounds(16, 700, 140, 32);
+	positionLabel.setBounds(164, 700, 260, 32);
 	positionLabel.setJustificationType(Justification::centredRight);
 	{
 		const int labelWidth = jlimit(40, 120, textWidth(positionCaption.getText()) + 6);
-		positionCaption.setBounds(16, 720, labelWidth, 24);
-		positionSlider.setBounds(16 + labelWidth, 720, 428 - (16 + labelWidth), 24);
+		positionCaption.setBounds(16, 748, labelWidth, 24);
+		positionSlider.setBounds(16 + labelWidth, 748, 428 - (16 + labelWidth), 24);
 	}
 }
 
@@ -457,7 +464,13 @@ void RecorderComponent::mouseDoubleClick(const MouseEvent& event)
 
 void RecorderComponent::buttonClicked(Button* button)
 {
-	if (button == &recordButton && pianoController.GetRecorder().GetState() != LiveRecorder::stIdle)
+	if (button == &recordButton && audioFading())
+	{
+		// the audio goes on after the recording (until the song ends): ended at once
+		audioRecorder.GetCapture().StopNow();
+		timerCallback();
+	}
+	else if (button == &recordButton && pianoController.GetRecorder().GetState() != LiveRecorder::stIdle)
 	{
 		// the same button stops the recording (or cancels the waiting for its start)
 		stopRecording();
@@ -534,7 +547,7 @@ void RecorderComponent::buttonClicked(Button* button)
 	else if (button == &autoButton || button == &manualButton || button == &noneButton ||
 		button == &styleButton || button == &playbackButton || button == &separateButton ||
 		button == &quantizeButton || button == &quantizeEndsButton || button == &quantizeFillButton ||
-		button == &dateFoldersButton || button == &timestampButton || button == &audioButton || button == &normalizeButton)
+		button == &dateFoldersButton || button == &timestampButton || button == &audioButton || button == &normalizeButton || button == &continueButton)
 	{
 		// (the accompaniment or the playback is recorded, not both: radio buttons)
 		pianoController.SetRecordPlayback(playbackButton.getToggleState());
@@ -563,7 +576,8 @@ void RecorderComponent::saveOptions()
 	const bool audio = audioButton.getToggleState();
 	const int audioFormatIndex = jlimit(0, 2, formatCombo.getSelectedId() - 1);
 	const bool normalize = normalizeButton.getToggleState();
-	if (audioFormatIndex != settings.recorderAudioFormat || normalize != settings.recorderAudioNormalize ||
+	const bool audioContinue = continueButton.getToggleState();
+	if (audioContinue != settings.recorderAudioContinue || audioFormatIndex != settings.recorderAudioFormat || normalize != settings.recorderAudioNormalize ||
 		audio != settings.recorderAudio || separate != settings.recorderSeparateStyle || dateFolders != settings.recorderDateFolders || timestamp != settings.recorderTimestamp ||
 		automatic != settings.recorderAutomatic || silence != settings.recorderSilence ||
 		style != settings.recorderStyle || playback != settings.recorderPlayback ||
@@ -588,6 +602,7 @@ void RecorderComponent::saveOptions()
 		settings.recorderAudio = audio;
 		settings.recorderAudioFormat = audioFormatIndex;
 		settings.recorderAudioNormalize = normalize;
+		settings.recorderAudioContinue = audioContinue;
 		settings.Save();
 	}
 	updatePreview();
@@ -596,7 +611,7 @@ void RecorderComponent::saveOptions()
 
 void RecorderComponent::startRecording()
 {
-	if (pianoController.GetRecorder().GetState() != LiveRecorder::stIdle || audioJob != nullptr)
+	if (pianoController.GetRecorder().GetState() != LiveRecorder::stIdle || audioJob != nullptr || audioFading())
 	{
 		return;
 	}
@@ -638,8 +653,10 @@ void RecorderComponent::startRecording()
 	}
 	// a recorded accompaniment starts and keeps the automatic recording going
 	pianoController.GetRecorder().SetStyleCounts(styleButton.getToggleState() && recordedWithPiano);
-	if (autoButton.getToggleState())
+	if (autoButton.getToggleState() || countIn == 0)
 	{
+		// waits for the first note; in manual mode too (without a count-in): the two modes
+		// differ only in how the recording stops
 		pianoController.StartRecording(true);
 	}
 	else if (countIn > 0)
@@ -1396,7 +1413,7 @@ void RecorderComponent::timerCallback()
 	{
 		if (capture.GetState() == AudioCapture::stWriting && recorder.HasData())
 		{
-			capture.EndAt(recorder.GetEndMs(withStyle()));
+			capture.EndAt(recorder.GetEndMs(withStyle()), continueButton.getToggleState());
 		}
 		else if (capture.GetState() == AudioCapture::stWriting || capture.GetState() == AudioCapture::stArmed)
 		{
@@ -1473,7 +1490,9 @@ void RecorderComponent::updateControls()
 
 	// Record / Stop
 	const LiveRecorder::State state = recorder.GetState();
-	const RecordButton::Look look = state == LiveRecorder::stRecording ? RecordButton::Look::recording :
+	// (while the audio goes on after the recording, the button still stops it)
+	const bool audioGoesOn = audioFading();
+	const RecordButton::Look look = state == LiveRecorder::stRecording || audioGoesOn ? RecordButton::Look::recording :
 		idle ? RecordButton::Look::idle : RecordButton::Look::waiting;
 	if (recordButton.look != look)
 	{
@@ -1482,11 +1501,10 @@ void RecorderComponent::updateControls()
 		recordButton.repaint();
 	}
 	// waiting for the start (armed, count-in): "Record", blinking; pressed, it cancels
-	recordButton.setButtonText(state == LiveRecorder::stRecording ? TRANS("Stop") : TRANS("Record"));
-	// (while the sound of the previous recording is fading, a new one cannot be started)
-	// (nor while its audio is being saved)
-	const bool fading = audioFading() || audioJob != nullptr;
-	recordButton.setEnabled(!fading);
+	recordButton.setButtonText(state == LiveRecorder::stRecording || audioGoesOn ? TRANS("Stop") : TRANS("Record"));
+	// (while the audio of the recording goes on or is being saved, nothing else can be done with it)
+	const bool fading = audioGoesOn || audioJob != nullptr;
+	recordButton.setEnabled(audioJob == nullptr);
 
 	// Play / Stop: the new recording, or the loaded file; a loaded file can be started
 	// during a recording too (a new layer recorded to it)
@@ -1522,8 +1540,9 @@ void RecorderComponent::updateControls()
 		audioButton.setTooltip(!chosen ? TRANS("No audio interface is chosen: choose it in the main menu (Tools, Audio Interface)") :
 			failed ? TRANS("The audio interface cannot be opened: the piano may be switched off, or another program may be using it. Then open this window again.") :
 			TRANS("The sound of the piano is recorded too, through the audio interface chosen in the main menu (Tools, Audio Interface), into an audio file saved beside the MIDI file; the level shows that the sound arrives"));
-		// the format and the normalizing are choices of the saving: until the audio is saved
-		const bool withAudio = audioButton.getToggleState() && chosen && !fading && !audioSaved;
+		// the format, the normalizing and the end belong to the audio: they can be set whenever
+		// it is on (for the recording in hand until it is saved, else for the next one)
+		const bool withAudio = audioButton.getToggleState();
 		const bool hasLame = AudioRecorder::FindLame().existsAsFile();
 		formatLabel.setEnabled(withAudio);
 		formatCombo.setEnabled(withAudio);
@@ -1531,6 +1550,7 @@ void RecorderComponent::updateControls()
 		formatCombo.setTooltip(hasLame ? TRANS("The format of the audio file: WAV and FLAC keep the sound unchanged (FLAC is about half the size), MP3 is small and plays everywhere (320 kb/s)") :
 			TRANS("The format of the audio file. MP3 needs the LAME encoder: put lame.exe (and its DLL) beside the program, or into this folder:") + " " + AudioRecorder::GetLameFolder().getFullPathName());
 		normalizeButton.setEnabled(withAudio);
+		continueButton.setEnabled(withAudio);
 	}
 }
 
@@ -1666,7 +1686,7 @@ void RecorderComponent::updateStatus()
 			}
 			else if (audioFading())
 			{
-				text = TRANS("Waiting for the sound to fade...");
+				text = TRANS("Waiting for the song/accompaniment to end...");
 				colour = Colours::orange;
 			}
 			else if (message.isNotEmpty())

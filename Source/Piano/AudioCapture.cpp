@@ -163,13 +163,39 @@ bool AudioCapture::BeginWriting()
 	return true;
 }
 
-void AudioCapture::EndAt(double midiEndMs)
+void AudioCapture::EndAt(double midiEndMs, bool untilSilence)
 {
-	if (m_state.load() == stWriting)
+	if (m_state.load() != stWriting)
 	{
-		m_midiEndMs = midiEndMs;
-		m_state = stTail;
+		return;
 	}
+	m_midiEndMs = midiEndMs;
+	if (untilSilence)
+	{
+		m_state = stTail; // (see Poll)
+	}
+	else
+	{
+		EndNow(jmax(m_fileFirst, SampleAt(midiEndMs)));
+	}
+}
+
+void AudioCapture::StopNow()
+{
+	if (m_state.load() == stTail)
+	{
+		EndNow(jmax(m_fileFirst, SampleAt(m_midiEndMs)));
+	}
+}
+
+// The end is where the samples are now; if the sound ended earlier (after the end of the
+// MIDI recording), a little after that.
+void AudioCapture::EndNow(int64 midiEnd)
+{
+	const int64 total = m_total.load();
+	const int64 soundEnd = jmax(m_lastLoud.load(), midiEnd) + (int64)(KeptSilenceSeconds * m_sampleRate);
+	m_cutWhileSounding = soundEnd >= total;
+	FinishWriting(jmin(total, soundEnd));
 }
 
 // The sample that sounded at the given time: it arrived later by the latency of the input.
@@ -190,6 +216,7 @@ void AudioCapture::Poll()
 	}
 	if (state == stWriting && m_failed.load())
 	{
+		m_cutWhileSounding = false;
 		FinishWriting(m_filePos.load()); // what has been written is kept
 		return;
 	}
@@ -203,18 +230,13 @@ void AudioCapture::Poll()
 		FinishWriting(jmin(total, m_filePos.load()));
 		return;
 	}
-	// The tail is counted from the end of the MIDI recording: until the sound has been
-	// below the silence level for a while (it may have been so already), but not longer
-	// than the longest tail. A little of the silence is kept at the end.
+	// The audio goes on after the MIDI recording until the sound has been below the silence
+	// level for a while (it may have been so already); a little of the silence is kept.
 	const int64 midiEnd = jmax(m_fileFirst, SampleAt(m_midiEndMs));
 	const int64 lastLoud = jmax(m_lastLoud.load(), midiEnd);
-	const int64 longest = midiEnd + (int64)(MaxTailSeconds * m_sampleRate);
-	if (total >= longest)
+	if (total >= midiEnd && total - lastLoud >= (int64)(SilenceSeconds * m_sampleRate))
 	{
-		FinishWriting(longest);
-	}
-	else if (total >= midiEnd && total - lastLoud >= (int64)(SilenceSeconds * m_sampleRate))
-	{
+		m_cutWhileSounding = false;
 		FinishWriting(jmin(total, lastLoud + (int64)(KeptSilenceSeconds * m_sampleRate)));
 	}
 }
@@ -484,7 +506,7 @@ bool AudioCapture::Save(const File& file, double startMs, const SaveOptions& opt
 			WriteWavHeader(*out, roundToInt(m_sampleRate), end - start);
 		}
 
-		const int64 fadeFrames = jmax((int64)1, (int64)(FadeSeconds * m_sampleRate));
+		const int64 fadeFrames = jmax((int64)1, (int64)((m_cutWhileSounding ? CutFadeSeconds : FadeSeconds) * m_sampleRate));
 		HeapBlock<uint8> bytes((size_t)(WriteChunkFrames * NumChannels * 3));
 		HeapBlock<float> channelData[NumChannels];
 		for (auto& channel : channelData)

@@ -93,6 +93,7 @@ private:
 	Label formatLabel;
 	ComboBox formatCombo;        // the format of the audio file; the item ids: Format + 1
 	ToggleButton normalizeButton; // the saved audio is normalized
+	ToggleButton continueButton;  // the audio goes on until the song or the accompaniment ends
 	ToggleButton quantizeButton;
 	ComboBox quantizeCombo;      // the grid; the item ids are ticks
 	ComboBox tripletCombo;       // the triplet grid; the item ids are ticks, NoTripletId: none
@@ -166,12 +167,12 @@ private:
 	bool recordedWithPiano = false; // the recording in hand was made with the piano connected
 	// The audio of the recording. The audio interface is used (open) while the option is on
 	// and the window is shown, and until a recording with audio is finished.
-	static const int AudioRowsHeight = 56; // the rows of the Record audio option and of its format
+	static const int AudioRowsHeight = 84; // the rows of the Record audio option, its format, its end
 	bool audioAcquired = false;
 	bool audioSaved = false;  // the audio of the recording in hand has been saved
 	AudioCapture::State lastAudioState = AudioCapture::stIdle;
 	void updateAudioDevice();
-	bool audioFading() const; // the MIDI recording has ended, the sound is still fading
+	bool audioFading() const; // the MIDI recording has ended, the audio still goes on
 	// The audio is saved on a thread of its own (normalizing and converting take a while):
 	// started when the MIDI file has been saved, once for a recording; when it is ready,
 	// the audio is added to the line of the saved files (see timerCallback).

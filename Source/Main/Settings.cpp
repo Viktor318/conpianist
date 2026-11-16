@@ -92,6 +92,7 @@ void Settings::Save()
 	prop.setValue("Recorder.Audio", recorderAudio);
 	prop.setValue("Recorder.AudioFormat", recorderAudioFormat);
 	prop.setValue("Recorder.AudioNormalize", recorderAudioNormalize);
+	prop.setValue("Recorder.AudioContinue", recorderAudioContinue);
 	prop.setValue("Accompaniment.AutoFill", accompanimentAutoFill);
 	prop.setValue("Accompaniment.Key", accompanimentKey);
 	prop.setValue("Accompaniment.KeyMinor", accompanimentMinor);
@@ -198,6 +199,7 @@ void Settings::Load()
 	recorderAudio = prop.getBoolValue("Recorder.Audio", recorderAudio);
 	recorderAudioFormat = jlimit(0, 2, prop.getIntValue("Recorder.AudioFormat", recorderAudioFormat));
 	recorderAudioNormalize = prop.getBoolValue("Recorder.AudioNormalize", recorderAudioNormalize);
+	recorderAudioContinue = prop.getBoolValue("Recorder.AudioContinue", recorderAudioContinue);
 	accompanimentAutoFill = prop.getBoolValue("Accompaniment.AutoFill", accompanimentAutoFill);
 	accompanimentKey = prop.getValue("Accompaniment.Key", accompanimentKey);
 	accompanimentMinor = prop.getBoolValue("Accompaniment.KeyMinor", accompanimentMinor);

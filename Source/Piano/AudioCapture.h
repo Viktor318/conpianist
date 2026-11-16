@@ -29,8 +29,8 @@
 // While the recording waits for its start (armed) only the last seconds are kept, in a
 // ring buffer in memory. When the MIDI recording begins, a thread writes the ring buffer
 // (what was heard before the first note too) and what comes after it into a temporary
-// file. After the MIDI recording has ended, the audio goes on until the sound has faded
-// (the tail). The WAV file is cut from the temporary file when the recording is saved:
+// file. When the MIDI recording has ended, the audio ends too (or, if asked, it goes on
+// until the sound ends). The audio file is cut from the temporary file when the recording is saved:
 // from the beginning of the MIDI file (which is known only then: it may be moved to a
 // downbeat or to the first note) to the end of the tail.
 //
@@ -48,7 +48,7 @@ public:
 		stIdle,      // nothing is kept
 		stArmed,     // the last seconds are kept in memory
 		stWriting,   // written into the temporary file
-		stTail,      // the MIDI recording has ended: waiting for the sound to fade
+		stTail,      // the MIDI recording has ended: going on until the sound ends (see EndAt)
 		stReady      // finished: can be saved
 	};
 
@@ -56,9 +56,9 @@ public:
 	static constexpr double RingSeconds = 20.0;     // kept in memory while armed
 	static constexpr float SilenceLevel = 0.001f;   // -60 dBFS: the sound has faded below it ...
 	static constexpr double SilenceSeconds = 1.0;   // ... for this long
-	static constexpr double MaxTailSeconds = 15.0;  // the tail is not longer than this
 	static constexpr double KeptSilenceSeconds = 0.5; // of the silence at the end of the file
 	static constexpr double FadeSeconds = 0.03;     // fade out at the end (no click)
+	static constexpr double CutFadeSeconds = 0.3;   // ... when the recording is cut while it sounds
 
 	// The format of the input: called when the device starts (and by the tests).
 	// latencySamples: the input latency the driver reports.
@@ -72,8 +72,14 @@ public:
 	// The steps of a recording (message thread).
 	bool Arm();              // false: no input (the device is not running)
 	bool BeginWriting();     // the MIDI recording has begun; false: the temporary file cannot be written
-	void EndAt(double midiEndMs); // the MIDI recording has ended at this time: the tail begins
-	void Poll();             // to be called regularly: ends the tail when the sound has faded
+	// The MIDI recording has ended (its last event was at midiEndMs). The audio ends now:
+	// if it is silent by now, the silence after the last sound is cut off (a little is
+	// kept); if it still sounds, it is faded out. With untilSilence the audio goes on
+	// instead until the sound ends (the song or the accompaniment has finished, see Poll),
+	// however long that takes, or until StopNow.
+	void EndAt(double midiEndMs, bool untilSilence);
+	void StopNow();          // ends the audio that goes on after the MIDI recording, at once
+	void Poll();             // to be called regularly: ends the audio when the sound has ended
 	void Clear();            // drops the recording (and its temporary file)
 
 	State GetState() const { return m_state.load(); }
@@ -137,6 +143,8 @@ private:
 	std::atomic<int64> m_fileEnd{-1};   // the writing ends here (-1: not known yet)
 	double m_midiEndMs = 0.0;
 	int64 m_endSample = 0;              // the end of the recording (stReady)
+	bool m_cutWhileSounding = false;    // ... and it was sounding there: a longer fade out
+	void EndNow(int64 midiEnd);         // ends at the samples that have arrived, without the silence
 
 	void run() override;                // the writing thread
 	bool WriteAvailable(int64 upTo);    // false: could not be written
