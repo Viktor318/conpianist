@@ -414,6 +414,7 @@ SceneComponent::~SceneComponent()
     pianoRoomWindow = nullptr;
     songSelectorWindow = nullptr;
     audioInputWindow = nullptr;
+    audioRecorder = nullptr; // (after its windows: closes the audio device)
     styleMixerButton = nullptr;
     accompanimentButton = nullptr;
     otsButton = nullptr;
@@ -1703,7 +1704,7 @@ void SceneComponent::showRecorder()
 {
 	if (!recorderWindow)
 	{
-		recorderWindow = std::make_unique<RecorderWindow>(settings, pianoController);
+		recorderWindow = std::make_unique<RecorderWindow>(settings, pianoController, getAudioRecorder());
 		addShortcutKeys(*recorderWindow);
 		if (!recorderWindow->RestorePosition())
 		{
@@ -1897,7 +1898,7 @@ void SceneComponent::showAudioInput()
 {
 	if (!audioInputWindow)
 	{
-		audioInputWindow = std::make_unique<AudioInputWindow>(settings);
+		audioInputWindow = std::make_unique<AudioInputWindow>(settings, getAudioRecorder());
 		addShortcutKeys(*audioInputWindow);
 		if (!audioInputWindow->RestorePosition())
 		{
@@ -1941,6 +1942,15 @@ void SceneComponent::showBalance()
 	balanceWindow->setVisible(true);
 	balanceWindow->setMinimised(false); // opened again while it is minimised
 	balanceWindow->toFront(true);
+}
+
+AudioRecorder& SceneComponent::getAudioRecorder()
+{
+	if (!audioRecorder)
+	{
+		audioRecorder = std::make_unique<AudioRecorder>(settings);
+	}
+	return *audioRecorder;
 }
 
 void SceneComponent::requestExit()

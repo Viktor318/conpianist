@@ -460,6 +460,19 @@ countries: hu
 "Playing:" = "Lejátszás:"
 "Loaded:" = "Betöltve:"
 
+// --- Felvétel ablak: hangfelvétel (a hangkártyán át, WAV-fájlba) ---
+"Record audio (WAV)" = "Hang felvétele (WAV)"
+"The sound of the piano is recorded too, through the audio interface chosen in the main menu (Tools, Audio Interface...), into a WAV file saved beside the MIDI file; the level shows that the sound arrives" = "A zongora hangja is felvételre kerül a főmenüben választott hangkártyán át (ESZKÖZÖK, Hangkártya…), a MIDI-fájl mellé mentett WAV-fájlba; a szintjelző mutatja, hogy a hang megérkezik"
+"No audio interface is chosen: choose it in the main menu (Tools, Audio Interface...)" = "Nincs kiválasztott hangkártya: a főmenüben választható (ESZKÖZÖK, Hangkártya…)"
+"The audio interface cannot be opened: another program may be using it. Close that program, then open this window again." = "A hangkártya nem nyitható meg: lehet, hogy egy másik program használja. Zárd be azt a programot, majd nyisd meg újra ezt az ablakot."
+"The audio interface cannot be opened: only the MIDI file is recorded." = "A hangkártya nem nyitható meg: csak a MIDI-fájl készül el."
+"The audio cannot be recorded: only the MIDI file is recorded." = "A hang nem vehető fel: csak a MIDI-fájl készül el."
+"The audio recording was interrupted: the audio file is incomplete." = "A hangfelvétel megszakadt: a hangfájl nem teljes."
+"The audio file could not be saved." = "A hangfájl nem menthető."
+"Waiting for the sound to fade..." = "Hang lecsengése…"
+"audio (.wav)" = "hang (.wav)"
+"audio" = "hang"
+
 // --- Hangkártya ablak (Eszközök menü), a JUCE eszközbeállító panelje ---
 "Audio Interface..." = "Hangkártya…"
 "Audio Interface" = "Hangkártya"

@@ -22,19 +22,22 @@
 #include "../JuceLibraryCode/JuceHeader.h"
 #include "PianoController.h"
 #include "Settings.h"
+#include "AudioRecorder.h"
 
 // The content of the Recording window: records what is played live (see LiveRecorder)
 // and saves it into a MIDI file in the songs folder. The recording can be played back:
 // it is loaded into the player as a song (from a temporary file). An earlier recording
 // (any MIDI file) can be loaded into the player too, and with "Record playback/song" a new
-// layer can be recorded while it is playing.
+// layer can be recorded while it is playing. With "Record audio" the sound of the piano is
+// recorded too, through the audio interface (see AudioRecorder), into a WAV file saved
+// beside the MIDI file.
 class RecorderComponent : public Component,
                           public Button::Listener,
                           public Timer,
                           public PianoController::Listener
 {
 public:
-	RecorderComponent(Settings& settings, PianoController& pianoController);
+	RecorderComponent(Settings& settings, PianoController& pianoController, AudioRecorder& audioRecorder);
 	~RecorderComponent() override;
 
 	void paint(Graphics& g) override;
@@ -48,6 +51,23 @@ public:
 private:
 	Settings& settings;
 	PianoController& pianoController;
+	AudioRecorder& audioRecorder;
+
+	// The level of the audio input, left and right, beside the Record audio option: shows
+	// that the sound of the piano arrives.
+	class LevelMeter : public Component, private Timer
+	{
+	public:
+		explicit LevelMeter(AudioRecorder& audioRecorder);
+		void SetActive(bool shouldBeActive); // the device is open: the levels are shown
+		void paint(Graphics& g) override;
+
+	private:
+		AudioRecorder& audioRecorder;
+		bool active = false;
+		float levels[AudioRecorder::NumChannels] = {}; // the level shown, falling slowly
+		void timerCallback() override;
+	};
 
 	Label modeLabel;
 	ToggleButton autoButton;
@@ -68,6 +88,8 @@ private:
 	ToggleButton styleButton;
 	ToggleButton playbackButton; // the playback of the own player is recorded (not with styleButton)
 	ToggleButton separateButton; // with the accompaniment: two files, the playing and the accompaniment
+	ToggleButton audioButton;    // the sound of the piano is recorded too (a WAV file)
+	LevelMeter levelMeter;
 	ToggleButton quantizeButton;
 	ComboBox quantizeCombo;      // the grid; the item ids are ticks
 	ComboBox tripletCombo;       // the triplet grid; the item ids are ticks, NoTripletId: none
@@ -139,6 +161,17 @@ private:
 	bool canRecordPlayback() const;
 	bool withStyle() const; // the accompaniment is recorded (chosen, and the piano is there)
 	bool recordedWithPiano = false; // the recording in hand was made with the piano connected
+	// The audio of the recording. The audio interface is used (open) while the option is on
+	// and the window is shown, and until a recording with audio is finished.
+	static const int AudioRowHeight = 28; // the row of the Record audio option
+	bool audioAcquired = false;
+	bool audioSaved = false;  // the audio of the recording in hand has been saved
+	AudioCapture::State lastAudioState = AudioCapture::stIdle;
+	void updateAudioDevice();
+	bool audioFading() const; // the MIDI recording has ended, the sound is still fading
+	// Saves the audio beside the MIDI file, once; returns how it is told in the line of
+	// the saved files (empty: there is no audio, or it could not be saved).
+	String saveAudio(const File& midiFile);
 	static const int MaxFileNameLength = 128; // (JUCE cuts longer file names)
 	String listenKey() const; // the settings that change what is listened back
 	void applyKeySignature();
@@ -177,7 +210,7 @@ private:
 class RecorderWindow : public DocumentWindow
 {
 public:
-	RecorderWindow(Settings& settings, PianoController& pianoController);
+	RecorderWindow(Settings& settings, PianoController& pianoController, AudioRecorder& audioRecorder);
 	void closeButtonPressed() override;
 	void moved() override;
 	// Moves the window where it was the last time; false if that is not known (or not

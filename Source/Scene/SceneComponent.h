@@ -38,6 +38,7 @@
 #include "PianoRoomComponent.h"
 #include "SongSelectorComponent.h"
 #include "AudioInputComponent.h"
+#include "AudioRecorder.h"
 #include "FactoryOts.h"
 //[/Headers]
 
@@ -158,6 +159,10 @@ private:
     ShortcutKeys shortcutKeys;
     Component::SafePointer<Component> shortcutMainWindow; // the main window it was added to
     void addShortcutKeys(Component& window) { window.addKeyListener(&shortcutKeys); }
+    // the audio input shared by the Recording and the Audio Interface window; created when
+    // one of them is first opened (before the windows, so it is deleted after them)
+    std::unique_ptr<AudioRecorder> audioRecorder;
+    AudioRecorder& getAudioRecorder();
     std::unique_ptr<RecorderWindow> recorderWindow; // Recording window, created when first opened
     std::unique_ptr<AccompanimentWindow> accompanimentWindow; // likewise
     std::unique_ptr<StyleMixerWindow> styleMixerWindow; // Accompaniment mixer window, likewise

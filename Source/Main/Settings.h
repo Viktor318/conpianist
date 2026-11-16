@@ -148,6 +148,7 @@ public:
 	bool recorderTimestamp = true;
 	// with the accompaniment: the playing and the accompaniment are saved into two files
 	bool recorderSeparateStyle = false;
+	bool recorderAudio = false; // the sound of the piano is recorded too (a WAV file beside the MIDI file)
 	// Accompaniment window: a fill in is played when the main section is changed
 	bool accompanimentAutoFill = false;
 	// the (major) key of the music, for the names of the chords: empty - as the piano

@@ -496,6 +496,18 @@ double LiveRecorder::GetLengthSeconds() const
 	return m_noteCount > 0 ? (endMs - m_startMs) / 1000.0 : 0.0;
 }
 
+double LiveRecorder::GetStartMs() const
+{
+	const ScopedLock lock(m_lock);
+	return m_startMs;
+}
+
+double LiveRecorder::GetEndMs(bool withStyle) const
+{
+	const ScopedLock lock(m_lock);
+	return withStyle ? std::max(m_endMs, m_styleEndMs) : m_endMs;
+}
+
 double LiveRecorder::GetSecondsSinceLastEvent() const
 {
 	const ScopedLock lock(m_lock);

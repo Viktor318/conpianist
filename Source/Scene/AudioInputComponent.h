@@ -21,24 +21,23 @@
 
 #include "../JuceLibraryCode/JuceHeader.h"
 #include "Settings.h"
+#include "AudioRecorder.h"
 
 // Audio Interface window (Main menu, Tools): the audio input the sound of the piano comes
 // from (the USB audio interface of the piano), for the audio recording. The device setup
 // of JUCE (device type, device, input channels, sample rate, buffer size), the level of
-// the left and right input and the input latency the driver reports. The device is open
-// only while the window is shown (so it does not take the device, e.g. an ASIO driver,
-// from other programs); its setup is saved in the settings. The MIDI connections of the
-// program do not use this device manager.
+// the left and right input and the input latency the driver reports. The device belongs
+// to the audio recorder (see AudioRecorder): the window uses it while it is shown, and
+// its setup is saved in the settings.
 class AudioInputComponent : public Component,
-	private AudioIODeviceCallback,
 	private ChangeListener,
 	private Timer
 {
 public:
-	explicit AudioInputComponent(Settings& settings);
+	AudioInputComponent(Settings& settings, AudioRecorder& audioRecorder);
 	~AudioInputComponent() override;
 
-	// Opens the chosen device (the window is shown) or closes it (the window is hidden).
+	// Uses the chosen device (the window is shown) or lets it go (the window is hidden).
 	void SetActive(bool shouldBeActive);
 
 	void paint(Graphics& g) override;
@@ -52,27 +51,19 @@ private:
 	static const int MeterAreaHeight = 4 * MeterRowHeight; // two meters, latency, space
 
 	Settings& settings;
-	AudioDeviceManager deviceManager;
+	AudioRecorder& audioRecorder;
+	AudioDeviceManager& deviceManager; // (of the audio recorder)
 	std::unique_ptr<AudioDeviceSelectorComponent> selector;
 	bool active = false;
-	// the highest level since the last timer call, written by the audio thread
-	std::atomic<float> peaks[NumMeters];
 	float levels[NumMeters] = {}; // the level shown, falling slowly
 	String latencyText;
 
-	void audioDeviceIOCallbackWithContext(const float* const* inputChannelData, int numInputChannels,
-		float* const* outputChannelData, int numOutputChannels, int numSamples,
-		const AudioIODeviceCallbackContext& context) override;
-	void audioDeviceAboutToStart(AudioIODevice* device) override;
-	void audioDeviceStopped() override;
-	void audioDeviceError(const String& errorMessage) override;
 	void changeListenerCallback(ChangeBroadcaster* source) override;
 	void timerCallback() override;
 
 	void LogDeviceTypes();
 	void LogCurrentDevice();
 	void UpdateLatency();
-	void SaveState();
 	int GetMeterTop() const;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AudioInputComponent)
@@ -83,7 +74,7 @@ private:
 class AudioInputWindow : public DocumentWindow
 {
 public:
-	explicit AudioInputWindow(Settings& settings);
+	AudioInputWindow(Settings& settings, AudioRecorder& audioRecorder);
 	void closeButtonPressed() override;
 	void visibilityChanged() override;
 	void moved() override;

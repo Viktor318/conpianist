@@ -107,6 +107,14 @@
               file="Source/Piano/LiveRecorder.cpp"/>
         <FILE id="Lr8HdK" name="LiveRecorder.h" compile="0" resource="0"
               file="Source/Piano/LiveRecorder.h"/>
+        <FILE id="Ac2MvT" name="AudioCapture.cpp" compile="1" resource="0"
+              file="Source/Piano/AudioCapture.cpp"/>
+        <FILE id="Ac6QxB" name="AudioCapture.h" compile="0" resource="0"
+              file="Source/Piano/AudioCapture.h"/>
+        <FILE id="Ar4DnS" name="AudioRecorder.cpp" compile="1" resource="0"
+              file="Source/Piano/AudioRecorder.cpp"/>
+        <FILE id="Ar9HkJ" name="AudioRecorder.h" compile="0" resource="0"
+              file="Source/Piano/AudioRecorder.h"/>
         <FILE id="ySUacG" name="PianoMessage.cpp" compile="1" resource="0"
               file="Source/Piano/PianoMessage.cpp"/>
         <FILE id="jTSWtJ" name="PianoMessage.h" compile="0" resource="0" file="Source/Piano/PianoMessage.h"/>

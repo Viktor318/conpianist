@@ -37,13 +37,11 @@ namespace
 	}
 }
 
-AudioInputComponent::AudioInputComponent(Settings& settings) :
-	settings(settings)
+AudioInputComponent::AudioInputComponent(Settings& settings, AudioRecorder& audioRecorder) :
+	settings(settings),
+	audioRecorder(audioRecorder),
+	deviceManager(audioRecorder.GetDeviceManager())
 {
-	for (auto& peak : peaks)
-	{
-		peak = 0.0f;
-	}
 	// input only: up to two channels (the piano sends stereo), no output, no MIDI
 	selector = std::make_unique<AudioDeviceSelectorComponent>(deviceManager, 1, NumMeters, 0, 0,
 		false, false, true, false);
@@ -69,15 +67,7 @@ void AudioInputComponent::SetActive(bool shouldBeActive)
 	if (active)
 	{
 		LogDeviceTypes();
-		// the device chosen the last time; without it (or if it is not available) the
-		// default input of the system
-		std::unique_ptr<XmlElement> state = parseXML(settings.audioState);
-		const String error = deviceManager.initialise(NumMeters, 0, state.get(), true);
-		if (error.isNotEmpty())
-		{
-			Logger::writeToLog("Audio input: " + error);
-		}
-		deviceManager.addAudioCallback(this);
+		audioRecorder.Acquire();
 		deviceManager.addChangeListener(this);
 		LogCurrentDevice();
 		UpdateLatency();
@@ -87,13 +77,9 @@ void AudioInputComponent::SetActive(bool shouldBeActive)
 	{
 		stopTimer();
 		deviceManager.removeChangeListener(this);
-		deviceManager.removeAudioCallback(this);
-		SaveState();
-		deviceManager.closeAudioDevice();
-		Logger::writeToLog("Audio input: closed");
+		audioRecorder.Release(); // (closes the device if the recording does not use it)
 		for (int ch = 0; ch < NumMeters; ch++)
 		{
-			peaks[ch] = 0.0f;
 			levels[ch] = 0.0f;
 		}
 		repaint();
@@ -165,53 +151,12 @@ void AudioInputComponent::childBoundsChanged(Component* child)
 	}
 }
 
-// (audio thread) the highest level of each channel since the last timer call
-void AudioInputComponent::audioDeviceIOCallbackWithContext(const float* const* inputChannelData,
-	int numInputChannels, float* const* outputChannelData, int numOutputChannels, int numSamples,
-	const AudioIODeviceCallbackContext&)
-{
-	for (int ch = 0; ch < jmin(numInputChannels, NumMeters); ch++)
-	{
-		if (inputChannelData[ch] == nullptr)
-		{
-			continue;
-		}
-		const Range<float> range = FloatVectorOperations::findMinAndMax(inputChannelData[ch], numSamples);
-		const float peak = jmax(std::abs(range.getStart()), std::abs(range.getEnd()));
-		float previous = peaks[ch].load();
-		while (peak > previous && !peaks[ch].compare_exchange_weak(previous, peak))
-		{
-		}
-	}
-	// nothing is played (the device may have outputs, e.g. an ASIO driver)
-	for (int ch = 0; ch < numOutputChannels; ch++)
-	{
-		if (outputChannelData[ch] != nullptr)
-		{
-			FloatVectorOperations::clear(outputChannelData[ch], numSamples);
-		}
-	}
-}
-
-void AudioInputComponent::audioDeviceAboutToStart(AudioIODevice*)
-{
-}
-
-void AudioInputComponent::audioDeviceStopped()
-{
-}
-
-void AudioInputComponent::audioDeviceError(const String& errorMessage)
-{
-	Logger::writeToLog("Audio input: error: " + errorMessage);
-}
-
 // (message thread) another device or setup was chosen
 void AudioInputComponent::changeListenerCallback(ChangeBroadcaster*)
 {
 	LogCurrentDevice();
 	UpdateLatency();
-	SaveState();
+	audioRecorder.SaveState();
 	repaint();
 }
 
@@ -220,7 +165,7 @@ void AudioInputComponent::timerCallback()
 	bool changed = false;
 	for (int ch = 0; ch < NumMeters; ch++)
 	{
-		const float peak = peaks[ch].exchange(0.0f);
+		const float peak = audioRecorder.TakePeak(AudioRecorder::meterInterfaceWindow, ch);
 		float level = jmax(peak, levels[ch] * FallFactor);
 		if (level < 0.0001f)
 		{
@@ -280,17 +225,8 @@ void AudioInputComponent::LogCurrentDevice()
 		String(sampleRate > 0.0 ? latency * 1000.0 / sampleRate : 0.0, 1) + " ms)");
 }
 
-// The chosen device and setup, kept in the settings (saved when the program exits).
-void AudioInputComponent::SaveState()
-{
-	if (std::unique_ptr<XmlElement> state = deviceManager.createStateXml())
-	{
-		settings.audioState = state->toString(XmlElement::TextFormat().singleLine().withoutHeader());
-	}
-}
-
 //==============================================================================
-AudioInputWindow::AudioInputWindow(Settings& settings) :
+AudioInputWindow::AudioInputWindow(Settings& settings, AudioRecorder& audioRecorder) :
 	DocumentWindow(TRANS("Audio Interface"), BackgroundColour,
 		DocumentWindow::minimiseButton | DocumentWindow::closeButton),
 	settings(settings)
@@ -298,7 +234,7 @@ AudioInputWindow::AudioInputWindow(Settings& settings) :
 	const bool usingNativeTitleBar = (SystemStats::getOperatingSystemType() & SystemStats::Windows) ||
 		(SystemStats::getOperatingSystemType() & SystemStats::MacOSX);
 	setUsingNativeTitleBar(usingNativeTitleBar);
-	content = new AudioInputComponent(settings);
+	content = new AudioInputComponent(settings, audioRecorder);
 	setContentOwned(content, true);
 	setResizable(false, false);
 	setAlwaysOnTop(true);

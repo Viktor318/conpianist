@@ -114,6 +114,11 @@ public:
 	int GetNoteCount() const;
 	double GetLengthSeconds() const;         // from the start to now (recording) or to the end
 	double GetSecondsSinceLastEvent() const; // while recording
+	// Where the recording begins and ends on the clock of the program
+	// (Time::getMillisecondCounterHiRes): what is written into the file begins at the
+	// first and ends at the second (withStyle: with the accompaniment, if that ends later).
+	double GetStartMs() const;
+	double GetEndMs(bool withStyle) const;
 	int GetHeldNoteCount() const;            // notes and pedals held now
 
 	// Writes the recording; tempo in quarter notes per minute. The accompaniment is left
