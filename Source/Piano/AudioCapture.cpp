@@ -356,7 +356,12 @@ namespace
 	}
 }
 
-bool AudioCapture::Save(const File& file, double startMs, String& error) const
+String AudioCapture::GetExtension(Format format)
+{
+	return format == fmtFlac ? "flac" : format == fmtMp3 ? "mp3" : "wav";
+}
+
+bool AudioCapture::Save(const File& file, double startMs, const SaveOptions& options, String& error) const
 {
 	if (m_state.load() != stReady || m_sampleRate <= 0.0)
 	{
@@ -376,25 +381,27 @@ bool AudioCapture::Save(const File& file, double startMs, String& error) const
 		error = "The recorded audio cannot be read";
 		return false;
 	}
-
-	TemporaryFile temporary(file);
-	{
-		FileOutputStream out(temporary.getFile());
-		if (out.failedToOpen())
+	auto setStage = [&options](Stage stage)
 		{
-			error = "The file cannot be written";
+			if (options.stage != nullptr)
+			{
+				*options.stage = stage;
+			}
+		};
+	auto cancelled = [&options, &error]()
+		{
+			if (options.cancel != nullptr && options.cancel->load())
+			{
+				error = "Cancelled";
+				return true;
+			}
 			return false;
-		}
-		WriteWavHeader(out, roundToInt(m_sampleRate), end - start);
+		};
 
-		const int64 fadeFrames = jmax((int64)1, (int64)(FadeSeconds * m_sampleRate));
-		HeapBlock<float> frames((size_t)(WriteChunkFrames * NumChannels));
-		HeapBlock<uint8> bytes((size_t)(WriteChunkFrames * NumChannels * 3));
-		int64 position = start;
-		while (position < end)
+	// a part of the recording, interleaved; before the beginning of the audio: silence
+	HeapBlock<float> frames((size_t)(WriteChunkFrames * NumChannels));
+	auto readFrames = [&](int64 position, int count)
 		{
-			const int count = (int)jmin((int64)WriteChunkFrames, end - position);
-			// before the beginning of the audio: silence
 			const int silent = (int)jlimit((int64)0, (int64)count, m_fileFirst - position);
 			zeromem(frames.getData(), sizeof(float) * (size_t)(count * NumChannels));
 			if (silent < count)
@@ -407,33 +414,147 @@ bool AudioCapture::Save(const File& file, double startMs, String& error) const
 					return false;
 				}
 			}
-			uint8* target = bytes.getData();
-			for (int i = 0; i < count; i++)
+			return true;
+		};
+
+	// normalizing: the loudest sample is looked for first
+	float gain = 1.0f;
+	if (options.normalize)
+	{
+		setStage(stageNormalizing);
+		float peak = 0.0f;
+		for (int64 position = start; position < end; position += WriteChunkFrames)
+		{
+			const int count = (int)jmin((int64)WriteChunkFrames, end - position);
+			if (cancelled() || !readFrames(position, count))
 			{
-				const int64 left = end - (position + i);
-				const float gain = left < fadeFrames ? (float)left / (float)fadeFrames : 1.0f;
-				for (int ch = 0; ch < NumChannels; ch++)
-				{
-					const float sample = jlimit(-1.0f, 1.0f, frames[(size_t)(i * NumChannels + ch)] * gain);
-					const int value = jlimit(-8388608, 8388607, roundToInt(sample * 8388607.0f));
-					*target++ = (uint8)(value & 0xff);
-					*target++ = (uint8)((value >> 8) & 0xff);
-					*target++ = (uint8)((value >> 16) & 0xff);
-				}
-			}
-			if (!out.write(bytes.getData(), (size_t)(count * NumChannels * 3)))
-			{
-				error = "The file cannot be written";
 				return false;
 			}
-			position += count;
+			const Range<float> range = FloatVectorOperations::findMinAndMax(frames.getData(), count * NumChannels);
+			peak = jmax(peak, std::abs(range.getStart()), std::abs(range.getEnd()));
 		}
-		out.flush();
-		if (out.getStatus().failed())
+		if (peak >= SilenceLevel)
+		{
+			gain = NormalizeLevel / peak;
+		}
+	}
+	setStage(options.format == fmtWav ? (options.normalize ? stageNormalizing : stageWriting) : stageConverting);
+
+	TemporaryFile temporary(file);
+	{
+		std::unique_ptr<OutputStream> out(temporary.getFile().createOutputStream());
+		if (out == nullptr)
 		{
 			error = "The file cannot be written";
 			return false;
 		}
+		// FLAC and MP3 are written by JUCE (MP3: into a WAV file first, converted by LAME
+		// when the writer is closed)
+		std::unique_ptr<AudioFormatWriter> writer;
+		if (options.format != fmtWav)
+		{
+			const AudioFormatWriterOptions writerOptions = AudioFormatWriterOptions()
+				.withSampleRate(m_sampleRate).withNumChannels(NumChannels).withBitsPerSample(24);
+			if (options.format == fmtFlac)
+			{
+				FlacAudioFormat flac;
+				writer = flac.createWriterFor(out, writerOptions);
+			}
+			else
+			{
+#if JUCE_USE_LAME_AUDIO_FORMAT
+				if (!options.lameApp.existsAsFile())
+				{
+					error = "The LAME encoder is not found";
+					return false;
+				}
+				LAMEEncoderAudioFormat lame(options.lameApp);
+				const int quality = lame.getQualityOptions().indexOf("320 Kb/s CBR");
+				writer = lame.createWriterFor(out, writerOptions.withQualityOptionIndex(quality));
+#endif
+			}
+			if (writer == nullptr)
+			{
+				error = "The audio format is not available";
+				return false;
+			}
+		}
+		else
+		{
+			WriteWavHeader(*out, roundToInt(m_sampleRate), end - start);
+		}
+
+		const int64 fadeFrames = jmax((int64)1, (int64)(FadeSeconds * m_sampleRate));
+		HeapBlock<uint8> bytes((size_t)(WriteChunkFrames * NumChannels * 3));
+		HeapBlock<float> channelData[NumChannels];
+		for (auto& channel : channelData)
+		{
+			channel.malloc((size_t)WriteChunkFrames);
+		}
+		for (int64 position = start; position < end; position += WriteChunkFrames)
+		{
+			const int count = (int)jmin((int64)WriteChunkFrames, end - position);
+			if (cancelled() || !readFrames(position, count))
+			{
+				return false;
+			}
+			// the gain of the normalizing, and the fade out at the end
+			for (int i = 0; i < count; i++)
+			{
+				const int64 left = end - (position + i);
+				const float sampleGain = left < fadeFrames ? gain * (float)left / (float)fadeFrames : gain;
+				for (int ch = 0; ch < NumChannels; ch++)
+				{
+					float& sample = frames[(size_t)(i * NumChannels + ch)];
+					sample = jlimit(-1.0f, 1.0f, sample * sampleGain);
+				}
+			}
+			bool written;
+			if (writer != nullptr)
+			{
+				for (int i = 0; i < count; i++)
+				{
+					for (int ch = 0; ch < NumChannels; ch++)
+					{
+						channelData[ch][(size_t)i] = frames[(size_t)(i * NumChannels + ch)];
+					}
+				}
+				const float* channels[NumChannels] = {channelData[0].getData(), channelData[1].getData()};
+				written = writer->writeFromFloatArrays(channels, NumChannels, count);
+			}
+			else
+			{
+				uint8* target = bytes.getData();
+				for (int i = 0; i < count * NumChannels; i++)
+				{
+					const int value = jlimit(-8388608, 8388607, roundToInt(frames[(size_t)i] * 8388607.0f));
+					*target++ = (uint8)(value & 0xff);
+					*target++ = (uint8)((value >> 8) & 0xff);
+					*target++ = (uint8)((value >> 16) & 0xff);
+				}
+				written = out->write(bytes.getData(), (size_t)(count * NumChannels * 3));
+			}
+			if (!written)
+			{
+				error = "The file cannot be written";
+				return false;
+			}
+		}
+		if (writer != nullptr)
+		{
+			writer = nullptr; // (closes the file; MP3: LAME runs now)
+		}
+		else
+		{
+			out->flush();
+			out = nullptr;
+		}
+	}
+	// (LAME could not be run, or it failed: nothing was written)
+	if (temporary.getFile().getSize() <= 0)
+	{
+		error = options.format == fmtMp3 ? "The LAME encoder failed" : "The file cannot be written";
+		return false;
 	}
 	if (!temporary.overwriteTargetFileWithTemporary())
 	{

@@ -22,11 +22,7 @@
 namespace
 {
 	const Colour BackgroundColour(0xff323e44);
-	const Colour MeterBackgroundColour(0xff1b2226);
-	const Colour MeterColour(0xff42a2c8);
-	const Colour MeterClipColour(0xffe0503c);
 	const float MinDecibels = -60.0f; // the left end of the meter
-	const float ClipLevel = 0.89f;    // -1 dBFS: the meter turns red
 	const float FallFactor = 0.85f;   // the level shown falls by this per timer call (30 Hz)
 
 	// "-18" with a real minus sign
@@ -119,11 +115,7 @@ void AudioInputComponent::paint(Graphics& g)
 		const float level = levels[ch];
 		const float decibels = level > 0.0f ? Decibels::gainToDecibels(level) : MinDecibels - 1.0f;
 		const Rectangle<float> bar((float)barLeft, (float)(y + 6), (float)(barRight - barLeft), (float)(MeterRowHeight - 12));
-		g.setColour(MeterBackgroundColour);
-		g.fillRect(bar);
-		const float proportion = jlimit(0.0f, 1.0f, (decibels - MinDecibels) / -MinDecibels);
-		g.setColour(level >= ClipLevel ? MeterClipColour : MeterColour);
-		g.fillRect(bar.withWidth(bar.getWidth() * proportion));
+		AudioRecorder::DrawLevelBar(g, bar, level);
 
 		g.setColour(Colours::white);
 		const String text = decibels < MinDecibels ?

@@ -88,8 +88,11 @@ private:
 	ToggleButton styleButton;
 	ToggleButton playbackButton; // the playback of the own player is recorded (not with styleButton)
 	ToggleButton separateButton; // with the accompaniment: two files, the playing and the accompaniment
-	ToggleButton audioButton;    // the sound of the piano is recorded too (a WAV file)
+	ToggleButton audioButton;    // the sound of the piano is recorded too (an audio file)
 	LevelMeter levelMeter;
+	Label formatLabel;
+	ComboBox formatCombo;        // the format of the audio file; the item ids: Format + 1
+	ToggleButton normalizeButton; // the saved audio is normalized
 	ToggleButton quantizeButton;
 	ComboBox quantizeCombo;      // the grid; the item ids are ticks
 	ComboBox tripletCombo;       // the triplet grid; the item ids are ticks, NoTripletId: none
@@ -163,15 +166,33 @@ private:
 	bool recordedWithPiano = false; // the recording in hand was made with the piano connected
 	// The audio of the recording. The audio interface is used (open) while the option is on
 	// and the window is shown, and until a recording with audio is finished.
-	static const int AudioRowHeight = 28; // the row of the Record audio option
+	static const int AudioRowsHeight = 56; // the rows of the Record audio option and of its format
 	bool audioAcquired = false;
 	bool audioSaved = false;  // the audio of the recording in hand has been saved
 	AudioCapture::State lastAudioState = AudioCapture::stIdle;
 	void updateAudioDevice();
 	bool audioFading() const; // the MIDI recording has ended, the sound is still fading
-	// Saves the audio beside the MIDI file, once; returns how it is told in the line of
-	// the saved files (empty: there is no audio, or it could not be saved).
-	String saveAudio(const File& midiFile);
+	// The audio is saved on a thread of its own (normalizing and converting take a while):
+	// started when the MIDI file has been saved, once for a recording; when it is ready,
+	// the audio is added to the line of the saved files (see timerCallback).
+	class AudioSaveJob : public Thread
+	{
+	public:
+		AudioSaveJob(AudioCapture& capture, const File& file, double startMs, const AudioCapture::SaveOptions& options);
+		void run() override;
+		AudioCapture& capture;
+		File file;
+		double startMs;
+		AudioCapture::SaveOptions options;
+		std::atomic<int> stage{AudioCapture::stageWriting};
+		std::atomic<bool> cancel{false};
+		bool ok = false;
+		String error;
+	};
+	std::unique_ptr<AudioSaveJob> audioJob;
+	void startAudioSave(const File& midiFile);
+	void finishAudioSave();
+	AudioCapture::Format audioFormat() const; // the format chosen (WAV if MP3 cannot be made)
 	static const int MaxFileNameLength = 128; // (JUCE cuts longer file names)
 	String listenKey() const; // the settings that change what is listened back
 	void applyKeySignature();

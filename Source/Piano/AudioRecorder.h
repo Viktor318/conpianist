@@ -41,8 +41,10 @@ public:
 	enum Meter { meterInterfaceWindow, meterRecorderWindow, NumMeters };
 
 	AudioDeviceManager& GetDeviceManager() { return deviceManager; }
-	// Opens the device chosen the last time, if nobody uses it yet (without a chosen one:
-	// the default input of the system); every Acquire needs a Release.
+	// Opens the device chosen the last time, if nobody uses it yet; every Acquire needs a
+	// Release. If that device cannot be opened (e.g. the piano is switched off), no other one
+	// is opened instead: the sound of another input (a microphone) must not be recorded as
+	// the piano. Only without a chosen device is the default input of the system opened.
 	void Acquire();
 	void Release();
 	bool IsOpen() const;          // a device with an input is open
@@ -55,6 +57,14 @@ public:
 	float TakePeak(Meter meter, int channel);
 
 	AudioCapture& GetCapture() { return capture; }
+
+	// A level meter bar, the same in every window: from -60 dBFS to 0, green up to -12 dBFS,
+	// yellow up to -3 dBFS, red above it (the signal is too high). level: 0..1.
+	static void DrawLevelBar(Graphics& g, Rectangle<float> bar, float level);
+	// The LAME encoder for the MP3 files (lame.exe): beside the program, or in the Lame
+	// folder of the data folder of the program; a file that does not exist if it is not there.
+	static File FindLame();
+	static File GetLameFolder(); // the folder in the data folder
 
 private:
 	Settings& settings;

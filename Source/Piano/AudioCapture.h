@@ -80,11 +80,30 @@ public:
 	bool HasFailed() const { return m_failed.load(); } // the device stopped, or the disk is full
 	double GetSampleRate() const { return m_sampleRate; }
 
-	// Writes the WAV file (24 bit): from the beginning of the MIDI recording (startMs) to
-	// the end of the tail. If the audio begins later than the MIDI recording (it began
-	// more than RingSeconds before the first note), the beginning is silence, so the two
-	// files stay together. The file is written under a temporary name first.
-	bool Save(const File& file, double startMs, String& error) const;
+	// The format of the saved file. WAV and FLAC are 24 bit; MP3 is 320 kb/s, made by the
+	// LAME encoder, a program of its own (lame.exe) run for the conversion.
+	enum Format { fmtWav, fmtFlac, fmtMp3 };
+	static String GetExtension(Format format); // "wav", "flac", "mp3"
+	// What Save is doing (it may take seconds: it can be called on a thread of its own).
+	enum Stage { stageWriting, stageNormalizing, stageConverting };
+	static constexpr float NormalizeLevel = 0.891f; // -1 dBFS: the peak of a normalized file
+	struct SaveOptions
+	{
+		Format format = fmtWav;
+		// The loudest sample of the file becomes NormalizeLevel (both channels by the same
+		// gain); a silent recording is not changed.
+		bool normalize = false;
+		File lameApp;                        // the LAME encoder (for fmtMp3)
+		std::atomic<int>* stage = nullptr;   // set to the Stage as Save goes on
+		std::atomic<bool>* cancel = nullptr; // set by the caller: Save gives up (returns false)
+	};
+
+	// Writes the audio file: from the beginning of the MIDI recording (startMs) to the end
+	// of the tail. If the audio begins later than the MIDI recording (it began more than
+	// RingSeconds before the first note), the beginning is silence, so the two files stay
+	// together. The file is written under a temporary name first. Nothing else may be
+	// done with the recording while it is being saved.
+	bool Save(const File& file, double startMs, const SaveOptions& options, String& error) const;
 	// The length of that file in seconds.
 	double GetLengthSeconds(double startMs) const;
 

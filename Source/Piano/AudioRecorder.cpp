@@ -48,10 +48,10 @@ void AudioRecorder::Acquire()
 	{
 		return;
 	}
-	// the device chosen the last time; without it (or if it is not available) the default
-	// input of the system
+	// the device chosen the last time, and no other one if it is not available; without a
+	// chosen device the default input of the system
 	std::unique_ptr<XmlElement> state = parseXML(settings.audioState);
-	const String error = deviceManager.initialise(NumChannels, 0, state.get(), true);
+	const String error = deviceManager.initialise(NumChannels, 0, state.get(), false);
 	if (error.isNotEmpty())
 	{
 		Logger::writeToLog("Audio input: " + error);
@@ -93,6 +93,11 @@ bool AudioRecorder::HasChosenDevice() const
 // The chosen device and setup, kept in the settings (saved when the program exits).
 void AudioRecorder::SaveState()
 {
+	// (the chosen device could not be opened: the choice is kept)
+	if (deviceManager.getCurrentAudioDevice() == nullptr)
+	{
+		return;
+	}
 	if (std::unique_ptr<XmlElement> state = deviceManager.createStateXml())
 	{
 		settings.audioState = state->toString(XmlElement::TextFormat().singleLine().withoutHeader());
@@ -165,4 +170,45 @@ void AudioRecorder::audioDeviceStopped()
 void AudioRecorder::audioDeviceError(const String& errorMessage)
 {
 	Logger::writeToLog("Audio input: error: " + errorMessage);
+}
+
+void AudioRecorder::DrawLevelBar(Graphics& g, Rectangle<float> bar, float level)
+{
+	const float minDecibels = -60.0f;
+	g.setColour(Colour(0xff1b2226));
+	g.fillRect(bar);
+	if (level <= 0.0f)
+	{
+		return;
+	}
+	const float decibels = Decibels::gainToDecibels(level);
+	auto position = [&](float db) { return bar.getX() + bar.getWidth() * jlimit(0.0f, 1.0f, (db - minDecibels) / -minDecibels); };
+	const struct { float from, to; uint32 colour; } zones[] = {
+		{minDecibels, -12.0f, 0xff50be5a}, {-12.0f, -3.0f, 0xffebc83c}, {-3.0f, 0.0f, 0xffe0503c}};
+	for (const auto& zone : zones)
+	{
+		if (decibels > zone.from)
+		{
+			const float x0 = position(zone.from);
+			const float x1 = position(jmin(decibels, zone.to));
+			g.setColour(Colour(zone.colour));
+			g.fillRect(Rectangle<float>(x0, bar.getY(), x1 - x0, bar.getHeight()));
+		}
+	}
+}
+
+File AudioRecorder::GetLameFolder()
+{
+	return File::getSpecialLocation(File::userApplicationDataDirectory).getChildFile("ConPianist").getChildFile("Lame");
+}
+
+File AudioRecorder::FindLame()
+{
+#if JUCE_WINDOWS
+	const String name = "lame.exe";
+#else
+	const String name = "lame";
+#endif
+	const File beside = File::getSpecialLocation(File::currentExecutableFile).getSiblingFile(name);
+	return beside.existsAsFile() ? beside : GetLameFolder().getChildFile(name);
 }

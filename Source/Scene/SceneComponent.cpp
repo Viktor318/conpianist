@@ -718,7 +718,7 @@ void SceneComponent::showMenu()
 	// (the Recording, Accompaniment and OTS windows are opened by the icons of the top bar)
 	menu.addSectionHeader(TRANS("TOOLS"));
 	menu.addItem(401, TRANS("Import factory OTS"));
-	menu.addItem(402, TRANS("Audio Interface..."));
+	menu.addItem(402, TRANS("Audio Interface"));
 	menu.addSectionHeader(TRANS("LANGUAGE"));
 	// language names are intentionally not translated: each is shown in its own language
 	menu.addItem(201, "English", true, settings.GetEffectiveLanguage() == "en");
