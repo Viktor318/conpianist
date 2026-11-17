@@ -470,6 +470,8 @@ countries: hu
 "The audio recording was interrupted: the audio file is incomplete." = "A hangfelvétel megszakadt: a hangfájl nem teljes."
 "The audio file could not be saved." = "A hangfájl nem menthető."
 "The audio could not be converted to MP3: choose another format and save again." = "A hang nem alakítható MP3-ba: válassz másik formátumot, és mentsd újra."
+"The program exits when the audio has been saved..." = "A hang mentése után a program kilép…"
+"The device cannot be changed during a recording" = "Felvétel közben az eszköz nem állítható át"
 "Waiting for the song/accompaniment to end..." = "Várakozás, amíg a dal/kíséret befejeződik…"
 "Continue recording until the song/accompaniment ends" = "Felvétel folytatása a dal/kíséret végéig"
 "When the recording is stopped, the audio goes on until the song or the accompaniment has ended (there is silence); the Stop button ends it at once. When off, the audio ends at once when the recording stops" = "A felvétel leállításakor a hang felvétele addig folytatódik, amíg a dal vagy a kíséret véget nem ér (csend lesz); a Leállítás gomb azonnal befejezi. Kikapcsolva a hang a felvétel leállásakor rögtön véget ér"

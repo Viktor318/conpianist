@@ -48,6 +48,11 @@ public:
 	// double click on the label of the silence: back to its default
 	void mouseDoubleClick(const MouseEvent& event) override;
 
+	// For the exit of the program (see SceneComponent::requestExit):
+	bool IsSavingAudio() const;   // the audio file is being written
+	bool HasUnsavedAudio() const; // audio was recorded (or is still recorded) and not saved
+	void QuitAfterAudioSave();    // the program exits when the audio file has been written
+
 private:
 	Settings& settings;
 	PianoController& pianoController;
@@ -170,6 +175,7 @@ private:
 	static const int AudioRowsHeight = 84; // the rows of the Record audio option, its format, its end
 	bool audioAcquired = false;
 	bool audioSaved = false;  // the audio of the recording in hand has been saved
+	bool quitAfterAudioSave = false; // exit was asked while the audio was being saved
 	AudioCapture::State lastAudioState = AudioCapture::stIdle;
 	void updateAudioDevice();
 	bool audioFading() const; // the MIDI recording has ended, the audio still goes on
@@ -233,6 +239,7 @@ class RecorderWindow : public DocumentWindow
 {
 public:
 	RecorderWindow(Settings& settings, PianoController& pianoController, AudioRecorder& audioRecorder);
+	RecorderComponent& GetRecorderComponent();
 	void closeButtonPressed() override;
 	void moved() override;
 	// Moves the window where it was the last time; false if that is not known (or not

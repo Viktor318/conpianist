@@ -118,6 +118,15 @@ void AudioInputComponent::paint(Graphics& g)
 	g.setFont(Font(FontOptions(15.0f)));
 	g.setColour(Colours::white);
 	g.drawText(TRANS("Level"), controlsX, y, right - controlsX, MeterRowHeight, Justification::centredLeft);
+	if (recording)
+	{
+		// (in the row of the label, after it: the window keeps its height)
+		const int x = controlsX + GlyphArrangement::getStringWidthInt(g.getCurrentFont(), TRANS("Level")) + 12;
+		g.setColour(Colours::orange);
+		g.drawFittedText(TRANS("The device cannot be changed during a recording"), x, y, right - x, MeterRowHeight,
+			Justification::centredLeft, 1, 0.8f);
+		g.setColour(Colours::white);
+	}
 	y += MeterRowHeight;
 	const String channelNames[NumMeters] = {TRANS("L"), TRANS("R")};
 	for (int ch = 0; ch < NumMeters; ch++)
@@ -162,6 +171,17 @@ void AudioInputComponent::changeListenerCallback(ChangeBroadcaster*)
 
 void AudioInputComponent::timerCallback()
 {
+	// While audio is recorded (from waiting for the first note to the end of the audio),
+	// the device setup is disabled: changing it would break the recording.
+	const AudioCapture::State state = audioRecorder.GetCapture().GetState();
+	const bool nowRecording = state == AudioCapture::stArmed || state == AudioCapture::stWriting || state == AudioCapture::stTail;
+	if (nowRecording != recording)
+	{
+		recording = nowRecording;
+		selector->setEnabled(!recording);
+		repaint();
+	}
+
 	bool changed = false;
 	for (int ch = 0; ch < NumMeters; ch++)
 	{

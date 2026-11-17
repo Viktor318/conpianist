@@ -1956,7 +1956,17 @@ AudioRecorder& SceneComponent::getAudioRecorder()
 void SceneComponent::requestExit()
 {
 	Logger::writeToLog("Exit requested");
-	if (!pianoController.GetRecorder().IsUnsaved())
+	// The audio of a recording is being saved: the saving is not broken off (the audio
+	// would be lost), the program exits when it is done.
+	if (recorderWindow && recorderWindow->GetRecorderComponent().IsSavingAudio())
+	{
+		showRecorder();
+		recorderWindow->GetRecorderComponent().QuitAfterAudioSave();
+		return;
+	}
+	// (the audio counts too: it can be unsaved while the MIDI recording is saved)
+	const bool unsavedAudio = recorderWindow && recorderWindow->GetRecorderComponent().HasUnsavedAudio();
+	if (!pianoController.GetRecorder().IsUnsaved() && !unsavedAudio)
 	{
 		JUCEApplication::quit();
 		return;

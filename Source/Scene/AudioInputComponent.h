@@ -56,6 +56,7 @@ private:
 	std::unique_ptr<AudioDeviceSelectorComponent> selector;
 	bool active = false;
 	float levels[NumMeters] = {}; // the level shown, falling slowly
+	bool recording = false;       // audio is being recorded: the device cannot be changed
 	String latencyText;
 
 	void changeListenerCallback(ChangeBroadcaster* source) override;

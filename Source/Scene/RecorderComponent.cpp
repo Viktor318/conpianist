@@ -1035,8 +1035,36 @@ void RecorderComponent::finishAudioSave()
 			TRANS("The audio file could not be saved.");
 		// (Save is enabled again: the audio can be saved in another format, see save)
 	}
+	const bool saved = audioJob->ok;
 	audioJob = nullptr;
 	updateControls();
+	updateStatus();
+	// exit was asked meanwhile: now it can go on (not if the audio could not be saved)
+	if (quitAfterAudioSave)
+	{
+		quitAfterAudioSave = false;
+		if (saved)
+		{
+			JUCEApplication::quit();
+		}
+	}
+}
+
+bool RecorderComponent::IsSavingAudio() const
+{
+	return audioJob != nullptr;
+}
+
+// The MIDI recording may have been saved already: the audio is saved after it, and it can
+// be left unsaved (e.g. the conversion to MP3 failed).
+bool RecorderComponent::HasUnsavedAudio() const
+{
+	return audioFading() || (!audioSaved && audioRecorder.GetCapture().GetState() == AudioCapture::stReady);
+}
+
+void RecorderComponent::QuitAfterAudioSave()
+{
+	quitAfterAudioSave = audioJob != nullptr;
 	updateStatus();
 }
 
@@ -1689,7 +1717,8 @@ void RecorderComponent::updateStatus()
 			if (audioJob != nullptr)
 			{
 				const int stage = audioJob->stage.load();
-				text = stage == AudioCapture::stageNormalizing ? TRANS("Normalizing...") :
+				text = quitAfterAudioSave ? TRANS("The program exits when the audio has been saved...") :
+					stage == AudioCapture::stageNormalizing ? TRANS("Normalizing...") :
 					stage == AudioCapture::stageConverting ? TRANS("Converting to FORMAT...").replace("FORMAT",
 						AudioCapture::GetExtension(audioJob->options.format).toUpperCase()) :
 					TRANS("Saving the audio...");
@@ -1868,6 +1897,11 @@ RecorderWindow::RecorderWindow(Settings& settings, PianoController& pianoControl
 	setContentOwned(new RecorderComponent(settings, pianoController, audioRecorder), true);
 	setResizable(false, false);
 	setAlwaysOnTop(true);
+}
+
+RecorderComponent& RecorderWindow::GetRecorderComponent()
+{
+	return *static_cast<RecorderComponent*>(getContentComponent());
 }
 
 void RecorderWindow::closeButtonPressed()
