@@ -23,6 +23,10 @@
 
 static const int RecorderTimerMs = 100;
 static const int MaxNameLength = 100; // characters of the file name typed (the path is limited)
+// the level meter: the letter of the channel, then the bar
+static const int MeterLabelWidth = 14;
+static const int MeterBarWidth = 196;
+static const int MeterWidth = MeterLabelWidth + MeterBarWidth;
 
 // The text of the slider is being typed: then it is not overwritten. (Its - or + button
 // keeps the keyboard focus after a click: that does not count.)
@@ -390,14 +394,18 @@ void RecorderComponent::resized()
 		playbackButton.setBounds(12, 140, 300, 24);
 	}
 	// the audio, and the level of its input (everything below is lower by this row)
-	audioButton.setBounds(12, 168, 160, 24);
-	levelMeter.setBounds(176, 168, 248, 24);
+	{
+		// the level bars right after the text of the switch
+		const int x = jlimit(110, 424 - MeterWidth, 12 + 26 + textWidth(audioButton.getButtonText()) + 6);
+		audioButton.setBounds(12, 168, x - 12, 24);
+		levelMeter.setBounds(x, 168, MeterWidth, 24);
+	}
 	{
 		// the format and the normalizing belong to the audio: they begin under its text
 		const int labelWidth = jlimit(50, 110, textWidth(formatLabel.getText()) + 10);
 		formatLabel.setBounds(40, 196, labelWidth, 24);
 		formatCombo.setBounds(40 + labelWidth, 196, 262 - (40 + labelWidth), 24);
-		normalizeButton.setBounds(266, 196, 158, 24);
+		normalizeButton.setBounds(274, 196, 150, 24);
 	}
 	continueButton.setBounds(36, 224, 388, 24);
 	// metronome
@@ -1830,36 +1838,20 @@ void RecorderComponent::LevelMeter::timerCallback()
 	}
 }
 
-// Two thin bars (left and right, see AudioRecorder::DrawLevelBar); the higher of the two
-// levels in dBFS after them.
+// Two thin bars (left and right, see AudioRecorder::DrawLevelBar) after their letters.
 void RecorderComponent::LevelMeter::paint(Graphics& g)
 {
-	const int labelWidth = 14;
-	const int valueWidth = 34;
-	const int barLeft = labelWidth;
-	const int barWidth = getWidth() - labelWidth - valueWidth - 4;
 	const int barHeight = 6;
 	const String names[AudioRecorder::NumChannels] = {TRANS("L"), TRANS("R")};
 	const bool usable = active && audioRecorder.IsOpen();
-	float highest = 0.0f;
 	g.setFont(Font(FontOptions(11.0f)));
 	for (int ch = 0; ch < AudioRecorder::NumChannels; ch++)
 	{
 		const int y = getHeight() / 2 - barHeight - 1 + ch * (barHeight + 3);
 		g.setColour(Colours::white.withAlpha(usable ? 1.0f : 0.4f));
-		g.drawText(names[ch], 0, y - 3, labelWidth - 3, barHeight + 6, Justification::centredRight);
-		const float level = usable ? levels[ch] : 0.0f;
-		highest = jmax(highest, level);
-		AudioRecorder::DrawLevelBar(g, Rectangle<float>((float)barLeft, (float)y, (float)barWidth, (float)barHeight), level);
-	}
-	if (usable && highest > 0.001f)
-	{
-		// "-18" with a real minus sign
-		const int value = roundToInt(Decibels::gainToDecibels(highest));
-		g.setColour(Colours::white);
-		g.setFont(Font(FontOptions(13.0f)));
-		g.drawText(value < 0 ? String(CharPointer_UTF8("\xe2\x88\x92")) + String(-value) : String(value),
-			getWidth() - valueWidth, 0, valueWidth, getHeight(), Justification::centredLeft);
+		g.drawText(names[ch], 0, y - 3, MeterLabelWidth - 3, barHeight + 6, Justification::centredRight);
+		AudioRecorder::DrawLevelBar(g, Rectangle<float>((float)MeterLabelWidth, (float)y, (float)MeterBarWidth, (float)barHeight),
+			usable ? levels[ch] : 0.0f);
 	}
 }
 

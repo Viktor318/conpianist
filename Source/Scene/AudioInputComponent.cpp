@@ -22,14 +22,25 @@
 namespace
 {
 	const Colour BackgroundColour(0xff323e44);
-	const float MinDecibels = -60.0f; // the left end of the meter
 	const float FallFactor = 0.85f;   // the level shown falls by this per timer call (30 Hz)
+	const int LevelRows = 3;          // "Level", left, right
 
-	// "-18" with a real minus sign
-	String DecibelText(float decibels)
+	// The bottom of the lowest control (combo box, button, list) inside the component, in
+	// its coordinates: the device setup leaves empty space under its controls.
+	int LowestControlBottom(const Component& parent)
 	{
-		const int value = roundToInt(decibels);
-		return value < 0 ? String(CharPointer_UTF8("\xe2\x88\x92")) + String(-value) : String(value);
+		int bottom = 0;
+		for (Component* child : parent.getChildren())
+		{
+			if (!child->isVisible())
+			{
+				continue;
+			}
+			const bool control = dynamic_cast<ComboBox*>(child) != nullptr || dynamic_cast<Button*>(child) != nullptr ||
+				dynamic_cast<ListBox*>(child) != nullptr;
+			bottom = jmax(bottom, control ? child->getBottom() : child->getY() + LowestControlBottom(*child));
+		}
+		return bottom;
 	}
 }
 
@@ -82,50 +93,45 @@ void AudioInputComponent::SetActive(bool shouldBeActive)
 	}
 }
 
-// the top of the meters: under the device setup
+// The top of the level rows ("Level", left, right): in the middle between the lowest
+// control of the device setup (its buttons, if it has any) and the latency row.
 int AudioInputComponent::GetMeterTop() const
 {
-	return selector->getBottom() + MeterRowHeight / 2;
+	const int contentBottom = selector->getY() + LowestControlBottom(*selector);
+	const int latencyTop = getHeight() - MeterRowHeight * 3 / 2;
+	return jmax(contentBottom + 4, contentBottom + (latencyTop - contentBottom - LevelRows * MeterRowHeight) / 2);
 }
 
 void AudioInputComponent::paint(Graphics& g)
 {
 	g.fillAll(BackgroundColour);
 
-	// the labels end where the controls of the device setup begin (as JUCE places them)
+	// Every row begins where the controls of the device setup begin (as JUCE places them);
+	// the bars are as wide as they were beside the dBFS values.
 	const int controlsX = proportionOfWidth(0.35f);
 	const int right = proportionOfWidth(0.95f);
-	const int decibelsWidth = 80;
 	const int channelWidth = 16;
 	const int barLeft = controlsX + channelWidth + 3;
-	const int barRight = right - decibelsWidth - 6;
+	const int barRight = right - 86;
 	int y = GetMeterTop();
 
 	g.setFont(Font(FontOptions(15.0f)));
+	g.setColour(Colours::white);
+	g.drawText(TRANS("Level"), controlsX, y, right - controlsX, MeterRowHeight, Justification::centredLeft);
+	y += MeterRowHeight;
 	const String channelNames[NumMeters] = {TRANS("L"), TRANS("R")};
 	for (int ch = 0; ch < NumMeters; ch++)
 	{
 		g.setColour(Colours::white);
-		if (ch == 0)
-		{
-			g.drawText(TRANS("Level"), 0, y, controlsX - 4, MeterRowHeight, Justification::centredRight);
-		}
 		g.drawText(channelNames[ch], controlsX, y, channelWidth, MeterRowHeight, Justification::centredLeft);
-
-		const float level = levels[ch];
-		const float decibels = level > 0.0f ? Decibels::gainToDecibels(level) : MinDecibels - 1.0f;
 		const Rectangle<float> bar((float)barLeft, (float)(y + 6), (float)(barRight - barLeft), (float)(MeterRowHeight - 12));
-		AudioRecorder::DrawLevelBar(g, bar, level);
-
-		g.setColour(Colours::white);
-		const String text = decibels < MinDecibels ?
-			"< " + DecibelText(MinDecibels) + " dBFS" : DecibelText(decibels) + " dBFS";
-		g.drawText(text, barRight + 6, y, decibelsWidth, MeterRowHeight, Justification::centredLeft);
+		AudioRecorder::DrawLevelBar(g, bar, levels[ch]);
 		y += MeterRowHeight;
 	}
 
-	g.drawText(TRANS("Latency"), 0, y, controlsX - 4, MeterRowHeight, Justification::centredRight);
-	g.drawText(latencyText, controlsX, y, right - controlsX, MeterRowHeight, Justification::centredLeft);
+	g.setColour(Colours::white);
+	g.drawText(TRANS("Latency") + " " + latencyText, controlsX, getHeight() - MeterRowHeight * 3 / 2, right - controlsX,
+		MeterRowHeight, Justification::centredLeft);
 }
 
 void AudioInputComponent::resized()
@@ -139,7 +145,9 @@ void AudioInputComponent::childBoundsChanged(Component* child)
 {
 	if (child == selector.get())
 	{
-		setSize(Width, selector->getBottom() + MeterAreaHeight);
+		// (taller if the level rows would not fit between the controls and the latency row)
+		const int rowsBottom = selector->getY() + LowestControlBottom(*selector) + 4 + LevelRows * MeterRowHeight + 4;
+		setSize(Width, jmax(selector->getBottom() + MeterAreaHeight, rowsBottom + MeterRowHeight * 3 / 2));
 	}
 }
 
@@ -168,7 +176,7 @@ void AudioInputComponent::timerCallback()
 	}
 	if (changed)
 	{
-		repaint(0, GetMeterTop(), getWidth(), NumMeters * MeterRowHeight);
+		repaint(0, GetMeterTop(), getWidth(), LevelRows * MeterRowHeight);
 	}
 }
 
