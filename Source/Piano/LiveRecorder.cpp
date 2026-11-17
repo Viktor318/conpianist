@@ -49,10 +49,18 @@ void LiveRecorder::Begin(double nowMs, bool alignToDownbeat)
 	m_noteCount = 0;
 	m_saved = false;
 	m_startMs = nowMs;
+	m_leadMs = 0;
+	m_alignPending = false;
 	if (alignToDownbeat && m_lastDownbeatMs > 0 && nowMs - m_lastBeatMs < 2500 &&
 		nowMs - m_lastDownbeatMs < 15000)
 	{
 		m_startMs = m_lastDownbeatMs;
+		m_leadMs = nowMs - m_startMs;
+	}
+	else if (alignToDownbeat)
+	{
+		// the downbeat is not known (yet): e.g. the song goes on in the middle of a measure
+		m_alignPending = true;
 	}
 	m_lastEventMs = nowMs;
 	m_endMs = nowMs;
@@ -114,14 +122,43 @@ int LiveRecorder::GetCountInMeasuresLeft() const
 	return m_state == stCountIn ? m_downbeatsLeft : 0;
 }
 
-void LiveRecorder::Beat(bool downbeat)
+void LiveRecorder::Beat(int beat)
 {
 	const double nowMs = NowMs();
+	const bool downbeat = beat == 1;
 	const ScopedLock lock(m_lock);
-	m_lastBeatMs = nowMs;
-	if (!downbeat || nowMs - m_lastDownbeatMs < 100)
+	if (m_lastBeatMs > 0 && nowMs - m_lastBeatMs < 100)
 	{
-		return; // not a downbeat, or the same downbeat reported twice
+		return; // the same beat reported twice
+	}
+	const bool running = m_lastBeatMs > 0 && nowMs - m_lastBeatMs < 2500;
+	if (!running)
+	{
+		// the beats have paused (the song or the metronome was stopped): the downbeat
+		// before the pause is not the beginning of this measure
+		m_lastDownbeatMs = 0;
+	}
+	else if (m_lastDownbeatMs == 0 && m_lastBeat >= 1)
+	{
+		// The beats went on in the middle of a measure: its beginning, from the number of
+		// the previous beat and the time between the two beats.
+		const double beatMs = nowMs - m_lastBeatMs;
+		const double measureStartMs = m_lastBeatMs - (m_lastBeat - 1) * beatMs;
+		m_lastDownbeatMs = measureStartMs;
+		if (m_state == stRecording && m_alignPending && measureStartMs < m_startMs &&
+			m_startMs - measureStartMs < 15000)
+		{
+			// the recording began in this measure: it begins with the measure (a rest first)
+			m_leadMs += m_startMs - measureStartMs;
+			MoveStart(measureStartMs);
+		}
+		m_alignPending = false;
+	}
+	m_lastBeat = beat;
+	m_lastBeatMs = nowMs;
+	if (!downbeat)
+	{
+		return;
 	}
 	m_lastDownbeatMs = nowMs;
 	if (m_state == stCountIn)
@@ -135,11 +172,13 @@ void LiveRecorder::Beat(bool downbeat)
 	{
 		// nothing was played yet: the empty measures at the beginning are left out
 		MoveStart(nowMs);
+		m_leadMs = 0;
+		m_alignPending = false;
 	}
 }
 
-// Moves the beginning of the recording later; what was recorded before it (e.g. the
-// pedal) is kept at the beginning.
+// Moves the beginning of the recording (later: what was recorded before it, e.g. the pedal,
+// is kept at the beginning; earlier: everything recorded is later in the recording).
 void LiveRecorder::MoveStart(double newStartMs)
 {
 	const double delta = newStartMs - m_startMs;
@@ -338,6 +377,7 @@ void LiveRecorder::Store(int source, const MidiMessage& message, double nowMs)
 		// no beats to keep in step with: the recording begins with its first note, the
 		// silence before it is left out
 		MoveStart(nowMs);
+		m_leadMs = 0;
 	}
 	m_events.push_back({nowMs - m_startMs, source, copy});
 	m_lastEventMs = nowMs;
@@ -500,6 +540,12 @@ double LiveRecorder::GetStartMs() const
 {
 	const ScopedLock lock(m_lock);
 	return m_startMs;
+}
+
+double LiveRecorder::GetLeadSeconds() const
+{
+	const ScopedLock lock(m_lock);
+	return m_leadMs / 1000.0;
 }
 
 double LiveRecorder::GetEndMs(bool withStyle) const

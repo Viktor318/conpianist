@@ -1649,7 +1649,9 @@ void RecorderComponent::updateStatus()
 {
 	LiveRecorder& recorder = pianoController.GetRecorder();
 	const String bullet = " " + String(CharPointer_UTF8("\xe2\x80\xa2")) + " ";
-	const String info = formatTime(recorder.GetLengthSeconds()) + bullet +
+	// (the time is counted from where the recording was started: a rest before it, back to
+	// the beginning of its measure, is in the file but not in the time shown)
+	const String info = formatTime(jmax(0.0, recorder.GetLengthSeconds() - recorder.GetLeadSeconds())) + bullet +
 		TRANS("NUMBER measures").replace("NUMBER", String(recordingMeasures()));
 	String text;
 	Colour colour = Colours::white;

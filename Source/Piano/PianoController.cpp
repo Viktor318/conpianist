@@ -2690,7 +2690,7 @@ void PianoController::SoftMetronomeTick()
 void PianoController::OnBeat(int beat)
 {
 	m_lastBeatMs = Time::getMillisecondCounter();
-	m_recorder.Beat(beat == 1);
+	m_recorder.Beat(beat);
 }
 
 bool PianoController::HasBeats() const

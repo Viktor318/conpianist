@@ -63,9 +63,13 @@ public:
 	// earlier, with the first note played during the count-in.
 	void StartCountIn(int measures);
 	int GetCountInMeasuresLeft() const;
-	// A beat of the metronome or of the playing song. A recording that starts while the
-	// beats are running begins at the last downbeat, so its measures match the beats.
-	void Beat(bool downbeat);
+	// A beat of the metronome or of the playing song (1: the downbeat). A recording that
+	// starts while the beats are running begins at the last downbeat, so its measures match
+	// the beats: the first measure begins with a rest then (see GetLeadSeconds). After a
+	// pause of the beats (the song was stopped) the downbeats before it do not count: if the
+	// beats go on in the middle of a measure, its beginning is worked out from the number
+	// of the beat and the time between two beats.
+	void Beat(int beat);
 	// Ends the recording: held notes and the pedal are released in the recording.
 	void Stop();
 	// Drops the recording.
@@ -118,6 +122,9 @@ public:
 	// (Time::getMillisecondCounterHiRes): what is written into the file begins at the
 	// first and ends at the second (withStyle: with the accompaniment, if that ends later).
 	double GetStartMs() const;
+	// The rest at the beginning of the recording, when it was started in the middle of a
+	// measure (the time from the downbeat to the start); 0 if it began where it was started.
+	double GetLeadSeconds() const;
 	double GetEndMs(bool withStyle) const;
 	int GetHeldNoteCount() const;            // notes and pedals held now
 
@@ -164,7 +171,10 @@ private:
 	int m_pendingNumerator = NoValue;
 	int m_pendingDenominator = NoValue;
 	double m_lastBeatMs = 0;
-	double m_lastDownbeatMs = 0;
+	double m_lastDownbeatMs = 0; // 0: not known (no beats yet, or the beats have paused since)
+	int m_lastBeat = 0;          // the number of the last beat
+	bool m_alignPending = false; // the recording began without a known downbeat: see Beat
+	double m_leadMs = 0;         // see GetLeadSeconds
 	int m_downbeatsLeft = 0;
 	std::vector<Event> m_events;
 	Setup m_setup[NumSources + 1];
