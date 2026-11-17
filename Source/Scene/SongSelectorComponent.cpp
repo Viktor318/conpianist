@@ -37,8 +37,6 @@ namespace
 
 	// the folder that is shown first: Score > 50 Popular > Pop
 	const char* const DefaultFolder = "Score/50 Popular/Pop";
-	// these folders are closed at first (many songs, rarely used)
-	const char* const ClosedFolder = "PDF Score/Lesson";
 }
 
 //==============================================================================
@@ -128,10 +126,6 @@ SongSelectorComponent::SongSelectorComponent(Settings& settings, PianoController
 	folderTree.setRootItem(rootItem.get());
 	folderTree.setRootItemVisible(false);
 	folderTree.setDefaultOpenness(true);
-	if (FolderItem* closed = FindFolderItem(ClosedFolder))
-	{
-		closed->setOpen(false);
-	}
 	folderTree.setIndentSize(14);
 	folderTree.setColour(TreeView::backgroundColourId, ListColour);
 	folderTree.setColour(TreeView::selectedItemBackgroundColourId, OrangeColour);
