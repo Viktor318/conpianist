@@ -480,7 +480,7 @@ countries: hu
 "Format" = "Formátum"
 "Normalize" = "Normalizálás"
 "When the audio is saved, its loudest point is raised to -1 dBFS (both channels by the same amount), so a recording made at a low level is not quiet; every recording is set by its own loudest point" = "Mentéskor a hang leghangosabb pontja −1 dBFS-re emelkedik (a két csatorna egyformán), így az alacsony szinten készült felvétel sem lesz halk; minden felvétel a saját leghangosabb pontjához igazodik"
-"The format of the audio file: WAV and FLAC keep the sound unchanged (FLAC is about half the size), MP3 is small and plays everywhere (320 kb/s)" = "A hangfájl formátuma: a WAV és a FLAC változatlanul őrzi a hangot (a FLAC kb. fele akkora), az MP3 kicsi és mindenhol lejátszható (320 kb/s)"
+"The format of the audio file: WAV and FLAC keep the sound unchanged (FLAC is about half the size); OGG is smaller, of very high quality; MP3 is the smallest and plays everywhere" = "A hangfájl formátuma: a WAV és a FLAC változatlanul őrzi a hangot (a FLAC kb. fele akkora); az OGG kisebb, nagyon jó minőségű; az MP3 a legkisebb, és mindenhol lejátszható"
 "The format of the audio file. MP3 needs the LAME encoder: put lame.exe (and its DLL) beside the program, or into this folder:" = "A hangfájl formátuma. Az MP3-hoz a LAME kódoló kell: tedd a lame.exe fájlt (a DLL-jével együtt) a program mellé, vagy ebbe a mappába:"
 
 // --- Hangkártya ablak (Eszközök menü), a JUCE eszközbeállító panelje ---

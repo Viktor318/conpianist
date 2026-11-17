@@ -87,9 +87,11 @@ public:
 	double GetSampleRate() const { return m_sampleRate; }
 
 	// The format of the saved file. WAV and FLAC are 24 bit; MP3 is 320 kb/s, made by the
-	// LAME encoder, a program of its own (lame.exe) run for the conversion.
-	enum Format { fmtWav, fmtFlac, fmtMp3 };
-	static String GetExtension(Format format); // "wav", "flac", "mp3"
+	// LAME encoder, a program of its own (lame.exe) run for the conversion; Ogg Vorbis is
+	// the highest quality of its encoder (variable bit rate, 500 kb/s by name).
+	// (The values are saved in the settings: a new format comes last.)
+	enum Format { fmtWav, fmtFlac, fmtMp3, fmtOgg, NumFormats };
+	static String GetExtension(Format format); // "wav", "flac", "mp3", "ogg"
 	// What Save is doing (it may take seconds: it can be called on a thread of its own).
 	enum Stage { stageWriting, stageNormalizing, stageConverting };
 	static constexpr float NormalizeLevel = 0.891f; // -1 dBFS: the peak of a normalized file

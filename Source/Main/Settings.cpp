@@ -197,7 +197,7 @@ void Settings::Load()
 	recorderTimestamp = prop.getBoolValue("Recorder.Timestamp", recorderTimestamp);
 	recorderSeparateStyle = prop.getBoolValue("Recorder.SeparateStyle", recorderSeparateStyle);
 	recorderAudio = prop.getBoolValue("Recorder.Audio", recorderAudio);
-	recorderAudioFormat = jlimit(0, 2, prop.getIntValue("Recorder.AudioFormat", recorderAudioFormat));
+	recorderAudioFormat = jlimit(0, 3, prop.getIntValue("Recorder.AudioFormat", recorderAudioFormat));
 	recorderAudioNormalize = prop.getBoolValue("Recorder.AudioNormalize", recorderAudioNormalize);
 	recorderAudioContinue = prop.getBoolValue("Recorder.AudioContinue", recorderAudioContinue);
 	accompanimentAutoFill = prop.getBoolValue("Accompaniment.AutoFill", accompanimentAutoFill);

@@ -380,7 +380,7 @@ namespace
 
 String AudioCapture::GetExtension(Format format)
 {
-	return format == fmtFlac ? "flac" : format == fmtMp3 ? "mp3" : "wav";
+	return format == fmtFlac ? "flac" : format == fmtMp3 ? "mp3" : format == fmtOgg ? "ogg" : "wav";
 }
 
 bool AudioCapture::Save(const File& file, double startMs, const SaveOptions& options, String& error) const
@@ -470,8 +470,8 @@ bool AudioCapture::Save(const File& file, double startMs, const SaveOptions& opt
 			error = "The file cannot be written";
 			return false;
 		}
-		// FLAC and MP3 are written by JUCE (MP3: into a WAV file first, converted by LAME
-		// when the writer is closed)
+		// FLAC, Ogg Vorbis and MP3 are written by JUCE (MP3: into a WAV file first, converted
+		// by LAME when the writer is closed)
 		std::unique_ptr<AudioFormatWriter> writer;
 		if (options.format != fmtWav)
 		{
@@ -481,6 +481,12 @@ bool AudioCapture::Save(const File& file, double startMs, const SaveOptions& opt
 			{
 				FlacAudioFormat flac;
 				writer = flac.createWriterFor(out, writerOptions);
+			}
+			else if (options.format == fmtOgg)
+			{
+				OggVorbisAudioFormat ogg;
+				const int quality = ogg.getQualityOptions().indexOf("500 kbps");
+				writer = ogg.createWriterFor(out, writerOptions.withBitsPerSample(32).withQualityOptionIndex(quality));
 			}
 			else
 			{

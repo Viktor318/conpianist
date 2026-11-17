@@ -169,7 +169,8 @@ RecorderComponent::RecorderComponent(Settings& settings, PianoController& pianoC
 	initLabel(formatLabel, TRANS("Format"));
 	formatCombo.addItem("WAV", AudioCapture::fmtWav + 1);
 	formatCombo.addItem("FLAC", AudioCapture::fmtFlac + 1);
-	formatCombo.addItem("MP3", AudioCapture::fmtMp3 + 1);
+	formatCombo.addItem("OGG (500 kb/s)", AudioCapture::fmtOgg + 1);
+	formatCombo.addItem("MP3 (320 kb/s)", AudioCapture::fmtMp3 + 1);
 	formatCombo.onChange = [this]() { saveOptions(); };
 	addAndMakeVisible(formatCombo);
 
@@ -395,8 +396,8 @@ void RecorderComponent::resized()
 		// the format and the normalizing belong to the audio: they begin under its text
 		const int labelWidth = jlimit(50, 110, textWidth(formatLabel.getText()) + 10);
 		formatLabel.setBounds(40, 196, labelWidth, 24);
-		formatCombo.setBounds(40 + labelWidth, 196, 232 - (40 + labelWidth), 24);
-		normalizeButton.setBounds(236, 196, 188, 24);
+		formatCombo.setBounds(40 + labelWidth, 196, 262 - (40 + labelWidth), 24);
+		normalizeButton.setBounds(266, 196, 158, 24);
 	}
 	continueButton.setBounds(36, 224, 388, 24);
 	// metronome
@@ -574,7 +575,7 @@ void RecorderComponent::saveOptions()
 	const bool dateFolders = dateFoldersButton.getToggleState();
 	const bool timestamp = timestampButton.getToggleState();
 	const bool audio = audioButton.getToggleState();
-	const int audioFormatIndex = jlimit(0, 2, formatCombo.getSelectedId() - 1);
+	const int audioFormatIndex = jlimit(0, AudioCapture::NumFormats - 1, formatCombo.getSelectedId() - 1);
 	const bool normalize = normalizeButton.getToggleState();
 	const bool audioContinue = continueButton.getToggleState();
 	if (audioContinue != settings.recorderAudioContinue || audioFormatIndex != settings.recorderAudioFormat || normalize != settings.recorderAudioNormalize ||
@@ -979,7 +980,7 @@ void RecorderComponent::AudioSaveJob::run()
 // The format chosen; MP3 only if the LAME encoder is there (else WAV).
 AudioCapture::Format RecorderComponent::audioFormat() const
 {
-	const AudioCapture::Format format = (AudioCapture::Format)jlimit(0, 2, formatCombo.getSelectedId() - 1);
+	const AudioCapture::Format format = (AudioCapture::Format)jlimit(0, AudioCapture::NumFormats - 1, formatCombo.getSelectedId() - 1);
 	return format == AudioCapture::fmtMp3 && !AudioRecorder::FindLame().existsAsFile() ? AudioCapture::fmtWav : format;
 }
 
@@ -1547,7 +1548,7 @@ void RecorderComponent::updateControls()
 		formatLabel.setEnabled(withAudio);
 		formatCombo.setEnabled(withAudio);
 		formatCombo.setItemEnabled(AudioCapture::fmtMp3 + 1, hasLame);
-		formatCombo.setTooltip(hasLame ? TRANS("The format of the audio file: WAV and FLAC keep the sound unchanged (FLAC is about half the size), MP3 is small and plays everywhere (320 kb/s)") :
+		formatCombo.setTooltip(hasLame ? TRANS("The format of the audio file: WAV and FLAC keep the sound unchanged (FLAC is about half the size); OGG is smaller, of very high quality; MP3 is the smallest and plays everywhere") :
 			TRANS("The format of the audio file. MP3 needs the LAME encoder: put lame.exe (and its DLL) beside the program, or into this folder:") + " " + AudioRecorder::GetLameFolder().getFullPathName());
 		normalizeButton.setEnabled(withAudio);
 		continueButton.setEnabled(withAudio);
