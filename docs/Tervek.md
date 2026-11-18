@@ -22,7 +22,7 @@ Ide bármikor beírható egy új ötlet, egy sorban, akár félkészen is. A kö
 
 ## Folyamatban
 
-Az 5.0 kiadva (október 26., `v5.0`). Most a kézikönyv készül, vele párhuzamosan az 5.1; az 5.1 első új funkciója a hangfelvétel (audio). Sorrend (döntés: november 17.): a szűkített 5.1 (hangfelvétel, áthozott tesztek, gyári OTS változatválasztó, két hibajavítás), utána az iOS-változat (iPad) külön `ios` ágon; az akkordmenet-lejátszó és a kódátírások az 5.2-ben, a MIDI áthangszerelő az 5.3-ban, a kotta az 5.4-ben.
+Az 5.0 kiadva (október 26., `v5.0`). Az 5.0.1 kiadva (november 18., `v5.0.1`, Viktor döntése): a `develop` addigi állapota, a hangfelvétellel, a JUCE 9.0.5-tel, a pdf2musicxml képes kottáival és a kottanézet javításaival. Most a kézikönyv készül, vele párhuzamosan az 5.1; a hangfelvétel az 5.0.1-ben kiadva, a nyitott tételei (igazítás mérése, MP3 a valódi LAME-mel, a késés más meghajtóval, a zongora saját ütésjelzése) az 5.1-ben maradnak. Sorrend (döntés: november 17.): a szűkített 5.1 (hangfelvétel, áthozott tesztek, gyári OTS változatválasztó, két hibajavítás), utána az iOS-változat (iPad) külön `ios` ágon; az akkordmenet-lejátszó és a kódátírások az 5.2-ben, a MIDI áthangszerelő az 5.3-ban, a kotta az 5.4-ben.
 
 ### Kották (Songs › PDF Score)
 
@@ -70,7 +70,7 @@ Döntés (október 26.): az 5.0 a tesztek befejezése előtt kiadva; a még ki n
 - **Kitartott hang a kézi leállításnál** (valószínű hiba, a kódból, október 26.; előbb teszt): ha kézi módban a Leállítás megnyomásakor még nyomva tartasz egy akkordot, a felvétel vége az utolsó esemény, vagyis az akkord leütése (`LiveRecorder::Stop`, `m_lastEventMs`), így az akkord hangjai a fájlban nulla hosszúak lehetnek, a kitartás elvész. Kipróbálni: akkordot leütni, kitartani, közben Leállítás, mentés, a fájlt megnézni. A javításról a teszt után döntünk (javaslat: lenyomott hangnál vagy pedálnál a vége a Leállítás pillanata).
 - **Kották ellenőrzése:** november 13-tól külön rész, lásd Folyamatban › Kották (Songs › PDF Score). A régi kottákkal korábban ellenőrzöttek: Canon D dur, Air On the G String, Tempest 3. tétel, Ode to Joy, Twinkle; az új rend szerint ezek is elölről indulnak.
 
-### 5.1 – Hangfelvétel (audio)
+### 5.1 – Hangfelvétel (audio; kiadva az 5.0.1-ben, a nyitott tételek az 5.1-ben)
 
 Az 5.1 első új funkciója (Viktor döntése, október 26.; az akkori 5.2-ből előrehozva, az ötlet október 18-i). A CSP-170 USB-n hangkártyaként is működik (Yamaha Steinberg USB Driver, ASIO; 44,1 kHz): a zongora kész sztereó hangját küldi, mindent együtt, ami szól (billentyűk, kíséret, dal); hangszerenként külön sáv így nem kapható, arra a MIDI-felvétel való.
 
