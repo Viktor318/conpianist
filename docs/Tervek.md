@@ -139,7 +139,7 @@ Az október 10-i és 13-i kódátnézés két valódi hibája (döntés: októbe
 
 | Tétel | Leírás | Munka | Megjegyzés |
 |---|---|---|---|
-| Kvantálás ütemmutató-váltásnál | A Felvétel kvantálása a kezdő ütemmutató szerinti ütemekben számol (`LiveRecorder.cpp`, `measureTicks`), így például 4/4 után 5/8-ban vagy 7/8-ban az ütemvonalak nem esnek az ablakhatárokra, és a hangok rossz ütemhez igazodnak. Az ütemmutató-váltásokat követő rács kell. | Kö | A kódátnézés 10. pontja. |
+| Kvantálás ütemmutató-váltásnál | A Felvétel kvantálása a kezdő ütemmutató szerinti ütemekben számol (`LiveRecorder.cpp`, `measureTicks`), így például 4/4 után 5/8-ban vagy 7/8-ban az ütemvonalak nem esnek az ablakhatárokra, és a hangok rossz ütemhez igazodnak. Az ütemmutató-váltásokat követő rács kell. | Kö | A kódátnézés 10. pontja. **Elkészült** (november 21.): a kvantálás az ütemmutató-szakaszok ütemvonalaitól számol (`MeasureSection`, `SnapToGrid`), az akkordjelek is; a tempóváltások kvantálása a fájl elejétől számolt rácson maradt, mert a tempótérkép az ütemmutatók elhelyezése előtt készül (a mentés szétbontásakor, 5.2, javítható). Linuxon tesztelve. |
 | Az élő játék külön útja (K4) | Az élő játék hangjai (MIDI In 2, virtuális billentyűzet a Keverő csatornáin) és a szekcióváltás most a zongora visszaigazolásaira váró sorban mennek, így egy OTS-behívás vagy csatlakozás alatt késhetnek (megválaszolatlan kérésnél 5 mp-et is). Kell egy valós idejű út a hangoknak, CC-knek és a szekcióváltásnak, és egy visszaigazolásos sor csak a CSP-üzeneteknek (N kísérlet után feladja és jelzi). | Kö | A vezérlő átnézéséből (október 13.). |
 
 ### Az 5.1 után – iOS-változat (iPad)

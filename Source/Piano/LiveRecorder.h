@@ -224,8 +224,21 @@ private:
 	void Begin(double nowMs, bool alignToDownbeat);
 	void MoveStart(double newStartMs);
 	void Store(int source, const MidiMessage& message, double nowMs);
+	// A part of the written file with one time signature: where it begins and how long its
+	// measures are (in ticks). The parts follow each other; the first begins at 0.
+	struct MeasureSection
+	{
+		double tick;
+		double measureTicks;
+	};
+	// The section a tick belongs to (the last one beginning at or before it).
+	static size_t SectionOf(const std::vector<MeasureSection>& measures, double tick);
+	// The grid point nearest to the tick: the grid is counted from the measure line, and
+	// the end of the measure is a grid point too (the measure need not be a multiple of the
+	// grid, e.g. 3/8 with a quarter-note grid).
+	static double SnapToGrid(double tick, double grid, const std::vector<MeasureSection>& measures);
 	double AddQuantized(MidiMessageSequence& track, int source, int channel,
 		double ticksPerMs, int grid, bool quantizeEnds, int tripletTicks, bool fillGaps,
-		double measureTicks) const;
+		const std::vector<MeasureSection>& measures) const;
 	static bool IsRecordable(const MidiMessage& message);
 };

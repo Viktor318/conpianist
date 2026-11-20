@@ -577,9 +577,29 @@ int LiveRecorder::GetHeldNoteCount() const
 
 // Writes the events of a source into the track with the notes moved to the grid.
 // Returns the time of the last event (ticks).
+size_t LiveRecorder::SectionOf(const std::vector<MeasureSection>& measures, double tick)
+{
+	size_t index = 0;
+	while (index + 1 < measures.size() && measures[index + 1].tick <= tick)
+	{
+		index++;
+	}
+	return index;
+}
+
+double LiveRecorder::SnapToGrid(double tick, double grid, const std::vector<MeasureSection>& measures)
+{
+	// (a tick a little before a measure line belongs to the next measure)
+	const MeasureSection& section = measures[SectionOf(measures, tick + grid / 2.0)];
+	const double measure = std::max(0.0, std::floor((tick + grid / 2.0 - section.tick) / section.measureTicks));
+	const double start = section.tick + measure * section.measureTicks;
+	const double offset = std::floor((tick - start) / grid + 0.5) * grid;
+	return start + jlimit(0.0, section.measureTicks, offset);
+}
+
 double LiveRecorder::AddQuantized(MidiMessageSequence& track, int source, int channel,
 	double ticksPerMs, int grid, bool quantizeEnds, int tripletTicks, bool fillGaps,
-	double measureTicks) const
+	const std::vector<MeasureSection>& measures) const
 {
 	struct Note
 	{
@@ -636,6 +656,8 @@ double LiveRecorder::AddQuantized(MidiMessageSequence& track, int source, int ch
 	// The measure is divided into windows: the shortest length that the grid and a group
 	// of three triplet steps both fit into. In a window the notes are moved either to the
 	// grid or to the triplet grid. A note played a little before a window belongs to it.
+	// The measures are counted from the beginning of their time signature section, so the
+	// windows follow the measure lines of the file after a time signature change too.
 	const bool triplets = tripletTicks > 0;
 	const double window = triplets ? (double)std::lcm(grid, tripletTicks * 3) : grid * 2.0;
 	const double tripletGrid = triplets ? tripletTicks : grid;
@@ -647,14 +669,17 @@ double LiveRecorder::AddQuantized(MidiMessageSequence& track, int source, int ch
 		double length;  // the last window of a measure can be shorter
 		double offset;  // position in the window (negative: a little before it)
 	};
-	auto placeOf = [=](double tick)
+	auto placeOf = [=, &measures](double tick)
 		{
 			const double shifted = tick + early;
-			const double measure = std::floor(shifted / measureTicks);
-			const double inMeasure = shifted - measure * measureTicks;
+			const size_t sectionIndex = SectionOf(measures, shifted);
+			const MeasureSection& section = measures[sectionIndex];
+			const double measureTicks = section.measureTicks;
+			const double measure = std::floor((shifted - section.tick) / measureTicks);
+			const double inMeasure = shifted - section.tick - measure * measureTicks;
 			const double index = std::floor(inMeasure / window);
-			const double start = measure * measureTicks + index * window;
-			return Place{(long long)measure * 4096 + (long long)index, start,
+			const double start = section.tick + measure * measureTicks + index * window;
+			return Place{((long long)sectionIndex << 44) + (long long)measure * 4096 + (long long)index, start,
 				std::min(window, measureTicks - index * window), tick - start};
 		};
 	auto snap = [](const Place& place, double step)
@@ -899,6 +924,14 @@ bool LiveRecorder::Save(const File& file, int tempo, int beatNumerator, int beat
 			i++;
 		}
 	}
+	// the measures of the file, for the quantization: the notes and the chords are moved
+	// to the grid of the measure they are in
+	std::vector<MeasureSection> measures;
+	for (const TimeSignatureChange& change : timeSignatures)
+	{
+		measures.push_back({change.tick,
+			ticksPerQuarter * 4.0 * std::max(1, change.numerator) / std::max(1, change.denominator)});
+	}
 
 	// the sources that played notes
 	bool used[NumSources + 1] = {};
@@ -1020,7 +1053,7 @@ bool LiveRecorder::Save(const File& file, int tempo, int beatNumerator, int beat
 			double tick = std::floor(TickOf(event.time) + 0.5);
 			if (quantizeTicks > 0)
 			{
-				tick = std::floor(tick / quantizeTicks + 0.5) * quantizeTicks;
+				tick = SnapToGrid(tick, quantizeTicks, measures);
 			}
 			tick = std::max(tick, lastTick);
 			lastTick = tick;
@@ -1112,10 +1145,8 @@ bool LiveRecorder::Save(const File& file, int tempo, int beatNumerator, int beat
 		double lastTick = 0;
 		if (quantizeTicks > 0 && source < srcStyle9)
 		{
-			// the length of a measure: the quarter note is ticksPerQuarter ticks long
-			const double measureTicks = std::max(1, beatNumerator) * 4.0 * ticksPerQuarter / std::max(1, beatDenominator);
 			lastTick = AddQuantized(track, source, channel, ticksPerMs, quantizeTicks, quantizeEnds,
-				tripletTicks, fillGaps, measureTicks);
+				tripletTicks, fillGaps, measures);
 		}
 		else
 		{

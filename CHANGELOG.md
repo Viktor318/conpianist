@@ -4,7 +4,8 @@ Ez a fájl a ConPianist változásait dokumentálja. Az 1.0–3.0 verziók az er
 
 ## 5.1 (fejlesztés alatt)
 
-- Még nincs változás.
+### Javítva
+- **Felvétel: a kvantálás ütemmutató-váltás után is a fájl ütemeihez igazodik.** Ha felvétel közben megváltozott az ütemmutató (például más ütemű stílusra váltottál), a mentett fájlban a váltás helyesen az ütemvonalra került, a kvantálás viszont továbbra is a kezdő ütemmutató szerinti ütemekben számolt a fájl elejétől. Így a váltás után a triolák szétszakadhattak, és ha a rács nem osztotta az új ütemet (például negyedes rács 3/8-ban), a hangok az ütések mellé kerültek. Most a hangok és az akkordjelek a saját ütemük rácsára kerülnek. Ütemmutató-váltás nélkül a mentett fájl nem változott.
 
 ## 5.0.1 (fork) – 2026. november 18.
 
