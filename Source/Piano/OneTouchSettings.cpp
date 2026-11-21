@@ -278,12 +278,19 @@ void OneTouchSettings::Update()
 	}
 
 	// OTS Link: the factory setting of the Main section, when the style or the section
-	// changes (not when they become known, e.g. after connecting)
+	// changes (not when they become known, e.g. after connecting). The last Main section
+	// known is kept while no Main section is reported: during a fill in the piano may
+	// report the fill in as the section playing and as the next one for a moment, before
+	// it reports the new Main section as the next one; forgetting the old one then would
+	// make the new one look like the first one known, and it would not be recalled.
 	const int main = CurrentMain();
 	const int previousMain = m_main;
-	m_main = main;
+	if (main >= 0)
+	{
+		m_main = main;
+	}
 	const bool linked = styleChanged ? previousStyle.isNotEmpty() && style.isNotEmpty() :
-		main != previousMain && previousMain >= 0;
+		main >= 0 && main != previousMain && previousMain >= 0;
 	if (m_link && linked && main >= 0 && !m_pianoController.IsOtsLinkSuspended() && IsFactoryUsed(main))
 	{
 		RecallFactory(main);
