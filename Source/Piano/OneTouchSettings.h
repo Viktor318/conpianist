@@ -48,7 +48,9 @@
 // one chosen is used, its choice is kept for each style and OTS. With
 // OTS Link on, the factory setting of the Main section (A-D: 1-4) is recalled when the
 // style or its Main section changes (not while PianoController suspends it, e.g. while a
-// registration memory is loaded).
+// registration memory is loaded), and when the style becomes known: at the start of the
+// program (after the state of the last start has been restored) and when the piano is
+// connected again.
 //
 // Used on the message thread only. The listeners are told of every change of the
 // shown state (synchronously).
@@ -224,6 +226,9 @@ private:
 	std::set<String> m_stylesWithFactory; // preset paths
 	bool m_link = true;
 	int m_main = -1; // the Main section of the piano (0..3: A..D), -1 if none
+	// the style has become known (start, connection): OTS Link recalls the factory setting
+	// of the Main section as soon as it can (see Update)
+	bool m_linkOnConnect = false;
 	int CurrentMain() const;
 	void LoadFactory();
 	void ScanFactoryFolder();

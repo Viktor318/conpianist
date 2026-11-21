@@ -248,8 +248,7 @@ void OneTouchSettings::Update()
 	{
 		// The voices of the piano are not known: nothing is active. The style is forgotten
 		// too: after connecting again (e.g. the piano was switched off and on) the style
-		// the piano reports becomes known, it is not a change of the style, so OTS Link does
-		// not recall a factory setting then.
+		// the piano reports becomes known (see m_linkOnConnect).
 		if (m_active >= 0 || m_factoryActive >= 0 || m_style.isNotEmpty())
 		{
 			m_active = -1;
@@ -277,8 +276,24 @@ void OneTouchSettings::Update()
 		LoadFactory();
 	}
 
+	// The style has become known (the program has started, or the piano is connected
+	// again): with OTS Link on, the factory setting of the Main section is recalled as soon
+	// as the state of the last start has been restored (it suspends OTS Link for a while,
+	// see RegistrationMemory::Load), so the voices follow the Main section from the start.
+	// A style chosen meanwhile (not by the restoring) and an OTS recalled meanwhile take
+	// its place.
+	const bool suspended = m_pianoController.IsOtsLinkSuspended();
+	if (styleChanged && previousStyle.isEmpty())
+	{
+		m_linkOnConnect = true;
+	}
+	else if ((styleChanged && !suspended) || !m_link || m_active >= 0 || m_factoryActive >= 0)
+	{
+		m_linkOnConnect = false;
+	}
+
 	// OTS Link: the factory setting of the Main section, when the style or the section
-	// changes (not when they become known, e.g. after connecting). The last Main section
+	// changes (when they become known: see above). The last Main section
 	// known is kept while no Main section is reported: during a fill in the piano may
 	// report the fill in as the section playing and as the next one for a moment, before
 	// it reports the new Main section as the next one; forgetting the old one then would
@@ -291,10 +306,25 @@ void OneTouchSettings::Update()
 	}
 	const bool linked = styleChanged ? previousStyle.isNotEmpty() && style.isNotEmpty() :
 		main >= 0 && main != previousMain && previousMain >= 0;
-	if (m_link && linked && main >= 0 && !m_pianoController.IsOtsLinkSuspended() && IsFactoryUsed(main))
+	if (m_link && linked && main >= 0 && !suspended && IsFactoryUsed(main))
 	{
+		m_linkOnConnect = false;
 		RecallFactory(main);
 		return;
+	}
+	if (m_linkOnConnect && main >= 0 && IsFactoryUsed(main))
+	{
+		if (!suspended)
+		{
+			m_linkOnConnect = false;
+			Logger::writeToLog("OTS Link: factory OTS " + String(main + 1) + " recalled at the start");
+			RecallFactory(main);
+			return;
+		}
+		if (!isTimerRunning())
+		{
+			startTimer(250); // tried again when the restoring is over
+		}
 	}
 	if (styleChanged)
 	{
