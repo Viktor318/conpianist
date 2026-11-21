@@ -1387,6 +1387,7 @@ FactoryOts::Result FactoryOts::Import(const File& stylesFolder, const File& fact
 	{
 		String style;
 		OneTouchSettings::Setting settings[OneTouchSettings::NumFactorySettings];
+		std::vector<OneTouchSettings::Variant> variants[OneTouchSettings::NumFactorySettings];
 		int used = 0; // the settings taken
 	};
 	std::vector<Item> items;
@@ -1437,22 +1438,79 @@ FactoryOts::Result FactoryOts::Import(const File& stylesFolder, const File& fact
 		}
 		Item item;
 		item.style = style.path;
-		StringArray log;
-		String error;
-		if (!ReadStyleFile(file, item.settings, result.skipped, log, Sources()[fileSource], &error))
+		// the chosen file first (the default versions), then the file of the same name of
+		// each other model
+		std::vector<std::pair<int, File>> candidates{{fileSource, file}};
+		for (int source = 0; source < (int)files.size(); source++)
 		{
-			result.details.add(style.title + " (" + file.getRelativePathFrom(stylesFolder) + "): " +
-				(error.isNotEmpty() ? error : String("no OTS in the file")));
-			continue;
+			const auto it = files[(size_t)source].find(key);
+			if (source != fileSource && it != files[(size_t)source].end())
+			{
+				candidates.push_back({source, it->second});
+			}
 		}
-		for (const String& line : log)
+		for (size_t c = 0; c < candidates.size(); c++)
 		{
-			result.details.add(style.title + " (" + file.getRelativePathFrom(stylesFolder) + "): " + line);
+			const bool chosenFile = c == 0;
+			const File& candidate = candidates[c].second;
+			const String& source = Sources()[candidates[c].first];
+			OneTouchSettings::Setting settings[OneTouchSettings::NumFactorySettings];
+			StringArray log;
+			String error;
+			int skipped = 0;
+			const bool read = ReadStyleFile(candidate, settings, skipped, log, source, &error);
+			(chosenFile ? result.skipped : result.otherSkipped) += skipped;
+			if (!read && chosenFile)
+			{
+				result.details.add(style.title + " (" + candidate.getRelativePathFrom(stylesFolder) + "): " +
+					(error.isNotEmpty() ? error : String("no OTS in the file")));
+				break; // as before: the style gets no factory settings
+			}
+			if (!read)
+			{
+				result.details.add(style.title + " (" + candidate.getRelativePathFrom(stylesFolder) + "): " +
+					(error.isNotEmpty() ? error : String("no OTS in the file")));
+				continue;
+			}
+			for (const String& line : log)
+			{
+				result.details.add(style.title + " (" + candidate.getRelativePathFrom(stylesFolder) + "): " +
+					(chosenFile ? "" : "other version: ") + line);
+			}
+			for (int i = 0; i < OneTouchSettings::NumFactorySettings; i++)
+			{
+				if (!settings[i].used)
+				{
+					continue;
+				}
+				std::vector<OneTouchSettings::Variant>& list = item.variants[i];
+				if (!chosenFile && list.empty())
+				{
+					continue; // not in the chosen file: the OTS stays empty, as before
+				}
+				const auto same = std::find_if(list.begin(), list.end(), [&](const OneTouchSettings::Variant& v)
+					{
+						return OneTouchSettings::SameVariant(v.setting, settings[i]);
+					});
+				if (same != list.end())
+				{
+					same->sources.add(source);
+				}
+				else
+				{
+					list.push_back({settings[i], StringArray(source)});
+				}
+			}
 		}
 		int used = 0;
-		for (const OneTouchSettings::Setting& setting : item.settings)
+		for (int i = 0; i < OneTouchSettings::NumFactorySettings; i++)
 		{
-			used += setting.used ? 1 : 0;
+			if (!item.variants[i].empty())
+			{
+				item.settings[i] = item.variants[i].front().setting;
+				used++;
+				result.variants += (int)item.variants[i].size();
+			}
 		}
 		if (used > 0)
 		{
@@ -1460,6 +1518,8 @@ FactoryOts::Result FactoryOts::Import(const File& stylesFolder, const File& fact
 			items.push_back(item);
 		}
 	}
+	result.details.add("Versions of the factory OTS: " + String(result.variants) + " (with the default ones); versions of other models left out: " +
+		String(result.otherSkipped) + " (a voice not on the CSP-170)");
 	if (items.empty())
 	{
 		// nothing read (e.g. an empty folder of a model): the factory settings stay as they are
@@ -1486,7 +1546,7 @@ FactoryOts::Result FactoryOts::Import(const File& stylesFolder, const File& fact
 			return result;
 		}
 		const File file = OneTouchSettings::FileIn(newFolder, item.style);
-		if (OneTouchSettings::WriteFile(file, item.style, item.settings, OneTouchSettings::NumFactorySettings))
+		if (OneTouchSettings::WriteFile(file, item.style, item.settings, OneTouchSettings::NumFactorySettings, item.variants))
 		{
 			result.styles++;
 			result.settings += item.used;

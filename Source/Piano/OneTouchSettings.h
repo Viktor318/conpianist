@@ -43,7 +43,9 @@
 // format). One of them or an own setting is active. A factory setting changed while it
 // is active is "modified": the changed version is kept (and recalled, also by OTS Link)
 // until another style is loaded, unless it is discarded, or saved into the factory file
-// (the original is lost then; importing the style files again brings it back). With
+// (the original is lost then; importing the style files again brings it back). A factory
+// setting may have versions: the same OTS as other instruments have it (see Variant); the
+// one chosen is used, its choice is kept for each style and OTS. With
 // OTS Link on, the factory setting of the Main section (A-D: 1-4) is recalled when the
 // style or its Main section changes (not while PianoController suspends it, e.g. while a
 // registration memory is loaded).
@@ -82,6 +84,14 @@ public:
 	{
 		bool used = false;
 		Part parts[NumParts];
+	};
+
+	// A version of a factory setting: as the style files of one or more instruments have
+	// it (the folders of FactoryOts::Sources whose files give the same values).
+	struct Variant
+	{
+		Setting setting;
+		StringArray sources;
 	};
 
 	// folder: the OTS folder in the data folder of the program
@@ -136,6 +146,20 @@ public:
 	// OTS Link: see above.
 	void SetLink(bool link) { m_link = link; }
 	bool GetLink() const { return m_link; }
+	// The versions of a factory setting of the style of the piano (index 0..3); the first
+	// one is the default (the one of the analysis of the style files). With one version
+	// there is nothing to choose.
+	int GetFactoryVariantCount(int index) const;
+	const Variant& GetFactoryVariant(int index, int variant) const;
+	int GetFactoryVariantSelected(int index) const;
+	// Another version of a factory setting is used (and remembered for the style): its
+	// changed version (not saved) is dropped; if it is active, the new version goes to the
+	// piano.
+	void SelectFactoryVariant(int index, int variant);
+	// Two settings are the same version: every value the settings set is the same (the
+	// chorus does not count: it is not used).
+	static bool SameVariant(const Setting& a, const Setting& b);
+
 	// The factory settings were read again (FactoryOts): they are loaded anew.
 	void ReloadFactory();
 	const File& GetFactoryFolder() const { return m_factoryFolder; }
@@ -143,8 +167,15 @@ public:
 	// The file of the settings of a style in a folder of settings, and its reading and
 	// writing (also used by FactoryOts). Write deletes the file if no place is used.
 	static File FileIn(const File& folder, const String& stylePath);
-	static bool ReadFile(const File& file, const String& stylePath, Setting* settings, int count);
-	static bool WriteFile(const File& file, const String& stylePath, const Setting* settings, int count);
+	// Factory settings (variants given: an array of count): the versions of each setting
+	// too. In the file the element of the setting holds the default version (the one used by
+	// earlier versions of the program), the other versions follow it in elements of their
+	// own. Reading a file without versions gives each setting as its only version; writing
+	// with versions takes the versions (their first one as the setting) where there are any.
+	static bool ReadFile(const File& file, const String& stylePath, Setting* settings, int count,
+		std::vector<Variant>* variants = nullptr);
+	static bool WriteFile(const File& file, const String& stylePath, const Setting* settings, int count,
+		const std::vector<Variant>* variants = nullptr);
 
 	// The voice settings of the piano into a place (it becomes the active one).
 	void Store(int index);
@@ -179,6 +210,14 @@ private:
 	File m_factoryFolder;
 	Setting m_factory[NumFactorySettings];
 	Setting m_factoryChanged[NumFactorySettings]; // the changed versions (used: modified)
+	std::vector<Variant> m_factoryVariants[NumFactorySettings]; // the versions (m_factory: the one chosen)
+	int m_factorySelected[NumFactorySettings] = {};
+	// the versions chosen: "<style>|<number>" -> the first instrument of the version
+	// (kept in a file of the OTS folder, so importing the factory settings again keeps them)
+	std::map<String, String> m_variantChoices;
+	File VariantChoicesFile() const;
+	void LoadVariantChoices();
+	void SaveVariantChoices() const;
 	// logs the values of the parts the piano has not taken at a recall
 	void LogNotTaken(int index, const Setting& target);
 	int m_factoryActive = -1;

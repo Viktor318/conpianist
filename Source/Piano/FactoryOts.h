@@ -29,7 +29,13 @@
 // subfolders). A style of the piano gets the four OTS of the style file chosen for it in
 // StyleSources (see FactoryOts.cpp); if that file is not there, of the first style file of
 // the same name (letters and digits only, "&" as "and", without the "_G" at the end of the
-// names of the Genos; in the order of Sources).
+// names of the Genos; in the order of Sources). The style files of the same name of the
+// other models give the other versions of each OTS (see OneTouchSettings::Variant): every
+// version that differs in a value (a voice, octave, volume, pan, reverb, or the Layer on
+// or off) is kept, the models with the same values together; the version of the chosen
+// file is the default one, the others follow in the order of Sources. A version that
+// cannot be used on the CSP-170 is left out; an OTS that the chosen file has not got (or
+// that cannot be used) stays empty, as without the versions.
 //
 // A style file is a MIDI file with Yamaha chunks after it; the OTSc chunk holds the four
 // OTS as tracks of MIDI messages: channel 1 Right 1, 2 Right 2, 3 Right 3, 4 Left (bank
@@ -54,6 +60,8 @@ public:
 		bool sourcesFound = false; // a folder of the style files is there
 		int styles = 0;            // styles with factory settings
 		int settings = 0;          // factory settings taken
+		int variants = 0;          // their versions (with the default ones)
+		int otherSkipped = 0;      // versions of the other models left out (a voice not on the CSP-170)
 		int skipped = 0;           // factory settings left out (a voice not on the CSP-170)
 		int missing = 0;           // styles without a style file
 		int failed = 0;            // styles whose file could not be written

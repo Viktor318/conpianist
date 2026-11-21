@@ -105,7 +105,160 @@ void OtsComponent::FactorySlotButton::paintButton(Graphics& g, bool highlighted,
 		g.setColour((modified ? ModifiedColour : Colours::white).withMultipliedAlpha(isEnabled() ? 1.0f : 0.5f));
 		g.drawRoundedRectangle(getLocalBounds().toFloat().reduced(width / 2), 5.0f, width);
 	}
-	DrawText(g, *this, lit ? Colours::black : Colours::white);
+	const Colour textColour = (lit ? Colours::black : Colours::white).withMultipliedAlpha(isEnabled() ? 1.0f : 0.4f);
+	if (!hasVariants)
+	{
+		DrawText(g, *this, lit ? Colours::black : Colours::white);
+		return;
+	}
+	// the number in the part left of the arrow; a line between them; the arrow
+	const int arrowX = getWidth() - ArrowWidth;
+	g.setFont(Font(FontOptions(15.0f, Font::plain)));
+	g.setColour(textColour);
+	g.drawFittedText(getButtonText(), Rectangle<int>(0, 0, arrowX, getHeight()).reduced(4, 2), Justification::centred, 1);
+	g.fillRect((float)arrowX, 7.0f, 1.0f, (float)getHeight() - 14.0f);
+	const float cx = arrowX + ArrowWidth / 2.0f;
+	const float cy = getHeight() / 2.0f;
+	Path arrow;
+	arrow.addTriangle(cx - 6.0f, cy - 3.0f, cx + 6.0f, cy - 3.0f, cx, cy + 4.0f);
+	g.fillPath(arrow);
+}
+
+// A right click, or a click on the arrow: the list of the versions (not a recall).
+void OtsComponent::FactorySlotButton::mouseDown(const MouseEvent& event)
+{
+	if (hasVariants && onVariantMenu && (event.mods.isPopupMenu() || event.x >= getWidth() - ArrowWidth))
+	{
+		onVariantMenu();
+		return;
+	}
+	TextButton::mouseDown(event);
+}
+
+//==============================================================================
+
+namespace
+{
+	// The name of a model in the list of the versions: without "PSR-" (as in the sketch).
+	String ShortSourceName(const String& source)
+	{
+		return source.startsWith("PSR-") ? source.substring(4) : source;
+	}
+
+	// A version of a factory setting in its list: the instruments (with "(default)" at
+	// the default one), the voices of the Main and the Layer part (the Layer also when it
+	// is off), and fainter the voice of the Left part. A tick and a light orange background
+	// at the version used.
+	class VariantItem : public PopupMenu::CustomComponent
+	{
+	public:
+		VariantItem(const OneTouchSettings::Variant& variant, bool isDefault, bool selected) :
+			PopupMenu::CustomComponent(true), selected(selected)
+		{
+			StringArray names;
+			for (const String& source : variant.sources)
+			{
+				names.add(ShortSourceName(source));
+			}
+			title = names.joinIntoString(CharPointer_UTF8(" Â· "));
+			if (isDefault)
+			{
+				title << " " << TRANS("(default)");
+			}
+			const auto voiceTitle = [](const String& voice)
+				{
+					return voice.isEmpty() ? TRANS("unchanged") : Presets::VoiceTitle(voice);
+				};
+			const OneTouchSettings::Part* parts = variant.setting.parts;
+			voices = voiceTitle(parts[0].voice);
+			if (parts[1].voice.isNotEmpty())
+			{
+				voices << " + " << voiceTitle(parts[1].voice);
+			}
+			left = TRANS(OneTouchSettings::PartNames[2]) + ": " + voiceTitle(parts[2].voice);
+		}
+
+		void getIdealSize(int& idealWidth, int& idealHeight) override
+		{
+			const int width = jmax(GlyphArrangement::getStringWidthInt(TitleFont(), title),
+				GlyphArrangement::getStringWidthInt(VoicesFont(), voices),
+				GlyphArrangement::getStringWidthInt(LeftFont(), left));
+			idealWidth = TextX + width + 14;
+			idealHeight = 54;
+		}
+
+		void paint(Graphics& g) override
+		{
+			const bool highlighted = isItemHighlighted();
+			if (highlighted)
+			{
+				g.fillAll(findColour(PopupMenu::highlightedBackgroundColourId));
+			}
+			else if (selected)
+			{
+				g.fillAll(OrangeColour.withAlpha(0.25f));
+			}
+			const Colour text = findColour(highlighted ? PopupMenu::highlightedTextColourId : PopupMenu::textColourId);
+			if (selected)
+			{
+				g.setColour(highlighted ? text : OrangeColour);
+				const Path tick = getLookAndFeel().getTickShape(1.0f);
+				g.fillPath(tick, tick.getTransformToScaleToFit(Rectangle<float>(7.0f, 10.0f, 13.0f, 13.0f), true));
+			}
+			const int width = getWidth() - TextX - 6;
+			g.setColour(text);
+			g.setFont(TitleFont());
+			g.drawText(title, TextX, 3, width, 18, Justification::centredLeft, true);
+			g.setFont(VoicesFont());
+			g.drawText(voices, TextX, 20, width, 17, Justification::centredLeft, true);
+			g.setColour(text.withMultipliedAlpha(0.6f));
+			g.setFont(LeftFont());
+			g.drawText(left, TextX, 36, width, 15, Justification::centredLeft, true);
+			g.setColour(text.withMultipliedAlpha(0.15f));
+			g.fillRect(TextX, getHeight() - 1, getWidth() - TextX - 6, 1);
+		}
+
+	private:
+		static const int TextX = 28; // room for the tick
+		static Font TitleFont() { return Font(FontOptions(15.0f, Font::bold)); }
+		static Font VoicesFont() { return Font(FontOptions(14.0f, Font::plain)); }
+		static Font LeftFont() { return Font(FontOptions(12.0f, Font::plain)); }
+		String title;
+		String voices;
+		String left;
+		bool selected;
+	};
+}
+
+void OtsComponent::showVariantMenu(int index)
+{
+	const int count = ots.GetFactoryVariantCount(index);
+	if (count < 2)
+	{
+		return;
+	}
+	setMode(Mode::none);
+	PopupMenu menu;
+	const int selected = ots.GetFactoryVariantSelected(index);
+	for (int v = 0; v < count; v++)
+	{
+		menu.addCustomItem(v + 1, std::make_unique<VariantItem>(ots.GetFactoryVariant(index, v), v == 0, v == selected));
+	}
+	// under the button (inside the window also with eight versions)
+	FactorySlotButton& button = factoryButtons[index];
+	menu.showMenuAsync(PopupMenu::Options().withTargetComponent(&button).withMinimumWidth(button.getWidth()),
+		[this, index, safe = Component::SafePointer<OtsComponent>(this)](int result)
+		{
+			if (safe == nullptr)
+			{
+				return;
+			}
+			if (result > 0)
+			{
+				ots.SelectFactoryVariant(index, result - 1);
+			}
+			grabKeyboardFocus();
+		});
 }
 
 //==============================================================================
@@ -190,6 +343,7 @@ OtsComponent::OtsComponent(Settings& settings, PianoController& pianoController,
 				this->ots.RecallFactory(i);
 				grabKeyboardFocus();
 			};
+		factoryButtons[i].onVariantMenu = [this, i]() { showVariantMenu(i); };
 	}
 	initButton(copyFirstButton, TRANS("Copy to 1-4"));
 	copyFirstButton.setTooltip(TRANS("Copies the factory OTS to the own buttons 1-4 (to change them there)"));
@@ -652,10 +806,15 @@ void OtsComponent::update()
 		button.used = ots.IsFactoryUsed(i);
 		button.active = ots.GetFactoryActive() == i;
 		button.modified = ots.IsFactoryModified(i);
+		button.hasVariants = hasStyle && ots.GetFactoryVariantCount(i) > 1;
 		button.setEnabled(hasStyle);
 		String tooltip = ots.DescribeFactory(i);
 		tooltip << (tooltip.isEmpty() ? "" : "\n\n")
 			<< TRANS("Click: recall the factory OTS (Ctrl+FNUMBER)").replace("NUMBER", String(i + 1));
+		if (button.hasVariants)
+		{
+			tooltip << "\n" << TRANS("The arrow or a right click: the versions of other instruments");
+		}
 		button.setTooltip(tooltip);
 		button.repaint();
 	}

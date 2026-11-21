@@ -27,6 +27,7 @@ const char* const OneTouchSettings::PartNames[NumParts] = {"Main", "Layer", "Lef
 static const char* const RootTag = "OneTouchSettings";
 static const char* const FileExtension = ".ots";
 static const char* const FactoryFolderName = "Yamaha"; // in the OTS folder
+static const char* const VariantChoicesName = "FactoryVariants.xml"; // in the OTS folder
 
 bool OneTouchSettings::Part::operator==(const Part& other) const
 {
@@ -41,6 +42,7 @@ OneTouchSettings::OneTouchSettings(const File& folder, PianoController& pianoCon
 {
 	ScanFolder();
 	ScanFactoryFolder();
+	LoadVariantChoices();
 }
 
 OneTouchSettings::~OneTouchSettings()
@@ -661,8 +663,13 @@ void OneTouchSettings::SaveActiveFactory()
 	}
 	m_factory[index] = m_factoryChanged[index];
 	m_factoryChanged[index] = Setting();
+	// into the version chosen; the other versions stay as they are
+	if (!m_factoryVariants[index].empty())
+	{
+		m_factoryVariants[index][(size_t)m_factorySelected[index]].setting = m_factory[index];
+	}
 	// only the original settings go into the file (the other changed versions stay changed)
-	if (WriteFile(FileIn(m_factoryFolder, m_style), m_style, m_factory, NumFactorySettings))
+	if (WriteFile(FileIn(m_factoryFolder, m_style), m_style, m_factory, NumFactorySettings, m_factoryVariants))
 	{
 		m_stylesWithFactory.insert(m_style);
 	}
@@ -752,10 +759,142 @@ void OneTouchSettings::LoadFactory()
 	{
 		m_factory[i] = Setting();
 		m_factoryChanged[i] = Setting(); // the changed versions are kept only for the style
+		m_factoryVariants[i].clear();
+		m_factorySelected[i] = 0;
 	}
-	if (m_style.isNotEmpty() && HasFactorySettings(m_style))
+	if (m_style.isEmpty() || !HasFactorySettings(m_style))
 	{
-		ReadFile(FileIn(m_factoryFolder, m_style), m_style, m_factory, NumFactorySettings);
+		return;
+	}
+	ReadFile(FileIn(m_factoryFolder, m_style), m_style, m_factory, NumFactorySettings, m_factoryVariants);
+	// the versions chosen for the style (the default one if the instrument chosen has none
+	// any more, e.g. after importing the style files again)
+	for (int i = 0; i < NumFactorySettings; i++)
+	{
+		const auto choice = m_variantChoices.find(m_style + "|" + String(i + 1));
+		if (choice == m_variantChoices.end())
+		{
+			continue;
+		}
+		for (size_t v = 0; v < m_factoryVariants[i].size(); v++)
+		{
+			if (m_factoryVariants[i][v].sources.contains(choice->second))
+			{
+				m_factorySelected[i] = (int)v;
+				m_factory[i] = m_factoryVariants[i][v].setting;
+				break;
+			}
+		}
+	}
+}
+
+int OneTouchSettings::GetFactoryVariantCount(int index) const
+{
+	return index >= 0 && index < NumFactorySettings ? (int)m_factoryVariants[index].size() : 0;
+}
+
+const OneTouchSettings::Variant& OneTouchSettings::GetFactoryVariant(int index, int variant) const
+{
+	jassert(variant >= 0 && variant < GetFactoryVariantCount(index));
+	return m_factoryVariants[index][(size_t)variant];
+}
+
+int OneTouchSettings::GetFactoryVariantSelected(int index) const
+{
+	return index >= 0 && index < NumFactorySettings ? m_factorySelected[index] : 0;
+}
+
+void OneTouchSettings::SelectFactoryVariant(int index, int variant)
+{
+	if (variant < 0 || variant >= GetFactoryVariantCount(index) || m_style.isEmpty())
+	{
+		return;
+	}
+	if (variant == m_factorySelected[index] && !IsFactoryModified(index))
+	{
+		return;
+	}
+	m_factorySelected[index] = variant;
+	m_factory[index] = m_factoryVariants[index][(size_t)variant].setting;
+	m_factoryChanged[index] = Setting(); // the changes of the previous version are dropped
+	const String key = m_style + "|" + String(index + 1);
+	const StringArray& sources = m_factoryVariants[index][(size_t)variant].sources;
+	if (variant == 0 || sources.isEmpty())
+	{
+		m_variantChoices.erase(key); // the default one
+	}
+	else
+	{
+		m_variantChoices[key] = sources[0];
+	}
+	SaveVariantChoices();
+	Logger::writeToLog("Factory OTS " + String(index + 1) + " of " + m_style + ": the version of " +
+		(sources.isEmpty() ? String("-") : sources.joinIntoString(", ")));
+	if (m_factoryActive == index)
+	{
+		RecallFactory(index); // the new version to the piano
+	}
+	else
+	{
+		Changed();
+	}
+}
+
+bool OneTouchSettings::SameVariant(const Setting& a, const Setting& b)
+{
+	Setting x = a;
+	Setting y = b;
+	for (int i = 0; i < NumParts; i++)
+	{
+		x.parts[i].chorusSet = y.parts[i].chorusSet = false;
+	}
+	return Same(x, y);
+}
+
+File OneTouchSettings::VariantChoicesFile() const
+{
+	return m_folder.getChildFile(VariantChoicesName);
+}
+
+void OneTouchSettings::LoadVariantChoices()
+{
+	m_variantChoices.clear();
+	std::unique_ptr<XmlElement> root = XmlDocument::parse(VariantChoicesFile());
+	if (!root || !root->hasTagName("FactoryVariants"))
+	{
+		return;
+	}
+	for (XmlElement* element : root->getChildWithTagNameIterator("Choice"))
+	{
+		const String style = element->getStringAttribute("style");
+		const int number = element->getIntAttribute("number");
+		const String source = element->getStringAttribute("source");
+		if (style.isNotEmpty() && number >= 1 && number <= NumFactorySettings && source.isNotEmpty())
+		{
+			m_variantChoices[style + "|" + String(number)] = source;
+		}
+	}
+}
+
+void OneTouchSettings::SaveVariantChoices() const
+{
+	const File file = VariantChoicesFile();
+	if (m_variantChoices.empty())
+	{
+		file.deleteFile();
+		return;
+	}
+	XmlElement root("FactoryVariants");
+	for (const auto& choice : m_variantChoices)
+	{
+		XmlElement* element = root.createNewChildElement("Choice");
+		element->setAttribute("style", choice.first.upToLastOccurrenceOf("|", false, false));
+		element->setAttribute("number", choice.first.fromLastOccurrenceOf("|", false, false).getIntValue());
+		element->setAttribute("source", choice.second);
+	}
+	if (!root.writeTo(file))
+	{
+		Logger::writeToLog("Cannot save the choice of the factory OTS versions: " + file.getFullPathName());
 	}
 }
 
@@ -784,7 +923,72 @@ void OneTouchSettings::Save()
 		TRANS("The OTS could not be saved:") + "\n" + file.getFullPathName());
 }
 
-bool OneTouchSettings::ReadFile(const File& file, const String& stylePath, Setting* settings, int count)
+// The parts of a setting from its element (a setting or a version of it).
+static void ReadParts(const XmlElement& element, OneTouchSettings::Setting& setting)
+{
+	using Part = OneTouchSettings::Part;
+	setting.used = true;
+	for (XmlElement* partElement : element.getChildWithTagNameIterator("Part"))
+	{
+		for (int i = 0; i < OneTouchSettings::NumParts; i++)
+		{
+			if (partElement->getStringAttribute("name") == OneTouchSettings::PartNames[i])
+			{
+				Part& part = setting.parts[i];
+				part.voice = partElement->getStringAttribute("voice");
+				// a missing value is not changed by the setting
+				part.activeSet = partElement->hasAttribute("active");
+				part.active = partElement->getBoolAttribute("active", true);
+				part.valuesSet = partElement->hasAttribute("volume");
+				part.volume = jlimit(PianoController::MinVolume, PianoController::MaxVolume,
+					partElement->getIntAttribute("volume", PianoController::DefaultVolume));
+				part.octave = jlimit(PianoController::MinOctave, PianoController::MaxOctave,
+					partElement->getIntAttribute("octave", PianoController::DefaultOctave));
+				// (not in the files of earlier versions: not changed then)
+				part.effectsSet = partElement->hasAttribute("pan");
+				part.pan = jlimit(PianoController::MinPan, PianoController::MaxPan,
+					partElement->getIntAttribute("pan", PianoController::DefaultPan));
+				part.reverb = jlimit(PianoController::MinReverb, PianoController::MaxReverb,
+					partElement->getIntAttribute("reverb", PianoController::DefaultReverb));
+				part.chorusSet = partElement->hasAttribute("chorus");
+				part.chorus = jlimit(0, 127, partElement->getIntAttribute("chorus", 0));
+			}
+		}
+	}
+}
+
+static void WriteParts(XmlElement& element, const OneTouchSettings::Setting& setting)
+{
+	using Part = OneTouchSettings::Part;
+	for (int i = 0; i < OneTouchSettings::NumParts; i++)
+	{
+		const Part& part = setting.parts[i];
+		XmlElement* partElement = element.createNewChildElement("Part");
+		partElement->setAttribute("name", OneTouchSettings::PartNames[i]);
+		partElement->setAttribute("voice", part.voice);
+		if (part.activeSet)
+		{
+			partElement->setAttribute("active", part.active ? 1 : 0);
+		}
+		if (part.valuesSet)
+		{
+			partElement->setAttribute("volume", part.volume);
+			partElement->setAttribute("octave", part.octave);
+		}
+		if (part.effectsSet)
+		{
+			partElement->setAttribute("pan", part.pan);
+			partElement->setAttribute("reverb", part.reverb);
+		}
+		if (part.chorusSet)
+		{
+			partElement->setAttribute("chorus", part.chorus);
+		}
+	}
+}
+
+bool OneTouchSettings::ReadFile(const File& file, const String& stylePath, Setting* settings, int count,
+	std::vector<Variant>* variants)
 {
 	std::unique_ptr<XmlElement> root = XmlDocument::parse(file);
 	if (!root || !root->hasTagName(RootTag) || root->getStringAttribute("style") != stylePath)
@@ -799,46 +1003,43 @@ bool OneTouchSettings::ReadFile(const File& file, const String& stylePath, Setti
 			continue;
 		}
 		Setting& setting = settings[index];
-		setting.used = true;
-		for (XmlElement* partElement : element->getChildWithTagNameIterator("Part"))
+		ReadParts(*element, setting);
+		if (variants != nullptr)
 		{
-			for (int i = 0; i < NumParts; i++)
+			// the default version first
+			std::vector<Variant>& list = variants[index];
+			list.insert(list.begin(), {setting, StringArray::fromTokens(element->getStringAttribute("sources"), ",", "")});
+		}
+	}
+	if (variants != nullptr)
+	{
+		// the other versions (only with a setting: a version of nothing is not used)
+		for (XmlElement* element : root->getChildWithTagNameIterator("Variant"))
+		{
+			const int index = element->getIntAttribute("number") - 1;
+			if (index < 0 || index >= count || !settings[index].used)
 			{
-				if (partElement->getStringAttribute("name") == PartNames[i])
-				{
-					Part& part = setting.parts[i];
-					part.voice = partElement->getStringAttribute("voice");
-					// a missing value is not changed by the setting
-					part.activeSet = partElement->hasAttribute("active");
-					part.active = partElement->getBoolAttribute("active", true);
-					part.valuesSet = partElement->hasAttribute("volume");
-					part.volume = jlimit(PianoController::MinVolume, PianoController::MaxVolume,
-						partElement->getIntAttribute("volume", PianoController::DefaultVolume));
-					part.octave = jlimit(PianoController::MinOctave, PianoController::MaxOctave,
-						partElement->getIntAttribute("octave", PianoController::DefaultOctave));
-					// (not in the files of earlier versions: not changed then)
-					part.effectsSet = partElement->hasAttribute("pan");
-					part.pan = jlimit(PianoController::MinPan, PianoController::MaxPan,
-						partElement->getIntAttribute("pan", PianoController::DefaultPan));
-					part.reverb = jlimit(PianoController::MinReverb, PianoController::MaxReverb,
-						partElement->getIntAttribute("reverb", PianoController::DefaultReverb));
-					part.chorusSet = partElement->hasAttribute("chorus");
-					part.chorus = jlimit(0, 127, partElement->getIntAttribute("chorus", 0));
-				}
+				continue;
 			}
+			Variant variant;
+			ReadParts(*element, variant.setting);
+			variant.sources = StringArray::fromTokens(element->getStringAttribute("sources"), ",", "");
+			variants[index].push_back(variant);
 		}
 	}
 	return true;
 }
 
-bool OneTouchSettings::WriteFile(const File& file, const String& stylePath, const Setting* settings, int count)
+bool OneTouchSettings::WriteFile(const File& file, const String& stylePath, const Setting* settings, int count,
+	const std::vector<Variant>* variants)
 {
 	bool any = false;
 	XmlElement root(RootTag);
 	root.setAttribute("style", stylePath);
 	for (int index = 0; index < count; index++)
 	{
-		const Setting& setting = settings[index];
+		const bool withVariants = variants != nullptr && !variants[index].empty();
+		const Setting& setting = withVariants ? variants[index].front().setting : settings[index];
 		if (!setting.used)
 		{
 			continue;
@@ -846,30 +1047,26 @@ bool OneTouchSettings::WriteFile(const File& file, const String& stylePath, cons
 		any = true;
 		XmlElement* element = root.createNewChildElement("Setting");
 		element->setAttribute("number", index + 1);
-		for (int i = 0; i < NumParts; i++)
+		if (withVariants && !variants[index].front().sources.isEmpty())
 		{
-			const Part& part = setting.parts[i];
-			XmlElement* partElement = element->createNewChildElement("Part");
-			partElement->setAttribute("name", PartNames[i]);
-			partElement->setAttribute("voice", part.voice);
-			if (part.activeSet)
+			element->setAttribute("sources", variants[index].front().sources.joinIntoString(","));
+		}
+		WriteParts(*element, setting);
+	}
+	// the other versions after the settings (a program that does not know them skips them)
+	for (int index = 0; variants != nullptr && index < count; index++)
+	{
+		for (size_t v = 1; v < variants[index].size(); v++)
+		{
+			const Variant& variant = variants[index][v];
+			if (!variant.setting.used || !variants[index].front().setting.used)
 			{
-				partElement->setAttribute("active", part.active ? 1 : 0);
+				continue;
 			}
-			if (part.valuesSet)
-			{
-				partElement->setAttribute("volume", part.volume);
-				partElement->setAttribute("octave", part.octave);
-			}
-			if (part.effectsSet)
-			{
-				partElement->setAttribute("pan", part.pan);
-				partElement->setAttribute("reverb", part.reverb);
-			}
-			if (part.chorusSet)
-			{
-				partElement->setAttribute("chorus", part.chorus);
-			}
+			XmlElement* element = root.createNewChildElement("Variant");
+			element->setAttribute("number", index + 1);
+			element->setAttribute("sources", variant.sources.joinIntoString(","));
+			WriteParts(*element, variant.setting);
 		}
 	}
 

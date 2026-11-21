@@ -431,6 +431,8 @@ countries: hu
 "Continue?" = "Folytatja?"
 "Click: recall the factory OTS (Ctrl+FNUMBER)" = "Kattintás: a gyári OTS behívása (Ctrl+FNUMBER)"
 "unchanged" = "változatlan"
+"(default)" = "(alap)"
+"The arrow or a right click: the versions of other instruments" = "A nyíl vagy jobb klikk: más hangszerek változatai"
 "Factory OTS 1 - 4" = "1 – 4. gyári OTS"
 "TOOLS" = "ESZKÖZÖK"
 "Import factory OTS" = "Gyári OTS beolvasása"

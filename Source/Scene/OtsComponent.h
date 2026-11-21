@@ -65,14 +65,19 @@ public:
 
 	// A place of a factory setting: orange when active, a white frame when it holds a
 	// setting, a red frame when it is modified (active or not: the changed versions are
-	// kept until another style is loaded).
+	// kept until another style is loaded). If it has versions (other instruments), an
+	// arrow at its right side: the arrow or a right click opens the list of the versions.
 	class FactorySlotButton : public TextButton
 	{
 	public:
 		bool active = false;
 		bool used = false;
 		bool modified = false;
+		bool hasVariants = false;
+		std::function<void()> onVariantMenu;
+		static const int ArrowWidth = 26;
 		void paintButton(Graphics& g, bool highlighted, bool down) override;
+		void mouseDown(const MouseEvent& event) override;
 	};
 
 private:
@@ -147,6 +152,8 @@ private:
 	// (the original is lost)
 	void askSaveFactory();
 	void showVoiceMenu(int part);
+	// the versions of a factory setting under its button
+	void showVariantMenu(int index);
 	void update();
 	void updateParts();
 	void changeListenerCallback(ChangeBroadcaster*) override;
