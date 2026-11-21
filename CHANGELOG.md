@@ -6,6 +6,7 @@ Ez a fájl a ConPianist változásait dokumentálja. Az 1.0–3.0 verziók az er
 
 ### Javítva
 - **Felvétel: a kvantálás ütemmutató-váltás után is a fájl ütemeihez igazodik.** Ha felvétel közben megváltozott az ütemmutató (például más ütemű stílusra váltottál), a mentett fájlban a váltás helyesen az ütemvonalra került, a kvantálás viszont továbbra is a kezdő ütemmutató szerinti ütemekben számolt a fájl elejétől. Így a váltás után a triolák szétszakadhattak, és ha a rács nem osztotta az új ütemet (például negyedes rács 3/8-ban), a hangok az ütések mellé kerültek. Most a hangok és az akkordjelek a saját ütemük rácsára kerülnek. Ütemmutató-váltás nélkül a mentett fájl nem változott.
+- **Az élő játék a Keverő csatornáin és a szekcióváltás nem késik, amíg a program a zongora visszaigazolására vár.** A virtuális billentyűzeten vagy a MIDI In 2-n játszott hangok, a pedál és a többi vezérlő, valamint a kíséret szekcióváltása (Intro, Main A–D, Fill In, Break, Ending) eddig ugyanabban a sorban várt, mint a zongora beállító üzenetei, így egy OTS-behívás, hangszínváltás vagy csatlakozás alatt másodperceket is késhetett. Most azonnal a zongorára megy, ahogy a saját lejátszó dala. Ha a kapcsolat közben újraindul, a hangok vége sem vész el (nincs beragadó hang). A beállító üzenetek (hangszín, hangerő, tér, zengetés) sorrendje nem változott: ha a sor éppen áll, egy frissen átállított csatorna első hangjai még a régi hangszínnel szólhatnak, és a közvetlenül stílusváltás után kért szekció a stílus betöltése alatt érkezik a zongorához.
 
 ## 5.0.1 (fork) – 2026. november 18.
 

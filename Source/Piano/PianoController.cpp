@@ -2480,7 +2480,10 @@ void PianoController::SetLivePianoKeyboard(bool enabled, bool available)
 }
 
 // Sends a Live Play message: on a Mixer channel (1..16) like the song, or on the piano's
-// own keyboard parts (17: the second MIDI port, channel 1).
+// own keyboard parts (17: the second MIDI port, channel 1). What is played goes out at
+// once, like the notes of the song: it does not wait in the queue behind the piano
+// messages that wait for the confirmation of the piano (e.g. while an OTS is recalled),
+// and it is not lost if the queue is cleared (no hanging notes).
 void PianoController::SendLive(int channel, const MidiMessage& message)
 {
 	MidiMessage copy(message);
@@ -2500,12 +2503,7 @@ void PianoController::SendLive(int channel, const MidiMessage& message)
 		AddNoteActivity(channel, message.getVelocity());
 	}
 	copy.setChannel(channel);
-	if (m_liveSendNow && !m_genericDevice)
-	{
-		m_pianoConnector->SendMidiMessageNow(copy);
-		return;
-	}
-	SendMidiMessage(copy);
+	SendToOutput(copy);
 }
 
 // Recording of the notes played on the piano's keyboard parts from here (the piano does
@@ -3279,13 +3277,16 @@ void PianoController::SetStyleSyncStart(bool on)
 
 // The piano rejects setting the section property; the section is changed with the
 // Section Control system exclusive message of the Yamaha style format, as an arranger
-// keyboard connected to the piano does it.
+// keyboard connected to the piano does it. Sent at once, not through the queue: a
+// section asked for while the piano messages wait for a confirmation (e.g. an OTS is
+// recalled) would be late.
 void PianoController::SendStyleSection(int section, bool on)
 {
 	if (m_connected && section >= 0 && section < 0x7f)
 	{
 		const uint8 data[] = {0x43, 0x7e, 0x00, (uint8)section, (uint8)(on ? 0x7f : 0x00)};
-		m_pianoConnector->SendMidiMessage(MidiMessage::createSysExMessage(data, sizeof(data)));
+		Logger::writeToLog("[MIDI] SEND NOW style section " + String(section) + (on ? " on" : " off"));
+		m_pianoConnector->SendMidiMessageNow(MidiMessage::createSysExMessage(data, sizeof(data)));
 	}
 }
 
@@ -3454,9 +3455,7 @@ void PianoController::ReleaseLive()
 		return;
 	}
 
-	m_liveSendNow = true;
 	ReleaseLiveChannels(held);
-	m_liveSendNow = false;
 	m_liveSustainValue = 0;
 }
 

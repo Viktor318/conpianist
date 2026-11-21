@@ -831,7 +831,6 @@ private:
 	int m_liveSustainValue = 0;       // the last sustain pedal value played (0: up)
 	int m_liveSuspendedPiano = 0;     // channels released by SuspendLive on the piano
 	int m_liveSuspendedDevice = 0;    // ... and on the MIDI device (MIDI Out)
-	bool m_liveSendNow = false;       // ReleaseLive: send without the queue
 	LiveChannelState m_liveState[16];
 	int m_liveOctave[16] = {};        // Live Play octave of each Mixer channel
 	int LiveOctaveShift(int midiChannel) const;
